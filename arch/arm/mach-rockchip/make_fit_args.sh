@@ -22,7 +22,7 @@ function help()
 	echo "--------------------------------------------------------------------------------------------"
 	echo "    -c [comp]     ==>   <string>   COMPRESSION           set compression: \"none\", \"gzip\""
 	echo "    -m [offset]   ==>   <hex>      MCU_LOAD_ADDR         set mcu.bin load address"
-	echo "    -t [offset]   ==>   <hex>      TEE_LOAD_ADDR         set tee.bin load address"
+	echo "    -t [offset]   ==>   <hex>      TEE_LOAD_ADDR         set tee.bi load address"
 	echo "    (none)        ==>   <hex>      UBOOT_LOAD_ADDR       set U-Boot load address"
 	echo "    (none)        ==>   <string>   ARCH                  set arch: \"arm\", \"arm64\""
 	echo

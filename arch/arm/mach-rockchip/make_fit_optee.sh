@@ -24,8 +24,8 @@ fi
 # digest
 if [ "${COMPRESSION}" == "gzip" ]; then
 	openssl dgst -sha256 -binary -out ${srctree}/u-boot-nodtb.digest ${srctree}/u-boot-nodtb.bin
-	openssl dgst -sha256 -binary -out ${srctree}/tee.digest ${srctree}/tee.bin
-	gzip -k -f -9 ${srctree}/tee.bin
+	openssl dgst -sha256 -binary -out ${srctree}/tee.digest ${srctree}/tee.bi
+	gzip -k -f -9 ${srctree}/tee.bi
 	UBOOT_SZ=`ls -l u-boot-nodtb.bin | awk '{ print $5 }'`
 	if [ ${UBOOT_SZ} -gt 0 ]; then
 		gzip -k -f -9 ${srctree}/u-boot-nodtb.bin
@@ -122,7 +122,7 @@ cat << EOF
 		};
 		optee {
 			description = "OP-TEE";
-			data = /incbin/("./tee.bin${SUFFIX}");
+			data = /incbin/("./tee.bi${SUFFIX}");
 			type = "firmware";
 			arch = "arm";
 			os = "op-tee";

@@ -130,7 +130,7 @@ function generate_bl32_node()
 
 	echo "		optee {
 			description = \"OP-TEE\";
-			data = /incbin/(\"./tee.bin${SUFFIX}\");
+			data = /incbin/(\"./tee.bi${SUFFIX}\");
 			type = \"firmware\";
 			arch = \"arm64\";
 			os = \"op-tee\";
@@ -141,11 +141,11 @@ function generate_bl32_node()
 			};"
 	if [ "${COMPRESSION}" == "gzip" ]; then
 		echo "			digest {
-				value = /incbin/(\"./tee.bin.digest\");
+				value = /incbin/(\"./tee.bi.digest\");
 				algo = \"sha256\";
 			};"
-		openssl dgst -sha256 -binary -out tee.bin.digest tee.bin
-		gzip -k -f -9 tee.bin
+		openssl dgst -sha256 -binary -out tee.bi.digest tee.bi
+		gzip -k -f -9 tee.bi
 	fi
 
 	LOADABLE_OPTEE=", \"optee\""
