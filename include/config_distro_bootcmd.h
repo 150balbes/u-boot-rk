@@ -376,7 +376,8 @@
 					"bootfstype; then "               \
 				"run scan_dev_for_boot; "                 \
 			"fi; "                                            \
-		"done\0"                                                  \
+		"done; "                                                  \
+		"setenv devplist\0"					  \
 	\
 	BOOT_TARGET_DEVICES(BOOTENV_DEV)                                  \
 	\
