@@ -371,11 +371,7 @@
 		"part list ${devtype} ${devnum} devplist; "     \
 		"env exists devplist || setenv devplist 1; "              \
 		"for distro_bootpart in ${devplist}; do "                 \
-			"if fstype ${devtype} "                           \
-					"${devnum}:${distro_bootpart} "   \
-					"bootfstype; then "               \
-				"run scan_dev_for_boot; "                 \
-			"fi; "                                            \
+			"run scan_dev_for_boot; "                 \
 		"done; "                                                  \
 		"setenv devplist\0"					  \
 	\
