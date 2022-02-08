@@ -368,12 +368,15 @@
 		"\0"                                                      \
 	\
 	"scan_dev_for_boot_part="                                         \
-		"part list ${devtype} ${devnum} devplist; "     \
+		"part list ${devtype} ${devnum} -bootable devplist; "     \
 		"env exists devplist || setenv devplist 1; "              \
 		"for distro_bootpart in ${devplist}; do "                 \
-			"run scan_dev_for_boot; "                 \
-		"done; "                                                  \
-		"setenv devplist\0"					  \
+			"if fstype ${devtype} "                           \
+					"${devnum}:${distro_bootpart} "   \
+					"bootfstype; then "               \
+				"run scan_dev_for_boot; "                 \
+			"fi; "                                            \
+		"done\0"                                                  \
 	\
 	BOOT_TARGET_DEVICES(BOOTENV_DEV)                                  \
 	\
