@@ -58,6 +58,12 @@
 #include <efi_loader.h>
 #include <sysmem.h>
 #include <bidram.h>
+#ifdef CONFIG_MTD_BLK
+#ifndef CONFIG_USING_KERNEL_DTB
+#include <boot_rkimg.h>
+#include <mtd_blk.h>
+#endif
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -885,6 +891,9 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_USING_KERNEL_DTB
 	initr_env_nowhere,
 #endif
+#ifndef CONFIG_USING_KERNEL_DTB
+	initr_env,
+#endif
 #if defined(CONFIG_BOARD_EARLY_INIT_R)
 	board_early_init_r,
 #endif
@@ -960,9 +969,6 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #ifdef CONFIG_MMC
 	initr_mmc,
-#endif
-#ifndef CONFIG_USING_KERNEL_DTB
-	initr_env,
 #endif
 #ifdef CONFIG_SYS_BOOTPARAMS_LEN
 	initr_malloc_bootparams,
