@@ -162,8 +162,6 @@ dtb-$(CONFIG_ROCKCHIP_RK3399) += \
 
 dtb-$(CONFIG_ROCKCHIP_RK3568) += \
 	rk3568-evb.dtb \
-#	rk3566-firefly-roc-pc.dtb \
-#	rk3568-firefly-roc-pc.dtb \
 	rk3566-pinenote.dtb \
 	rk3566-quartz64-a.dtb \
 	rk3566-quartz64-b.dtb
