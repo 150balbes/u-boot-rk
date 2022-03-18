@@ -7,6 +7,7 @@
 
 #ifndef __ASSEMBLY__
 /* Hardware Page Table Entry */
+#include <linux/bitops.h>
 typedef struct _PTE {
 #ifdef CONFIG_PPC64BRIDGE
 	unsigned long long vsid:52;
@@ -135,10 +136,6 @@ typedef struct _MMU_context {
 
 extern void _tlbie(unsigned long va);	/* invalidate a TLB entry */
 extern void _tlbia(void);		/* invalidate all TLB entries */
-
-#ifdef CONFIG_ADDR_MAP
-extern void init_addr_map(void);
-#endif
 
 typedef enum {
 	IBAT0 = 0, IBAT1, IBAT2, IBAT3,

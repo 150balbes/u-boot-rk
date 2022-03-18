@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * From coreboot file of same name
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _PCI_ROM_H
@@ -61,7 +60,7 @@ int dm_pci_run_vga_bios(struct udevice *dev, int (*int15_handler)(void),
  * the mapping ourselves.
  *
  * @vendev:	Vendor and device for the video device
- * @return standard vendor and device expected by the ROM
+ * Return: standard vendor and device expected by the ROM
  */
 uint32_t board_map_oprom_vendev(uint32_t vendev);
 

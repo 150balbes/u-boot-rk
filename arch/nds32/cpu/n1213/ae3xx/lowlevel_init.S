@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Andes Technology Corporation
  * Shawn Lin, Andes Technology Corporation <nobuhiro@andestech.com>
  * Macpaul Lin, Andes Technology Corporation <macpaul@andestech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 .pic
@@ -39,9 +38,9 @@
  * for Orca and Emerald
  */
 #define BOARD_ID_REG		0x104
-#define BOARD_ID_FAMILY_MASK 	0xfff000
-#define BOARD_ID_FAMILY_V5   	0x556000
-#define BOARD_ID_FAMILY_K7   	0x74b000
+#define BOARD_ID_FAMILY_MASK	0xfff000
+#define BOARD_ID_FAMILY_V5	0x556000
+#define BOARD_ID_FAMILY_K7	0x74b000
 
 /*
  * parameters for the static memory controller
@@ -95,7 +94,7 @@ mem_init:
 	move	  $lp, $r11
 	ret
 
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
 .globl	lowlevel_init
 lowlevel_init:
 	move	$r10, $lp
@@ -145,4 +144,4 @@ enable_fpu:
 	ret
 #endif
 
-#endif /* #ifndef CONFIG_SKIP_LOWLEVEL_INIT */
+#endif /* #if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT) */

@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008, Freescale Semiconductor, Inc
  * Andy Fleming
  *
  * Based vaguely on the Linux code
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
+#include <blk.h>
 #include <dm.h>
 #include <part.h>
 #include <div64.h>
@@ -20,7 +20,6 @@ static ulong mmc_erase_t(struct mmc *mmc, ulong start, lbaint_t blkcnt)
 	struct mmc_cmd cmd;
 	ulong end;
 	int err, start_cmd, end_cmd;
-	uint erase_mode;
 
 	if (mmc->high_capacity) {
 		end = start + blkcnt - 1;
@@ -29,24 +28,12 @@ static ulong mmc_erase_t(struct mmc *mmc, ulong start, lbaint_t blkcnt)
 		start *= mmc->write_bl_len;
 	}
 
-	/*
-	 * The SD card have just one erase mode, the erase command
-	 * perform an erase on the sector(s).
-	 * The Emmc have four erase mode. We use the trim mode with
-	 * cmd.cmdarg equal to MMC_TRIM_ARG which command performs an
-	 * erase on the sector(s).
-	 */
 	if (IS_SD(mmc)) {
 		start_cmd = SD_CMD_ERASE_WR_BLK_START;
 		end_cmd = SD_CMD_ERASE_WR_BLK_END;
-		erase_mode = MMC_ERASE_ARG;
 	} else {
 		start_cmd = MMC_CMD_ERASE_GROUP_START;
 		end_cmd = MMC_CMD_ERASE_GROUP_END;
-		if (mmc->esr.mmc_can_trim)
-			erase_mode = MMC_TRIM_ARG;
-		else
-			erase_mode = MMC_ERASE_ARG;
 	}
 
 	cmd.cmdidx = start_cmd;
@@ -65,7 +52,7 @@ static ulong mmc_erase_t(struct mmc *mmc, ulong start, lbaint_t blkcnt)
 		goto err_out;
 
 	cmd.cmdidx = MMC_CMD_ERASE;
-	cmd.cmdarg = erase_mode;
+	cmd.cmdarg = MMC_ERASE_ARG;
 	cmd.resp_type = MMC_RSP_R1b;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
@@ -79,84 +66,65 @@ err_out:
 	return err;
 }
 
-#ifdef CONFIG_BLK
+#if CONFIG_IS_ENABLED(BLK)
 ulong mmc_berase(struct udevice *dev, lbaint_t start, lbaint_t blkcnt)
 #else
 ulong mmc_berase(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt)
 #endif
 {
-#ifdef CONFIG_BLK
-	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+#if CONFIG_IS_ENABLED(BLK)
+	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
 #endif
 	int dev_num = block_dev->devnum;
 	int err = 0;
 	u32 start_rem, blkcnt_rem;
 	struct mmc *mmc = find_mmc_device(dev_num);
 	lbaint_t blk = 0, blk_r = 0;
-	int timeout = 1000;
-	int mode = 0;
+	int timeout_ms = 1000;
 
 	if (!mmc)
 		return -1;
 
-	if (!blkcnt)
-		return 0;
-
 	err = blk_select_hwpart_devnum(IF_TYPE_MMC, dev_num,
 				       block_dev->hwpart);
-
 	if (err < 0)
 		return -1;
 
-	if (!IS_SD(mmc)) {
-		if (mmc->esr.mmc_can_trim)
-			mode = 1;
-	}
+	/*
+	 * We want to see if the requested start or total block count are
+	 * unaligned.  We discard the whole numbers and only care about the
+	 * remainder.
+	 */
+	err = div_u64_rem(start, mmc->erase_grp_size, &start_rem);
+	err = div_u64_rem(blkcnt, mmc->erase_grp_size, &blkcnt_rem);
+	if (start_rem || blkcnt_rem)
+		printf("\n\nCaution! Your devices Erase group is 0x%x\n"
+		       "The erase range would be change to "
+		       "0x" LBAF "~0x" LBAF "\n\n",
+		       mmc->erase_grp_size, start & ~(mmc->erase_grp_size - 1),
+		       ((start + blkcnt + mmc->erase_grp_size)
+		       & ~(mmc->erase_grp_size - 1)) - 1);
 
-	if (mode) {
-		err = mmc_erase_t(mmc, start, blkcnt);
-		if (err)
-			return err;
-		if (mmc_send_status(mmc, timeout))
-			return 0;
-
-		return blkcnt;
-	} else {
-		/*
-		 * We want to see if the requested start or total block
-		 * count are unaligned.  We discard the whole numbers and
-		 * only care about the remainder.
-		 */
-		err = div_u64_rem(start, mmc->erase_grp_size, &start_rem);
-		err = div_u64_rem(blkcnt, mmc->erase_grp_size, &blkcnt_rem);
-		if (start_rem || blkcnt_rem)
-			printf("\n\nCaution! Your devices Erase group is 0x%x\n"
-			       "The erase range would be change to "
-			       "0x" LBAF "~0x" LBAF "\n\n",
-			       mmc->erase_grp_size,
-			       start & ~(mmc->erase_grp_size - 1),
-			       ((start + blkcnt + mmc->erase_grp_size)
-			       & ~(mmc->erase_grp_size - 1)) - 1);
-		while (blk < blkcnt) {
-			if (IS_SD(mmc) && mmc->ssr.au) {
-				blk_r = ((blkcnt - blk) > mmc->ssr.au) ?
+	while (blk < blkcnt) {
+		if (IS_SD(mmc) && mmc->ssr.au) {
+			blk_r = ((blkcnt - blk) > mmc->ssr.au) ?
 				mmc->ssr.au : (blkcnt - blk);
-			} else {
-				blk_r = ((blkcnt - blk) > mmc->erase_grp_size) ?
-					mmc->erase_grp_size : (blkcnt - blk);
-			}
-			err = mmc_erase_t(mmc, start + blk, blk_r);
-			if (err)
-				break;
-
-			blk += blk_r;
-
-			/* Waiting for the ready status */
-			if (mmc_send_status(mmc, timeout))
-				return 0;
+		} else {
+			blk_r = ((blkcnt - blk) > mmc->erase_grp_size) ?
+				mmc->erase_grp_size : (blkcnt - blk);
 		}
-		return blk;
+		err = mmc_erase_t(mmc, start + blk, blk_r);
+		if (err)
+			break;
+
+		blk += blk_r;
+
+		/* Waiting for the ready status */
+		if (mmc_poll_for_busy(mmc, timeout_ms))
+			return 0;
 	}
+
+	return blk;
 }
 
 static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
@@ -164,7 +132,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 {
 	struct mmc_cmd cmd;
 	struct mmc_data data;
-	int timeout = 1000;
+	int timeout_ms = 1000;
 
 	if ((start + blkcnt) > mmc_get_blk_desc(mmc)->lba) {
 		printf("MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")\n",
@@ -210,13 +178,13 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	}
 
 	/* Waiting for the ready status */
-	if (mmc_send_status(mmc, timeout))
+	if (mmc_poll_for_busy(mmc, timeout_ms))
 		return 0;
 
 	return blkcnt;
 }
 
-#ifdef CONFIG_BLK
+#if CONFIG_IS_ENABLED(BLK)
 ulong mmc_bwrite(struct udevice *dev, lbaint_t start, lbaint_t blkcnt,
 		 const void *src)
 #else
@@ -224,8 +192,8 @@ ulong mmc_bwrite(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
 		 const void *src)
 #endif
 {
-#ifdef CONFIG_BLK
-	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+#if CONFIG_IS_ENABLED(BLK)
+	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
 #endif
 	int dev_num = block_dev->devnum;
 	lbaint_t cur, blocks_todo = blkcnt;

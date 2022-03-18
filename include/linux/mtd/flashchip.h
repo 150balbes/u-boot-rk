@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright © 2000      Red Hat UK Limited
  * Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
@@ -51,7 +50,6 @@ typedef enum {
 
 	FL_UNKNOWN
 } flstate_t;
-
 
 
 /* NOTE: confusingly, this can be used to refer to more than one chip at a time,

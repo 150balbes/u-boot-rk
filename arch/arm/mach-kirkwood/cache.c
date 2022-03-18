@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2012 Michael Walle
  * Michael Walle <michael@walle.cc>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <asm/arch/cpu.h>
+#include <asm/cache.h>
 
 #define FEROCEON_EXTRA_FEATURE_L2C_EN (1<<22)
 

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2010-2015, NVIDIA CORPORATION.  All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
+ * Copyright (c) 2010-2019, NVIDIA CORPORATION.  All rights reserved.
  */
 
 /* Tegra SoC common clock control functions */
@@ -10,6 +9,8 @@
 #include <div64.h>
 #include <dm.h>
 #include <errno.h>
+#include <log.h>
+#include <time.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/tegra.h>
@@ -17,6 +18,7 @@
 #include <asm/arch-tegra/clk_rst.h>
 #include <asm/arch-tegra/pmc.h>
 #include <asm/arch-tegra/timer.h>
+#include <linux/delay.h>
 
 /*
  * This is our record of the current clock rate of each clock. We don't
@@ -241,7 +243,7 @@ void clock_ll_set_source(enum periph_id periph_id, unsigned source)
  * @param divider_bits	number of divider bits (8 or 16)
  * @param parent_rate	clock rate of parent clock in Hz
  * @param rate		required clock rate for this clock
- * @return divider which should be used
+ * Return: divider which should be used
  */
 static int clk_get_divider(unsigned divider_bits, unsigned long parent_rate,
 			   unsigned long rate)
@@ -295,7 +297,7 @@ int clock_set_pllout(enum clock_id clkid, enum pll_out_id pllout, unsigned rate)
  *
  * @param parent_rate	clock rate of parent clock in Hz
  * @param divider which should be used in 7.1 format
- * @return effective clock rate of peripheral
+ * Return: effective clock rate of peripheral
  */
 static unsigned long get_rate_from_divider(unsigned long parent_rate,
 					   int divider)
@@ -363,7 +365,7 @@ unsigned long clock_get_periph_rate(enum periph_id periph_id,
  * @param rate		required clock rate for this clock
  * @param extra_div	value for the second-stage divisor (not set if this
  *			function returns -1.
- * @return divider which should be used, or -1 if nothing is valid
+ * Return: divider which should be used, or -1 if nothing is valid
  *
  */
 static int find_best_divider(unsigned divider_bits, unsigned long parent_rate,
@@ -401,7 +403,7 @@ static int find_best_divider(unsigned divider_bits, unsigned long parent_rate,
  * @param source	Source number (0-3 or 0-7)
  * @param mux_bits	Number of mux bits (2 or 4)
  * @param divider	Required divider in 7.1 or 15.1 format
- * @return 0 if ok, -1 on error (requesting a parent clock which is not valid
+ * Return: 0 if ok, -1 on error (requesting a parent clock which is not valid
  *		for this peripheral)
  */
 static int adjust_periph_pll(enum periph_id periph_id, int source,
@@ -478,6 +480,7 @@ unsigned clock_start_periph_pll(enum periph_id periph_id,
 
 	reset_set_enable(periph_id, 1);
 	clock_enable(periph_id);
+	udelay(2);
 
 	effective_rate = clock_adjust_periph_pll_div(periph_id, parent, rate,
 						 NULL);
@@ -583,7 +586,7 @@ unsigned clock_get_rate(enum clock_id clkid)
  * @param m PLL input divider(DIVN)
  * @param p post divider(DIVP)
  * @param cpcon base PLL charge pump(CPCON)
- * @return 0 if ok, -1 on error (the requested PLL is incorrect and cannot
+ * Return: 0 if ok, -1 on error (the requested PLL is incorrect and cannot
  *		be overridden), 1 if PLL is already correct
  */
 int clock_set_rate(enum clock_id clkid, u32 n, u32 m, u32 p, u32 cpcon)
@@ -815,11 +818,16 @@ void tegra30_set_up_pllp(void)
 
 int clock_external_output(int clk_id)
 {
-	struct pmc_ctlr *pmc = (struct pmc_ctlr *)NV_PA_PMC_BASE;
+	u32 val;
 
 	if (clk_id >= 1 && clk_id <= 3) {
-		setbits_le32(&pmc->pmc_clk_out_cntrl,
-			     1 << (2 + (clk_id - 1) * 8));
+		val = tegra_pmc_readl(offsetof(struct pmc_ctlr,
+				      pmc_clk_out_cntrl));
+		val |= 1 << (2 + (clk_id - 1) * 8);
+		tegra_pmc_writel(val,
+				 offsetof(struct pmc_ctlr,
+				 pmc_clk_out_cntrl));
+
 	} else {
 		printf("%s: Unknown output clock id %d\n", __func__, clk_id);
 		return -EINVAL;

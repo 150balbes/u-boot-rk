@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/immap.h>
 #include <asm/cache.h>
 
@@ -80,7 +80,7 @@ void icache_invalid(void)
 }
 
 /*
- * data cache only for ColdFire V4 such as MCF547x_8x, MCF5445x
+ * data cache only for ColdFire V4 such as MCF5445x
  * the dcache will be dummy in ColdFire V2 and V3
  */
 void dcache_enable(void)

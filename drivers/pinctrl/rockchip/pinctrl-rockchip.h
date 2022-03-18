@@ -7,6 +7,7 @@
 #define __DRIVERS_PINCTRL_ROCKCHIP_H
 
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 
 #define RK_GENMASK_VAL(h, l, v) \
@@ -46,9 +47,6 @@ struct rockchip_iomux {
 	int				offset;
 };
 
-#define DRV_TYPE_IO_MASK		GENMASK(31, 16)
-#define DRV_TYPE_WRITABLE_32BIT		BIT(31)
-
 /**
  * enum type index corresponding to rockchip_perpin_drv_list arrays index.
  */
@@ -60,9 +58,6 @@ enum rockchip_pin_drv_type {
 	DRV_TYPE_IO_3V3_ONLY,
 	DRV_TYPE_MAX
 };
-
-#define PULL_TYPE_IO_MASK		GENMASK(31, 16)
-#define PULL_TYPE_WRITABLE_32BIT	BIT(31)
 
 /**
  * enum type index corresponding to rockchip_pull_list arrays index.
@@ -152,21 +147,6 @@ struct rockchip_pin_bank {
 		},							\
 	}
 
-#define PIN_BANK_IOMUX_FLAGS_OFFSET(id, pins, label, iom0, iom1, iom2,	\
-				    iom3, offset0, offset1, offset2,	\
-				    offset3)				\
-	{								\
-		.bank_num	= id,					\
-		.nr_pins	= pins,					\
-		.name		= label,				\
-		.iomux		= {					\
-			{ .type = iom0, .offset = offset0 },		\
-			{ .type = iom1, .offset = offset1 },		\
-			{ .type = iom2, .offset = offset2 },		\
-			{ .type = iom3, .offset = offset3 },		\
-		},							\
-	}
-
 #define PIN_BANK_DRV_FLAGS(id, pins, label, type0, type1, type2, type3) \
 	{								\
 		.bank_num	= id,					\
@@ -231,32 +211,6 @@ struct rockchip_pin_bank {
 			{ .drv_type = drv2, .offset = offset2 },	\
 			{ .drv_type = drv3, .offset = offset3 },	\
 		},							\
-	}
-
-#define PIN_BANK_IOMUX_DRV_PULL_FLAGS(id, pins, label, iom0, iom1,	\
-				      iom2, iom3, drv0, drv1, drv2,	\
-				      drv3, pull0, pull1, pull2,	\
-				      pull3)				\
-	{								\
-		.bank_num	= id,					\
-		.nr_pins	= pins,					\
-		.name		= label,				\
-		.iomux		= {					\
-			{ .type = iom0, .offset = -1 },			\
-			{ .type = iom1, .offset = -1 },			\
-			{ .type = iom2, .offset = -1 },			\
-			{ .type = iom3, .offset = -1 },			\
-		},							\
-		.drv		= {					\
-			{ .drv_type = drv0, .offset = -1 },		\
-			{ .drv_type = drv1, .offset = -1 },		\
-			{ .drv_type = drv2, .offset = -1 },		\
-			{ .drv_type = drv3, .offset = -1 },		\
-		},							\
-		.pull_type[0] = pull0,					\
-		.pull_type[1] = pull1,					\
-		.pull_type[2] = pull2,					\
-		.pull_type[3] = pull3,					\
 	}
 
 #define PIN_BANK_IOMUX_FLAGS_DRV_FLAGS_OFFSET_PULL_FLAGS(id, pins,	\
@@ -377,6 +331,8 @@ extern const struct pinctrl_ops rockchip_pinctrl_ops;
 int rockchip_pinctrl_probe(struct udevice *dev);
 void rockchip_get_recalced_mux(struct rockchip_pin_bank *bank, int pin,
 			       int *reg, u8 *bit, int *mask);
+bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
+			    int mux, u32 *reg, u32 *value);
 int rockchip_get_mux_data(int mux_type, int pin, u8 *bit, int *mask);
 int rockchip_translate_drive_value(int type, int strength);
 int rockchip_translate_pull_value(int type, int pull);

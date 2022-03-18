@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002
  * Daniel Engström, Omicron Ceti AB, daniel@omicron.se
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_PROCESSOR_H_
@@ -26,8 +25,6 @@
 /* Length of the public header on Intel microcode blobs */
 #define UCODE_HEADER_LEN	0x30
 
-#ifndef __ASSEMBLY__
-
 /*
  * This register is documented in (for example) the Intel Atom Processor E3800
  * Product Family Datasheet in "PCU - Power Management Controller (PMC)".
@@ -38,16 +35,11 @@
  */
 #define IO_PORT_RESET		0xcf9
 
-enum {
-	SYS_RST		= 1 << 1,	/* 0 for soft reset, 1 for hard reset */
-	RST_CPU		= 1 << 2,	/* initiate reset */
-	FULL_RST	= 1 << 3,	/* full power cycle */
-};
+#define SYS_RST		(1 << 1)	/* 0 for soft reset, 1 for hard reset */
+#define RST_CPU		(1 << 2)	/* initiate reset */
+#define FULL_RST	(1 << 3)	/* full power cycle */
 
-/**
- * x86_full_reset() - reset everything: perform a full power cycle
- */
-void x86_full_reset(void);
+#ifndef __ASSEMBLY__
 
 static inline __attribute__((always_inline)) void cpu_hlt(void)
 {

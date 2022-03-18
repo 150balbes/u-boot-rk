@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Qualcomm pm8916 pmic driver
  *
  * (C) Copyright 2015 Mateusz Kulikowski <mateusz.kulikowski@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
 #include <power/pmic.h>
 #include <spmi/spmi.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 #define PID_SHIFT 8
 #define PID_MASK (0xFF << PID_SHIFT)
@@ -85,5 +82,5 @@ U_BOOT_DRIVER(pmic_pm8916) = {
 	.bind = dm_scan_fdt_dev,
 	.probe = pm8916_probe,
 	.ops = &pm8916_ops,
-	.priv_auto_alloc_size = sizeof(struct pm8916_priv),
+	.priv_auto	= sizeof(struct pm8916_priv),
 };

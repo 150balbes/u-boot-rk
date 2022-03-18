@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012
  * Konstantin Kozhevnikov, Cogent Embedded
@@ -6,14 +7,14 @@
  *
  * (C) Copyright 2006-2008
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <nand.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/rawnand.h>
 
 static int nand_ecc_pos[] = CONFIG_SYS_NAND_ECCPOS;
 static struct mtd_info *mtd;

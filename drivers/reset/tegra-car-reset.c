@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
+#include <malloc.h>
 #include <reset-uclass.h>
 #include <asm/arch/clock.h>
 #include <asm/arch-tegra/clk_rst.h>
@@ -52,7 +53,7 @@ static int tegra_car_reset_deassert(struct reset_ctl *reset_ctl)
 
 struct reset_ops tegra_car_reset_ops = {
 	.request = tegra_car_reset_request,
-	.free = tegra_car_reset_free,
+	.rfree = tegra_car_reset_free,
 	.rst_assert = tegra_car_reset_assert,
 	.rst_deassert = tegra_car_reset_deassert,
 };

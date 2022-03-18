@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_MRC_COMMON_H
@@ -18,7 +17,7 @@
  * @pei_data:	Platform-specific data required by the MRC
  * @use_asm_linkage: true if the call to MRC requires asmlinkage, false if it
  * uses normal U-Boot calling
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int mrc_common_init(struct udevice *dev, void *pei_data, bool use_asm_linkage);
 

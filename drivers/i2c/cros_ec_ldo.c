@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,6 +9,7 @@
 #include <cros_ec.h>
 #include <errno.h>
 #include <i2c.h>
+#include <log.h>
 #include <power/tps65090.h>
 
 static int cros_ec_ldo_set_bus_speed(struct udevice *dev, unsigned int speed)

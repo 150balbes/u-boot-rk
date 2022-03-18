@@ -1,32 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2013 Marek Vasut <marex@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef __CONFIGS_MX23_OLINUXINO_H__
 #define __CONFIGS_MX23_OLINUXINO_H__
 
-/* System configurations */
-#define CONFIG_MX23				/* i.MX23 SoC */
-#define CONFIG_MACH_TYPE	4105
-
 /* U-Boot Commands */
 
 /* Memory configuration */
-#define CONFIG_NR_DRAM_BANKS		1		/* 1 bank of DRAM */
 #define PHYS_SDRAM_1			0x40000000	/* Base address */
 #define PHYS_SDRAM_1_SIZE		0x08000000	/* Max 128 MB RAM */
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
-
-/* Environment */
-#define CONFIG_ENV_OVERWRITE
-
-/* Environment is in MMC */
-#if defined(CONFIG_CMD_MMC) && defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET	(256 * 1024)
-#define CONFIG_ENV_SIZE		(16 * 1024)
-#define CONFIG_SYS_MMC_ENV_DEV	0
-#endif
 
 /* Status LED */
 
@@ -40,8 +24,6 @@
 
 /* Booting Linux */
 #define CONFIG_BOOTFILE		"uImage"
-#define CONFIG_LOADADDR		0x42000000
-#define CONFIG_SYS_LOAD_ADDR	CONFIG_LOADADDR
 
 /* Extra Environment */
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -112,18 +94,6 @@
 		"else " \
 			"bootm; " \
 		"fi;\0"
-
-#define CONFIG_BOOTCOMMAND \
-	"mmc dev ${mmcdev}; if mmc rescan; then " \
-		"if run loadbootscript; then " \
-			"run bootscript; " \
-		"else " \
-			"if run loaduimage; then " \
-				"run mmcboot; " \
-			"else run netboot; " \
-			"fi; " \
-		"fi; " \
-	"else run netboot; fi"
 
 /* The rest of the configuration is shared */
 #include <configs/mxs.h>

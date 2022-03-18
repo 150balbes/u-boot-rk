@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
   dm9000.c: Version 1.2 12/15/2003
 
 	A Davicom DM9000 ISA NIC fast Ethernet driver for Linux.
 	Copyright (C) 1997  Sten Wang
-
- * SPDX-License-Identifier:	GPL-2.0+
 
   (C)Copyright 1997-1998 DAVICOM Semiconductor,Inc. All Rights Reserved.
 
@@ -29,7 +28,7 @@ v1.2   03/18/2003       Weilun Huang <weilun_huang@davicom.com.tw>:
 --------------------------------------
 
        12/15/2003       Initial port to u-boot by
-       			Sascha Hauer <saschahauer@web.de>
+			Sascha Hauer <saschahauer@web.de>
 
        06/03/2008	Remy Bohmer <linux@bohmer.net>
 			- Fixed the driver to work with DM9000A.
@@ -55,6 +54,7 @@ TODO: external MII is not functional, only internal at the moment.
 #include <net.h>
 #include <asm/io.h>
 #include <dm9000.h>
+#include <linux/delay.h>
 
 #include "dm9000x.h"
 
@@ -66,7 +66,7 @@ TODO: external MII is not functional, only internal at the moment.
 #define DM9000_DBG(fmt,args...) printf(fmt, ##args)
 #define DM9000_DMP_PACKET(func,packet,length)  \
 	do { \
-		int i; 							\
+		int i;							\
 		printf("%s: length: %d\n", func, length);		\
 		for (i = 0; i < length; i++) {				\
 			if (i % 8 == 0)					\
@@ -279,7 +279,7 @@ dm9000_reset(void)
 
 /* Initialize dm9000 board
 */
-static int dm9000_init(struct eth_device *dev, bd_t *bd)
+static int dm9000_init(struct eth_device *dev, struct bd_info *bd)
 {
 	int i, oft, lnk;
 	u8 io_mode;
@@ -619,7 +619,7 @@ dm9000_phy_write(int reg, u16 value)
 	DM9000_DBG("dm9000_phy_write(reg:0x%x, value:0x%x)\n", reg, value);
 }
 
-int dm9000_initialize(bd_t *bis)
+int dm9000_initialize(struct bd_info *bis)
 {
 	struct eth_device *dev = &(dm9000_info.netdev);
 

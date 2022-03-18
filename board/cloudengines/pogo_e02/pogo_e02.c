@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012
  * David Purdy <david.c.purdy@gmail.com>
@@ -6,15 +7,17 @@
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
+#include <log.h>
 #include <miiphy.h>
+#include <net.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/mpp.h>
+#include <asm/global_data.h>
 #include "pogo_e02.h"
 
 DECLARE_GLOBAL_DATA_PTR;

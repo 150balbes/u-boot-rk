@@ -1,136 +1,107 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2009
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <bootm.h>
 #include <command.h>
 #include <image.h>
+#include <irq_func.h>
 #include <lmb.h>
+#include <log.h>
 #include <mapmem.h>
+#include <asm/global_data.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-/* See Documentation/arm64/booting.txt in the Linux kernel */
-struct Image_header {
-	uint32_t	code0;		/* Executable code */
-	uint32_t	code1;		/* Executable code */
-	uint64_t	text_offset;	/* Image load offset, LE */
-	uint64_t	image_size;	/* Effective Image size, LE */
-	uint64_t	flags;		/* Kernel flags, LE */
-	uint64_t	res2;		/* reserved */
-	uint64_t	res3;		/* reserved */
-	uint64_t	res4;		/* reserved */
-	uint32_t	magic;		/* Magic number */
-	uint32_t	res5;
-};
-
-#define LINUX_ARM64_IMAGE_MAGIC	0x644d5241
-
-static int booti_setup(bootm_headers_t *images)
-{
-	struct Image_header *ih;
-	uint64_t dst;
-	uint64_t image_size, text_offset;
-
-	ih = (struct Image_header *)map_sysmem(images->ep, 0);
-
-	if (ih->magic != le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC)) {
-		puts("Bad Linux ARM64 Image magic!\n");
-		return 1;
-	}
-
-	/*
-	 * Prior to Linux commit a2c1d73b94ed, the text_offset field
-	 * is of unknown endianness.  In these cases, the image_size
-	 * field is zero, and we can assume a fixed value of 0x80000.
-	 */
-	if (ih->image_size == 0) {
-		puts("Image lacks image_size field, assuming 16MiB\n");
-		image_size = 16 << 20;
-		text_offset = 0x80000;
-	} else {
-		image_size = le64_to_cpu(ih->image_size);
-		text_offset = le64_to_cpu(ih->text_offset);
-	}
-
-	/*
-	 * If bit 3 of the flags field is set, the 2MB aligned base of the
-	 * kernel image can be anywhere in physical memory, so respect
-	 * images->ep.  Otherwise, relocate the image to the base of RAM
-	 * since memory below it is not accessible via the linear mapping.
-	 */
-	if (le64_to_cpu(ih->flags) & BIT(3))
-		dst = images->ep - text_offset;
-	else
-		dst = gd->bd->bi_dram[0].start;
-
-	dst = ALIGN(dst, SZ_2M) + text_offset;
-
-	unmap_sysmem(ih);
-
-	if (images->ep != dst) {
-		void *src;
-
-		debug("Moving Image from 0x%lx to 0x%llx\n", images->ep, dst);
-
-		src = (void *)images->ep;
-		images->ep = dst;
-		memmove((void *)dst, src, image_size);
-	}
-
-	return 0;
-}
-
 /*
  * Image booting support
  */
-static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
-			char * const argv[], bootm_headers_t *images)
+static int booti_start(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[], bootm_headers_t *images)
 {
 	int ret;
-	struct Image_header *ih;
+	ulong ld;
+	ulong relocated_addr;
+	ulong image_size;
+	uint8_t *temp;
+	ulong dest;
+	ulong dest_end;
+	unsigned long comp_len;
+	unsigned long decomp_len;
+	int ctype;
 
 	ret = do_bootm_states(cmdtp, flag, argc, argv, BOOTM_STATE_START,
 			      images, 1);
 
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
-		images->ep = load_addr;
+		ld = image_load_addr;
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				load_addr);
+				image_load_addr);
 	} else {
-		images->ep = simple_strtoul(argv[0], NULL, 16);
-		debug("*  kernel: cmdline image address = 0x%08lx\n",
-			images->ep);
+		ld = hextoul(argv[0], NULL);
+		debug("*  kernel: cmdline image address = 0x%08lx\n", ld);
 	}
 
-	ret = booti_setup(images);
+	temp = map_sysmem(ld, 0);
+	ctype = image_decomp_type(temp, 2);
+	if (ctype > 0) {
+		dest = env_get_ulong("kernel_comp_addr_r", 16, 0);
+		comp_len = env_get_ulong("kernel_comp_size", 16, 0);
+		if (!dest || !comp_len) {
+			puts("kernel_comp_addr_r or kernel_comp_size is not provided!\n");
+			return -EINVAL;
+		}
+		if (dest < gd->ram_base || dest > gd->ram_top) {
+			puts("kernel_comp_addr_r is outside of DRAM range!\n");
+			return -EINVAL;
+		}
+
+		debug("kernel image compression type %d size = 0x%08lx address = 0x%08lx\n",
+			ctype, comp_len, (ulong)dest);
+		decomp_len = comp_len * 10;
+		ret = image_decomp(ctype, 0, ld, IH_TYPE_KERNEL,
+				 (void *)dest, (void *)ld, comp_len,
+				 decomp_len, &dest_end);
+		if (ret)
+			return ret;
+		/* dest_end contains the uncompressed Image size */
+		memmove((void *) ld, (void *)dest, dest_end);
+	}
+	unmap_sysmem((void *)ld);
+
+	ret = booti_setup(ld, &relocated_addr, &image_size, false);
 	if (ret != 0)
 		return 1;
 
-	ih = (struct Image_header *)map_sysmem(images->ep, 0);
+	/* Handle BOOTM_STATE_LOADOS */
+	if (relocated_addr != ld) {
+		printf("Moving Image from 0x%lx to 0x%lx, end=%lx\n", ld,
+		       relocated_addr, relocated_addr + image_size);
+		memmove((void *)relocated_addr, (void *)ld, image_size);
+	}
 
-	lmb_reserve(&images->lmb, images->ep, le32_to_cpu(ih->image_size));
+	images->ep = relocated_addr;
+	images->os.start = relocated_addr;
+	images->os.end = relocated_addr + image_size;
 
-	unmap_sysmem(ih);
+	lmb_reserve(&images->lmb, images->ep, le32_to_cpu(image_size));
 
 	/*
 	 * Handle the BOOTM_STATE_FINDOTHER state ourselves as we do not
 	 * have a header that provide this informaiton.
 	 */
-	if (bootm_find_images(flag, argc, argv))
+	if (bootm_find_images(flag, argc, argv, relocated_addr, image_size))
 		return 1;
 
 	return 0;
 }
 
-int do_booti(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_booti(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret;
 
@@ -147,7 +118,11 @@ int do_booti(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	bootm_disable_interrupts();
 
 	images.os.os = IH_OS_LINUX;
+#ifdef CONFIG_RISCV_SMODE
+	images.os.arch = IH_ARCH_RISCV;
+#elif CONFIG_ARM64
 	images.os.arch = IH_ARCH_ARM64;
+#endif
 	ret = do_bootm_states(cmdtp, flag, argc, argv,
 #ifdef CONFIG_SYS_BOOT_RAMDISK_HIGH
 			      BOOTM_STATE_RAMDISK |
@@ -162,10 +137,14 @@ int do_booti(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #ifdef CONFIG_SYS_LONGHELP
 static char booti_help_text[] =
 	"[addr [initrd[:size]] [fdt]]\n"
-	"    - boot arm64 Linux Image stored in memory\n"
+	"    - boot Linux flat or compressed 'Image' stored at 'addr'\n"
 	"\tThe argument 'initrd' is optional and specifies the address\n"
 	"\tof an initrd in memory. The optional parameter ':size' allows\n"
 	"\tspecifying the size of a RAW initrd.\n"
+	"\tCurrently only booting from gz, bz2, lzma and lz4 compression\n"
+	"\ttypes are supported. In order to boot from any of these compressed\n"
+	"\timages, user have to set kernel_comp_addr_r and kernel_comp_size environment\n"
+	"\tvariables beforehand.\n"
 #if defined(CONFIG_OF_LIBFDT)
 	"\tSince booting a Linux kernel requires a flat device-tree, a\n"
 	"\tthird argument providing the address of the device-tree blob\n"
@@ -177,5 +156,5 @@ static char booti_help_text[] =
 
 U_BOOT_CMD(
 	booti,	CONFIG_SYS_MAXARGS,	1,	do_booti,
-	"boot arm64 Linux Image image from memory", booti_help_text
+	"boot Linux kernel 'Image' format from memory", booti_help_text
 );

@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Microchip PIC32MZ[DA] Starter Kit board
  *
  * Copyright (C) 2015, Microchip Technology Inc.
  * Purna Chandra Mandal <purna.mandal@microchip.com>
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  */
 
 #include <common.h>
 #include <dm.h>
 #include <clk.h>
+#include <init.h>
+#include <malloc.h>
 #include <dt-bindings/clock/microchip,clock.h>
 #include <mach/pic32.h>
 

@@ -17,29 +17,18 @@
 #define __CONFIG_AM335X_EVM_H
 
 #include <configs/ti_am335x_common.h>
+#include <linux/sizes.h>
 
-#ifndef CONFIG_SPL_BUILD
-# define CONFIG_TIMESTAMP
-#endif
-
-#define CONFIG_SYS_BOOTM_LEN		(16 << 20)
-
-#define CONFIG_MACH_TYPE		MACH_TYPE_AM335XEVM
+#define CONFIG_SYS_BOOTM_LEN		SZ_16M
 
 /* Clock Defines */
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
 
-/* Custom script for NOR */
-#define CONFIG_SYS_LDSCRIPT		"board/ti/am335x/u-boot.lds"
-
-/* Always 128 KiB env size */
-#define CONFIG_ENV_SIZE			(128 << 10)
-
-#ifdef CONFIG_NAND
+#ifdef CONFIG_MTD_RAW_NAND
 #define NANDARGS \
-	"mtdids=" MTDIDS_DEFAULT "\0" \
-	"mtdparts=" MTDPARTS_DEFAULT "\0" \
+	"mtdids=" CONFIG_MTDIDS_DEFAULT "\0" \
+	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0" \
 	"nandargs=setenv bootargs console=${console} " \
 		"${optargs} " \
 		"root=${nandroot} " \
@@ -55,17 +44,6 @@
 #define NANDARGS ""
 #endif
 
-#define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
-
-#define BOOTENV_DEV_LEGACY_MMC(devtypeu, devtypel, instance) \
-	"bootcmd_" #devtypel #instance "=" \
-	"setenv mmcdev " #instance"; "\
-	"setenv bootpart " #instance":2 ; "\
-	"run mmcboot\0"
-
-#define BOOTENV_DEV_NAME_LEGACY_MMC(devtypeu, devtypel, instance) \
-	#devtypel #instance " "
-
 #define BOOTENV_DEV_NAND(devtypeu, devtypel, instance) \
 	"bootcmd_" #devtypel "=" \
 	"run nandboot\0"
@@ -73,42 +51,47 @@
 #define BOOTENV_DEV_NAME_NAND(devtypeu, devtypel, instance) \
 	#devtypel #instance " "
 
+#if CONFIG_IS_ENABLED(CMD_USB)
+# define BOOT_TARGET_USB(func) func(USB, usb, 0)
+#else
+# define BOOT_TARGET_USB(func)
+#endif
+
+#if CONFIG_IS_ENABLED(CMD_PXE)
+# define BOOT_TARGET_PXE(func) func(PXE, pxe, na)
+#else
+# define BOOT_TARGET_PXE(func)
+#endif
+
+#if CONFIG_IS_ENABLED(CMD_DHCP)
+# define BOOT_TARGET_DHCP(func) func(DHCP, dhcp, na)
+#else
+# define BOOT_TARGET_DHCP(func)
+#endif
+
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 0) \
-	func(LEGACY_MMC, legacy_mmc, 0) \
 	func(MMC, mmc, 1) \
-	func(LEGACY_MMC, legacy_mmc, 1) \
 	func(NAND, nand, 0) \
-	func(PXE, pxe, na) \
-	func(DHCP, dhcp, na)
-
-#define CONFIG_BOOTCOMMAND \
-	"if test ${boot_fit} -eq 1; then "	\
-		"run update_to_fit;"	\
-	"fi;"	\
-	"run findfdt; " \
-	"run init_console; " \
-	"run envboot; " \
-	"run distro_bootcmd"
+	BOOT_TARGET_USB(func) \
+	BOOT_TARGET_PXE(func) \
+	BOOT_TARGET_DHCP(func)
 
 #include <config_distro_bootcmd.h>
 
 #ifndef CONFIG_SPL_BUILD
 #include <environment/ti/dfu.h>
-#include <environment/ti/mmc.h>
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	DEFAULT_LINUX_BOOT_ENV \
-	DEFAULT_MMC_TI_ARGS \
-	DEFAULT_FIT_TI_ARGS \
-	"bootpart=0:2\0" \
-	"bootdir=/boot\0" \
-	"bootfile=zImage\0" \
 	"fdtfile=undefined\0" \
+	"finduuid=part uuid mmc 0:2 uuid\0" \
 	"console=ttyO0,115200n8\0" \
 	"partitions=" \
 		"uuid_disk=${uuid_gpt_disk};" \
-		"name=rootfs,start=2MiB,size=-,uuid=${uuid_gpt_rootfs}\0" \
+		"name=bootloader,start=384K,size=1792K," \
+			"uuid=${uuid_gpt_bootloader};" \
+		"name=rootfs,start=2688K,size=-,uuid=${uuid_gpt_rootfs}\0" \
 	"optargs=\0" \
 	"ramroot=/dev/ram0 rw\0" \
 	"ramrootfstype=ext2\0" \
@@ -139,6 +122,8 @@
 			"setenv fdtfile am335x-bone.dtb; fi; " \
 		"if test $board_name = A335BNLT; then " \
 			"setenv fdtfile am335x-boneblack.dtb; fi; " \
+		"if test $board_name = A335PBGL; then " \
+			"setenv fdtfile am335x-pocketbeagle.dtb; fi; " \
 		"if test $board_name = BBBW; then " \
 			"setenv fdtfile am335x-boneblack-wireless.dtb; fi; " \
 		"if test $board_name = BBG1; then " \
@@ -147,12 +132,17 @@
 			"setenv fdtfile am335x-bonegreen-wireless.dtb; fi; " \
 		"if test $board_name = BBBL; then " \
 			"setenv fdtfile am335x-boneblue.dtb; fi; " \
+		"if test $board_name = BBEN; then " \
+			"setenv fdtfile am335x-sancloud-bbe.dtb; fi; " \
 		"if test $board_name = A33515BB; then " \
 			"setenv fdtfile am335x-evm.dtb; fi; " \
 		"if test $board_name = A335X_SK; then " \
 			"setenv fdtfile am335x-evmsk.dtb; fi; " \
 		"if test $board_name = A335_ICE; then " \
-			"setenv fdtfile am335x-icev2.dtb; fi; " \
+			"setenv fdtfile am335x-icev2.dtb; " \
+			"if test $ice_mii = mii; then " \
+				"setenv pxe_label_override Pruss; fi;" \
+		"fi; " \
 		"if test $fdtfile = undefined; then " \
 			"echo WARNING: Could not determine device tree to use; fi; \0" \
 	"init_console=" \
@@ -175,10 +165,6 @@
 #define CONFIG_SYS_NS16550_COM5		0x481a8000	/* UART4 */
 #define CONFIG_SYS_NS16550_COM6		0x481aa000	/* UART5 */
 
-#define CONFIG_ENV_EEPROM_IS_ON_I2C
-#define CONFIG_SYS_I2C_EEPROM_ADDR	0x50	/* Main EEPROM */
-#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN	2
-
 /* PMIC support */
 #define CONFIG_POWER_TPS65217
 #define CONFIG_POWER_TPS65910
@@ -186,23 +172,14 @@
 /* SPL */
 #ifndef CONFIG_NOR_BOOT
 /* Bootcount using the RTC block */
-#define CONFIG_BOOTCOUNT_LIMIT
-#define CONFIG_BOOTCOUNT_AM33XX
 #define CONFIG_SYS_BOOTCOUNT_BE
 
 /* USB gadget RNDIS */
 #endif
 
-#ifdef CONFIG_NAND
+#ifdef CONFIG_MTD_RAW_NAND
 /* NAND: device related configs */
-#define CONFIG_SYS_NAND_5_ADDR_CYCLE
-#define CONFIG_SYS_NAND_PAGE_COUNT	(CONFIG_SYS_NAND_BLOCK_SIZE / \
-					 CONFIG_SYS_NAND_PAGE_SIZE)
-#define CONFIG_SYS_NAND_PAGE_SIZE	2048
-#define CONFIG_SYS_NAND_OOBSIZE		64
-#define CONFIG_SYS_NAND_BLOCK_SIZE	(128*1024)
 /* NAND: driver related configs */
-#define CONFIG_SYS_NAND_BAD_BLOCK_POS	NAND_LARGE_BADBLOCK_POS
 #define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
 					 10, 11, 12, 13, 14, 15, 16, 17, \
 					 18, 19, 20, 21, 22, 23, 24, 25, \
@@ -213,34 +190,16 @@
 
 #define CONFIG_SYS_NAND_ECCSIZE		512
 #define CONFIG_SYS_NAND_ECCBYTES	14
-#define CONFIG_SYS_NAND_ONFI_DETECTION
-#define CONFIG_NAND_OMAP_ECCSCHEME	OMAP_ECC_BCH8_CODE_HW
-#define MTDIDS_DEFAULT			"nand0=nand.0"
-#define MTDPARTS_DEFAULT		"mtdparts=nand.0:" \
-					"128k(NAND.SPL)," \
-					"128k(NAND.SPL.backup1)," \
-					"128k(NAND.SPL.backup2)," \
-					"128k(NAND.SPL.backup3)," \
-					"256k(NAND.u-boot-spl-os)," \
-					"1m(NAND.u-boot)," \
-					"128k(NAND.u-boot-env)," \
-					"128k(NAND.u-boot-env.backup1)," \
-					"8m(NAND.kernel)," \
-					"-(NAND.file-system)"
-#define CONFIG_SYS_NAND_U_BOOT_OFFS	0x000c0000
 /* NAND: SPL related configs */
 #ifdef CONFIG_SPL_OS_BOOT
 #define CONFIG_SYS_NAND_SPL_KERNEL_OFFS	0x00200000 /* kernel offset */
 #endif
-#endif /* !CONFIG_NAND */
+#endif /* !CONFIG_MTD_RAW_NAND */
 
 /*
  * For NOR boot, we must set this to the start of where NOR is mapped
  * in memory.
  */
-#ifdef CONFIG_NOR_BOOT
-#define CONFIG_SYS_TEXT_BASE		0x08000000
-#endif
 
 /*
  * USB configuration.  We enable MUSB support, both for host and for
@@ -249,9 +208,6 @@
  * add mass storage support and for gadget we add both RNDIS ethernet
  * and DFU.
  */
-#define CONFIG_USB_MUSB_DSPS
-#define CONFIG_USB_MUSB_PIO_ONLY
-#define CONFIG_USB_MUSB_DISABLE_BULK_COMBINE_SPLIT
 #define CONFIG_AM335X_USB0
 #define CONFIG_AM335X_USB0_MODE	MUSB_PERIPHERAL
 #define CONFIG_AM335X_USB1
@@ -264,10 +220,9 @@
 #ifdef CONFIG_SPL_BUILD
 #undef CONFIG_DM_MMC
 #undef CONFIG_TIMER
-#undef CONFIG_DM_USB
 #endif
 
-#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_USBETH_SUPPORT)
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_USB_ETHER)
 /* Remove other SPL modes. */
 /* disable host part of MUSB in SPL */
 /* disable EFI partitions and partition UUID support */
@@ -276,7 +231,7 @@
 /* USB Device Firmware Update support */
 #ifndef CONFIG_SPL_BUILD
 #define DFUARGS \
-	"dfu_alt_info_emmc=rawemmc raw 0 3751936\0" \
+	DFU_ALT_INFO_EMMC \
 	DFU_ALT_INFO_MMC \
 	DFU_ALT_INFO_RAM \
 	DFU_ALT_INFO_NAND
@@ -293,49 +248,12 @@
  */
 #if defined(CONFIG_SPI_BOOT)
 /* SPL related */
-#define CONFIG_SPL_SPI_LOAD
-#define CONFIG_SYS_SPI_U_BOOT_OFFS	0x20000
-
-#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
-#define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-#define CONFIG_ENV_SECT_SIZE		(4 << 10) /* 4 KB sectors */
-#define CONFIG_ENV_OFFSET		(768 << 10) /* 768 KiB in */
-#define CONFIG_ENV_OFFSET_REDUND	(896 << 10) /* 896 KiB in */
-#define MTDIDS_DEFAULT			"nor0=m25p80-flash.0"
-#define MTDPARTS_DEFAULT		"mtdparts=m25p80-flash.0:128k(SPL)," \
-					"512k(u-boot),128k(u-boot-env1)," \
-					"128k(u-boot-env2),3464k(kernel)," \
-					"-(rootfs)"
 #elif defined(CONFIG_EMMC_BOOT)
-#define CONFIG_SYS_MMC_ENV_DEV		1
-#define CONFIG_SYS_MMC_ENV_PART		2
-#define CONFIG_ENV_OFFSET		0x0
-#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
-#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
 #define CONFIG_SYS_MMC_MAX_DEVICE	2
-#elif defined(CONFIG_NOR_BOOT)
-#define CONFIG_ENV_SECT_SIZE		(128 << 10)	/* 128 KiB */
-#define CONFIG_ENV_OFFSET		(512 << 10)	/* 512 KiB */
-#define CONFIG_ENV_OFFSET_REDUND	(768 << 10)	/* 768 KiB */
-#define MTDIDS_DEFAULT			"nor0=physmap-flash.0"
-#define MTDPARTS_DEFAULT		"mtdparts=physmap-flash.0:" \
-					"512k(u-boot)," \
-					"128k(u-boot-env1)," \
-					"128k(u-boot-env2)," \
-					"4m(kernel),-(rootfs)"
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#define CONFIG_ENV_OFFSET		0x001c0000
-#define CONFIG_ENV_OFFSET_REDUND	0x001e0000
-#define CONFIG_SYS_ENV_SECT_SIZE	CONFIG_SYS_NAND_BLOCK_SIZE
 #endif
 
-/* SPI flash. */
-#define CONFIG_SF_DEFAULT_SPEED		24000000
-
 /* Network. */
-#define CONFIG_PHY_SMSC
 /* Enable Atheros phy driver */
-#define CONFIG_PHY_ATHEROS
 
 /*
  * NOR Size = 16 MiB
@@ -350,13 +268,7 @@
  * 0x4C0000 - 0xFFFFFF : Userland (11 MiB + 256 KiB)
  */
 #if defined(CONFIG_NOR)
-#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE
-#define CONFIG_SYS_FLASH_PROTECTION
-#define CONFIG_SYS_FLASH_CFI
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_FLASH_CFI_MTD
 #define CONFIG_SYS_MAX_FLASH_SECT	128
-#define CONFIG_SYS_MAX_FLASH_BANKS	1
 #define CONFIG_SYS_FLASH_BASE		(0x08000000)
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_SYS_FLASH_SIZE		0x01000000

@@ -1,26 +1,37 @@
 if ROCKCHIP_RK322X
 
+
 config TARGET_EVB_RK3229
 	bool "EVB_RK3229"
 	select BOARD_LATE_INIT
 
-config TARGET_GVA_RK3229
-	bool "GVA RK3229 board"
-	select BOARD_LATE_INIT
-	help
-	  GVA RK3229 is a SOM and base-board combination based on RK3229. It
-	  target for Google Voice Assistant with Android Things project.
+config ROCKCHIP_BOOT_MODE_REG
+	default 0x110005c8
 
 config SYS_SOC
-	default "rockchip"
+	default "rk322x"
 
 config SYS_MALLOC_F_LEN
-	default 0x400
+	default 0x800
 
-config SPL_SERIAL_SUPPORT
+config SPL_LIBCOMMON_SUPPORT
 	default y
 
+config SPL_LIBGENERIC_SUPPORT
+	default y
+
+config SPL_SERIAL
+	default y
+
+config TPL_MAX_SIZE
+        default 28672
+
+config TPL_STACK
+        default 0x10088000
+
+config TPL_TEXT_BASE
+        default 0x10081000
+
 source "board/rockchip/evb_rk3229/Kconfig"
-source "board/rockchip/gva_rk3229/Kconfig"
 
 endif

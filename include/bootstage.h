@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * This file implements recording of each stage of the boot process. It is
  * intended to implement timing of each stage, reporting this information
@@ -5,17 +6,12 @@
  * Note that it requires timer_get_boot_us() to be defined by the board
  *
  * Copyright (c) 2011 The Chromium OS Authors.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _BOOTSTAGE_H
 #define _BOOTSTAGE_H
 
-/* Define this for host tools */
-#ifndef CONFIG_BOOTSTAGE_USER_COUNT
-#define CONFIG_BOOTSTAGE_USER_COUNT	20
-#endif
+#include <linux/kconfig.h>
 
 /* Flags for each bootstage record */
 enum bootstage_flags {
@@ -176,6 +172,8 @@ enum bootstage_id {
 	 * rough boot timing information.
 	 */
 	BOOTSTAGE_ID_AWAKE,
+	BOOTSTAGE_ID_START_TPL,
+	BOOTSTAGE_ID_END_TPL,
 	BOOTSTAGE_ID_START_SPL,
 	BOOTSTAGE_ID_END_SPL,
 	BOOTSTAGE_ID_START_UBOOT_F,
@@ -187,6 +185,7 @@ enum bootstage_id {
 	BOOTSTAGE_ID_BOOTM_START,
 	BOOTSTAGE_ID_BOOTM_HANDOFF,
 	BOOTSTAGE_ID_MAIN_LOOP,
+	BOOTSTAGE_ID_ENTER_CLI_LOOP,
 	BOOTSTAGE_KERNELREAD_START,
 	BOOTSTAGE_KERNELREAD_STOP,
 	BOOTSTAGE_ID_BOARD_INIT,
@@ -202,13 +201,15 @@ enum bootstage_id {
 	BOOTSTAGE_ID_ACCUM_DECOMP,
 	BOOTSTAGE_ID_ACCUM_OF_LIVE,
 	BOOTSTAGE_ID_FPGA_INIT,
-	BOOTSTATE_ID_ACCUM_DM_SPL,
-	BOOTSTATE_ID_ACCUM_DM_F,
-	BOOTSTATE_ID_ACCUM_DM_R,
+	BOOTSTAGE_ID_ACCUM_DM_SPL,
+	BOOTSTAGE_ID_ACCUM_DM_F,
+	BOOTSTAGE_ID_ACCUM_DM_R,
+	BOOTSTAGE_ID_ACCUM_FSP_M,
+	BOOTSTAGE_ID_ACCUM_FSP_S,
+	BOOTSTAGE_ID_ACCUM_MMAP_SPI,
 
 	/* a few spare for the user, from here */
 	BOOTSTAGE_ID_USER,
-	BOOTSTAGE_ID_COUNT = BOOTSTAGE_ID_USER + CONFIG_BOOTSTAGE_USER_COUNT,
 	BOOTSTAGE_ID_ALLOC,
 };
 
@@ -219,7 +220,7 @@ enum bootstage_id {
  */
 ulong timer_get_boot_us(void);
 
-#if defined(USE_HOSTCC)
+#if defined(USE_HOSTCC) || !CONFIG_IS_ENABLED(SHOW_BOOT_PROGRESS)
 #define show_boot_progress(val) do {} while (0)
 #else
 /**
@@ -247,7 +248,7 @@ void show_boot_progress(int val);
  * Call this after relocation has happened and after malloc has been initted.
  * We need to copy any pointers in bootstage records that were added pre-
  * relocation, since memory can be overwritten later.
- * @return Always returns 0, to indicate success
+ * Return: Always returns 0, to indicate success
  */
 int bootstage_relocate(void);
 
@@ -279,7 +280,7 @@ ulong bootstage_mark_name(enum bootstage_id id, const char *name);
  * @param file		Filename to record (NULL if none)
  * @param func		Function name to record
  * @param linenum	Line number to record
- * @return recorded time stamp
+ * Return: recorded time stamp
  */
 ulong bootstage_mark_code(const char *file, const char *func,
 			  int linenum);
@@ -293,7 +294,7 @@ ulong bootstage_mark_code(const char *file, const char *func,
  *
  * @param id	Bootstage id to record this timestamp against
  * @param name	Textual name to display for this id in the report (maybe NULL)
- * @return start timestamp in microseconds
+ * Return: start timestamp in microseconds
  */
 uint32_t bootstage_start(enum bootstage_id id, const char *name);
 
@@ -305,7 +306,7 @@ uint32_t bootstage_start(enum bootstage_id id, const char *name);
  * as many times as you like.
  *
  * @param id	Bootstage id to record this timestamp against
- * @return time spent in this iteration of the activity (i.e. the time now
+ * Return: time spent in this iteration of the activity (i.e. the time now
  *		less the start time recorded in the last bootstage_start() call
  *		with this id.
  */
@@ -317,7 +318,7 @@ void bootstage_report(void);
 /**
  * Add bootstage information to the device tree
  *
- * @return 0 if ok, -ve on error
+ * Return: 0 if ok, -ve on error
  */
 int bootstage_fdt_add_report(void);
 
@@ -326,7 +327,7 @@ int bootstage_fdt_add_report(void);
  *
  * @param base	Base address of memory buffer
  * @param size	Size of memory buffer
- * @return 0 if stashed ok, -1 if out of space
+ * Return: 0 if stashed ok, -1 if out of space
  */
 int bootstage_stash(void *base, int size);
 
@@ -338,8 +339,8 @@ int bootstage_stash(void *base, int size);
  *
  * @param base	Base address of memory buffer
  * @param size	Size of memory buffer (-1 if unknown)
- * @return 0 if unstashed ok, -ENOENT if bootstage info not found, -ENOSPC if
- *	there is not space for read the stacked data, or other error if
+ * Return: 0 if unstashed ok, -ENOENT if bootstage info not found, -ENOSPC if
+ *	there is not space for read the stashed data, or other error if
  *	something else went wrong
  */
 int bootstage_unstash(const void *base, int size);
@@ -347,7 +348,7 @@ int bootstage_unstash(const void *base, int size);
 /**
  * bootstage_get_size() - Get the size of the bootstage data
  *
- * @return size of boostage data in bytes
+ * Return: size of boostage data in bytes
  */
 int bootstage_get_size(void);
 

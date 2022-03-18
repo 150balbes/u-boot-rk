@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Cirrus Logic EP93xx CPU-specific support.
  *
@@ -5,16 +6,15 @@
  *
  * Copyright (C) 2004, 2005
  * Cory T. Tusar, Videon Central, Inc., <ctusar@videon-central.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/arch/ep93xx.h>
 #include <asm/io.h>
 
 /* We reset the CPU by generating a 1-->0 transition on DeviceCfg bit 31. */
-extern void reset_cpu(ulong addr)
+extern void reset_cpu(void)
 {
 	struct syscon_regs *syscon = (struct syscon_regs *)SYSCON_BASE;
 	uint32_t value;

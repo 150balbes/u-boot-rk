@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Internal PCI functions, not exported outside drivers/pci
  *
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __pci_internal_h
@@ -40,7 +39,7 @@ void dm_pciauto_postscan_setup_bridge(struct udevice *dev, int sub_bus);
  * If the device is a bridge, downstream devices will be probed.
  *
  * @dev:	Device to configure
- * @return the maximum PCI bus number found by this device. If there are no
+ * Return: the maximum PCI bus number found by this device. If there are no
  * bridges, this just returns the device's bus number. If the device is a
  * bridge then it will return a larger number, depending on the devices on
  * that bridge. On error, returns a -ve error number.
@@ -55,7 +54,7 @@ int dm_pciauto_config_device(struct udevice *dev);
  *
  * @busnum:	PCI bus number to look up
  * @busp:	Returns PCI bus on success
- * @return 0 on success, or -ve error
+ * Return: 0 on success, or -ve error
  */
 int pci_get_bus(int busnum, struct udevice **busp);
 

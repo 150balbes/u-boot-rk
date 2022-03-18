@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010  Eric C. Cooper <ecc@cmu.edu>
  *
@@ -5,15 +6,17 @@
  * Prafulla Wadaskar <prafulla@marvell.com>
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <bootstage.h>
+#include <init.h>
 #include <miiphy.h>
+#include <net.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/mpp.h>
 #include <asm/arch/cpu.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include "dockstar.h"
@@ -137,6 +140,7 @@ void reset_phy(void)
 }
 #endif /* CONFIG_RESET_PHY_R */
 
+#if CONFIG_IS_ENABLED(BOOTSTAGE)
 #define GREEN_LED	(1 << 14)
 #define ORANGE_LED	(1 << 15)
 #define BOTH_LEDS	(GREEN_LED | ORANGE_LED)
@@ -166,3 +170,4 @@ void show_boot_progress(int val)
 		break;
 	}
 }
+#endif

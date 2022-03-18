@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/arch/iomux.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/arch/sys_proto.h>
 
 int setup_sata(void)

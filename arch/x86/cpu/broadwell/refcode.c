@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Read a coreboot rmodule and execute it.
  * The rmodule_header struct is from coreboot.
  *
  * Copyright (c) 2016 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <errno.h>
+#include <init.h>
+#include <log.h>
 #include <asm/arch/pei_data.h>
 
 #define RMODULE_MAGIC		0xf8fe
@@ -64,7 +65,7 @@ struct rmodule_header {
  * platform controller hub (PCH). This function should be implemented by the
  * CPU-specific code.
  *
- * @return 0 on success, -ve on failure
+ * Return: 0 on success, -ve on failure
  */
 static int cpu_run_reference_code(void)
 {

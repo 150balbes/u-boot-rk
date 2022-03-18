@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) Freescale Semiconductor, Inc. 2006.
  * Author: Jason Jin<Jason.jin@freescale.com>
  *         Zhang Wei<wei.zhang@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _AHCI_H_
 #define _AHCI_H_
@@ -135,8 +134,6 @@ struct ahci_sg {
 };
 
 struct ahci_ioports {
-	void __iomem	*cmd_addr;
-	void __iomem	*scr_addr;
 	void __iomem	*port_mmio;
 	struct ahci_cmd_hdr	*cmd_slot;
 	struct ahci_sg		*cmd_tbl_sg;
@@ -151,16 +148,12 @@ struct ahci_ioports {
  * where dev is the controller (although at present it sometimes stands alone).
  */
 struct ahci_uc_priv {
-#if defined(CONFIG_DM_PCI) || defined(CONFIG_DM_SCSI)
 	/*
 	 * TODO(sjg@chromium.org): Drop this once this structure is only used
 	 * in a driver-model context (i.e. attached to a device with
 	 * dev_get_uclass_priv()
 	 */
 	struct udevice *dev;
-#else
-	pci_dev_t	dev;
-#endif
 	struct ahci_ioports	port[AHCI_MAX_PORTS];
 	u16 *ataid[AHCI_MAX_PORTS];
 	u32	n_ports;
@@ -209,7 +202,7 @@ struct ahci_ops {
  * sata_reset() - reset the controller
  *
  * @dev:	Controller to reset
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int sata_reset(struct udevice *dev);
 
@@ -218,7 +211,7 @@ int sata_reset(struct udevice *dev);
  *
  * @dev:	Controller to reset
  * @port:	Port number to check (0 for first)
- * @return 0 if detected, -ENXIO if nothin on port, other -ve on error
+ * Return: 0 if detected, -ENXIO if nothin on port, other -ve on error
  */
 int sata_dm_port_status(struct udevice *dev, int port);
 
@@ -226,7 +219,7 @@ int sata_dm_port_status(struct udevice *dev, int port);
  * sata_scan() - scan SATA ports
  *
  * @dev:	Controller to scan
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int sata_scan(struct udevice *dev);
 
@@ -234,18 +227,18 @@ int ahci_init(void __iomem *base);
 int ahci_reset(void __iomem *base);
 
 /**
- * achi_init_one_dm() - set up a single AHCI port
+ * ahci_init_one_dm() - set up a single AHCI port
  *
  * @dev: Controller to init
  */
-int achi_init_one_dm(struct udevice *dev);
+int ahci_init_one_dm(struct udevice *dev);
 
 /**
- * achi_start_ports_dm() - start all AHCI ports for a controller
+ * ahci_start_ports_dm() - start all AHCI ports for a controller
  *
  * @dev: Controller containing ports to start
  */
-int achi_start_ports_dm(struct udevice *dev);
+int ahci_start_ports_dm(struct udevice *dev);
 
 /**
  * ahci_init_dm() - init AHCI for a controller, finding all ports
@@ -261,7 +254,7 @@ int ahci_init_dm(struct udevice *dev, void __iomem *base);
  *
  * @ahci_dev: AHCI parent device
  * @devp: Returns new SCSI bus device
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int ahci_bind_scsi(struct udevice *ahci_dev, struct udevice **devp);
 
@@ -273,7 +266,7 @@ int ahci_bind_scsi(struct udevice *ahci_dev, struct udevice **devp);
  *
  * @ahci_dev: AHCI parent device
  * @base: Base address of AHCI port
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int ahci_probe_scsi(struct udevice *ahci_dev, ulong base);
 
@@ -284,7 +277,7 @@ int ahci_probe_scsi(struct udevice *ahci_dev, ulong base);
  * devices it finds.
  *
  * @ahci_dev: AHCI parent device
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int ahci_probe_scsi_pci(struct udevice *ahci_dev);
 

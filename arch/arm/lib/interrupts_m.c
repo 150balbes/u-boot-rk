@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015
  * Kamil Lulko, <kamil.lulko@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <irq_func.h>
 
 /*
  * Upon exception entry ARMv7-M processors automatically save stack
@@ -30,6 +31,8 @@ struct autosave_regs {
 
 int interrupt_init(void)
 {
+	enable_interrupts();
+
 	return 0;
 }
 
@@ -56,7 +59,7 @@ void dump_regs(struct autosave_regs *regs)
 void bad_mode(void)
 {
 	panic("Resetting CPU ...\n");
-	reset_cpu(0);
+	reset_cpu();
 }
 
 void do_hard_fault(struct autosave_regs *autosave_regs)

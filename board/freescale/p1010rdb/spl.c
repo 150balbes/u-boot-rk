@@ -1,11 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Copyright 2013 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #include <common.h>
+#include <clock_legacy.h>
 #include <console.h>
-#include <environment.h>
+#include <env.h>
+#include <env_internal.h>
+#include <init.h>
 #include <ns16550.h>
 #include <malloc.h>
 #include <mmc.h>
@@ -13,6 +15,7 @@
 #include <i2c.h>
 #include <fsl_esdhc.h>
 #include <spi_flash.h>
+#include <asm/global_data.h>
 #include "../common/spl.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -40,9 +43,9 @@ void board_init_f(ulong bootflag)
 	/* initialize selected port with appropriate baud rate */
 	plat_ratio = in_be32(&gur->porpllsr) & MPC85xx_PORPLLSR_PLAT_RATIO;
 	plat_ratio >>= 1;
-	gd->bus_clk = CONFIG_SYS_CLK_FREQ * plat_ratio;
+	gd->bus_clk = get_board_sys_clk() * plat_ratio;
 
-	NS16550_init((NS16550_t)CONFIG_SYS_NS16550_COM1,
+	ns16550_init((struct ns16550 *)CONFIG_SYS_NS16550_COM1,
 		     gd->bus_clk / 16 / CONFIG_BAUDRATE);
 
 #ifdef CONFIG_SPL_MMC_BOOT
@@ -61,14 +64,12 @@ void board_init_r(gd_t *gd, ulong dest_addr)
 {
 	/* Pointer is writable since we allocated a register for it */
 	gd = (gd_t *)CONFIG_SPL_GD_ADDR;
-	bd_t *bd;
+	struct bd_info *bd;
 
 	memset(gd, 0, sizeof(gd_t));
-	bd = (bd_t *)(CONFIG_SPL_GD_ADDR + sizeof(gd_t));
-	memset(bd, 0, sizeof(bd_t));
+	bd = (struct bd_info *)(CONFIG_SPL_GD_ADDR + sizeof(gd_t));
+	memset(bd, 0, sizeof(struct bd_info));
 	gd->bd = bd;
-	bd->bi_memstart = CONFIG_SYS_INIT_L2_ADDR;
-	bd->bi_memsize = CONFIG_SYS_L2_SIZE;
 
 	arch_cpu_init();
 	get_clocks();
@@ -86,8 +87,8 @@ void board_init_r(gd_t *gd, ulong dest_addr)
 	/* relocate environment function pointers etc. */
 #ifdef CONFIG_SPL_NAND_BOOT
 	nand_spl_load_image(CONFIG_ENV_OFFSET, CONFIG_ENV_SIZE,
-			    (uchar *)CONFIG_ENV_ADDR);
-			    gd->env_addr  = (ulong)(CONFIG_ENV_ADDR);
+			    (uchar *)SPL_ENV_ADDR);
+			    gd->env_addr  = (ulong)(SPL_ENV_ADDR);
 	gd->env_valid = ENV_VALID;
 #else
 	env_relocate();

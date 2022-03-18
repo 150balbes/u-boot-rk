@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Eastman Kodak Company, <www.kodak.com>
@@ -5,11 +6,12 @@
  *
  * The code is based on the cpu/mpc83xx/ecc.c written by
  * Dave Liu <daveliu@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <irq_func.h>
+#include <log.h>
 #include <mpc83xx.h>
 #include <watchdog.h>
 #include <asm/io.h>
@@ -68,10 +70,6 @@ int ecc_post_test(int flags)
 	int_state = disable_interrupts();
 	icache_enable();
 
-#ifdef CONFIG_DDR_32BIT
-	/* It seems like no one really uses the CONFIG_DDR_32BIT mode */
-#error "Add ECC POST support for CONFIG_DDR_32BIT here!"
-#else
 	for (addr = (u64*)CONFIG_SYS_POST_ECC_START_ADDR, errbit=0;
 	     addr < (u64*)CONFIG_SYS_POST_ECC_STOP_ADDR; addr++, errbit++ ) {
 
@@ -136,7 +134,6 @@ int ecc_post_test(int flags)
 
 		errbit %= 63;
 	}
-#endif /* !CONFIG_DDR_32BIT */
 
 	ecc_clear(ddr);
 

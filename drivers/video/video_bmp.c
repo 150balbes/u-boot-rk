@@ -1,57 +1,113 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <bmp_layout.h>
 #include <dm.h>
+#include <log.h>
 #include <mapmem.h>
+#include <splash.h>
 #include <video.h>
 #include <watchdog.h>
 #include <asm/unaligned.h>
 
-#ifdef CONFIG_VIDEO_BMP_RLE8
 #define BMP_RLE8_ESCAPE		0
 #define BMP_RLE8_EOL		0
 #define BMP_RLE8_EOBMP		1
 #define BMP_RLE8_DELTA		2
 
-static void draw_unencoded_bitmap(ushort **fbp, uchar *bmap, ushort *cmap,
-				  int cnt)
+/**
+ * get_bmp_col_16bpp() - Convert a colour-table entry into a 16bpp pixel value
+ *
+ * Return: value to write to the 16bpp frame buffer for this palette entry
+ */
+static uint get_bmp_col_16bpp(struct bmp_color_table_entry cte)
 {
-	while (cnt > 0) {
-		*(*fbp)++ = cmap[*bmap++];
-		cnt--;
+	return ((cte.red   << 8) & 0xf800) |
+		((cte.green << 3) & 0x07e0) |
+		((cte.blue  >> 3) & 0x001f);
+}
+
+/**
+ * write_pix8() - Write a pixel from a BMP image into the framebuffer
+ *
+ * This handles frame buffers with 8, 16, 24 or 32 bits per pixel
+ *
+ * @fb: Place in frame buffer to update
+ * @bpix: Frame buffer bits-per-pixel, which controls how many bytes are written
+ * @palette: BMP palette table
+ * @bmap: Pointer to BMP bitmap position to write. This contains a single byte
+ *	which is either written directly (bpix == 8) or used to look up the
+ *	palette to get a colour to write
+ */
+static void write_pix8(u8 *fb, uint bpix, struct bmp_color_table_entry *palette,
+		       u8 *bmap)
+{
+	if (bpix == 8) {
+		*fb++ = *bmap;
+	} else if (bpix == 16) {
+		*(u16 *)fb = get_bmp_col_16bpp(palette[*bmap]);
+	} else {
+		/* Only support big endian */
+		struct bmp_color_table_entry *cte = &palette[*bmap];
+
+		if (bpix == 24) {
+			*fb++ = cte->red;
+			*fb++ = cte->green;
+			*fb++ = cte->blue;
+		} else {
+			*fb++ = cte->blue;
+			*fb++ = cte->green;
+			*fb++ = cte->red;
+			*fb++ = 0;
+		}
 	}
 }
 
-static void draw_encoded_bitmap(ushort **fbp, ushort col, int cnt)
+static void draw_unencoded_bitmap(u8 **fbp, uint bpix, uchar *bmap,
+				  struct bmp_color_table_entry *palette,
+				  int cnt)
 {
-	ushort *fb = *fbp;
+	u8 *fb = *fbp;
 
 	while (cnt > 0) {
-		*fb++ = col;
+		write_pix8(fb, bpix, palette, bmap++);
+		fb += bpix / 8;
+		cnt--;
+	}
+	*fbp = fb;
+}
+
+static void draw_encoded_bitmap(u8 **fbp, uint bpix,
+				struct bmp_color_table_entry *palette, u8 *bmap,
+				int cnt)
+{
+	u8 *fb = *fbp;
+
+	while (cnt > 0) {
+		write_pix8(fb, bpix, palette, bmap);
+		fb += bpix / 8;
 		cnt--;
 	}
 	*fbp = fb;
 }
 
 static void video_display_rle8_bitmap(struct udevice *dev,
-				      struct bmp_image *bmp, ushort *cmap,
-				      uchar *fb, int x_off, int y_off)
+				      struct bmp_image *bmp, uint bpix,
+				      struct bmp_color_table_entry *palette,
+				      uchar *fb, int x_off, int y_off,
+				      ulong width, ulong height)
 {
 	struct video_priv *priv = dev_get_uclass_priv(dev);
 	uchar *bmap;
-	ulong width, height;
 	ulong cnt, runlen;
 	int x, y;
 	int decode = 1;
+	uint bytes_per_pixel = bpix / 8;
 
 	debug("%s\n", __func__);
-	width = get_unaligned_le32(&bmp->header.width);
-	height = get_unaligned_le32(&bmp->header.height);
 	bmap = (uchar *)bmp + get_unaligned_le32(&bmp->header.data_offset);
 
 	x = 0;
@@ -65,8 +121,8 @@ static void video_display_rle8_bitmap(struct udevice *dev,
 				bmap += 2;
 				x = 0;
 				y--;
-				/* 16bpix, 2-byte per pixel, width should *2 */
-				fb -= (width * 2 + priv->line_length);
+				fb -= width * bytes_per_pixel +
+					priv->line_length;
 				break;
 			case BMP_RLE8_EOBMP:
 				/* end of bitmap */
@@ -76,9 +132,9 @@ static void video_display_rle8_bitmap(struct udevice *dev,
 				/* delta run */
 				x += bmap[2];
 				y -= bmap[3];
-				/* 16bpix, 2-byte per pixel, x should *2 */
-				fb = (uchar *)(priv->fb + (y + y_off - 1)
-					* priv->line_length + (x + x_off) * 2);
+				fb = (uchar *)(priv->fb +
+					(y + y_off - 1) * priv->line_length +
+					(x + x_off) * bytes_per_pixel);
 				bmap += 4;
 				break;
 			default:
@@ -92,8 +148,8 @@ static void video_display_rle8_bitmap(struct udevice *dev,
 						else
 							cnt = runlen;
 						draw_unencoded_bitmap(
-							(ushort **)&fb,
-							bmap, cmap, cnt);
+							&fb, bpix,
+							bmap, palette, cnt);
 					}
 					x += runlen;
 				}
@@ -117,8 +173,8 @@ static void video_display_rle8_bitmap(struct udevice *dev,
 						cnt = width - x;
 					else
 						cnt = runlen;
-					draw_encoded_bitmap((ushort **)&fb,
-						cmap[bmap[1]], cnt);
+					draw_encoded_bitmap(&fb, bpix, palette,
+							    &bmap[1], cnt);
 				}
 				x += runlen;
 			}
@@ -126,22 +182,6 @@ static void video_display_rle8_bitmap(struct udevice *dev,
 		}
 	}
 }
-#endif
-
-__weak void fb_put_byte(uchar **fb, uchar **from)
-{
-	*(*fb)++ = *(*from)++;
-}
-
-#if defined(CONFIG_BMP_16BPP)
-__weak void fb_put_word(uchar **fb, uchar **from)
-{
-	*(*fb)++ = *(*from)++;
-	*(*fb)++ = *(*from)++;
-}
-#endif /* CONFIG_BMP_16BPP */
-
-#define BMP_ALIGN_CENTER	0x7fff
 
 /**
  * video_splash_align_axis() - Align a single coordinate
@@ -159,8 +199,8 @@ __weak void fb_put_word(uchar **fb, uchar **from)
 static void video_splash_align_axis(int *axis, unsigned long panel_size,
 				    unsigned long picture_size)
 {
-	unsigned long panel_picture_delta = panel_size - picture_size;
-	unsigned long axis_alignment;
+	long panel_picture_delta = panel_size - picture_size;
+	long axis_alignment;
 
 	if (*axis == BMP_ALIGN_CENTER)
 		axis_alignment = panel_picture_delta / 2;
@@ -172,30 +212,12 @@ static void video_splash_align_axis(int *axis, unsigned long panel_size,
 	*axis = max(0, (int)axis_alignment);
 }
 
-static void video_set_cmap(struct udevice *dev,
-			   struct bmp_color_table_entry *cte, unsigned colours)
-{
-	struct video_priv *priv = dev_get_uclass_priv(dev);
-	int i;
-	ushort *cmap = priv->cmap;
-
-	debug("%s: colours=%d\n", __func__, colours);
-	for (i = 0; i < colours; ++i) {
-		*cmap = ((cte->red   << 8) & 0xf800) |
-			((cte->green << 3) & 0x07e0) |
-			((cte->blue  >> 3) & 0x001f);
-		cmap++;
-		cte++;
-	}
-}
-
 int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 		      bool align)
 {
 	struct video_priv *priv = dev_get_uclass_priv(dev);
-	ushort *cmap_base = NULL;
 	int i, j;
-	uchar *fb;
+	uchar *start, *fb;
 	struct bmp_image *bmp = map_sysmem(bmp_image, 0);
 	uchar *bmap;
 	ushort padded_width;
@@ -204,6 +226,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	unsigned colours, bpix, bmp_bpix;
 	struct bmp_color_table_entry *palette;
 	int hdr_size;
+	int ret;
 
 	if (!bmp || !(bmp->header.signature[0] == 'B' &&
 	    bmp->header.signature[1] == 'M')) {
@@ -231,11 +254,14 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	}
 
 	/*
-	 * We support displaying 8bpp BMPs on 16bpp LCDs
+	 * We support displaying 8bpp and 24bpp BMPs on 16bpp LCDs
 	 * and displaying 24bpp BMPs on 32bpp LCDs
-	 * */
+	 */
 	if (bpix != bmp_bpix &&
 	    !(bmp_bpix == 8 && bpix == 16) &&
+	    !(bmp_bpix == 8 && bpix == 24) &&
+	    !(bmp_bpix == 8 && bpix == 32) &&
+	    !(bmp_bpix == 24 && bpix == 16) &&
 	    !(bmp_bpix == 24 && bpix == 32)) {
 		printf("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
 		       bpix, get_unaligned_le16(&bmp->header.bit_count));
@@ -244,9 +270,6 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 
 	debug("Display-bmp: %d x %d  with %d colours, display %d\n",
 	      (int)width, (int)height, (int)colours, 1 << bpix);
-
-	if (bmp_bpix == 8)
-		video_set_cmap(dev, palette, colours);
 
 	padded_width = (width & 0x3 ? (width & ~0x3) + 4 : width);
 
@@ -261,93 +284,101 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 		height = priv->ysize - y;
 
 	bmap = (uchar *)bmp + get_unaligned_le32(&bmp->header.data_offset);
-	fb = (uchar *)(priv->fb +
-		(y + height - 1) * priv->line_length + x * bpix / 8);
+	start = (uchar *)(priv->fb +
+		(y + height) * priv->line_length + x * bpix / 8);
+
+	/* Move back to the final line to be drawn */
+	fb = start - priv->line_length;
 
 	switch (bmp_bpix) {
 	case 1:
-	case 8: {
-		cmap_base = priv->cmap;
-#ifdef CONFIG_VIDEO_BMP_RLE8
-		u32 compression = get_unaligned_le32(&bmp->header.compression);
-		debug("compressed %d %d\n", compression, BMP_BI_RLE8);
-		if (compression == BMP_BI_RLE8) {
-			if (bpix != 16) {
-				/* TODO implement render code for bpix != 16 */
-				printf("Error: only support 16 bpix");
-				return -EPROTONOSUPPORT;
+	case 8:
+		if (IS_ENABLED(CONFIG_VIDEO_BMP_RLE8)) {
+			u32 compression = get_unaligned_le32(
+				&bmp->header.compression);
+			debug("compressed %d %d\n", compression, BMP_BI_RLE8);
+			if (compression == BMP_BI_RLE8) {
+				video_display_rle8_bitmap(dev, bmp, bpix, palette, fb,
+							  x, y, width, height);
+				break;
 			}
-			video_display_rle8_bitmap(dev, bmp, cmap_base, fb, x,
-						  y);
-			break;
 		}
-#endif
 
-		if (bpix != 16)
+		/* Not compressed */
+		byte_width = width * (bpix / 8);
+		if (!byte_width)
 			byte_width = width;
-		else
-			byte_width = width * 2;
 
 		for (i = 0; i < height; ++i) {
 			WATCHDOG_RESET();
 			for (j = 0; j < width; j++) {
-				if (bpix != 16) {
-					fb_put_byte(&fb, &bmap);
-				} else {
-					*(uint16_t *)fb = cmap_base[*bmap];
-					bmap++;
-					fb += sizeof(uint16_t) / sizeof(*fb);
-				}
+				write_pix8(fb, bpix, palette, bmap);
+				bmap++;
+				fb += bpix / 8;
 			}
 			bmap += (padded_width - width);
 			fb -= byte_width + priv->line_length;
 		}
 		break;
-	}
-#if defined(CONFIG_BMP_16BPP)
 	case 16:
-		for (i = 0; i < height; ++i) {
-			WATCHDOG_RESET();
-			for (j = 0; j < width; j++)
-				fb_put_word(&fb, &bmap);
-
-			bmap += (padded_width - width) * 2;
-			fb -= width * 2 + priv->line_length;
+		if (IS_ENABLED(CONFIG_BMP_16BPP)) {
+			for (i = 0; i < height; ++i) {
+				WATCHDOG_RESET();
+				for (j = 0; j < width; j++) {
+					*fb++ = *bmap++;
+					*fb++ = *bmap++;
+				}
+				bmap += (padded_width - width);
+				fb -= width * 2 + priv->line_length;
+			}
 		}
 		break;
-#endif /* CONFIG_BMP_16BPP */
-#if defined(CONFIG_BMP_24BPP)
 	case 24:
-		for (i = 0; i < height; ++i) {
-			for (j = 0; j < width; j++) {
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = 0;
+		if (IS_ENABLED(CONFIG_BMP_24BPP)) {
+			for (i = 0; i < height; ++i) {
+				for (j = 0; j < width; j++) {
+					if (bpix == 16) {
+						/* 16bit 565RGB format */
+						*(u16 *)fb = ((bmap[2] >> 3)
+							<< 11) |
+							((bmap[1] >> 2) << 5) |
+							(bmap[0] >> 3);
+						bmap += 3;
+						fb += 2;
+					} else {
+						*fb++ = *bmap++;
+						*fb++ = *bmap++;
+						*fb++ = *bmap++;
+						*fb++ = 0;
+					}
+				}
+				fb -= priv->line_length + width * (bpix / 8);
+				bmap += (padded_width - width);
 			}
-			fb -= priv->line_length + width * (bpix / 8);
 		}
 		break;
-#endif /* CONFIG_BMP_24BPP */
-#if defined(CONFIG_BMP_32BPP)
 	case 32:
-		for (i = 0; i < height; ++i) {
-			for (j = 0; j < width; j++) {
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
+		if (IS_ENABLED(CONFIG_BMP_32BPP)) {
+			for (i = 0; i < height; ++i) {
+				for (j = 0; j < width; j++) {
+					*fb++ = *bmap++;
+					*fb++ = *bmap++;
+					*fb++ = *bmap++;
+					*fb++ = *bmap++;
+				}
+				fb -= priv->line_length + width * (bpix / 8);
 			}
-			fb -= priv->line_length + width * (bpix / 8);
 		}
 		break;
-#endif /* CONFIG_BMP_32BPP */
 	default:
 		break;
 	};
 
-	video_sync(dev);
+	/* Find the position of the top left of the image in the framebuffer */
+	fb = (uchar *)(priv->fb + y * priv->line_length + x * bpix / 8);
+	ret = video_sync_copy(dev, start, fb);
+	if (ret)
+		return log_ret(ret);
 
-	return 0;
+	return video_sync(dev, false);
 }
-

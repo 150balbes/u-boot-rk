@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2013 Gateworks Corporation
  *
  * Author: Tim Harvey <tharvey@gateworks.com>
- *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
 #ifndef _GWVENTANA_COMMON_H_
@@ -12,7 +11,6 @@
 #include "ventana_eeprom.h"
 
 /* GPIO's common to all baseboards */
-#define GP_PHY_RST	IMX_GPIO_NR(1, 30)
 #define GP_RS232_EN	IMX_GPIO_NR(2, 11)
 #define GP_MSATA_SEL	IMX_GPIO_NR(2, 8)
 
@@ -63,20 +61,16 @@ struct ventana {
 	struct dio_cfg *dio_cfg;
 	int dio_num;
 	/* various gpios (0 if non-existent) */
-	int leds[3];
-	int pcie_rst;
 	int mezz_pwren;
 	int mezz_irq;
 	int rs485en;
 	int gps_shdn;
-	int vidin_en;
 	int dioi2c_en;
 	int pcie_sson;
 	int usb_sel;
 	int wdis;
 	int msata_en;
 	int rs232_en;
-	int otgpwr_en;
 	int vsel_pin;
 	int mmc_cd;
 	/* various features */
@@ -86,7 +80,7 @@ struct ventana {
 extern struct ventana gpio_cfg[GW_UNKNOWN];
 
 /* configure i2c iomux */
-void setup_ventana_i2c(void);
+void setup_ventana_i2c(int);
 /* configure uart iomux */
 void setup_iomux_uart(void);
 /* conifgure PMIC */
@@ -95,5 +89,7 @@ void setup_pmic(void);
 void setup_iomux_gpio(int board, struct ventana_board_info *);
 /* late setup of GPIO (configuration per baseboard and env) */
 void setup_board_gpio(int board, struct ventana_board_info *);
+/* early model/revision ft fixups */
+void ft_early_fixup(void *fdt, int board_type);
 
 #endif /* #ifndef _GWVENTANA_COMMON_H_ */

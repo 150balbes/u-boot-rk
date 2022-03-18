@@ -1,6 +1,6 @@
-# (C) Copyright 2016 Freescale Semiconductor, Inc.
+# SPDX-License-Identifier: GPL-2.0+
 #
-# SPDX-License-Identifier:      GPL-2.0+
+# (C) Copyright 2016 Freescale Semiconductor, Inc.
 #
 
 obj-$(CONFIG_$(SPL_)DM_USB) += common.o

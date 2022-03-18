@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2013 Google, Inc
  *
  * (C) Copyright 2012
  * Pavel Herrmann <morpheus.ibis@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _DM_ROOT_H_
@@ -12,18 +11,23 @@
 
 struct udevice;
 
+/* Head of the uclass list if CONFIG_OF_PLATDATA_INST is enabled */
+extern struct list_head uclass_head;
+
 /**
  * dm_root() - Return pointer to the top of the driver tree
  *
  * This function returns pointer to the root node of the driver tree,
  *
- * @return pointer to root device, or NULL if not inited yet
+ * Return: pointer to root device, or NULL if not inited yet
  */
 struct udevice *dm_root(void);
 
 struct global_data;
 /**
  * dm_fixup_for_gd_move() - Handle global_data moving to a new place
+ *
+ * @new_gd: Pointer to the new global data
  *
  * The uclass list is part of global_data. Due to the way lists work, moving
  * the list will cause it to become invalid. This function fixes that up so
@@ -32,15 +36,15 @@ struct global_data;
 void dm_fixup_for_gd_move(struct global_data *new_gd);
 
 /**
- * dm_scan_platdata() - Scan all platform data and bind drivers
+ * dm_scan_plat() - Scan all platform data and bind drivers
  *
- * This scans all available platdata and creates drivers for each
+ * This scans all available plat and creates drivers for each
  *
  * @pre_reloc_only: If true, bind only drivers with the DM_FLAG_PRE_RELOC
  * flag. If false bind all drivers.
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
-int dm_scan_platdata(bool pre_reloc_only);
+int dm_scan_plat(bool pre_reloc_only);
 
 /**
  * dm_scan_fdt() - Scan the device tree and bind drivers
@@ -48,26 +52,24 @@ int dm_scan_platdata(bool pre_reloc_only);
  * This scans the device tree and creates a driver for each node. Only
  * the top-level subnodes are examined.
  *
- * @blob: Pointer to device tree blob
- * @pre_reloc_only: If true, bind only drivers with the DM_FLAG_PRE_RELOC
- * flag. If false bind all drivers.
- * @return 0 if OK, -ve on error
+ * @pre_reloc_only: If true, bind only nodes with special devicetree properties,
+ * or drivers with the DM_FLAG_PRE_RELOC flag. If false bind all drivers.
+ * Return: 0 if OK, -ve on error
  */
-int dm_scan_fdt(const void *blob, bool pre_reloc_only);
+int dm_scan_fdt(bool pre_reloc_only);
 
 /**
- * dm_extended_scan_fdt() - Scan the device tree and bind drivers
+ * dm_extended_scan() - Scan the device tree and bind drivers
  *
  * This calls dm_scna_dft() which scans the device tree and creates a driver
  * for each node. the top-level subnodes are examined and also all sub-nodes
  * of "clocks" node.
  *
- * @blob: Pointer to device tree blob
- * @pre_reloc_only: If true, bind only drivers with the DM_FLAG_PRE_RELOC
- * flag. If false bind all drivers.
- * @return 0 if OK, -ve on error
+ * @pre_reloc_only: If true, bind only nodes with special devicetree properties,
+ * or drivers with the DM_FLAG_PRE_RELOC flag. If false bind all drivers.
+ * Return: 0 if OK, -ve on error
  */
-int dm_extended_scan_fdt(const void *blob, bool pre_reloc_only);
+int dm_extended_scan(bool pre_reloc_only);
 
 /**
  * dm_scan_other() - Scan for other devices
@@ -77,8 +79,9 @@ int dm_extended_scan_fdt(const void *blob, bool pre_reloc_only);
  * programmaticaly. They should do this by calling device_bind() on each
  * device.
  *
- * @pre_reloc_only: If true, bind only drivers with the DM_FLAG_PRE_RELOC
- * flag. If false bind all drivers.
+ * @pre_reloc_only: If true, bind only nodes with special devicetree properties,
+ * or drivers with the DM_FLAG_PRE_RELOC flag. If false bind all drivers.
+ * Return: 0 if OK, -ve on error
  */
 int dm_scan_other(bool pre_reloc_only);
 
@@ -89,9 +92,9 @@ int dm_scan_other(bool pre_reloc_only);
  * then scans and binds available devices from platform data and the FDT.
  * This calls dm_init() to set up Driver Model structures.
  *
- * @pre_reloc_only: If true, bind only drivers with the DM_FLAG_PRE_RELOC
- * flag. If false bind all drivers.
- * @return 0 if OK, -ve on error
+ * @pre_reloc_only: If true, bind only nodes with special devicetree properties,
+ * or drivers with the DM_FLAG_PRE_RELOC flag. If false bind all drivers.
+ * Return: 0 if OK, -ve on error
  */
 int dm_init_and_scan(bool pre_reloc_only);
 
@@ -102,7 +105,7 @@ int dm_init_and_scan(bool pre_reloc_only);
  * This needs to be called before anything uses the DM
  *
  * @of_live:	Enable live device tree
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int dm_init(bool of_live);
 
@@ -110,7 +113,7 @@ int dm_init(bool of_live);
  * dm_uninit - Uninitialise Driver Model structures
  *
  * All devices will be removed and unbound
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int dm_uninit(void);
 
@@ -123,11 +126,19 @@ int dm_uninit(void);
  * All devices with the matching flags set will be removed
  *
  * @flags: Flags for selective device removal
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int dm_remove_devices_flags(uint flags);
 #else
 static inline int dm_remove_devices_flags(uint flags) { return 0; }
 #endif
+
+/**
+ * dm_get_stats() - Get some stats for driver mode
+ *
+ * @device_countp: Returns total number of devices that are bound
+ * @uclass_countp: Returns total number of uclasses in use
+ */
+void dm_get_stats(int *device_countp, int *uclass_countp);
 
 #endif

@@ -1,14 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007 - 2013 Tensilica Inc.
  * (C) Copyright 2014 - 2016 Cadence Design Systems Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <clock_legacy.h>
 #include <command.h>
 #include <dm.h>
+#include <init.h>
 #include <dm/platform_data/net_ethoc.h>
+#include <env.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
@@ -48,15 +50,7 @@ int checkboard(void)
 	return 0;
 }
 
-int dram_init_banksize(void)
-{
-	gd->bd->bi_memstart = PHYSADDR(CONFIG_SYS_SDRAM_BASE);
-	gd->bd->bi_memsize = CONFIG_SYS_SDRAM_SIZE;
-
-	return 0;
-}
-
-int board_postclk_init(void)
+unsigned long get_board_sys_clk(void)
 {
 	/*
 	 * Obtain CPU clock frequency from board and cache in global
@@ -65,11 +59,17 @@ int board_postclk_init(void)
 	 */
 
 #ifdef CONFIG_SYS_FPGAREG_FREQ
-	gd->cpu_clk = (*(volatile unsigned long *)CONFIG_SYS_FPGAREG_FREQ);
+	return (*(volatile unsigned long *)CONFIG_SYS_FPGAREG_FREQ);
 #else
 	/* early Tensilica bitstreams lack this reg, but most run at 50 MHz */
-	gd->cpu_clk = 50000000UL;
+	return 50000000;
 #endif
+}
+
+int board_postclk_init(void)
+{
+	gd->cpu_clk = get_board_sys_clk();
+
 	return 0;
 }
 
@@ -100,7 +100,7 @@ int misc_init_r(void)
 	return 0;
 }
 
-U_BOOT_DEVICE(sysreset) = {
+U_BOOT_DRVINFO(sysreset) = {
 	.name = "xtfpga_sysreset",
 };
 
@@ -111,7 +111,7 @@ static struct ethoc_eth_pdata ethoc_pdata = {
 	.packet_base = CONFIG_SYS_ETHOC_BUFFER_ADDR,
 };
 
-U_BOOT_DEVICE(ethoc) = {
+U_BOOT_DRVINFO(ethoc) = {
 	.name = "ethoc",
-	.platdata = &ethoc_pdata,
+	.plat = &ethoc_pdata,
 };

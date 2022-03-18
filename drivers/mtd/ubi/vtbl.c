@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) International Business Machines Corp., 2006
  * Copyright (c) Nokia Corporation, 2006, 2007
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
@@ -47,12 +46,16 @@
  */
 
 #ifndef __UBOOT__
+#include <log.h>
+#include <dm/devres.h>
 #include <linux/crc32.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <asm/div64.h>
+#include <u-boot/crc.h>
 #else
 #include <ubi_uboot.h>
+#include <linux/bug.h>
 #endif
 
 #include <linux/err.h>
@@ -554,6 +557,9 @@ static int init_volumes(struct ubi_device *ubi,
 		memcpy(vol->name, vtbl[i].name, vol->name_len);
 		vol->name[vol->name_len] = '\0';
 		vol->vol_id = i;
+
+		if (vtbl[i].flags & UBI_VTBL_SKIP_CRC_CHECK_FLG)
+			vol->skip_check = 1;
 
 		if (vtbl[i].flags & UBI_VTBL_AUTORESIZE_FLG) {
 			/* Auto re-size flag may be set only for one volume */

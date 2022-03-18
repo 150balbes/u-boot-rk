@@ -1,18 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <asm/io.h>
 #include <asm/arch/scu_ast2500.h>
+#include <linux/err.h>
 
 int ast_get_clk(struct udevice **devp)
 {
 	return uclass_get_device_by_driver(UCLASS_CLK,
-			DM_GET_DRIVER(aspeed_ast2500_scu), devp);
+			DM_DRIVER_GET(aspeed_ast2500_scu), devp);
 }
 
 void *ast_get_scu(void)

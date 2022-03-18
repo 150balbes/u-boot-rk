@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2011 Linaro Limited
  * Aneesh V <aneesh@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
+#include <env.h>
+#include <part.h>
 #include <asm/setup.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/omap_common.h>
+
 static void do_cancel_out(u32 *num, u32 *den, u32 factor)
 {
 	while (1) {
@@ -26,6 +29,11 @@ static void omap_set_fastboot_cpu(void)
 	u32 cpu_rev = omap_revision();
 
 	switch (cpu_rev) {
+	case DRA762_ES1_0:
+	case DRA762_ABZ_ES1_0:
+	case DRA762_ACD_ES1_0:
+		cpu = "DRA762";
+		break;
 	case DRA752_ES1_0:
 	case DRA752_ES1_1:
 	case DRA752_ES2_0:
@@ -33,6 +41,7 @@ static void omap_set_fastboot_cpu(void)
 		break;
 	case DRA722_ES1_0:
 	case DRA722_ES2_0:
+	case DRA722_ES2_1:
 		cpu = "DRA722";
 		break;
 	default:
@@ -77,12 +86,12 @@ static void omap_set_fastboot_board_rev(void)
 	env_set("fastboot.board_rev", board_rev);
 }
 
-#ifdef CONFIG_FASTBOOT_FLASH_MMC_DEV
+#ifdef CONFIG_FASTBOOT_FLASH_MMC
 static u32 omap_mmc_get_part_size(const char *part)
 {
 	int res;
 	struct blk_desc *dev_desc;
-	disk_partition_t info;
+	struct disk_partition info;
 	u64 sz = 0;
 
 	dev_desc = blk_get_dev("mmc", CONFIG_FASTBOOT_FLASH_MMC_DEV);
@@ -91,11 +100,10 @@ static u32 omap_mmc_get_part_size(const char *part)
 		return 0;
 	}
 
-	res = part_get_info_by_name(dev_desc, part, &info);
-	if (res < 0) {
-		pr_err("cannot find partition: '%s'\n", part);
+	/* Check only for EFI (GPT) partition table */
+	res = part_get_info_by_name_type(dev_desc, part, &info, PART_TYPE_EFI);
+	if (res < 0)
 		return 0;
-	}
 
 	/* Calculate size in bytes */
 	sz = (info.size * (u64)info.blksz);
@@ -111,26 +119,36 @@ static void omap_set_fastboot_userdata_size(void)
 	u32 sz_kb;
 
 	sz_kb = omap_mmc_get_part_size("userdata");
-	if (sz_kb == 0) {
-		buf[0] = '\0';
-		printf("Warning: fastboot.userdata_size: unable to calc\n");
-	} else {
-		sprintf(buf, "%u", sz_kb);
-	}
+	if (sz_kb == 0)
+		return; /* probably it's not Android partition table */
 
+	sprintf(buf, "%u", sz_kb);
 	env_set("fastboot.userdata_size", buf);
 }
 #else
 static inline void omap_set_fastboot_userdata_size(void)
 {
 }
-#endif /* CONFIG_FASTBOOT_FLASH_MMC_DEV */
+#endif /* CONFIG_FASTBOOT_FLASH_MMC */
+
+static void omap_set_fastboot_product(void)
+{
+	const char *board_name;
+
+	board_name = env_get("board_name");
+	if (board_name == NULL)
+		printf("Warning: fastboot.product: unknown board\n");
+
+	env_set("fastboot.product", board_name);
+}
+
 void omap_set_fastboot_vars(void)
 {
 	omap_set_fastboot_cpu();
 	omap_set_fastboot_secure();
 	omap_set_fastboot_board_rev();
 	omap_set_fastboot_userdata_size();
+	omap_set_fastboot_product();
 }
 #endif /* CONFIG_FASTBOOT_FLASH */
 
@@ -215,6 +233,9 @@ void omap_die_id_usbethaddr(void)
 		mac[5] = (die_id[0] >> 8) & 0xff;
 
 		eth_env_set_enetaddr("usbethaddr", mac);
+
+		if (!env_get("ethaddr"))
+			eth_env_set_enetaddr("ethaddr", mac);
 	}
 }
 

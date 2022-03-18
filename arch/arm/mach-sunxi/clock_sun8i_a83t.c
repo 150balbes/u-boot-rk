@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * A83 specific clock code
  *
@@ -6,8 +7,6 @@
  * Tom Cubie <tangliang@allwinnertech.com>
  *
  * (C) Copyright 2015 Vishnu Patekar <vishnupatekar0510@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -15,6 +14,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/prcm.h>
 #include <asm/arch/sys_proto.h>
+#include <linux/delay.h>
 
 #ifdef CONFIG_SPL_BUILD
 void clock_init_safe(void)

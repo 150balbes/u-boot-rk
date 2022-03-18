@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2006-2008
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <nand.h>
 #include <asm/io.h>
 #include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/rawnand.h>
 
 static int nand_ecc_pos[] = CONFIG_SYS_NAND_ECCPOS;
 static struct mtd_info *mtd;
@@ -40,11 +40,6 @@ static int nand_command(int block, int page, uint32_t offs,
 	this->cmd_ctrl(mtd, page_addr & 0xff, NAND_CTRL_ALE); /* A[16:9] */
 	this->cmd_ctrl(mtd, (page_addr >> 8) & 0xff,
 		       NAND_CTRL_ALE); /* A[24:17] */
-#ifdef CONFIG_SYS_NAND_4_ADDR_CYCLE
-	/* One more address cycle for devices > 32MiB */
-	this->cmd_ctrl(mtd, (page_addr >> 16) & 0x0f,
-		       NAND_CTRL_ALE); /* A[28:25] */
-#endif
 	/* Latch in address */
 	this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 

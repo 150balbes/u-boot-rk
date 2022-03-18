@@ -1,12 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for AT91/AT32 MULTI LAYER LCD Controller
  *
  * Copyright (C) 2012 Atmel Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <log.h>
+#include <malloc.h>
+#include <part.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/clk.h>
@@ -17,6 +21,7 @@
 #include <video.h>
 #include <wait_bit.h>
 #include <atmel_hlcdc.h>
+#include <linux/bug.h>
 
 #if defined(CONFIG_LCD_LOGO)
 #include <bmp_logo.h>
@@ -289,7 +294,7 @@ static int at91_hlcdc_enable_clk(struct udevice *dev)
 
 static void atmel_hlcdc_init(struct udevice *dev)
 {
-	struct video_uc_platdata *uc_plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
 	struct atmel_hlcdc_priv *priv = dev_get_priv(dev);
 	struct atmel_hlcd_regs *regs = priv->regs;
 	struct display_timing *timing = &priv->timing;
@@ -497,13 +502,13 @@ static int atmel_hlcdc_probe(struct udevice *dev)
 	return 0;
 }
 
-static int atmel_hlcdc_ofdata_to_platdata(struct udevice *dev)
+static int atmel_hlcdc_of_to_plat(struct udevice *dev)
 {
 	struct atmel_hlcdc_priv *priv = dev_get_priv(dev);
 	const void *blob = gd->fdt_blob;
 	int node = dev_of_offset(dev);
 
-	priv->regs = (struct atmel_hlcd_regs *)devfdt_get_addr(dev);
+	priv->regs = dev_read_addr_ptr(dev);
 	if (!priv->regs) {
 		debug("%s: No display controller address\n", __func__);
 		return -EINVAL;
@@ -535,7 +540,7 @@ static int atmel_hlcdc_ofdata_to_platdata(struct udevice *dev)
 
 static int atmel_hlcdc_bind(struct udevice *dev)
 {
-	struct video_uc_platdata *uc_plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
 
 	uc_plat->size = LCD_MAX_WIDTH * LCD_MAX_HEIGHT *
 				(1 << LCD_MAX_LOG2_BPP) / 8;
@@ -557,8 +562,8 @@ U_BOOT_DRIVER(atmel_hlcdfb) = {
 	.of_match = atmel_hlcdc_ids,
 	.bind	= atmel_hlcdc_bind,
 	.probe	= atmel_hlcdc_probe,
-	.ofdata_to_platdata = atmel_hlcdc_ofdata_to_platdata,
-	.priv_auto_alloc_size = sizeof(struct atmel_hlcdc_priv),
+	.of_to_plat = atmel_hlcdc_of_to_plat,
+	.priv_auto	= sizeof(struct atmel_hlcdc_priv),
 };
 
 #endif

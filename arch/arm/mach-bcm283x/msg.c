@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012 Stephen Warren
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <memalign.h>
 #include <phys2bus.h>
 #include <asm/arch/mbox.h>
+#include <linux/delay.h>
 
 struct msg_set_power_state {
 	struct bcm2835_mbox_hdr hdr;
@@ -41,6 +41,12 @@ struct msg_setup {
 	u32 end_tag;
 };
 
+struct msg_notify_vl805_reset {
+	struct bcm2835_mbox_hdr hdr;
+	struct bcm2835_mbox_tag_pci_dev_addr dev_addr;
+	u32 end_tag;
+};
+
 int bcm2835_power_on_module(u32 module)
 {
 	ALLOC_CACHE_ALIGN_BUFFER(struct msg_set_power_state, msg_pwr, 1);
@@ -65,7 +71,7 @@ int bcm2835_power_on_module(u32 module)
 	return 0;
 }
 
-int bcm2835_get_mmc_clock(void)
+int bcm2835_get_mmc_clock(u32 clock_id)
 {
 	ALLOC_CACHE_ALIGN_BUFFER(struct msg_get_clock_rate, msg_clk, 1);
 	int ret;
@@ -76,7 +82,7 @@ int bcm2835_get_mmc_clock(void)
 
 	BCM2835_MBOX_INIT_HDR(msg_clk);
 	BCM2835_MBOX_INIT_TAG(&msg_clk->get_clock_rate, GET_CLOCK_RATE);
-	msg_clk->get_clock_rate.body.req.clock_id = BCM2835_MBOX_CLOCK_ID_EMMC;
+	msg_clk->get_clock_rate.body.req.clock_id = clock_id;
 
 	ret = bcm2835_mbox_call_prop(BCM2835_MBOX_PROP_CHAN, &msg_clk->hdr);
 	if (ret) {
@@ -149,6 +155,50 @@ int bcm2835_set_video_params(int *widthp, int *heightp, int depth_bpp,
 	*fb_basep = bus_to_phys(
 			msg_setup->allocate_buffer.body.resp.fb_address);
 	*fb_sizep = msg_setup->allocate_buffer.body.resp.fb_size;
+
+	return 0;
+}
+
+/*
+ * On the Raspberry Pi 4, after a PCI reset, VL805's (the xHCI chip) firmware
+ * may either be loaded directly from an EEPROM or, if not present, by the
+ * SoC's VideoCore. This informs VideoCore that VL805 needs its firmware
+ * loaded.
+ */
+int bcm2711_notify_vl805_reset(void)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(struct msg_notify_vl805_reset,
+				 msg_notify_vl805_reset, 1);
+	int ret;
+	static int done = false;
+
+	if (done)
+		return 0;
+
+	done = true;
+
+	BCM2835_MBOX_INIT_HDR(msg_notify_vl805_reset);
+	BCM2835_MBOX_INIT_TAG(&msg_notify_vl805_reset->dev_addr,
+			      NOTIFY_XHCI_RESET);
+
+	/*
+	 * The pci device address is expected like this:
+	 *
+	 *   PCI_BUS << 20 | PCI_SLOT << 15 | PCI_FUNC << 12
+	 *
+	 * But since RPi4's PCIe setup is hardwired, we know the address in
+	 * advance.
+	 */
+	msg_notify_vl805_reset->dev_addr.body.req.dev_addr = 0x100000;
+
+	ret = bcm2835_mbox_call_prop(BCM2835_MBOX_PROP_CHAN,
+				     &msg_notify_vl805_reset->hdr);
+	if (ret) {
+		printf("bcm2711: Failed to load vl805's firmware, %d\n", ret);
+		return -EIO;
+	}
+
+	udelay(200);
 
 	return 0;
 }

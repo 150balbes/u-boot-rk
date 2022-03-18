@@ -1,4 +1,5 @@
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "sama5d2.dtsi"
 #include "sama5d2-pinfunc.h"
 
@@ -11,8 +12,24 @@
 		stdout-path = &uart1;
 	};
 
+	memory {
+		reg = <0x20000000 0x20000000>;
+	};
+
+	onewire_tm: onewire {
+		gpios = <&pioA PIN_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_onewire_tm_default>;
+		status = "okay";
+
+		w1_eeprom: w1_eeprom@0 {
+			compatible = "maxim,ds24b33";
+			status = "okay";
+		};
+	};
+
 	ahb {
-		usb1: ohci@00400000 {
+		usb1: ohci@400000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <&pioA 42 0>;
 			pinctrl-names = "default";
@@ -20,7 +37,7 @@
 			status = "okay";
 		};
 
-		usb2: ehci@00500000 {
+		usb2: ehci@500000 {
 			status = "okay";
 		};
 
@@ -41,27 +58,44 @@
 		};
 
 		apb {
-			qspi0: spi@f0020000 {
+			hlcdc: hlcdc@f0000000 {
+				atmel,vl-bpix = <4>;
+				atmel,guard-time = <1>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_pwm &pinctrl_lcd_rgb666>;
 				status = "okay";
+				u-boot,dm-pre-reloc;
+
+				display-timings {
+					u-boot,dm-pre-reloc;
+					480x272 {
+						clock-frequency = <9000000>;
+						hactive = <480>;
+						vactive = <272>;
+						hsync-len = <41>;
+						hfront-porch = <2>;
+						hback-porch = <2>;
+						vfront-porch = <2>;
+						vback-porch = <2>;
+						vsync-len = <11>;
+						u-boot,dm-pre-reloc;
+					};
+				};
+			};
+
+			qspi0: spi@f0020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_qspi0_sck_cs_default &pinctrl_qspi0_dat_default>;
+				status = "okay";
+				u-boot,dm-pre-reloc;
 
 				flash@0 {
-					compatible = "atmel,sama5d2-qspi-flash";
+					compatible = "jedec,spi-nor";
 					reg = <0>;
-					#address-cells = <1>;
-					#size-cells = <1>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_qspi0_default>;
 					spi-max-frequency = <83000000>;
-
-					partition@00000000 {
-						label = "boot";
-						reg = <0x00000000 0x00c00000>;
-					};
-
-					partition@00c00000 {
-						label = "rootfs";
-						reg = <0x00c00000 0x00000000>;
-					};
+					spi-rx-bus-width = <4>;
+					spi-tx-bus-width = <4>;
+					u-boot,dm-pre-reloc;
 				};
 			};
 
@@ -73,7 +107,7 @@
 				u-boot,dm-pre-reloc;
 
 				spi_flash@0 {
-					compatible = "spi-flash";
+					compatible = "jedec,spi-nor";
 					reg = <0>;
 					spi-max-frequency = <50000000>;
 					u-boot,dm-pre-reloc;
@@ -102,6 +136,11 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c1_default>;
 				status = "okay";
+
+				i2c_eeprom: i2c_eeprom@5c {
+					compatible = "atmel,24mac402";
+					reg = <0x5c>;
+				};
 			};
 
 			pioA: gpio@fc038000 {
@@ -109,6 +148,41 @@
 					pinctrl_i2c1_default: i2c1_default {
 						pinmux = <PIN_PD4__TWD1>,
 							 <PIN_PD5__TWCK1>;
+						bias-disable;
+					};
+
+					pinctrl_lcd_base: pinctrl_lcd_base {
+						pinmux = <PIN_PC30__LCDVSYNC>,
+							<PIN_PC31__LCDHSYNC>,
+							<PIN_PD1__LCDDEN>,
+							<PIN_PD0__LCDPCK>;
+						bias-disable;
+					};
+
+					pinctrl_lcd_pwm: pinctrl_lcd_pwm {
+						pinmux = <PIN_PC28__LCDPWM>;
+						bias-disable;
+					};
+
+					pinctrl_lcd_rgb666: pinctrl_lcd_rgb666 {
+						pinmux = <PIN_PC10__LCDDAT2>,
+							<PIN_PC11__LCDDAT3>,
+							<PIN_PC12__LCDDAT4>,
+							<PIN_PC13__LCDDAT5>,
+							<PIN_PC14__LCDDAT6>,
+							<PIN_PC15__LCDDAT7>,
+							<PIN_PC16__LCDDAT10>,
+							<PIN_PC17__LCDDAT11>,
+							<PIN_PC18__LCDDAT12>,
+							<PIN_PC19__LCDDAT13>,
+							<PIN_PC20__LCDDAT14>,
+							<PIN_PC21__LCDDAT15>,
+							<PIN_PC22__LCDDAT18>,
+							<PIN_PC23__LCDDAT19>,
+							<PIN_PC24__LCDDAT20>,
+							<PIN_PC25__LCDDAT21>,
+							<PIN_PC26__LCDDAT22>,
+							<PIN_PC27__LCDDAT23>;
 						bias-disable;
 					};
 
@@ -131,14 +205,20 @@
 						bias-disable;
 					};
 
-					pinctrl_qspi0_default: qspi0_default {
+					pinctrl_qspi0_sck_cs_default: qspi0_sck_cs_default {
 						pinmux = <PIN_PA22__QSPI0_SCK>,
-							 <PIN_PA23__QSPI0_CS>,
-							 <PIN_PA24__QSPI0_IO0>,
+							 <PIN_PA23__QSPI0_CS>;
+						bias-disable;
+						u-boot,dm-pre-reloc;
+					};
+
+					pinctrl_qspi0_dat_default: qspi0_dat_default {
+						pinmux = <PIN_PA24__QSPI0_IO0>,
 							 <PIN_PA25__QSPI0_IO1>,
 							 <PIN_PA26__QSPI0_IO2>,
 							 <PIN_PA27__QSPI0_IO3>;
-						bias-disable;
+						bias-pull-up;
+						u-boot,dm-pre-reloc;
 					};
 
 					pinctrl_sdmmc0_cmd_dat_default: sdmmc0_cmd_dat_default {
@@ -204,6 +284,11 @@
 					pinctrl_usba_vbus: usba_vbus {
 						pinmux = <PIN_PA31__GPIO>;
 						bias-disable;
+					};
+
+					pinctrl_onewire_tm_default: onewire_tm_default {
+						pinmux = <PIN_PB0__GPIO>;
+						bias-pull-up;
 					};
 				};
 			};

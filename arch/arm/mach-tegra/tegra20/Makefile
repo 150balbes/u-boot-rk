@@ -1,8 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2010,2011 Nvidia Corporation.
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 ifdef CONFIG_SPL_BUILD
 obj-y	+= cpu.o
@@ -12,6 +10,7 @@ endif
 # flags for any startup files it might use.
 CFLAGS_warmboot_avp.o = -march=armv4t -U__LINUX_ARM_ARCH__ \
 	-D__LINUX_ARM_ARCH__=4
+CFLAGS_REMOVE_warmboot_avp.o := $(LTO_CFLAGS)
 
 obj-y	+= clock.o funcmux.o pinmux.o
 obj-$(CONFIG_TEGRA_LP0) += warmboot.o crypto.o warmboot_avp.o

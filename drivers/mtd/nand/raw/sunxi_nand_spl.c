@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2014-2015, Antmicro Ltd <www.antmicro.com>
  * Copyright (c) 2015, AW-SOM Technologies <www.aw-som.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <asm/arch/clock.h>
@@ -10,7 +9,10 @@
 #include <common.h>
 #include <config.h>
 #include <nand.h>
+#include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
+#include <linux/mtd/rawnand.h>
 
 /* registers */
 #define NFC_CTL                    0x00000000

@@ -30,7 +30,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	LEGACY_ID_NAND("NAND 1MiB 3,3V 8-bit",	0xe8, 1, SZ_4K, SP_OPTIONS),
 	LEGACY_ID_NAND("NAND 1MiB 3,3V 8-bit",	0xec, 1, SZ_4K, SP_OPTIONS),
 	LEGACY_ID_NAND("NAND 2MiB 3,3V 8-bit",	0xea, 2, SZ_4K, SP_OPTIONS),
-	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 	0xd5, 4, SZ_8K, SP_OPTIONS),
+	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit",	0xd5, 4, SZ_8K, SP_OPTIONS),
 
 	LEGACY_ID_NAND("NAND 8MiB 3,3V 8-bit",	0xe6, 8, SZ_8K, SP_OPTIONS),
 #endif
@@ -58,9 +58,6 @@ struct nand_flash_dev nand_flash_ids[] = {
 	{"TC58NVG6D2 64G 3.3V 8-bit",
 		{ .id = {0x98, 0xde, 0x94, 0x82, 0x76, 0x56, 0x04, 0x20} },
 		  SZ_8K, SZ_8K, SZ_2M, 0, 8, 640, NAND_ECC_INFO(40, SZ_1K) },
-	{"SDTNQGAMA 64G 3.3V 8-bit",
-		{ .id = {0x45, 0xde, 0x94, 0x93, 0x76, 0x57} },
-		  SZ_16K, SZ_8K, SZ_4M, 0, 6, 1280, NAND_ECC_INFO(40, SZ_1K) },
 	{"SDTNRGAMA 64G 3.3V 8-bit",
 		{ .id = {0x45, 0xde, 0x94, 0x93, 0x76, 0x50} },
 		  SZ_16K, SZ_8K, SZ_4M, 0, 6, 1280, NAND_ECC_INFO(40, SZ_1K) },

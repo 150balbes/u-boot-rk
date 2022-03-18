@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015, Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <init.h>
+#include <log.h>
 #include <asm/gpio.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>

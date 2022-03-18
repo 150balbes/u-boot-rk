@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2017 Rockchip Electronics Co., Ltd.
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
-#ifndef _ASM_ARCH_CRU_px30_H
-#define _ASM_ARCH_CRU_px30_H
-
-#include <common.h>
+#ifndef _ASM_ARCH_CRU_PX30_H
+#define _ASM_ARCH_CRU_PX30_H
 
 #define MHz		1000000
 #define KHz		1000
@@ -32,21 +29,9 @@ enum px30_pll_id {
 	PLL_COUNT,
 };
 
-struct px30_clk_info {
-	unsigned long id;
-	char *name;
-	bool is_cru;
-};
-
-/* Private data for the clock driver - used by rockchip_get_cru() */
 struct px30_clk_priv {
 	struct px30_cru *cru;
 	ulong gpll_hz;
-	ulong armclk_hz;
-	ulong armclk_enter_hz;
-	ulong armclk_init_hz;
-	bool sync_kernel;
-	bool set_armclk_rate;
 };
 
 struct px30_pmuclk_priv {
@@ -220,7 +205,7 @@ enum {
 	DCLK_VOPL_DIV_MASK	= 0xff,
 
 	/* CRU_CLK_SEL14_CON */
-	PERI_PLL_SEL_SHIFT	=15,
+	PERI_PLL_SEL_SHIFT	= 15,
 	PERI_PLL_SEL_MASK	= 3 << PERI_PLL_SEL_SHIFT,
 	PERI_PLL_GPLL		= 0,
 	PERI_PLL_CPLL,
@@ -276,7 +261,7 @@ enum {
 	SFC_DIV_CON_MASK	= 0x7f,
 
 	/* CRU_CLK_SEL23_CON */
-	BUS_PLL_SEL_SHIFT	=15,
+	BUS_PLL_SEL_SHIFT	= 15,
 	BUS_PLL_SEL_MASK	= 1 << BUS_PLL_SEL_SHIFT,
 	BUS_PLL_SEL_GPLL	= 0,
 	BUS_PLL_SEL_CPLL,
@@ -369,6 +354,25 @@ enum {
 	UART2_CLK_SEL_UART2_FRAC,
 	UART2_DIVNP5_SHIFT	= 0,
 	UART2_DIVNP5_MASK	= 0x1f << UART2_DIVNP5_SHIFT,
+
+	/* CRU_CLK_SEL40_CON */
+	UART3_PLL_SEL_SHIFT	= 14,
+	UART3_PLL_SEL_MASK	= 3 << UART3_PLL_SEL_SHIFT,
+	UART3_PLL_SEL_GPLL	= 0,
+	UART3_PLL_SEL_24M,
+	UART3_PLL_SEL_480M,
+	UART3_PLL_SEL_NPLL,
+	UART3_DIV_CON_SHIFT	= 0,
+	UART3_DIV_CON_MASK	= 0x1f << UART3_DIV_CON_SHIFT,
+
+	/* CRU_CLK_SEL41_CON */
+	UART3_CLK_SEL_SHIFT	= 14,
+	UART3_CLK_SEL_MASK	= 3 << UART3_PLL_SEL_SHIFT,
+	UART3_CLK_SEL_UART3	= 0,
+	UART3_CLK_SEL_UART3_NP5,
+	UART3_CLK_SEL_UART3_FRAC,
+	UART3_DIVNP5_SHIFT	= 0,
+	UART3_DIVNP5_MASK	= 0x1f << UART3_DIVNP5_SHIFT,
 
 	/* CRU_CLK_SEL46_CON */
 	UART5_PLL_SEL_SHIFT	= 14,

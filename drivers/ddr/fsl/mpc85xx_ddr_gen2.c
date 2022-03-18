@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <fsl_ddr_sdram.h>
+#include <linux/delay.h>
 
 #if (CONFIG_CHIP_SELECTS_PER_CTRL > 4)
 #error Invalid setting for CONFIG_CHIP_SELECTS_PER_CTRL

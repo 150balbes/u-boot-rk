@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Sun8i platform dram controller register and constant defines
  *
@@ -5,12 +6,14 @@
  *                         Jerry Wang <wangflord@allwinnertech.com>
  * (C) Copyright 2016  Theobroma Systems Design und Consulting GmbH
  *                     Philipp Tomsich <philipp.tomsich@theobroma-systems.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SUNXI_DRAM_SUN9I_H
 #define _SUNXI_DRAM_SUN9I_H
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 struct sunxi_mctl_com_reg {
 	u32 cr;			/* 0x00 */

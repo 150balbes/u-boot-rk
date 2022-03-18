@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011-2012 The Chromium OS Authors.
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __SANDBOX_STATE_H
@@ -9,6 +9,7 @@
 #include <config.h>
 #include <sysreset.h>
 #include <stdbool.h>
+#include <linux/list.h>
 #include <linux/stringify.h>
 
 /**
@@ -44,6 +45,23 @@ struct sandbox_wdt_info {
 	bool running;
 };
 
+/**
+ * struct sandbox_mapmem_entry - maps pointers to/from U-Boot addresses
+ *
+ * When map_to_sysmem() is called with an address outside sandbox's emulated
+ * RAM, a record is created with a tag that can be used to reference that
+ * pointer. When map_sysmem() is called later with that tag, the pointer will
+ * be returned, just as it would for a normal sandbox address.
+ *
+ * @tag: Address tag (a value which U-Boot uses to refer to the address)
+ * @ptr: Associated pointer for that tag
+ */
+struct sandbox_mapmem_entry {
+	ulong tag;
+	void *ptr;
+	struct list_head sibling_node;
+};
+
 /* The complete state of the test system */
 struct sandbox_state {
 	const char *cmd;		/* Command to execute */
@@ -55,7 +73,7 @@ struct sandbox_state {
 	char **argv;			/* Command line arguments */
 	const char *jumped_fname;	/* Jumped from previous U_Boot */
 	uint8_t *ram_buf;		/* Emulated RAM buffer */
-	unsigned int ram_size;		/* Size of RAM buffer */
+	unsigned long ram_size;		/* Size of RAM buffer */
 	const char *ram_buf_fname;	/* Filename to use for RAM buffer */
 	bool ram_buf_rm;		/* Remove RAM buffer file after read */
 	bool write_ram_buf;		/* Write RAM buffer on exit */
@@ -65,11 +83,18 @@ struct sandbox_state {
 	bool write_state;		/* Write sandbox state on exit */
 	bool ignore_missing_state_on_read;	/* No error if state missing */
 	bool show_lcd;			/* Show LCD on start-up */
+	bool double_lcd;		/* Double display size for high-DPI */
 	enum sysreset_t last_sysreset;	/* Last system reset type */
 	bool sysreset_allowed[SYSRESET_COUNT];	/* Allowed system reset types */
 	enum state_terminal_raw term_raw;	/* Terminal raw/cooked */
 	bool skip_delays;		/* Ignore any time delays (for test) */
 	bool show_test_output;		/* Don't suppress stdout in tests */
+	int default_log_level;		/* Default log level for sandbox */
+	bool ram_buf_read;		/* true if we read the RAM buffer */
+	bool run_unittests;		/* Run unit tests */
+	const char *select_unittests;	/* Unit test to run */
+	bool handle_signals;		/* Handle signals within sandbox */
+	bool autoboot_keyed;		/* Use keyed-autoboot feature */
 
 	/* Pointer to information for each SPI bus/cs */
 	struct sandbox_spi_info spi[CONFIG_SANDBOX_SPI_MAX_BUS]
@@ -77,6 +102,20 @@ struct sandbox_state {
 
 	/* Information about Watchdog */
 	struct sandbox_wdt_info wdt;
+
+	ulong next_tag;			/* Next address tag to allocate */
+	struct list_head mapmem_head;	/* struct sandbox_mapmem_entry */
+	bool hwspinlock;		/* Hardware Spinlock status */
+	bool allow_memio;		/* Allow readl() etc. to work */
+
+	/*
+	 * This struct is getting large.
+	 *
+	 * Consider putting test data in driver-private structs, like
+	 * sandbox_pch.c.
+	 *
+	 * If you add new members, please put them above this comment.
+	 */
 };
 
 /* Minimum space we guarantee in the state FDT when calling read/write*/
@@ -95,7 +134,7 @@ struct sandbox_state {
  *	data set for start-of-day.
  *	@param blob: Pointer to device tree blob, or NULL if no data to read
  *	@param node: Node offset to read from
- *	@return 0 if OK, -ve on error
+ *	Return: 0 if OK, -ve on error
  *
  * @write: Function to write state to FDT
  *	The caller will ensure that there is a node ready for the state. The
@@ -147,7 +186,7 @@ struct sandbox_state_io {
 /**
  * Gets a pointer to the current state.
  *
- * @return pointer to state
+ * Return: pointer to state
  */
 struct sandbox_state *state_get_current(void);
 
@@ -159,7 +198,7 @@ struct sandbox_state *state_get_current(void);
  *
  * @param state		Sandbox state to update
  * @param fname		Filename of device tree file to read from
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int sandbox_read_state(struct sandbox_state *state, const char *fname);
 
@@ -173,7 +212,7 @@ int sandbox_read_state(struct sandbox_state *state, const char *fname);
  *
  * @param state		Sandbox state to update
  * @param fname		Filename of device tree file to write to
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int sandbox_write_state(struct sandbox_state *state, const char *fname);
 
@@ -208,7 +247,7 @@ void state_set_skip_delays(bool skip_delays);
 /**
  * See if delays should be skipped
  *
- * @return true if delays should be skipped, false if they should be honoured
+ * Return: true if delays should be skipped, false if they should be honoured
  */
 bool state_get_skip_delays(void);
 
@@ -220,6 +259,13 @@ bool state_get_skip_delays(void);
 void state_reset_for_test(struct sandbox_state *state);
 
 /**
+ * state_show() - Show information about the sandbox state
+ *
+ * @param state		Sandbox state to show
+ */
+void state_show(struct sandbox_state *state);
+
+/**
  * Initialize the test system state
  */
 int state_init(void);
@@ -228,7 +274,7 @@ int state_init(void);
  * Uninitialize the test system state, writing out state if configured to
  * do so.
  *
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int state_uninit(void);
 

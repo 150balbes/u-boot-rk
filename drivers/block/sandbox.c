@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Henrik Nordstrom <henrik@henriknordstrom.net>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,17 +11,19 @@
 #include <os.h>
 #include <malloc.h>
 #include <sandboxblockdev.h>
+#include <asm/global_data.h>
+#include <dm/device_compat.h>
 #include <linux/errno.h>
 #include <dm/device-internal.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #ifndef CONFIG_BLK
-static struct host_block_dev host_devices[CONFIG_HOST_MAX_DEVICES];
+static struct host_block_dev host_devices[SANDBOX_HOST_MAX_DEVICES];
 
 static struct host_block_dev *find_host_device(int dev)
 {
-	if (dev >= 0 && dev < CONFIG_HOST_MAX_DEVICES)
+	if (dev >= 0 && dev < SANDBOX_HOST_MAX_DEVICES)
 		return &host_devices[dev];
 
 	return NULL;
@@ -34,8 +35,8 @@ static unsigned long host_block_read(struct udevice *dev,
 				     unsigned long start, lbaint_t blkcnt,
 				     void *buffer)
 {
-	struct host_block_dev *host_dev = dev_get_priv(dev);
-	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+	struct host_block_dev *host_dev = dev_get_plat(dev);
+	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
 
 #else
 static unsigned long host_block_read(struct blk_desc *block_dev,
@@ -65,8 +66,8 @@ static unsigned long host_block_write(struct udevice *dev,
 				      unsigned long start, lbaint_t blkcnt,
 				      const void *buffer)
 {
-	struct host_block_dev *host_dev = dev_get_priv(dev);
-	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+	struct host_block_dev *host_dev = dev_get_plat(dev);
+	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
 #else
 static unsigned long host_block_write(struct blk_desc *block_dev,
 				      unsigned long start, lbaint_t blkcnt,
@@ -88,10 +89,11 @@ static unsigned long host_block_write(struct blk_desc *block_dev,
 }
 
 #ifdef CONFIG_BLK
-int host_dev_bind(int devnum, char *filename)
+int host_dev_bind(int devnum, char *filename, bool removable)
 {
 	struct host_block_dev *host_dev;
 	struct udevice *dev;
+	struct blk_desc *desc;
 	char dev_name[20], *str, *fname;
 	int ret, fd;
 
@@ -129,20 +131,27 @@ int host_dev_bind(int devnum, char *filename)
 	}
 	ret = blk_create_device(gd->dm_root, "sandbox_host_blk", str,
 				IF_TYPE_HOST, devnum, 512,
-				os_lseek(fd, 0, OS_SEEK_END), &dev);
+				os_lseek(fd, 0, OS_SEEK_END) / 512, &dev);
 	if (ret)
 		goto err_file;
+
+	host_dev = dev_get_plat(dev);
+	host_dev->fd = fd;
+	host_dev->filename = fname;
+
 	ret = device_probe(dev);
 	if (ret) {
 		device_unbind(dev);
 		goto err_file;
 	}
 
-	host_dev = dev_get_priv(dev);
-	host_dev->fd = fd;
-	host_dev->filename = fname;
+	desc = blk_get_devnum_by_type(IF_TYPE_HOST, devnum);
+	desc->removable = removable;
+	snprintf(desc->vendor, BLK_VEN_SIZE, "U-Boot");
+	snprintf(desc->product, BLK_PRD_SIZE, "hostfile");
+	snprintf(desc->revision, BLK_REV_SIZE, "1.0");
 
-	return blk_prepare_device(dev);
+	return 0;
 err_file:
 	os_close(fd);
 err:
@@ -151,7 +160,7 @@ err:
 	return ret;
 }
 #else
-int host_dev_bind(int dev, char *filename)
+int host_dev_bind(int dev, char *filename, bool removable)
 {
 	struct host_block_dev *host_dev = find_host_device(dev);
 
@@ -186,6 +195,10 @@ int host_dev_bind(int dev, char *filename)
 	blk_dev->block_write = host_block_write;
 	blk_dev->devnum = dev;
 	blk_dev->part_type = PART_TYPE_UNKNOWN;
+	blk_dev->removable = removable;
+	snprintf(blk_dev->vendor, BLK_VEN_SIZE, "U-Boot");
+	snprintf(blk_dev->product, BLK_PRD_SIZE, "hostfile");
+	snprintf(blk_dev->revision, BLK_REV_SIZE, "1.0");
 	part_init(blk_dev);
 
 	return 0;
@@ -201,7 +214,7 @@ int host_get_dev_err(int devnum, struct blk_desc **blk_devp)
 	ret = blk_get_device(IF_TYPE_HOST, devnum, &dev);
 	if (ret)
 		return ret;
-	*blk_devp = dev_get_uclass_platdata(dev);
+	*blk_devp = dev_get_uclass_plat(dev);
 #else
 	struct host_block_dev *host_dev = find_host_device(devnum);
 
@@ -218,6 +231,18 @@ int host_get_dev_err(int devnum, struct blk_desc **blk_devp)
 }
 
 #ifdef CONFIG_BLK
+
+int sandbox_host_unbind(struct udevice *dev)
+{
+	struct host_block_dev *host_dev;
+
+	/* Data validity is checked in host_dev_bind() */
+	host_dev = dev_get_plat(dev);
+	os_close(host_dev->fd);
+
+	return 0;
+}
+
 static const struct blk_ops sandbox_host_blk_ops = {
 	.read	= host_block_read,
 	.write	= host_block_write,
@@ -227,13 +252,14 @@ U_BOOT_DRIVER(sandbox_host_blk) = {
 	.name		= "sandbox_host_blk",
 	.id		= UCLASS_BLK,
 	.ops		= &sandbox_host_blk_ops,
-	.priv_auto_alloc_size	= sizeof(struct host_block_dev),
+	.unbind		= sandbox_host_unbind,
+	.plat_auto	= sizeof(struct host_block_dev),
 };
 #else
 U_BOOT_LEGACY_BLK(sandbox_host) = {
 	.if_typename	= "host",
 	.if_type	= IF_TYPE_HOST,
-	.max_devs	= CONFIG_HOST_MAX_DEVICES,
+	.max_devs	= SANDBOX_HOST_MAX_DEVICES,
 	.get_dev	= host_get_dev_err,
 };
 #endif

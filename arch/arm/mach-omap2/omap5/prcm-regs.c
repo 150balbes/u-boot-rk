@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * HW regs data for OMAP5 Soc
@@ -6,8 +7,6 @@
  * Texas Instruments, <www.ti.com>
  *
  * Sricharan R <r.sricharan@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/omap_common.h>
@@ -301,7 +300,7 @@ struct omap_sys_ctrl_regs const omap5_ctrl = {
 	.control_std_fuse_die_id_1		= 0x4A002208,
 	.control_std_fuse_die_id_2		= 0x4A00220C,
 	.control_std_fuse_die_id_3		= 0x4A002210,
-	.control_phy_power_usb 			= 0x4A002370,
+	.control_phy_power_usb			= 0x4A002370,
 	.control_phy_power_sata			= 0x4A002374,
 	.control_padconf_core_base		= 0x4A002800,
 	.control_paconf_global			= 0x4A002DA0,

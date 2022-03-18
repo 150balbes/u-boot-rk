@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014 CompuLab, Ltd. <www.compulab.co.il>
  *
  * Authors: Igor Grinberg <grinberg@compulab.co.il>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <netdev.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <linux/errno.h>

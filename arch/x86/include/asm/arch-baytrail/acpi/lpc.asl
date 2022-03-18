@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2007-2009 coresystems GmbH
  * Copyright (C) 2013 Google Inc.
  * Copyright (C) 2016 Bin Meng <bmeng.cn@gmail.com>
  *
  * Modified from coreboot src/soc/intel/baytrail/acpi/lpc.asl
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* Intel LPC Bus Device - 0:1f.0 */
@@ -137,20 +136,20 @@ Device (LPCB)
 			Store(0, C1EN)
 		}
 
+		Name(BUF0, ResourceTemplate()
+		{
+			IO(Decode16, 0x03f8, 0x03f8, 0x01, 0x08)
+			IRQNoFlags() { 3 }
+		})
+
+		Name(BUF1, ResourceTemplate()
+		{
+			IO(Decode16, 0x03f8, 0x03f8, 0x01, 0x08)
+			IRQNoFlags() { 4 }
+		})
+
 		Method(_CRS, 0, Serialized)
 		{
-			Name(BUF0, ResourceTemplate()
-			{
-				IO(Decode16, 0x03f8, 0x03f8, 0x01, 0x08)
-				IRQNoFlags() { 3 }
-			})
-
-			Name(BUF1, ResourceTemplate()
-			{
-				IO(Decode16, 0x03f8, 0x03f8, 0x01, 0x08)
-				IRQNoFlags() { 4 }
-			})
-
 			If (LLessEqual(SRID, 0x04)) {
 				Return (BUF0)
 			} Else {

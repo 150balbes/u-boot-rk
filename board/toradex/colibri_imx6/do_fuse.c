@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014-2016, Toradex AG
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -10,6 +9,7 @@
 
 #include <common.h>
 #ifndef CONFIG_SPL_BUILD
+#include <command.h>
 #include <console.h>
 #include <fuse.h>
 
@@ -30,14 +30,14 @@ static int mfgr_fuse(void)
 		return CMD_RET_FAILURE;
 	}
 	/* boot cfg */
-	fuse_prog(0, 5, 0x00005072);
+	fuse_prog(0, 5, 0x00005062);
 	/* BT_FUSE_SEL */
 	fuse_prog(0, 6, 0x00000010);
 	return CMD_RET_SUCCESS;
 }
 
-int do_mfgr_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
-		char * const argv[])
+int do_mfgr_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
+		 char *const argv[])
 {
 	int ret;
 	puts("Fusing...\n");
@@ -49,8 +49,8 @@ int do_mfgr_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 	return ret;
 }
 
-int do_updt_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
-		char * const argv[])
+int do_updt_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
+		 char *const argv[])
 {
 	unsigned val;
 	int ret;

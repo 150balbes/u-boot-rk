@@ -1,22 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2000-2006
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 extra-y	= start.o
 obj-y	= cpu.o cache.o
 
 ifdef	CONFIG_SPL_BUILD
-ifdef	CONFIG_SPL_NO_CPU_SUPPORT_CODE
+ifdef	CONFIG_SPL_NO_CPU_SUPPORT
 extra-y	:=
 endif
 endif
 
-obj-$(CONFIG_ARMADA100) += armada100/
-obj-$(if $(filter lpc32xx,$(SOC)),y) += lpc32xx/
-obj-$(CONFIG_MX25) += mx25/
 obj-$(CONFIG_MX27) += mx27/
 obj-$(if $(filter mxs,$(SOC)),y) += mxs/
 obj-$(if $(filter spear,$(SOC)),y) += spear/
@@ -28,6 +23,8 @@ ifndef CONFIG_HAS_THUMB2
 
 CFLAGS_cpu.o := -marm
 CFLAGS_cache.o := -marm
+CFLAGS_REMOVE_cpu.o := $(LTO_CFLAGS)
+CFLAGS_REMOVE_cache.o := $(LTO_CFLAGS)
 
 endif
 endif

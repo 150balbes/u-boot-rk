@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2007 Michal Simek
  *
  * Michal  SIMEK <monstr@monstr.cz>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
+
+#include <irq_func.h>
 
 typedef volatile struct microblaze_intc_t {
 	int isr; /* interrupt status register */
@@ -29,7 +30,7 @@ struct irq_action {
  * @param irq	IRQ number
  * @param hdlr	Interrupt handler rutine
  * @param arg	Pointer to argument which is passed to int. handler rutine
- * @return	0 if registration pass, 1 if unregistration pass,
+ * Return:	0 if registration pass, 1 if unregistration pass,
  *		or an error code < 0 otherwise
  */
 int install_interrupt_handler(int irq, interrupt_handler_t *hdlr,

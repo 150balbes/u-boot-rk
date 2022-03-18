@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * (C) Copyright 2014
- * Vikas Manocha, ST Micoelectronics, vikas.manocha@st.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright (C) 2014, STMicroelectronics - All Rights Reserved
+ * Author(s): Vikas Manocha, <vikas.manocha@st.com> for STMicroelectronics.
  */
 
 #ifndef _STV0991_GPT_H
@@ -37,7 +36,6 @@ struct gpt_regs *const gpt1_regs_ptr =
 #define GPT_FREE_RUNNING		0xFFFF
 
 /* Timer, HZ specific defines */
-#define CONFIG_STV0991_HZ		1000
-#define CONFIG_STV0991_HZ_CLOCK		(27*1000*1000)/GPT_PRESCALER_128
+#define CONFIG_SYS_HZ_CLOCK		((27 * 1000 * 1000) / GPT_PRESCALER_128)
 
 #endif

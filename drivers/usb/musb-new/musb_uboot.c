@@ -1,9 +1,10 @@
 #include <common.h>
 #include <console.h>
+#include <dm.h>
+#include <malloc.h>
 #include <watchdog.h>
-#ifdef CONFIG_ARCH_SUNXI
-#include <asm/arch/usb_phy.h>
-#endif
+#include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -158,7 +159,7 @@ static struct int_queue *_musb_create_int_queue(struct musb_host_data *host,
 static int _musb_destroy_int_queue(struct musb_host_data *host,
 	struct usb_device *dev, struct int_queue *queue)
 {
-	int index = usb_pipein(queue->urb.pipe) * 16 + 
+	int index = usb_pipein(queue->urb.pipe) * 16 +
 		    usb_pipeendpoint(queue->urb.pipe);
 
 	if (queue->urb.status == -EINPROGRESS)
@@ -193,19 +194,16 @@ static int _musb_reset_root_port(struct musb_host_data *host,
 	power &= 0xf0;
 	musb_writeb(mbase, MUSB_POWER, MUSB_POWER_RESET | power);
 	mdelay(50);
-#ifdef CONFIG_ARCH_SUNXI
-	/*
-	 * sunxi phy has a bug and it will wrongly detect high speed squelch
-	 * when clearing reset on low-speed devices, temporary disable
-	 * squelch detection to work around this.
-	 */
-	sunxi_usb_phy_enable_squelch_detect(0, 0);
-#endif
+
+	if (host->host->ops->pre_root_reset_end)
+		host->host->ops->pre_root_reset_end(host->host);
+
 	power = musb_readb(mbase, MUSB_POWER);
 	musb_writeb(mbase, MUSB_POWER, ~MUSB_POWER_RESET & power);
-#ifdef CONFIG_ARCH_SUNXI
-	sunxi_usb_phy_enable_squelch_detect(0, 1);
-#endif
+
+	if (host->host->ops->post_root_reset_end)
+		host->host->ops->post_root_reset_end(host->host);
+
 	host->host->isr(0, host->host);
 	host->host_speed = (musb_readb(mbase, MUSB_POWER) & MUSB_POWER_HSMODE) ?
 			USB_SPEED_HIGH :
@@ -375,7 +373,7 @@ struct dm_usb_ops musb_usb_ops = {
 #endif /* CONFIG_IS_ENABLED(DM_USB) */
 #endif /* CONFIG_USB_MUSB_HOST */
 
-#ifdef CONFIG_USB_MUSB_GADGET
+#if defined(CONFIG_USB_MUSB_GADGET) && !CONFIG_IS_ENABLED(DM_USB_GADGET)
 static struct musb *gadget;
 
 int usb_gadget_handle_interrupts(int index)
@@ -427,8 +425,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 }
 #endif /* CONFIG_USB_MUSB_GADGET */
 
-int musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
-			void *ctl_regs)
+struct musb *musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
+			   void *ctl_regs)
 {
 	struct musb **musbp;
 
@@ -438,20 +436,56 @@ int musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
 		musbp = &musb_host.host;
 		break;
 #endif
-#ifdef CONFIG_USB_MUSB_GADGET
+#if defined(CONFIG_USB_MUSB_GADGET) && !CONFIG_IS_ENABLED(DM_USB_GADGET)
 	case MUSB_PERIPHERAL:
 		musbp = &gadget;
 		break;
 #endif
 	default:
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	*musbp = musb_init_controller(plat, (struct device *)bdata, ctl_regs);
-	if (!*musbp) {
+	if (IS_ERR(*musbp)) {
 		printf("Failed to init the controller\n");
-		return -EIO;
+		return ERR_CAST(*musbp);
 	}
 
-	return 0;
+	return *musbp;
 }
+
+#if CONFIG_IS_ENABLED(DM_USB)
+struct usb_device *usb_dev_get_parent(struct usb_device *udev)
+{
+	struct udevice *parent = udev->dev->parent;
+
+	/*
+	 * When called from usb-uclass.c: usb_scan_device() udev->dev points
+	 * to the parent udevice, not the actual udevice belonging to the
+	 * udev as the device is not instantiated yet.
+	 *
+	 * If dev is an usb-bus, then we are called from usb_scan_device() for
+	 * an usb-device plugged directly into the root port, return NULL.
+	 */
+	if (device_get_uclass_id(udev->dev) == UCLASS_USB)
+		return NULL;
+
+	/*
+	 * If these 2 are not the same we are being called from
+	 * usb_scan_device() and udev itself is the parent.
+	 */
+	if (dev_get_parent_priv(udev->dev) != udev)
+		return udev;
+
+	/* We are being called normally, use the parent pointer */
+	if (device_get_uclass_id(parent) == UCLASS_USB_HUB)
+		return dev_get_parent_priv(parent);
+
+	return NULL;
+}
+#else
+struct usb_device *usb_dev_get_parent(struct usb_device *udev)
+{
+	return udev->parent;
+}
+#endif

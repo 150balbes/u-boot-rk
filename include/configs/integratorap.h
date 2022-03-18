@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2003
  * Texas Instruments.
@@ -8,8 +9,6 @@
  * ARM Ltd.
  * Philippe Robin, <philippe.robin@arm.com>
  * Configuration for Integrator AP board.
- *.
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -24,26 +23,15 @@
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
-
-/*
- * Command line configuration.
- */
-#define CONFIG_BOOTCOMMAND	""
 
 /* Flash settings */
 #define CONFIG_SYS_FLASH_SIZE		0x02000000 /* 32 MiB */
 #define CONFIG_SYS_MAX_FLASH_SECT	128
-#define CONFIG_ENV_SIZE			32768
 
 /*-----------------------------------------------------------------------
  * PCI definitions
  */
 
-#define CONFIG_TULIP
-#define CONFIG_EEPRO100
 #define CONFIG_SYS_RX_ETH_BUFFER	8	/* use 8 rx buffer on eepro100	*/
 
 /*-----------------------------------------------------------------------

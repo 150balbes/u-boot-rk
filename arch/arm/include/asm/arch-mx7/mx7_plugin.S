@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 
 #define ROM_API_TABLE_BASE_ADDR_LEGACY		0x180
-#define ROM_VERSION_OFFSET               	0x80
+#define ROM_VERSION_OFFSET			0x80
 #define ROM_API_HWCNFG_SETUP_OFFSET		0x08
 
 plugin_start:

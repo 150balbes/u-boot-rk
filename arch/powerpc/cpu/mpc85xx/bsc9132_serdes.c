@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  * Author: Prabhakar Kushwaha <prabhakar@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/immap_85xx.h>
 #include <asm/fsl_serdes.h>

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  (C) Copyright 2010,2011
  *  NVIDIA Corporation <www.nvidia.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -25,27 +24,9 @@
 #define CONFIG_TEGRA_ENABLE_UARTD
 #define CONFIG_SYS_NS16550_COM1		NV_PA_APB_UARTD_BASE
 
-#define CONFIG_MACH_TYPE		MACH_TYPE_SEABOARD
-
-/* I2C */
-#define CONFIG_SYS_I2C_TEGRA
-
 /* Environment in eMMC, at the end of 2nd "boot sector" */
-#define CONFIG_ENV_OFFSET (-CONFIG_ENV_SIZE)
-#define CONFIG_SYS_MMC_ENV_DEV 0
-#define CONFIG_SYS_MMC_ENV_PART 2
-
-/* USB Host support */
-#define CONFIG_USB_EHCI_TEGRA
-
-/* USB networking support */
-
-/* Enable keyboard */
-#define CONFIG_TEGRA_KEYBOARD
-#define CONFIG_KEYBOARD
 
 /* NAND support */
-#define CONFIG_TEGRA_NAND
 
 /* Max number of NAND devices */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1

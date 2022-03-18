@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Jana Rapava <fermata7@gmail.com>
  * Copyright (C) 2011 CompuLab, Ltd. <www.compulab.co.il>
@@ -16,12 +17,12 @@
  *
  *   Sascha Hauer <s.hauer@pengutronix.de>
  *   Freescale Semiconductors
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <exports.h>
+#include <log.h>
+#include <linux/delay.h>
 #include <usb/ulpi.h>
 
 #define ULPI_ID_REGS_COUNT	4

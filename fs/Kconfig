@@ -4,6 +4,8 @@
 
 menu "File systems"
 
+source "fs/btrfs/Kconfig"
+
 source "fs/cbfs/Kconfig"
 
 source "fs/ext4/Kconfig"
@@ -19,5 +21,7 @@ source "fs/ubifs/Kconfig"
 source "fs/cramfs/Kconfig"
 
 source "fs/yaffs2/Kconfig"
+
+source "fs/squashfs/Kconfig"
 
 endmenu

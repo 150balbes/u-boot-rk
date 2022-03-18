@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * U-Boot aarch64 EFI linker script
- *
- * SPDX-License-Identifier:	BSD-2-Clause
  *
  * Modified from elf_aarch64_efi.lds in gnu-efi
  */
@@ -19,7 +18,7 @@ SECTIONS
 		*(.gnu.linkonce.t.*)
 		*(.srodata)
 		*(.rodata*)
-		. = ALIGN(16);
+		. = ALIGN(512);
 	}
 	_etext = .;
 	_text_size = . - _text;
@@ -45,7 +44,7 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
-		. = ALIGN(16);
+		. = ALIGN(512);
 		_bss_end = .;
 		_edata = .;
 	}

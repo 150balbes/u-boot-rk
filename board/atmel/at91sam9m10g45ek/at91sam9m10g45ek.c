@@ -1,13 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
  * Lead Tech Design <www.leadtechdesign.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <debug_uart.h>
+#include <init.h>
+#include <net.h>
+#include <vsprintf.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clk.h>
 #include <asm/arch/at91sam9g45_matrix.h>
@@ -84,9 +87,9 @@ void at91_spl_board_init(void)
 	at91_set_pio_pullup(AT91_PIO_PORTD, 7, 1);
 	at91_set_pio_pullup(AT91_PIO_PORTD, 8, 1);
 
-#ifdef CONFIG_SYS_USE_MMC
+#ifdef CONFIG_SD_BOOT
 	at91_mci_hw_init();
-#elif CONFIG_SYS_USE_NANDFLASH
+#elif CONFIG_NAND_BOOT
 	at91sam9m10g45ek_nand_hw_init();
 #endif
 }

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010-2015
  * NVIDIA Corporation <www.nvidia.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _TEGRA_H_
@@ -31,7 +30,13 @@
 #define NV_PA_SLINK5_BASE	(NV_PA_APB_MISC_BASE + 0xDC00)
 #define NV_PA_SLINK6_BASE	(NV_PA_APB_MISC_BASE + 0xDE00)
 #define TEGRA_DVC_BASE		(NV_PA_APB_MISC_BASE + 0xD000)
+#if defined(CONFIG_TEGRA20) || defined(CONFIG_TEGRA30) || \
+	defined(CONFIG_TEGRA114) || defined(CONFIG_TEGRA124) || \
+	defined(CONFIG_TEGRA132) || defined(CONFIG_TEGRA210)
 #define NV_PA_PMC_BASE		(NV_PA_APB_MISC_BASE + 0xE400)
+#else
+#define NV_PA_PMC_BASE		0xc360000
+#endif
 #define NV_PA_EMC_BASE		(NV_PA_APB_MISC_BASE + 0xF400)
 #define NV_PA_FUSE_BASE		(NV_PA_APB_MISC_BASE + 0xF800)
 #if defined(CONFIG_TEGRA20) || defined(CONFIG_TEGRA30) || \

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2017 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _DM_OF_H
@@ -59,14 +58,13 @@ struct device_node {
  * struct of_phandle_args - structure to hold phandle and arguments
  *
  * This is used when decoding a phandle in a device tree property. Typically
- * these look like this:
+ * these look like this::
  *
- * wibble {
- *    phandle = <5>;
- * };
- *
- * ...
- * some-prop = <&wibble 1 2 3>
+ *   wibble {
+ *     phandle = <5>;
+ *   };
+ *   ...
+ *   some-prop = <&wibble 1 2 3>
  *
  * Here &node is the phandle of the node 'wibble', i.e. 5. There are three
  * arguments: 1, 2, 3.
@@ -91,17 +89,10 @@ DECLARE_GLOBAL_DATA_PTR;
  *
  * @returns true if livetree is active, false it not
  */
-#ifdef CONFIG_OF_LIVE
 static inline bool of_live_active(void)
 {
-	return gd->of_root != NULL;
+	return gd_of_root() != NULL;
 }
-#else
-static inline bool of_live_active(void)
-{
-	return false;
-}
-#endif
 
 #define OF_BAD_ADDR	((u64)-1)
 
@@ -112,7 +103,7 @@ static inline const char *of_node_full_name(const struct device_node *np)
 
 /* Default #address and #size cells */
 #if !defined(OF_ROOT_NODE_ADDR_CELLS_DEFAULT)
-#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 2
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
 #endif
 

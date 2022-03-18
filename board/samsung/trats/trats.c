@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Samsung Electronics
  * Heungjun Kim <riverful.kim@samsung.com>
  * Kyungmin Park <kyungmin.park@samsung.com>
  * Donghwa Lee <dh09.lee@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <env.h>
 #include <lcd.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/cpu.h>
@@ -17,6 +18,7 @@
 #include <asm/arch/mipi_dsim.h>
 #include <asm/arch/watchdog.h>
 #include <asm/arch/power.h>
+#include <linux/delay.h>
 #include <power/pmic.h>
 #include <usb/dwc2_udc.h>
 #include <power/max8997_pmic.h>
@@ -29,8 +31,6 @@
 #include <usb_mass_storage.h>
 
 #include "setup.h"
-
-DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int board_rev;
 
@@ -52,7 +52,7 @@ int exynos_init(void)
 	return 0;
 }
 
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 static void trats_low_power_mode(void)
 {
 	struct exynos4_clock *clk =
@@ -114,7 +114,7 @@ static void trats_low_power_mode(void)
 
 int exynos_power_init(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	int chrg, ret;
 	struct power_battery *pb;
 	struct pmic *p_fg, *p_chrg, *p_muic, *p_bat;
@@ -293,7 +293,7 @@ int board_usb_init(int index, enum usb_init_type init)
 
 int g_dnl_board_usb_cable_connected(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	struct pmic *muic = pmic_get("MAX8997_MUIC");
 	if (!muic)
 		return 0;
@@ -415,7 +415,7 @@ void exynos_reset_lcd(void)
 
 int lcd_power(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	int ret = 0;
 	struct pmic *p = pmic_get("MAX8997_PMIC");
 	if (!p)
@@ -439,7 +439,7 @@ int lcd_power(void)
 
 int mipi_power(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	int ret = 0;
 	struct pmic *p = pmic_get("MAX8997_PMIC");
 	if (!p)

@@ -46,18 +46,18 @@ config DOS_PARTITION
 config SPL_DOS_PARTITION
 	bool "Enable MS Dos partition table for SPL"
 	depends on SPL && PARTITIONS
+	default n if ARCH_SUNXI
 	default y if DOS_PARTITION
 
 config ISO_PARTITION
 	bool "Enable ISO partition table"
 	depends on PARTITIONS
 	default y if DISTRO_DEFAULTS
-	default y if MIPS || TEGRA
+	default y if MIPS || ARCH_TEGRA
 
 config SPL_ISO_PARTITION
 	bool "Enable ISO partition table for SPL"
 	depends on SPL && PARTITIONS
-	default y if ISO_PARTITION
 
 config AMIGA_PARTITION
 	bool "Enable AMIGA partition table"
@@ -75,7 +75,8 @@ config EFI_PARTITION
 	bool "Enable EFI GPT partition table"
 	depends on PARTITIONS
 	default y if DISTRO_DEFAULTS
-	default y if TEGRA
+	default y if ARCH_TEGRA
+	select LIB_UUID
 	help
 	  Say Y here if you would like to use device under U-Boot which
 	  were partitioned using EFI GPT.
@@ -112,6 +113,7 @@ config EFI_PARTITION_ENTRIES_OFF
 config SPL_EFI_PARTITION
 	bool "Enable EFI GPT partition table for SPL"
 	depends on  SPL && PARTITIONS
+	default n if ARCH_SUNXI
 	default y if EFI_PARTITION
 
 config PARTITION_UUIDS
@@ -119,6 +121,7 @@ config PARTITION_UUIDS
 	depends on PARTITIONS
 	default y if DISTRO_DEFAULTS
 	default y if EFI_PARTITION
+	select LIB_UUID
 	help
 	  Activate the configuration of UUID for partition
 
@@ -134,23 +137,5 @@ config PARTITION_TYPE_GUID
 	help
 	  Activate the configuration of GUID type
 	  for EFI partition
-
-config RKPARM_PARTITION
-	bool "Enable Rockchip parameter partition table"
-	depends on PARTITIONS
-	help
-	  Say Y here if you would like to use device under U-Boot which
-	  were partitioned using Rockchip parameter.
-
-config RKRAM_PARTITION
-	bool "Enable Rockchip ram partition table"
-	depends on PARTITIONS && DM_RAMDISK
-	depends on ROCKCHIP_PRELOADER_ATAGS
-	help
-	  Say Y here if you would like to use device under U-Boot which
-	  were partitioned using Rockchip atags.
-
-config SPL_ROCKCHIP_PARTITION
-	bool "Enable Rockchip partition table for SPL"
 
 endmenu

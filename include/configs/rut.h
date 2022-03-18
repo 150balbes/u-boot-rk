@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * siemens rut
  * (C) Copyright 2013 Siemens Schweiz AG
@@ -7,15 +8,10 @@
  * U-Boot file:/include/configs/am335x_evm.h
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_RUT_H
 #define __CONFIG_RUT_H
-
-#define CONFIG_SIEMENS_RUT
-#define CONFIG_SIEMENS_MACH_TYPE	MACH_TYPE_RUT
 
 #include "siemens-am33x-common.h"
 
@@ -25,16 +21,6 @@
  /* Physical Memory Map */
 #define CONFIG_MAX_RAM_BANK_SIZE	(256 << 20) /* 256 MiB */
 
-/* I2C Configuration */
-#define CONFIG_SYS_I2C_SPEED		100000
-
-#define CONFIG_SYS_I2C_EEPROM_ADDR              0x50
-#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          2
-#define CONFIG_SYS_EEPROM_PAGE_WRITE_BITS       6       /* 64 byte pages */
-#define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   10      /* take up to 10 msec */
-
-#define CONFIG_PHY_NATSEMI
-
 #define CONFIG_FACTORYSET
 
 /* Watchdog */
@@ -43,7 +29,6 @@
 #ifndef CONFIG_SPL_BUILD
 
 /* Use common default */
-#define MTDPARTS_DEFAULT	MTDPARTS_DEFAULT_V1
 
 /* Default env settings */
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -78,44 +63,12 @@
 
 #ifndef CONFIG_RESTORE_FLASH
 /* set to negative value for no autoboot */
-
-#define CONFIG_BOOTCOMMAND \
-	"if mmc rescan; then " \
-		"echo SD/MMC found on device ${mmc_dev};" \
-		"if run loadbootenv; then " \
-			"echo Loaded environment from ${bootenv};" \
-			"run importbootenv;" \
-		"fi;" \
-		"if test -n $uenvcmd; then " \
-			"echo Running uenvcmd ...;" \
-			"run uenvcmd;" \
-		"fi;" \
-		"if run mmc_load_uimage; then " \
-			"run mmc_args;" \
-			"bootm ${kloadaddr};" \
-		"fi;" \
-	"fi;" \
-	"run nand_boot;" \
-	"reset;"
-
-#else
-
-#define CONFIG_BOOTCOMMAND			\
-	"setenv autoload no; "			\
-	"dhcp; "				\
-	"if tftp 80000000 debrick.scr; then "	\
-		"source 80000000; "		\
-	"fi"
 #endif
 
 #endif /* CONFIG_SPL_BUILD */
 
 #if defined(CONFIG_VIDEO)
 #define CONFIG_VIDEO_DA8XX
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_VIDEO_LOGO
-#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #define DA8XX_LCD_CNTL_BASE	LCD_CNTL_BASE
 

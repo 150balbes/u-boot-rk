@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * relocate - common relocation function for AArch64 U-Boot
  *
  * (C) Copyright 2013
  * Albert ARIBAUD <albert.u.boot@aribaud.net>
  * David Feng <fenghua@phytium.com.cn>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -15,7 +14,7 @@
 #include <asm/macro.h>
 
 /*
- * void relocate_code (addr_moni)
+ * void relocate_code(addr_moni)
  *
  * This function relocates the monitor code.
  * x0 holds the destination address.
@@ -91,6 +90,7 @@ relocate_done:
 	isb	sy
 4:	ldp	x0, x1, [sp, #16]
 	bl	__asm_flush_dcache_range
+	bl     __asm_flush_l3_dcache
 5:	ldp	x29, x30, [sp],#32
 	ret
 ENDPROC(relocate_code)

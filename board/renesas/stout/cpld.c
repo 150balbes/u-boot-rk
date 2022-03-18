@@ -1,22 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Stout board CPLD access support
  *
  * Copyright (C) 2015 Renesas Electronics Europe GmbH
  * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2015 Cogent Embedded, Inc.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
+#include <command.h>
+#include <cpu_func.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include "cpld.h"
 
-#define SCLK			GPIO_GP_3_24
-#define SSTBZ			GPIO_GP_3_25
-#define MOSI			GPIO_GP_3_26
-#define MISO			GPIO_GP_3_27
+#define SCLK			(92 + 24)
+#define SSTBZ			(92 + 25)
+#define MOSI			(92 + 26)
+#define MISO			(92 + 27)
 
 #define CPLD_ADDR_MODE		0x00 /* RW */
 #define CPLD_ADDR_MUX		0x01 /* RW */
@@ -91,10 +92,10 @@ void cpld_init(void)
 	val |= PUPR3_SD3_DAT1;
 	writel(val, PUPR3);
 
-	gpio_request(SCLK, NULL);
-	gpio_request(SSTBZ, NULL);
-	gpio_request(MOSI, NULL);
-	gpio_request(MISO, NULL);
+	gpio_request(SCLK, "SCLK");
+	gpio_request(SSTBZ, "SSTBZ");
+	gpio_request(MOSI, "MOSI");
+	gpio_request(MISO, "MISO");
 
 	gpio_direction_output(SCLK, 0);
 	gpio_direction_output(SSTBZ, 1);
@@ -124,14 +125,15 @@ void cpld_init(void)
 #endif
 }
 
-static int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_cpld(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	u32 addr, val;
 
 	if (argc < 3)
 		return CMD_RET_USAGE;
 
-	addr = simple_strtoul(argv[2], NULL, 16);
+	addr = hextoul(argv[2], NULL);
 	if (!(addr == CPLD_ADDR_VERSION || addr == CPLD_ADDR_MODE ||
 	      addr == CPLD_ADDR_MUX || addr == CPLD_ADDR_HDMI ||
 	      addr == CPLD_ADDR_DIPSW || addr == CPLD_ADDR_RESET)) {
@@ -142,7 +144,7 @@ static int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc == 3 && strcmp(argv[1], "read") == 0) {
 		printf("0x%x\n", cpld_read(addr));
 	} else if (argc == 4 && strcmp(argv[1], "write") == 0) {
-		val = simple_strtoul(argv[3], NULL, 16);
+		val = hextoul(argv[3], NULL);
 		if (addr == CPLD_ADDR_MUX) {
 			/* never mask SCIFA0 console */
 			val &= ~MUX_MSK_SCIFA0_USB;
@@ -161,7 +163,7 @@ U_BOOT_CMD(
 	"cpld write addr val\n"
 );
 
-void reset_cpu(ulong addr)
+void reset_cpu(void)
 {
 	cpld_write(CPLD_ADDR_RESET, 1);
 }

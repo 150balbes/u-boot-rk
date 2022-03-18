@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014 DENX Software Engineering
  *     Heiko Schocher <hs@denx.de>
@@ -5,11 +6,13 @@
  * Based on:
  * Copyright (C) 2013 Atmel Corporation
  *		      Bo Shen <voice.shen@atmel.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <hang.h>
+#include <init.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/at91_common.h>
 #include <asm/arch/at91sam9_matrix.h>
@@ -76,8 +79,20 @@ void __weak spl_board_init(void)
 
 void board_init_f(ulong dummy)
 {
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+	int ret;
+
+	ret = spl_early_init();
+	if (ret) {
+		debug("spl_early_init() failed: %d\n", ret);
+		hang();
+	}
+#endif
+
 	lowlevel_clock_init();
+#if !defined(CONFIG_WDT_AT91)
 	at91_disable_wdt();
+#endif
 
 	/*
 	 * At this stage the main oscillator is supposed to be enabled
@@ -121,7 +136,7 @@ void board_init_f(ulong dummy)
 	at91_periph_clk_enable(ATMEL_ID_PIOC);
 #endif
 
-#if defined(CONFIG_SPL_SERIAL_SUPPORT)
+#if defined(CONFIG_SPL_SERIAL)
 	/* init console */
 	at91_seriald_hw_init();
 	preloader_console_init();

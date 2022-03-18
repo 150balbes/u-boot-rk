@@ -1,11 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012 Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
  * (C) Copyright 2012 Renesas Solutions Corp.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <init.h>
+#include <net.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/gpio.h>
@@ -348,17 +351,13 @@ int board_init(void)
 	return 0;
 }
 
-const struct rmobile_sysinfo sysinfo = {
-	CONFIG_ARCH_RMOBILE_BOARD_STRING
-};
-
 int dram_init(void)
 {
 	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
 	return 0;
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret = 0;
 #ifdef CONFIG_SMC911X
@@ -367,7 +366,7 @@ int board_eth_init(bd_t *bis)
 	return ret;
 }
 
-void reset_cpu(ulong addr)
+void reset_cpu(void)
 {
 	/* Soft Power On Reset */
 	writel((1 << 31), RESCNT2);

@@ -6,38 +6,112 @@
 #include <common.h>
 #include <debug_uart.h>
 #include <dm.h>
+#include <init.h>
+#include <log.h>
 #include <ram.h>
 #include <syscon.h>
 #include <asm/io.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/cru_px30.h>
-#include <asm/arch/grf_px30.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/sdram.h>
-#include <asm/arch/sdram_px30.h>
+#include <asm/arch-rockchip/clock.h>
+#include <asm/arch-rockchip/cru_px30.h>
+#include <asm/arch-rockchip/grf_px30.h>
+#include <asm/arch-rockchip/hardware.h>
+#include <asm/arch-rockchip/sdram.h>
+#include <asm/arch-rockchip/sdram_px30.h>
+#include <linux/delay.h>
 
-/*
- * Because px30 sram size is small, so need define CONFIG_TPL_TINY_FRAMEWORK
- * to reduce TPL size when build TPL firmware.
- */
-#ifdef CONFIG_TPL_BUILD
-#ifndef CONFIG_TPL_TINY_FRAMEWORK
-#error please defined CONFIG_TPL_TINY_FRAMEWORK for px30 !!!
-#endif
-#endif
-
-#ifdef CONFIG_TPL_BUILD
-
-DECLARE_GLOBAL_DATA_PTR;
 struct dram_info {
+#ifdef CONFIG_TPL_BUILD
 	struct ddr_pctl_regs *pctl;
 	struct ddr_phy_regs *phy;
 	struct px30_cru *cru;
 	struct msch_regs *msch;
 	struct px30_ddr_grf_regs *ddr_grf;
 	struct px30_grf *grf;
+#endif
 	struct ram_info info;
 	struct px30_pmugrf *pmugrf;
+};
+
+#ifdef CONFIG_TPL_BUILD
+
+u8 ddr_cfg_2_rbc[] = {
+	/*
+	 * [6:4] max row: 13+n
+	 * [3]  bank(0:4bank,1:8bank)
+	 * [2:0]    col(10+n)
+	 */
+	((5 << 4) | (1 << 3) | 0), /* 0 */
+	((5 << 4) | (1 << 3) | 1), /* 1 */
+	((4 << 4) | (1 << 3) | 2), /* 2 */
+	((3 << 4) | (1 << 3) | 3), /* 3 */
+	((2 << 4) | (1 << 3) | 4), /* 4 */
+	((5 << 4) | (0 << 3) | 2), /* 5 */
+	((4 << 4) | (1 << 3) | 2), /* 6 */
+	/*((0<<3)|3),*/	 /* 12 for ddr4 */
+	/*((1<<3)|1),*/  /* 13 B,C exchange for rkvdec */
+};
+
+/*
+ * for ddr4 if ddrconfig=7, upctl should set 7 and noc should
+ * set to 1 for more efficient.
+ * noc ddrconf, upctl addrmap
+ * 1  7
+ * 2  8
+ * 3  9
+ * 12 10
+ * 5  11
+ */
+u8 d4_rbc_2_d3_rbc[] = {
+	1, /* 7 */
+	2, /* 8 */
+	3, /* 9 */
+	12, /* 10 */
+	5, /* 11 */
+};
+
+/*
+ * row higher than cs should be disabled by set to 0xf
+ * rank addrmap calculate by real cap.
+ */
+u32 addrmap[][8] = {
+	/* map0 map1,   map2,       map3,       map4,      map5
+	 * map6,        map7,       map8
+	 * -------------------------------------------------------
+	 * bk2-0       col 5-2     col 9-6    col 11-10   row 11-0
+	 * row 15-12   row 17-16   bg1,0
+	 * -------------------------------------------------------
+	 * 4,3,2       5-2         9-6                    6
+	 *                         3,2
+	 */
+	{0x00060606, 0x00000000, 0x1f1f0000, 0x00001f1f, 0x05050505,
+		0x05050505, 0x00000505, 0x3f3f}, /* 0 */
+	{0x00070707, 0x00000000, 0x1f000000, 0x00001f1f, 0x06060606,
+		0x06060606, 0x06060606, 0x3f3f}, /* 1 */
+	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x07070707,
+		0x07070707, 0x00000f07, 0x3f3f}, /* 2 */
+	{0x00090909, 0x00000000, 0x00000000, 0x00001f00, 0x08080808,
+		0x08080808, 0x00000f0f, 0x3f3f}, /* 3 */
+	{0x000a0a0a, 0x00000000, 0x00000000, 0x00000000, 0x09090909,
+		0x0f090909, 0x00000f0f, 0x3f3f}, /* 4 */
+	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x06060606,
+		0x06060606, 0x00000606, 0x3f3f}, /* 5 */
+	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x07070707,
+		0x07070707, 0x00000f0f, 0x3f3f}, /* 6 */
+	{0x003f0808, 0x00000006, 0x1f1f0000, 0x00001f1f, 0x06060606,
+		0x06060606, 0x00000606, 0x0600}, /* 7 */
+	{0x003f0909, 0x00000007, 0x1f000000, 0x00001f1f, 0x07070707,
+		0x07070707, 0x00000f07, 0x0700}, /* 8 */
+	{0x003f0a0a, 0x01010100, 0x01010101, 0x00001f1f, 0x08080808,
+		0x08080808, 0x00000f0f, 0x0801}, /* 9 */
+	{0x003f0909, 0x01010100, 0x01010101, 0x00001f1f, 0x07070707,
+		0x07070707, 0x00000f07, 0x3f01}, /* 10 */
+	{0x003f0808, 0x00000007, 0x1f000000, 0x00001f1f, 0x06060606,
+		0x06060606, 0x00000606, 0x3f00}, /* 11 */
+	/* when ddr4 12 map to 10, when ddr3 12 unused */
+	{0x003f0909, 0x01010100, 0x01010101, 0x00001f1f, 0x07070707,
+		0x07070707, 0x00000f07, 0x3f01}, /* 10 */
+	{0x00070706, 0x00000000, 0x1f010000, 0x00001f1f, 0x06060606,
+		0x06060606, 0x00000606, 0x3f3f}, /* 13 */
 };
 
 #define PMUGRF_BASE_ADDR		0xFF010000
@@ -51,7 +125,11 @@ struct dram_info {
 struct dram_info dram_info;
 
 struct px30_sdram_params sdram_configs[] = {
-#ifdef CONFIG_ROCKCHIP_RK3326
+#if defined(CONFIG_RAM_PX30_DDR4)
+#include	"sdram-px30-ddr4-detect-333.inc"
+#elif defined(CONFIG_RAM_PX30_LPDDR2)
+#include	"sdram-px30-lpddr2-detect-333.inc"
+#elif defined(CONFIG_RAM_PX30_LPDDR3)
 #include	"sdram-px30-lpddr3-detect-333.inc"
 #else
 #include	"sdram-px30-ddr3-detect-333.inc"
@@ -565,34 +643,6 @@ cap_err:
 	return -1;
 }
 
-void get_ddr_param(struct px30_sdram_params *sdram_params,
-		   struct ddr_param *ddr_param)
-{
-	struct sdram_cap_info *cap_info = &sdram_params->ch.cap_info;
-	u32 dram_type = sdram_params->base.dramtype;
-	u64 cs_cap[2];
-
-	cs_cap[0] = sdram_get_cs_cap(cap_info, 0, dram_type);
-	cs_cap[1] = sdram_get_cs_cap(cap_info, 1, dram_type);
-
-	if (cap_info->row_3_4) {
-		cs_cap[0] =  cs_cap[0] * 3 / 4;
-		cs_cap[1] =  cs_cap[1] * 3 / 4;
-	}
-
-	if (cap_info->row_3_4 && cap_info->rank == 2) {
-		ddr_param->count = 2;
-		ddr_param->para[0] = 0;
-		ddr_param->para[1] = cs_cap[0] * 4 / 3;
-		ddr_param->para[2] = cs_cap[0];
-		ddr_param->para[3] = cs_cap[1];
-	} else {
-		ddr_param->count = 1;
-		ddr_param->para[0] = 0;
-		ddr_param->para[1] = (u64)cs_cap[0] + (u64)cs_cap[1];
-	}
-}
-
 /* return: 0 = success, other = fail */
 static int sdram_init_detect(struct dram_info *dram,
 			     struct px30_sdram_params *sdram_params)
@@ -627,7 +677,7 @@ static int sdram_init_detect(struct dram_info *dram,
 		writel(sys_reg3, &dram->pmugrf->os_reg[3]);
 	}
 
-	ret = sdram_detect_high_row(cap_info, sdram_params->base.dramtype);
+	ret = sdram_detect_high_row(cap_info);
 
 out:
 	return ret;
@@ -646,7 +696,6 @@ int sdram_init(void)
 {
 	struct px30_sdram_params *sdram_params;
 	int ret = 0;
-	struct ddr_param ddr_param;
 
 	dram_info.phy = (void *)DDR_PHY_BASE_ADDR;
 	dram_info.pctl = (void *)DDRC_BASE_ADDR;
@@ -662,14 +711,52 @@ int sdram_init(void)
 	if (ret)
 		goto error;
 
-	get_ddr_param(sdram_params, &ddr_param);
-	rockchip_setup_ddr_param(&ddr_param);
-	sdram_print_ddr_info(&sdram_params->ch.cap_info,
-			     &sdram_params->base, 0);
+	sdram_print_ddr_info(&sdram_params->ch.cap_info, &sdram_params->base);
 
 	printascii("out\n");
 	return ret;
 error:
 	return (-1);
 }
+#else
+
+static int px30_dmc_probe(struct udevice *dev)
+{
+	struct dram_info *priv = dev_get_priv(dev);
+
+	priv->pmugrf = syscon_get_first_range(ROCKCHIP_SYSCON_PMUGRF);
+	debug("%s: grf=%p\n", __func__, priv->pmugrf);
+	priv->info.base = CONFIG_SYS_SDRAM_BASE;
+	priv->info.size =
+		rockchip_sdram_size((phys_addr_t)&priv->pmugrf->os_reg[2]);
+
+	return 0;
+}
+
+static int px30_dmc_get_info(struct udevice *dev, struct ram_info *info)
+{
+	struct dram_info *priv = dev_get_priv(dev);
+
+	*info = priv->info;
+
+	return 0;
+}
+
+static struct ram_ops px30_dmc_ops = {
+	.get_info = px30_dmc_get_info,
+};
+
+static const struct udevice_id px30_dmc_ids[] = {
+	{ .compatible = "rockchip,px30-dmc" },
+	{ }
+};
+
+U_BOOT_DRIVER(dmc_px30) = {
+	.name = "rockchip_px30_dmc",
+	.id = UCLASS_RAM,
+	.of_match = px30_dmc_ids,
+	.ops = &px30_dmc_ops,
+	.probe = px30_dmc_probe,
+	.priv_auto	= sizeof(struct dram_info),
+};
 #endif /* CONFIG_TPL_BUILD */

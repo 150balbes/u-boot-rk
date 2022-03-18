@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014
  * NVIDIA Corporation <www.nvidia.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <power/as3722.h>
 #include <power/pmic.h>
 
@@ -14,8 +14,6 @@
 #include <asm/arch/pinmux.h>
 
 #include "pinmux-config-jetson-tk1.h"
-
-DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * Routine: pinmux_init
@@ -62,7 +60,7 @@ int tegra_pcie_board_init(void)
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_PMIC,
-					  DM_GET_DRIVER(pmic_as3722), &dev);
+					  DM_DRIVER_GET(pmic_as3722), &dev);
 	if (ret) {
 		debug("%s: Failed to find PMIC\n", __func__);
 		return ret;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013
  * ISEE 2007 SL - Enric Balletbo i Serra <eballetbo@iseebcn.com>
@@ -5,11 +6,11 @@
  * Based on common/spl/spl_nand.c
  * Copyright (C) 2011
  * Corscience GmbH & Co. KG - Simon Schwarz <schwarz@corscience.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <config.h>
+#include <image.h>
+#include <log.h>
 #include <spl.h>
 #include <asm/io.h>
 #include <onenand_uboot.h>
@@ -22,12 +23,11 @@ static int spl_onenand_load_image(struct spl_image_info *spl_image,
 
 	debug("spl: onenand\n");
 
-	/*use CONFIG_SYS_TEXT_BASE as temporary storage area */
-	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE);
+	header = spl_get_load_buffer(0, CONFIG_SYS_ONENAND_PAGE_SIZE);
 	/* Load u-boot */
 	onenand_spl_load_image(CONFIG_SYS_ONENAND_U_BOOT_OFFS,
 		CONFIG_SYS_ONENAND_PAGE_SIZE, (void *)header);
-	ret = spl_parse_image_header(spl_image, header);
+	ret = spl_parse_image_header(spl_image, bootdev, header);
 	if (ret)
 		return ret;
 	onenand_spl_load_image(CONFIG_SYS_ONENAND_U_BOOT_OFFS,

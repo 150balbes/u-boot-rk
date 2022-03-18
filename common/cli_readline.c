@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -5,14 +6,15 @@
  * Add to readline cmdline-editing by
  * (C) Copyright 2005
  * JinHua Luo, GuangDong Linux Center, <luo.jinhua@gd-linux.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <bootretry.h>
 #include <cli.h>
+#include <command.h>
+#include <time.h>
 #include <watchdog.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -67,7 +69,7 @@ static char *delete_char (char *buffer, char *p, int *colp, int *np, int plen)
 #define CREAD_HIST_CHAR		('!')
 
 #define getcmd_putch(ch)	putc(ch)
-#define getcmd_getch()		getc()
+#define getcmd_getch()		getchar()
 #define getcmd_cbeep()		getcmd_putch('\a')
 
 #define HIST_MAX		20
@@ -273,6 +275,10 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 		}
 
 		ichar = getcmd_getch();
+
+		/* ichar=0x0 when error occurs in U-Boot getc */
+		if (!ichar)
+			continue;
 
 		if ((ichar == '\n') || (ichar == '\r')) {
 			putc('\n');
@@ -488,8 +494,10 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 		}
 #endif
 		default:
-			cread_add_char(ichar, insert, &num, &eol_num, buf,
-				       *len);
+			if (ichar >= ' ' && ichar <= '~') {
+				cread_add_char(ichar, insert, &num, &eol_num,
+					       buf, *len);
+			}
 			break;
 		}
 	}
@@ -566,13 +574,7 @@ int cli_readline_into_buffer(const char *const prompt, char *buffer,
 			return -2;	/* timed out */
 		WATCHDOG_RESET();	/* Trigger watchdog, if needed */
 
-#ifdef CONFIG_SHOW_ACTIVITY
-		while (!tstc()) {
-			show_activity(0);
-			WATCHDOG_RESET();
-		}
-#endif
-		c = getc();
+		c = getchar();
 
 		/*
 		 * Special character handling

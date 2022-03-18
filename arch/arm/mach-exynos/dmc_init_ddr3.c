@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * DDR3 mem setup file for board based on EXYNOS5
  *
  * Copyright (C) 2012 Samsung Electronics
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -254,7 +253,7 @@ static const unsigned int test_pattern[] = {
  * @param ch			DMC channel number
  * @param byte_lane		which DQS byte offset,
  *				possible values are 0,1,2,3
- * @return			TRUE if memory was good, FALSE if not.
+ * Return:			TRUE if memory was good, FALSE if not.
  */
 static bool dmc_valid_window_test_vector(int ch, int byte_lane)
 {
@@ -324,7 +323,7 @@ static void dmc_set_read_offset_value(struct exynos5420_phy_control *phy_ctrl,
  * representations of 0.
  *
  * @param b	The byte to convert in two's complement.
- * @return	The 7-bit value + sign bit.
+ * Return:	The 7-bit value + sign bit.
  */
 
 unsigned char make_signed_byte(signed char b)

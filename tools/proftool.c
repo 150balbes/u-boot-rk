@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* Decode and dump U-Boot profiling information */
@@ -206,12 +205,12 @@ static struct func_info *find_caller_by_offset(uint32_t offset)
 	return low >= 0 ? &func_list[low] : NULL;
 }
 
-static int read_calls(FILE *fin, int count)
+static int read_calls(FILE *fin, size_t count)
 {
 	struct trace_call *call_data;
 	int i;
 
-	notice("call count: %d\n", count);
+	notice("call count: %zu\n", count);
 	call_list = (struct trace_call *)calloc(count, sizeof(*call_data));
 	if (!call_list) {
 		error("Cannot allocate call_list\n");
@@ -533,7 +532,7 @@ static int make_ftrace(void)
 	return 0;
 }
 
-static int prof_tool(int argc, char * const argv[],
+static int prof_tool(int argc, char *const argv[],
 		     const char *prof_fname, const char *map_fname,
 		     const char *trace_config_fname)
 {

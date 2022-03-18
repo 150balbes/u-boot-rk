@@ -1,19 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuration settings for the Novena U-Boot.
  *
  * Copyright (C) 2014 Marek Vasut <marex@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
 /* System configurations */
-#define CONFIG_MISC_INIT_R
-#define CONFIG_KEYBOARD
 
-#include <config_distro_defaults.h>
 #include "mx6_common.h"
 
 /* U-Boot Commands */
@@ -21,28 +17,18 @@
 /* U-Boot general configurations */
 
 /* U-Boot environment */
-#define CONFIG_ENV_SIZE			(16 * 1024)
 /*
  * Environment is on MMC, starting at offset 512KiB from start of the card.
  * Please place first partition at offset 1MiB from the start of the card
  * as recommended by GNU/fdisk. See below for details:
  * http://homepage.ntlworld.com./jonathan.deboynepollard/FGA/disc-partition-alignment.html
  */
-#ifdef CONFIG_CMD_MMC
-#define CONFIG_SYS_MMC_ENV_DEV		0
-#define CONFIG_ENV_OFFSET		(512 * 1024)
-#define CONFIG_ENV_SIZE_REDUND		CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET_REDUND	\
-		(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
-#endif
 
 /* Booting Linux */
 #define CONFIG_BOOTFILE			"fitImage"
-#define CONFIG_BOOTCOMMAND		"run distro_bootcmd ; run net_nfs"
-#define CONFIG_HOSTNAME			novena
+#define CONFIG_HOSTNAME			"novena"
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
@@ -54,41 +40,19 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-#define CONFIG_SYS_MEMTEST_START	0x10000000
-#define CONFIG_SYS_MEMTEST_END		0x20000000
-
-#define CONFIG_SYS_MALLOC_LEN		(64 * 1024 * 1024)
-
 /* SPL */
 #include "imx6_spl.h"			/* common IMX6 SPL configuration */
 
 /* Ethernet Configuration */
-#ifdef CONFIG_CMD_NET
-#define CONFIG_FEC_MXC
-#define CONFIG_MII
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_XCV_TYPE		RGMII
-#define CONFIG_ETHPRIME			"FEC"
-#define CONFIG_FEC_MXC_PHYADDR		0x7
-#define CONFIG_ARP_TIMEOUT		200UL
+#ifdef CONFIG_SPL_BUILD
+#undef CONFIG_DM_ETH
 #endif
 
 /* I2C */
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_MXC
-#define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
-#define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
-#define CONFIG_SYS_I2C_MXC_I2C3		/* enable I2C bus 3 */
 #define CONFIG_I2C_MULTI_BUS
-#define CONFIG_I2C_MXC
-#define CONFIG_SYS_I2C_SPEED		100000
 #define CONFIG_SYS_SPD_BUS_NUM		0
 
 /* I2C EEPROM */
-#ifdef CONFIG_CMD_EEPROM
-#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN	2
-#define CONFIG_SYS_I2C_EEPROM_BUS	2
-#endif
 
 /* MMC Configs */
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
@@ -103,23 +67,13 @@
 #endif
 
 /* PMIC */
-#define CONFIG_POWER
-#define CONFIG_POWER_I2C
 #define CONFIG_POWER_PFUZE100
 #define CONFIG_POWER_PFUZE100_I2C_ADDR	0x08
 
 /* SATA Configs */
-#ifdef CONFIG_CMD_SATA
-#define CONFIG_DWC_AHSATA
-#define CONFIG_SYS_SATA_MAX_DEVICE	1
-#define CONFIG_DWC_AHSATA_PORT_ID	0
-#define CONFIG_DWC_AHSATA_BASE_ADDR	SATA_ARB_BASE_ADDR
 #define CONFIG_LBA48
-#define CONFIG_LIBATA
-#endif
 
 /* UART */
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART2_BASE
 
 /* USB Configs */
@@ -129,20 +83,11 @@
 #define CONFIG_MXC_USB_FLAGS		0
 /* Gadget part */
 #define CONFIG_USBD_HS
-#define CONFIG_NETCONSOLE
 #endif
 
 /* Video output */
-#ifdef CONFIG_VIDEO
-#define CONFIG_VIDEO_IPUV3
-#define CONFIG_VIDEO_BMP_RLE8
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_LOGO
-#define CONFIG_IPUV3_CLK		260000000
 #define CONFIG_IMX_HDMI
 #define CONFIG_IMX_VIDEO_SKIP
-#endif
 
 /* Extra U-Boot environment. */
 #ifndef CONFIG_SPL_BUILD
@@ -154,12 +99,14 @@
 	"bootdev=/dev/mmcblk0p1\0"					\
 	"rootdev=/dev/mmcblk0p2\0"					\
 	"netdev=eth0\0"							\
-	"kernel_addr_r="__stringify(CONFIG_LOADADDR)"\0"		\
-	"pxefile_addr_r="__stringify(CONFIG_LOADADDR)"\0"		\
-	"scriptaddr="__stringify(CONFIG_LOADADDR)"\0"			\
-	"ramdisk_addr_r=0x28000000\0"		   			\
+	"kernel_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0"		\
+	"pxefile_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0"		\
+	"scriptaddr="__stringify(CONFIG_SYS_LOAD_ADDR)"\0"			\
+	"ramdisk_addr_r=0x28000000\0"					\
 	"fdt_addr_r=0x18000000\0"					\
 	"fdtfile=imx6q-novena.dtb\0"					\
+	"stdout=serial,vidconsole\0"					\
+	"stderr=serial,vidconsole\0"					\
 	"addcons="							\
 		"setenv bootargs ${bootargs} "				\
 		"console=${consdev},${baudrate}\0"			\

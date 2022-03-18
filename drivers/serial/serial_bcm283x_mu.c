@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016 Stephen Warren <swarren@wwwdotorg.org>
  *
@@ -9,8 +10,6 @@
  * (C) Copyright 2004
  * ARM Ltd.
  * Philippe Robin, <philippe.robin@arm.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* Simple U-Boot driver for the BCM283x mini UART */
@@ -19,13 +18,13 @@
 #include <dm.h>
 #include <errno.h>
 #include <watchdog.h>
+#include <asm/gpio.h>
 #include <asm/io.h>
 #include <serial.h>
 #include <dm/platform_data/serial_bcm283x_mu.h>
+#include <dm/pinctrl.h>
+#include <linux/bitops.h>
 #include <linux/compiler.h>
-#include <fdtdec.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 struct bcm283x_mu_regs {
 	u32 io;
@@ -52,46 +51,35 @@ struct bcm283x_mu_priv {
 	struct bcm283x_mu_regs *regs;
 };
 
+static int bcm283x_mu_serial_getc(struct udevice *dev);
+
 static int bcm283x_mu_serial_setbrg(struct udevice *dev, int baudrate)
 {
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
+	struct bcm283x_mu_serial_plat *plat = dev_get_plat(dev);
 	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
 	struct bcm283x_mu_regs *regs = priv->regs;
 	u32 divider;
 
-	if (plat->disabled || plat->skip_init)
-		return 0;
+	if (plat->skip_init)
+		goto out;
 
 	divider = plat->clock / (baudrate * 8);
 
 	writel(BCM283X_MU_LCR_DATA_SIZE_8, &regs->lcr);
 	writel(divider - 1, &regs->baud);
 
-	return 0;
-}
-
-static int bcm283x_mu_serial_probe(struct udevice *dev)
-{
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
-	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
-
-	if (plat->disabled)
-		return -ENODEV;
-
-	priv->regs = (struct bcm283x_mu_regs *)plat->base;
+out:
+	/* Flush the RX queue - all data in there is bogus */
+	while (bcm283x_mu_serial_getc(dev) != -EAGAIN) ;
 
 	return 0;
 }
 
 static int bcm283x_mu_serial_getc(struct udevice *dev)
 {
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
 	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
 	struct bcm283x_mu_regs *regs = priv->regs;
 	u32 data;
-
-	if (plat->disabled)
-		return -EAGAIN;
 
 	/* Wait until there is data in the FIFO */
 	if (!(readl(&regs->lsr) & BCM283X_MU_LSR_RX_READY))
@@ -104,12 +92,8 @@ static int bcm283x_mu_serial_getc(struct udevice *dev)
 
 static int bcm283x_mu_serial_putc(struct udevice *dev, const char data)
 {
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
 	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
 	struct bcm283x_mu_regs *regs = priv->regs;
-
-	if (plat->disabled)
-		return 0;
 
 	/* Wait until there is space in the FIFO */
 	if (!(readl(&regs->lsr) & BCM283X_MU_LSR_TX_EMPTY))
@@ -123,13 +107,9 @@ static int bcm283x_mu_serial_putc(struct udevice *dev, const char data)
 
 static int bcm283x_mu_serial_pending(struct udevice *dev, bool input)
 {
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
 	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
 	struct bcm283x_mu_regs *regs = priv->regs;
 	unsigned int lsr;
-
-	if (plat->disabled)
-		return 0;
 
 	lsr = readl(&regs->lsr);
 
@@ -154,21 +134,58 @@ static const struct udevice_id bcm283x_mu_serial_id[] = {
 	{}
 };
 
-static int bcm283x_mu_serial_ofdata_to_platdata(struct udevice *dev)
+/*
+ * Check if this serial device is muxed
+ *
+ * The serial device will only work properly if it has been muxed to the serial
+ * pins by firmware. Check whether that happened here.
+ *
+ * Return: true if serial device is muxed, false if not
+ */
+static bool bcm283x_is_serial_muxed(void)
 {
-	struct bcm283x_mu_serial_platdata *plat = dev_get_platdata(dev);
+	int serial_gpio = 15;
+	struct udevice *dev;
+
+	if (uclass_first_device(UCLASS_PINCTRL, &dev) || !dev)
+		return false;
+
+	if (pinctrl_get_gpio_mux(dev, 0, serial_gpio) != BCM2835_GPIO_ALT5)
+		return false;
+
+	return true;
+}
+
+static int bcm283x_mu_serial_probe(struct udevice *dev)
+{
+	struct bcm283x_mu_serial_plat *plat = dev_get_plat(dev);
+	struct bcm283x_mu_priv *priv = dev_get_priv(dev);
 	fdt_addr_t addr;
 
-	addr = devfdt_get_addr(dev);
+	/* Don't spawn the device if it's not muxed */
+	if (!bcm283x_is_serial_muxed())
+		return -ENODEV;
+
+	/*
+	 * Read the ofdata here rather than in an of_to_plat() method
+	 * since we need the soc simple-bus to be probed so that the 'ranges'
+	 * property is used.
+	 */
+	addr = dev_read_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
 	plat->base = addr;
-	plat->clock = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev), "clock",
-				     1);
-	plat->skip_init = fdtdec_get_bool(gd->fdt_blob, dev_of_offset(dev),
-	                                  "skip-init");
-	plat->disabled = false;
+	plat->clock = dev_read_u32_default(dev, "clock", 1);
+
+	/*
+	 * TODO: Reinitialization doesn't always work for now, just skip
+	 *       init always - we know we're already initialized
+	 */
+	plat->skip_init = true;
+
+	priv->regs = (struct bcm283x_mu_regs *)plat->base;
+
 	return 0;
 }
 #endif
@@ -177,10 +194,11 @@ U_BOOT_DRIVER(serial_bcm283x_mu) = {
 	.name = "serial_bcm283x_mu",
 	.id = UCLASS_SERIAL,
 	.of_match = of_match_ptr(bcm283x_mu_serial_id),
-	.ofdata_to_platdata = of_match_ptr(bcm283x_mu_serial_ofdata_to_platdata),
-	.platdata_auto_alloc_size = sizeof(struct bcm283x_mu_serial_platdata),
+	.plat_auto	= sizeof(struct bcm283x_mu_serial_plat),
 	.probe = bcm283x_mu_serial_probe,
 	.ops = &bcm283x_mu_serial_ops,
+#if !CONFIG_IS_ENABLED(OF_CONTROL) || CONFIG_IS_ENABLED(OF_BOARD)
 	.flags = DM_FLAG_PRE_RELOC,
-	.priv_auto_alloc_size = sizeof(struct bcm283x_mu_priv),
+#endif
+	.priv_auto	= sizeof(struct bcm283x_mu_priv),
 };

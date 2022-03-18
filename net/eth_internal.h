@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2001-2015
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  * Joe Hershberger, National Instruments
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ETH_INTERNAL_H
@@ -23,7 +22,7 @@ void eth_common_init(void);
  * @base_name:	Base name for variable, typically "eth"
  * @index:	Index of interface being updated (>=0)
  * @enetaddr:	Pointer to MAC address to put into the variable
- * @return 0 if OK, other value on error
+ * Return: 0 if OK, other value on error
  */
 int eth_env_set_enetaddr_by_index(const char *base_name, int index,
 				 uchar *enetaddr);

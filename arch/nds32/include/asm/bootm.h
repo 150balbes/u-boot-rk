@@ -1,23 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2013, Google Inc.
  *
  * Copyright (C) 2011
  * Corscience GmbH & Co. KG - Simon Schwarz <schwarz@corscience.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef NDS32_BOOTM_H
 #define NDS32_BOOTM_H
 
+#include <asm/setup.h>
+
 extern void udc_disconnect(void);
 
-#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
-		defined(CONFIG_CMDLINE_TAG) || \
-		defined(CONFIG_INITRD_TAG) || \
-		defined(CONFIG_SERIAL_TAG) || \
-		defined(CONFIG_REVISION_TAG)
+#ifdef CONFIG_SUPPORT_PASSING_ATAGS
 # define BOOTM_ENABLE_TAGS		1
 #else
 # define BOOTM_ENABLE_TAGS		0

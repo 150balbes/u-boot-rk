@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * sun9i clock register definitions
  *
  * (C) Copyright 2015 Hans de Goede <hdegoede@redhat.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SUNXI_CLOCK_SUN9I_H
 #define _SUNXI_CLOCK_SUN9I_H
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 struct sunxi_ccm_reg {
 	u32 pll1_c0_cfg;	/* 0x00 c0cpu# pll configuration */

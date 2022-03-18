@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) 2017 Theobroma Systems Design und Consulting GmbH
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -37,8 +36,6 @@ ENTRY(longjmp)
 	/* Move the return value in place, but return 1 if passed 0. */
 	adds x0, xzr, x1
 	csinc x0, x0, xzr, ne
-	/* invalid icache for cortex a35 */
-branch_if_a35_core x1, __asm_invalidate_icache_all
 	ret
 ENDPROC(longjmp)
 .popsection

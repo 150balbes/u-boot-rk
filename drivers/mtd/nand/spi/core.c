@@ -22,8 +22,13 @@
 #else
 #include <common.h>
 #include <errno.h>
+#include <watchdog.h>
 #include <spi.h>
 #include <spi-mem.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
+#include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/mtd/spinand.h>
 #endif
 
@@ -574,6 +579,7 @@ static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 #endif
 
 	nanddev_io_for_each_page(nand, from, ops, &iter) {
+		WATCHDOG_RESET();
 		ret = spinand_select_target(spinand, iter.req.pos.target);
 		if (ret)
 			break;
@@ -625,6 +631,7 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 #endif
 
 	nanddev_io_for_each_page(nand, to, ops, &iter) {
+		WATCHDOG_RESET();
 		ret = spinand_select_target(spinand, iter.req.pos.target);
 		if (ret)
 			break;
@@ -659,9 +666,16 @@ static bool spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
 		.oobbuf.in = marker,
 		.mode = MTD_OPS_RAW,
 	};
+	int ret;
 
-	spinand_select_target(spinand, pos->target);
-	spinand_read_page(spinand, &req, false);
+	ret = spinand_select_target(spinand, pos->target);
+	if (ret)
+		return ret;
+
+	ret = spinand_read_page(spinand, &req, false);
+	if (ret)
+		return ret;
+
 	if (marker[0] != 0xff || marker[1] != 0xff)
 		return true;
 
@@ -691,7 +705,7 @@ static int spinand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 static int spinand_markbad(struct nand_device *nand, const struct nand_pos *pos)
 {
 	struct spinand_device *spinand = nand_to_spinand(nand);
-	u8 marker[2] = { 0, 0 };
+	u8 marker[2] = { };
 	struct nand_page_io_req req = {
 		.pos = *pos,
 		.ooboffs = 0,
@@ -815,54 +829,11 @@ static const struct nand_ops spinand_ops = {
 };
 
 static const struct spinand_manufacturer *spinand_manufacturers[] = {
-#ifdef CONFIG_SPI_NAND_GIGADEVICE
 	&gigadevice_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_MACRONIX
 	&macronix_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_MICRON
 	&micron_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_TOSHIBA
 	&toshiba_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_WINBOND
 	&winbond_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_DOSILICON
-	&dosilicon_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_ESMT
-	&esmt_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_XTX
-	&xtx_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_HYF
-	&hyf_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_FMSH
-	&fmsh_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_FORESEE
-	&foresee_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_BIWIN
-	&biwin_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_ETRON
-	&etron_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_JSC
-	&jsc_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_SILICONGO
-	&silicongo_spinand_manufacturer,
-#endif
-#ifdef CONFIG_SPI_NAND_UNIM
-	&unim_spinand_manufacturer,
-#endif
 };
 
 static int spinand_manufacturer_detect(struct spinand_device *spinand)
@@ -1008,13 +979,13 @@ static int spinand_detect(struct spinand_device *spinand)
 
 	ret = spinand_manufacturer_detect(spinand);
 	if (ret) {
-		dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
-			spinand->id.data);
+		dev_err(spinand->slave->dev, "unknown raw ID %*phN\n",
+			SPINAND_MAX_ID_LEN, spinand->id.data);
 		return ret;
 	}
 
 	if (nand->memorg.ntargets > 1 && !spinand->select_target) {
-		dev_err(dev,
+		dev_err(spinand->slave->dev,
 			"SPI NANDs with more than one die must implement ->select_target()\n");
 		return -EINVAL;
 	}
@@ -1100,7 +1071,7 @@ static int spinand_init(struct spinand_device *spinand)
 
 	ret = spinand_manufacturer_init(spinand);
 	if (ret) {
-		dev_err(dev,
+		dev_err(spinand->slave->dev,
 			"Failed to initialize the SPI NAND chip (err = %d)\n",
 			ret);
 		goto err_free_bufs;
@@ -1117,7 +1088,6 @@ static int spinand_init(struct spinand_device *spinand)
 			goto err_free_bufs;
 	}
 
-	nand->bbt.option = NANDDEV_BBT_USE_FLASH;
 	ret = nanddev_init(nand, &spinand_ops, THIS_MODULE);
 	if (ret)
 		goto err_manuf_cleanup;
@@ -1144,10 +1114,6 @@ static int spinand_init(struct spinand_device *spinand)
 
 	mtd->oobavail = ret;
 
-	/* Propagate ECC information to mtd_info */
-	mtd->ecc_strength = nand->eccreq.strength;
-	mtd->ecc_step_size = nand->eccreq.step_size;
-
 	return 0;
 
 err_cleanup_nanddev:
@@ -1170,21 +1136,6 @@ static void spinand_cleanup(struct spinand_device *spinand)
 	spinand_manufacturer_cleanup(spinand);
 	kfree(spinand->databuf);
 	kfree(spinand->scratchbuf);
-}
-
-static int spinand_bind(struct udevice *udev)
-{
-	int ret = 0;
-
-#ifdef CONFIG_MTD_BLK
-	struct udevice *bdev;
-
-	ret = blk_create_devicef(udev, "mtd_blk", "blk", IF_TYPE_MTD,
-				 BLK_MTD_SPI_NAND, 512, 0, &bdev);
-	if (ret)
-		printf("Cannot create block device\n");
-#endif
-	return ret;
 }
 
 static int spinand_probe(struct udevice *dev)
@@ -1217,7 +1168,7 @@ static int spinand_probe(struct udevice *dev)
 		return -ENOMEM;
 	sprintf(mtd->name, "spi-nand%d", spi_nand_idx++);
 	spinand->slave = slave;
-	spinand_set_of_node(spinand, dev->node.np);
+	spinand_set_ofnode(spinand, dev_ofnode(dev));
 #endif
 
 	ret = spinand_init(spinand);
@@ -1299,7 +1250,6 @@ U_BOOT_DRIVER(spinand) = {
 	.name = "spi_nand",
 	.id = UCLASS_MTD,
 	.of_match = spinand_ids,
-	.bind	= spinand_bind,
-	.priv_auto_alloc_size = sizeof(struct spinand_device),
+	.priv_auto	= sizeof(struct spinand_device),
 	.probe = spinand_probe,
 };

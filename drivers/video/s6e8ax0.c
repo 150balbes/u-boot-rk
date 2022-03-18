@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Samsung Electronics
  *
  * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/arch/mipi_dsim.h>
+#include <linux/delay.h>
 
 #include "exynos/exynos_mipi_dsi_lowlevel.h"
 #include "exynos/exynos_mipi_dsi_common.h"

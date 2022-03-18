@@ -1,19 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Mentor USB OTG Core host controller driver.
  *
  * Copyright (c) 2008 Texas Instruments
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  * Author: Thomas Abraham t-abraham@ti.com, Texas Instruments
  */
 
 #include <common.h>
+#include <log.h>
 #include <usb.h>
+#include <linux/delay.h>
 #include "musb_hcd.h"
 
 /* MSC control transfers */
-#define USB_MSC_BBB_RESET 	0xFF
+#define USB_MSC_BBB_RESET	0xFF
 #define USB_MSC_BBB_GET_MAX_LUN	0xFE
 
 /* Endpoint configuration information */
@@ -326,11 +327,9 @@ static int ctrlreq_out_data_phase(struct usb_device *dev, u32 len, void *buffer)
 
 		/* Set TXPKTRDY bit */
 		csr = readw(&musbr->txcsr);
-			
+
 		csr |= MUSB_CSR0_TXPKTRDY;
-#if !defined(CONFIG_SOC_DM365)
 		csr |= MUSB_CSR0_H_DIS_PING;
-#endif
 		writew(csr, &musbr->txcsr);
 		result = wait_until_ep0_ready(dev, MUSB_CSR0_TXPKTRDY);
 		if (result < 0)
@@ -353,9 +352,7 @@ static int ctrlreq_out_status_phase(struct usb_device *dev)
 	/* Set the StatusPkt bit */
 	csr = readw(&musbr->txcsr);
 	csr |= (MUSB_CSR0_TXPKTRDY | MUSB_CSR0_H_STATUSPKT);
-#if !defined(CONFIG_SOC_DM365)
 	csr |= MUSB_CSR0_H_DIS_PING;
-#endif
 	writew(csr, &musbr->txcsr);
 
 	/* Wait until TXPKTRDY bit is cleared */
@@ -373,9 +370,7 @@ static int ctrlreq_in_status_phase(struct usb_device *dev)
 
 	/* Set the StatusPkt bit and ReqPkt bit */
 	csr = MUSB_CSR0_H_REQPKT | MUSB_CSR0_H_STATUSPKT;
-#if !defined(CONFIG_SOC_DM365)
 	csr |= MUSB_CSR0_H_DIS_PING;
-#endif
 	writew(csr, &musbr->txcsr);
 	result = wait_until_ep0_ready(dev, MUSB_CSR0_H_REQPKT);
 

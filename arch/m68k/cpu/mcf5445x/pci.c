@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2004-2007, 2012 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,6 +11,7 @@
 #include <pci.h>
 #include <asm/io.h>
 #include <asm/immap.h>
+#include <linux/delay.h>
 
 #if defined(CONFIG_PCI)
 /* System RAM mapped over PCI */
@@ -26,12 +26,11 @@
 int pci_##rw##_cfg_##size(struct pci_controller *hose,			\
 	pci_dev_t dev, int offset, type val)				\
 {									\
-	u32 addr = 0;							\
-	u16 cfg_type = 0;						\
-	addr = ((offset & 0xfc) | cfg_type | (dev)  | 0x80000000);	\
+	u32 addr = PCI_CONF1_ADDRESS(PCI_BUS(dev), PCI_DEV(dev),	\
+				     PCI_FUNC(dev), offset);		\
 	out_be32(hose->cfg_addr, addr);					\
 	cfg_##rw(val, hose->cfg_data + (offset & mask), type, op);	\
-	out_be32(hose->cfg_addr, addr & 0x7fffffff);			\
+	out_be32(hose->cfg_addr, addr & ~PCI_CONF1_ENABLE);		\
 	return 0;							\
 }
 

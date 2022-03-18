@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2006
  * KwikByte <kb9200_dev@kwikbyte.com>
  *
  * (C) Copyright 2009
  * Matthias Kaehlcke <matthias@kaehlcke.net>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <linux/mtd/rawnand.h>
 #include <asm/io.h>
 #include <asm/arch/AT91RM9200.h>
 #include <asm/arch/hardware.h>

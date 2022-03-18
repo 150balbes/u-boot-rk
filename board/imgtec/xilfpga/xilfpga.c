@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Imagination Technologies MIPSfpga platform code
  *
@@ -5,11 +6,11 @@
  *
  * Zubair Lutfullah Kakakhel <Zubair.Kakakhel@imgtec.com>
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  */
 
 #include <common.h>
+#include <init.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 

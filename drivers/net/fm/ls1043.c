@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <phy.h>
@@ -66,12 +65,12 @@ phy_interface_t fman_port_enet_if(enum fm_port port)
 	if (port == FM1_DTSEC3)
 		if ((rcwsr13 & FSL_CHASSIS2_RCWSR13_EC1) ==
 				FSL_CHASSIS2_RCWSR13_EC1_DTSEC3_RGMII) {
-			return PHY_INTERFACE_MODE_RGMII_TXID;
+			return PHY_INTERFACE_MODE_RGMII_ID;
 		}
 	if (port == FM1_DTSEC4)
 		if ((rcwsr13 & FSL_CHASSIS2_RCWSR13_EC2) ==
 				FSL_CHASSIS2_RCWSR13_EC2_DTSEC4_RGMII) {
-			return PHY_INTERFACE_MODE_RGMII_TXID;
+			return PHY_INTERFACE_MODE_RGMII_ID;
 		}
 
 	/* handle SGMII */
@@ -80,7 +79,7 @@ phy_interface_t fman_port_enet_if(enum fm_port port)
 	case FM1_DTSEC2:
 		if ((port == FM1_DTSEC2) &&
 		    is_serdes_configured(SGMII_2500_FM1_DTSEC2))
-			return PHY_INTERFACE_MODE_SGMII_2500;
+			return PHY_INTERFACE_MODE_2500BASEX;
 	case FM1_DTSEC5:
 	case FM1_DTSEC6:
 	case FM1_DTSEC9:
@@ -88,7 +87,7 @@ phy_interface_t fman_port_enet_if(enum fm_port port)
 			return PHY_INTERFACE_MODE_SGMII;
 		else if ((port == FM1_DTSEC9) &&
 			 is_serdes_configured(SGMII_2500_FM1_DTSEC9))
-			return PHY_INTERFACE_MODE_SGMII_2500;
+			return PHY_INTERFACE_MODE_2500BASEX;
 		break;
 	default:
 		break;

@@ -1,16 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010 DENX Software Engineering
  * Wolfgang Denk <wd@denx.de>
  *
  * (C) Copyright 2005-2009 Samsung Electronics
  * Kyungmin Park <kyungmin.park@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <environment.h>
+#include <env_internal.h>
+#include <asm/global_data.h>
 #include <linux/stddef.h>
 #include <malloc.h>
 #include <search.h>
@@ -56,11 +56,11 @@ static int env_onenand_load(void)
 		mtd->writesize = MAX_ONENAND_PAGESIZE;
 #endif /* !ENV_IS_EMBEDDED */
 
-	rc = env_import(buf, 1);
-	if (rc)
+	rc = env_import(buf, 1, H_EXTERNAL);
+	if (!rc)
 		gd->env_valid = ENV_VALID;
 
-	return rc ? 0 : -EIO;
+	return rc;
 }
 
 static int env_onenand_save(void)
@@ -73,9 +73,7 @@ static int env_onenand_save(void)
 #endif
 	loff_t	env_addr = CONFIG_ENV_ADDR;
 	size_t	retlen;
-	struct erase_info instr = {
-		.callback	= NULL,
-	};
+	struct erase_info instr = {};
 
 	ret = env_export(&env_new);
 	if (ret)

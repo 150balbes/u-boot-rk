@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dwc3-of-simple.c - OF glue layer for simple integrations
  *
@@ -7,16 +8,12 @@
  *
  * Copyright (C) 2018 BayLibre, SAS
  * Author: Neil Armstrong <narmstron@baylibre.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <reset.h>
 #include <clk.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 struct dwc3_of_simple {
 	struct clk_bulk		clks;
@@ -67,7 +64,7 @@ static int dwc3_of_simple_clk_init(struct udevice *dev,
 
 static int dwc3_of_simple_probe(struct udevice *dev)
 {
-	struct dwc3_of_simple *simple = dev_get_platdata(dev);
+	struct dwc3_of_simple *simple = dev_get_plat(dev);
 	int ret;
 
 	ret = dwc3_of_simple_clk_init(dev, simple);
@@ -83,7 +80,7 @@ static int dwc3_of_simple_probe(struct udevice *dev)
 
 static int dwc3_of_simple_remove(struct udevice *dev)
 {
-	struct dwc3_of_simple *simple = dev_get_platdata(dev);
+	struct dwc3_of_simple *simple = dev_get_plat(dev);
 
 	reset_release_bulk(&simple->resets);
 
@@ -94,6 +91,7 @@ static int dwc3_of_simple_remove(struct udevice *dev)
 
 static const struct udevice_id dwc3_of_simple_ids[] = {
 	{ .compatible = "amlogic,meson-gxl-dwc3" },
+	{ .compatible = "rockchip,rk3399-dwc3" },
 	{ .compatible = "ti,dwc3" },
 	{ }
 };
@@ -104,6 +102,6 @@ U_BOOT_DRIVER(dwc3_of_simple) = {
 	.of_match = dwc3_of_simple_ids,
 	.probe = dwc3_of_simple_probe,
 	.remove = dwc3_of_simple_remove,
-	.platdata_auto_alloc_size = sizeof(struct dwc3_of_simple),
+	.plat_auto	= sizeof(struct dwc3_of_simple),
 	.flags = DM_FLAG_ALLOC_PRIV_DMA,
 };

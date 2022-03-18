@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2014 Samsung Electronics
  *
  * Configuration settings for the SAMSUNG EXYNOS5 board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_EXYNOS4_COMMON_H
@@ -15,15 +14,9 @@
 
 #define CONFIG_BOARD_COMMON
 
-#define CONFIG_REVISION_TAG
-
 /* SD/MMC configuration */
 #define CONFIG_MMC_DEFAULT_DEV	0
 
-/* TIZEN THOR downloader support */
-#define CONFIG_USB_FUNCTION_THOR
-
-#define CONFIG_SYS_DFU_DATA_BUF_SIZE SZ_32M
 #define DFU_DEFAULT_POLL_TIMEOUT 300
 
 /* USB Samsung's IDs */
@@ -36,10 +29,8 @@
 
 #define CONFIG_USB_GADGET_DWC2_OTG_PHY
 
-#define CONFIG_USB_FUNCTION_MASS_STORAGE
-
 /* Common environment variables */
-#define CONFIG_EXTRA_ENV_ITB \
+#define ENV_ITB \
 	"loadkernel=load mmc ${mmcbootdev}:${mmcbootpart} ${kerneladdr} " \
 		"${kernelname}\0" \
 	"loadinitrd=load mmc ${mmcbootdev}:${mmcbootpart} ${initrdaddr} " \

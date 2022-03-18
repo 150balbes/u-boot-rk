@@ -5,9 +5,11 @@
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <dm/pinctrl.h>
 #include <regmap.h>
 #include <syscon.h>
+#include <linux/bitops.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -128,7 +130,7 @@ static int rk3328_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	struct regmap *regmap;
 	int reg, ret, mask, mux_type;
 	u8 bit;
-	u32 data;
+	u32 data, route_reg, route_val;
 
 	regmap = (bank->iomux[iomux_num].type & IOMUX_SOURCE_PMU)
 				? priv->regmap_pmu : priv->regmap_base;
@@ -140,6 +142,15 @@ static int rk3328_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 
 	if (bank->recalced_mask & BIT(pin))
 		rockchip_get_recalced_mux(bank, pin, &reg, &bit, &mask);
+
+	if (bank->route_mask & BIT(pin)) {
+		if (rockchip_get_mux_route(bank, pin, mux, &route_reg,
+					   &route_val)) {
+			ret = regmap_write(regmap, route_reg, route_val);
+			if (ret)
+				return ret;
+		}
+	}
 
 	data = (mask << (bit + 16));
 	data |= (mux & mask) << bit;
@@ -287,7 +298,6 @@ static struct rockchip_pin_bank rk3328_pin_banks[] = {
 static struct rockchip_pin_ctrl rk3328_pin_ctrl = {
 	.pin_banks		= rk3328_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3328_pin_banks),
-	.nr_pins		= 128,
 	.grf_mux_offset		= 0x0,
 	.iomux_recalced		= rk3328_mux_recalced_data,
 	.niomux_recalced	= ARRAY_SIZE(rk3328_mux_recalced_data),
@@ -307,13 +317,13 @@ static const struct udevice_id rk3328_pinctrl_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(pinctrl_rk3328) = {
+U_BOOT_DRIVER(rockchip_rk3328_pinctrl) = {
 	.name		= "rockchip_rk3328_pinctrl",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= rk3328_pinctrl_ids,
-	.priv_auto_alloc_size = sizeof(struct rockchip_pinctrl_priv),
+	.priv_auto	= sizeof(struct rockchip_pinctrl_priv),
 	.ops		= &rockchip_pinctrl_ops,
-#if !CONFIG_IS_ENABLED(OF_PLATDATA)
+#if CONFIG_IS_ENABLED(OF_REAL)
 	.bind		= dm_scan_fdt_dev,
 #endif
 	.probe		= rockchip_pinctrl_probe,

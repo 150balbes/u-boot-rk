@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+ OR X11
 /*
  * Freescale ls2080a RDB board device tree source
  *
  * Copyright 2013-2015 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /dts-v1/;
@@ -26,10 +25,14 @@
 	dflash0: n25q512a {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <3000000>;
 		spi-cpol;
 		spi-cpha;
 		reg = <0>;
 	};
+};
+
+&sata {
+	status = "okay";
 };

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,8 +11,10 @@
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <miiphy.h>
 #include <phy.h>
+#include <linux/delay.h>
 
 #include <asm/types.h>
 #include <linux/list.h>
@@ -176,6 +177,11 @@ int miiphy_set_current_dev(const char *devname)
 struct mii_dev *mdio_get_current_dev(void)
 {
 	return current_mii;
+}
+
+struct list_head *mdio_get_list_head(void)
+{
+	return &mii_devs;
 }
 
 struct phy_device *mdio_phydev_for_ethname(const char *ethname)

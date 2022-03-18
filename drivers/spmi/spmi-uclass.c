@@ -1,18 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * SPMI bus uclass driver
  *
  * (C) Copyright 2015 Mateusz Kulikowski <mateusz.kulikowski@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
+
+#define LOG_CATEGORY UCLASS_SPMI
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <spmi/spmi.h>
 #include <linux/ctype.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 int spmi_reg_read(struct udevice *dev, int usid, int pid, int reg)
 {

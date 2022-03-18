@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2014 O.S. Systems Software LTDA.
  * Copyright (C) 2014 Kynetics LLC.
@@ -6,8 +7,6 @@
  * Author: Otavio Salvador <otavio@ossystems.com.br>
  *
  * Configuration settings for the WaRP Board
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -15,27 +14,15 @@
 
 #include "mx6_common.h"
 
-/* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(35 * SZ_1M) /* Increase due to DFU */
-
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_IPS_BASE_ADDR
 
 /* MMC Configs */
 #define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
 #define CONFIG_SYS_FSL_ESDHC_HAS_DDR_MODE
-#define CONFIG_SUPPORT_EMMC_BOOT
 
 /* Watchdog */
-#define CONFIG_HW_WATCHDOG
-#define CONFIG_IMX_WATCHDOG
-#define CONFIG_WATCHDOG_TIMEOUT_MSECS 30000 /* 30s */
-
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + SZ_256M)
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
@@ -46,10 +33,6 @@
 	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
-
-#define CONFIG_ENV_OFFSET		(6 * SZ_64K)
-#define CONFIG_ENV_SIZE			SZ_8K
-#define CONFIG_SYS_MMC_ENV_DEV		0
 
 /* VDD voltage 1.65 - 1.95 */
 #define CONFIG_SYS_SD_VOLTAGE		0x00000080
@@ -64,22 +47,11 @@
 
 #define CONFIG_USBD_HS
 
-#define CONFIG_USB_FUNCTION_MASS_STORAGE
-
-#define CONFIG_SYS_DFU_DATA_BUF_SIZE SZ_16M
 #define DFU_DEFAULT_POLL_TIMEOUT 300
 
 /* I2C Configs */
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_MXC
-#define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
-#define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
-#define CONFIG_SYS_I2C_SPEED		  100000
 
 /* PMIC */
-#define CONFIG_POWER
-#define CONFIG_POWER_I2C
-#define CONFIG_POWER_MAX77696
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
@@ -144,18 +116,5 @@
 		"else " \
 			"bootz; " \
 		"fi;\0"
-
-#define CONFIG_BOOTCOMMAND \
-	   "mmc dev ${mmcdev};" \
-	   "mmc dev ${mmcdev}; if mmc rescan; then " \
-		   "if run loadbootscript; then " \
-			   "run bootscript; " \
-		   "else " \
-			   "if run loadimage; then " \
-				   "run mmcboot; " \
-			   "else run netboot; " \
-			   "fi; " \
-		   "fi; " \
-	   "else run netboot; fi"
 
 #endif				/* __CONFIG_H */

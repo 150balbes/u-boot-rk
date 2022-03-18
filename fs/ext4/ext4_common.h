@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -15,8 +16,6 @@
  * Copyright (C) 2003, 2004  Free Software Foundation, Inc.
  *
  * ext4write : Based on generic ext4 protocol.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __EXT4_COMMON__
@@ -24,6 +23,7 @@
 #include <ext_common.h>
 #include <ext4fs.h>
 #include <malloc.h>
+#include <asm/cache.h>
 #include <linux/errno.h>
 #if defined(CONFIG_EXT4_WRITE)
 #include "ext4_journal.h"
@@ -73,7 +73,7 @@ int ext4fs_iget(int inode_no, struct ext2_inode *inode);
 void ext4fs_allocate_blocks(struct ext2_inode *file_inode,
 				unsigned int total_remaining_blocks,
 				unsigned int *total_no_of_block);
-void put_ext4(uint64_t off, void *buf, uint32_t size);
+void put_ext4(uint64_t off, const void *buf, uint32_t size);
 struct ext2_block_group *ext4fs_get_group_descriptor
 	(const struct ext_filesystem *fs, uint32_t bg_idx);
 uint64_t ext4fs_bg_get_block_id(const struct ext2_block_group *bg,

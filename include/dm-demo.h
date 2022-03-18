@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2013 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __DM_DEMO_H
 #define __DM_DEMO_H
-
-#include <dm.h>
 
 /**
  * struct dm_demo_pdata - configuration data for demo instance

@@ -1,15 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * keystone2: common pll clock definitions
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef _CLOCK_DEFS_H_
 #define _CLOCK_DEFS_H_
 
 #include <asm/arch/hardware.h>
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 /* PLL Control Registers */
 struct pllctl_regs {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * linux/arch/arm/lib/lib1funcs.S: Optimized ARM division routines
  *
@@ -5,12 +6,9 @@
  *   - contributed to gcc-3.4 on Sep 30, 2003
  *   - adapted for the Linux kernel on Oct 2, 2003
  */
-
-/* Copyright 1995, 1996, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
-
- * SPDX-License-Identifier:	GPL-2.0+
+/*
+ * Copyright 1995, 1996, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
  */
-
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -36,7 +34,7 @@
 	mov	\divisor, \divisor, lsl \result
 	mov	\curbit, \curbit, lsl \result
 	mov	\result, #0
-	
+
 #else
 
 	@ Initially shift the divisor left 3 bits if possible,
@@ -50,7 +48,7 @@
 
 	@ Unless the divisor is very big, shift it up in multiples of
 	@ four bits, since this is the amount of unwinding in the main
-	@ division loop.  Continue shifting until the divisor is 
+	@ division loop.  Continue shifting until the divisor is
 	@ larger than the dividend.
 1:	cmp	\divisor, #0x10000000
 	cmplo	\divisor, \dividend
@@ -137,7 +135,7 @@
 
 	@ Unless the divisor is very big, shift it up in multiples of
 	@ four bits, since this is the amount of unwinding in the main
-	@ division loop.  Continue shifting until the divisor is 
+	@ division loop.  Continue shifting until the divisor is
 	@ larger than the dividend.
 1:	cmp	\divisor, #0x10000000
 	cmplo	\divisor, \dividend

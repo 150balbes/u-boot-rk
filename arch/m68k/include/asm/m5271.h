@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * mcf5271.h -- Definitions for Motorola Coldfire 5271
  *
@@ -5,8 +6,6 @@
  * Based on mcf5272sim.h of uCLinux distribution:
  *      (C) Copyright 1999, Greg Ungerer (gerg@snapgear.com)
  *      (C) Copyright 2000, Lineo Inc. (www.lineo.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef	_MCF5271_H_
@@ -116,7 +115,7 @@
 #define MCF_GPIO_PAR_TIMER			0x10004C
 
 #define MCF_DSCR_EIM				0x100050
-#define MCF_DCSR_FEC12C 			0x100052
+#define MCF_DCSR_FEC12C				0x100052
 #define MCF_DCSR_UART				0x100053
 #define MCF_DCSR_QSPI				0x100054
 #define MCF_DCSR_TIMER				0x100055

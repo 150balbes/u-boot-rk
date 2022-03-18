@@ -155,6 +155,24 @@
 #define gadget_is_cdns3(g)        0
 #endif
 
+#ifdef CONFIG_USB_GADGET_MAX3420
+#define gadget_is_max3420(g)        (!strcmp("max3420-udc", (g)->name))
+#else
+#define gadget_is_max3420(g)        0
+#endif
+
+#ifdef CONFIG_USB_MTU3_GADGET
+#define gadget_is_mtu3(g)        (!strcmp("mtu3-gadget", (g)->name))
+#else
+#define gadget_is_mtu3(g)        0
+#endif
+
+#ifdef CONFIG_USB_GADGET_DWC2_OTG
+#define gadget_is_dwc2(g)        (!strcmp("dwc2-udc", (g)->name))
+#else
+#define gadget_is_dwc2(g)        0
+#endif
+
 /**
  * usb_gadget_controller_number - support bcdDevice id convention
  * @gadget: the controller being driven
@@ -216,5 +234,11 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x23;
 	else if (gadget_is_cdns3(gadget))
 		return 0x24;
+	else if (gadget_is_max3420(gadget))
+		return 0x25;
+	else if (gadget_is_mtu3(gadget))
+		return 0x26;
+	else if (gadget_is_dwc2(gadget))
+		return 0x27;
 	return -ENOENT;
 }

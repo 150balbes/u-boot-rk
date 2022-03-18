@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * am3517evm.c - board file for TI's AM3517 family of devices.
  *
@@ -7,11 +8,15 @@
  *
  * Copyright (C) 2010
  * Texas Instruments Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <dm.h>
+#include <init.h>
+#include <net.h>
+#include <ns16550.h>
+#include <serial.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/omap_musb.h>
 #include <asm/arch/am35x_def.h>
@@ -27,13 +32,23 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/musb.h>
 #include <i2c.h>
-#include <netdev.h>
 #include "am3517evm.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #define AM3517_IP_SW_RESET	0x48002598
 #define CPGMACSS_SW_RST		(1 << 1)
+#define PHY_GPIO		30
+
+#if defined(CONFIG_SPL_BUILD)
+#if defined(CONFIG_SPL_OS_BOOT)
+int spl_start_uboot(void)
+{
+	/* break into full u-boot on 'c' */
+	return serial_tstc() && serial_getc() == 'c';
+}
+#endif
+#endif
 
 /*
  * Routine: board_init
@@ -102,41 +117,16 @@ static void am3517_evm_musb_init(void)
  */
 int misc_init_r(void)
 {
-	volatile unsigned int ctr;
 	u32 reset;
-
-#ifdef CONFIG_SYS_I2C_OMAP24XX
-	i2c_init(CONFIG_SYS_OMAP24_I2C_SPEED, CONFIG_SYS_OMAP24_I2C_SLAVE);
-#endif
 
 	omap_die_id_display();
 
 	am3517_evm_musb_init();
 
-	/* activate PHY reset */
-	gpio_direction_output(30, 0);
-	gpio_set_value(30, 0);
-
-	ctr  = 0;
-	do {
-		udelay(1000);
-		ctr++;
-	} while (ctr < 300);
-
-	/* deactivate PHY reset */
-	gpio_set_value(30, 1);
-
-	/* allow the PHY to stabilize and settle down */
-	ctr = 0;
-	do {
-		udelay(1000);
-		ctr++;
-	} while (ctr < 300);
-
-	/* ensure that the module is out of reset */
+	/* ensure that the Ethernet module is out of reset */
 	reset = readl(AM3517_IP_SW_RESET);
 	reset &= (~CPGMACSS_SW_RST);
-	writel(reset,AM3517_IP_SW_RESET);
+	writel(reset, AM3517_IP_SW_RESET);
 
 	return 0;
 }
@@ -152,15 +142,9 @@ void set_muxconf_regs(void)
 	MUX_AM3517EVM();
 }
 
-#if defined(CONFIG_MMC)
-int board_mmc_init(bd_t *bis)
-{
-	return omap_mmc_init(0, 0, 0, -1, -1);
-}
-#endif
 
 #if defined(CONFIG_USB_ETHER) && defined(CONFIG_USB_MUSB_GADGET)
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int rv, n = 0;
 

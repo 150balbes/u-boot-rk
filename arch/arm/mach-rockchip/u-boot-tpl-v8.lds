@@ -1,4 +1,9 @@
+// SPDX-License-Identifier:	GPL-2.0+
 /*
+ * (C) Copyright 2019
+ * Rockchip Electronics Co., Ltd
+ * Kever Yang<kever.yang@rock-chips.com>
+ *
  * (C) Copyright 2013
  * David Feng <fenghua@phytium.com.cn>
  *
@@ -8,8 +13,6 @@
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
  *	Aneesh V <aneesh@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 OUTPUT_FORMAT("elf64-littleaarch64", "elf64-littleaarch64", "elf64-littleaarch64")

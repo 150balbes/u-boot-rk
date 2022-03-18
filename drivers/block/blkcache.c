@@ -1,16 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) Nelson Integration, LLC 2016
  * Author: Eric Nelson<eric@nelint.com>
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  */
-#include <config.h>
 #include <common.h>
+#include <blk.h>
+#include <log.h>
 #include <malloc.h>
 #include <part.h>
+#include <asm/global_data.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
+
+#ifdef CONFIG_NEEDS_MANUAL_RELOC
+DECLARE_GLOBAL_DATA_PTR;
+#endif
 
 struct block_cache_node {
 	struct list_head lh;
@@ -25,9 +30,21 @@ struct block_cache_node {
 static LIST_HEAD(block_cache);
 
 static struct block_cache_stats _stats = {
-	.max_blocks_per_entry = 2,
+	.max_blocks_per_entry = 8,
 	.max_entries = 32
 };
+
+#ifdef CONFIG_NEEDS_MANUAL_RELOC
+int blkcache_init(void)
+{
+	struct list_head *head = &block_cache;
+
+	head->next = (uintptr_t)head->next + gd->reloc_off;
+	head->prev = (uintptr_t)head->prev + gd->reloc_off;
+
+	return 0;
+}
+#endif
 
 static struct block_cache_node *cache_find(int iftype, int devnum,
 					   lbaint_t start, lbaint_t blkcnt,

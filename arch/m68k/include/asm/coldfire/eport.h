@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Edge Port Memory Map
  *
  * Copyright (C) 2004-2008 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __EPORT_H__
@@ -12,18 +11,6 @@
 
 /* Edge Port Module (EPORT) */
 typedef struct eport {
-#ifdef CONFIG_MCF547x_8x
-	u16 par;	/* 0x00 */
-	u16 res0;	/* 0x02 */
-	u8 ddr;		/* 0x04 */
-	u8 ier;		/* 0x05 */
-	u16 res1;	/* 0x06 */
-	u8 dr;		/* 0x08 */
-	u8 pdr;		/* 0x09 */
-	u16 res2;	/* 0x0A */
-	u8 fr;		/* 0x0C */
-	u8 res3[3];	/* 0x0D */
-#else
 	u16 par;	/* 0x00 Pin Assignment */
 	u8 ddr;		/* 0x02 Data Direction */
 	u8 ier;		/* 0x03 Interrupt Enable */
@@ -31,7 +18,6 @@ typedef struct eport {
 	u8 pdr;		/* 0x05 Pin Data */
 	u8 fr;		/* 0x06 Flag */
 	u8 res0;
-#endif
 } eport_t;
 
 /* EPPAR */

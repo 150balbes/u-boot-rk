@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <log.h>
 #include <asm/io.h>
 
 #include "ics307_clk.h"
@@ -137,6 +138,7 @@ unsigned long get_board_sys_clk(void)
 			in_8(&fpga_reg->sclk[2]));
 }
 
+#ifdef CONFIG_DYNAMIC_DDR_CLK_FREQ
 unsigned long get_board_ddr_clk(void)
 {
 	return ics307_clk_freq(
@@ -144,3 +146,4 @@ unsigned long get_board_ddr_clk(void)
 			in_8(&fpga_reg->dclk[1]),
 			in_8(&fpga_reg->dclk[2]));
 }
+#endif

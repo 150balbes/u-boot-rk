@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2008-2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
@@ -9,10 +8,11 @@
 #define __JR_H
 
 #include <linux/compiler.h>
+#include "type.h"
 
 #define JR_SIZE 4
-/* Timeout currently defined as 90 sec */
-#define CONFIG_SEC_DEQ_TIMEOUT	90000000U
+/* Timeout currently defined as 10 sec */
+#define CONFIG_USEC_DEQ_TIMEOUT	10000000U
 
 #define DEFAULT_JR_ID		0
 #define DEFAULT_JR_LIODN	0
@@ -39,14 +39,16 @@
 #define JQ_DEQ_TO_ERR		-2
 #define JQ_ENQ_ERR		-3
 
+#define RNG4_MAX_HANDLES	2
+
 struct op_ring {
-	phys_addr_t desc;
+	caam_dma_addr_t desc;
 	uint32_t status;
 } __packed;
 
 struct jr_info {
 	void (*callback)(uint32_t status, void *arg);
-	phys_addr_t desc_phys_addr;
+	caam_dma_addr_t desc_phys_addr;
 	uint32_t desc_len;
 	uint32_t op_done;
 	void *arg;
@@ -82,7 +84,7 @@ struct jobring {
 	 * by SEC
 	 */
 	/*Circular  Ring of i/p descriptors */
-	dma_addr_t *input_ring;
+	caam_dma_addr_t *input_ring;
 	/* Circular Ring of o/p descriptors */
 	/* Circula Ring containing info regarding descriptors in i/p
 	 * and o/p ring

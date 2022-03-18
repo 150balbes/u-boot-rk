@@ -1,18 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2003	Josef Baumgartner <josef.baumgartner@telex.de>
  * Based on code from Bernhard Kuhn <bkuhn@metrowerks.com>
  *
  * Copyright 2010-2012 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm-offsets.h>
 #include <config.h>
-#include <timestamp.h>
-#include "version.h"
 #include <asm/cache.h>
 
 #define _START	_start
@@ -47,16 +44,16 @@ _vectors:
 
 INITSP:	.long	0			/* Initial SP	*/
 #ifdef CONFIG_CF_SBF
-INITPC:	.long	ASM_DRAMINIT		/* Initial PC 	*/
+INITPC:	.long	ASM_DRAMINIT		/* Initial PC	*/
 #endif
 #ifdef CONFIG_SYS_NAND_BOOT
-INITPC:	.long	ASM_DRAMINIT_N		/* Initial PC 	*/
+INITPC:	.long	ASM_DRAMINIT_N		/* Initial PC	*/
 #endif
 
 #else
 
 INITSP:	.long	0			/* Initial SP	*/
-INITPC:	.long	_START			/* Initial PC 	*/
+INITPC:	.long	_START			/* Initial PC	*/
 
 #endif
 
@@ -203,10 +200,6 @@ asm_dspi_init:
 	move.b	#0x80, (%a2)
 #endif
 
-#ifdef CONFIG_MCF5445x
-	move.l	#0xFC0A4063, %a0
-	move.b	#0x7F, (%a0)
-#endif
 	/* Configure DSPI module */
 	move.l	#0xFC05C000, %a0
 	move.l	#0x80FF0C00, (%a0)	/* Master, clear TX/RX FIFO */
@@ -214,9 +207,6 @@ asm_dspi_init:
 	move.l	#0xFC05C00C, %a0
 #ifdef CONFIG_MCF5441x
 	move.l	#0x3E000016, (%a0)
-#endif
-#ifdef CONFIG_MCF5445x
-	move.l	#0x3E000011, (%a0)
 #endif
 
 	move.l	#0xFC05C034, %a2	/* dtfr */
@@ -515,7 +505,7 @@ _start:
 /******************************************************************************/
 
 /*
- * void relocate_code (addr_sp, gd, addr_moni)
+ * void relocate_code(addr_sp, gd, addr_moni)
  *
  * This "function" does not return, instead it continues in RAM
  * after relocating the monitor code.
@@ -618,7 +608,4 @@ _int_handler:
 
 /******************************************************************************/
 
-.globl version_string
-version_string:
-.ascii U_BOOT_VERSION_STRING, "\0"
 .align 4

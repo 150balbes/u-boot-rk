@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2019 Rockchip Electronics Co. Ltd.
  * Author: Finley Xiao <finley.xiao@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK3308_H
@@ -36,7 +27,7 @@
 #define SCLK_I2C1		23
 #define SCLK_I2C2		24
 #define SCLK_I2C3		25
-#define SCLK_PWM		26
+#define SCLK_PWM0		26
 #define SCLK_SPI0		27
 #define SCLK_SPI1		28
 #define SCLK_SPI2		29
@@ -130,6 +121,9 @@
 #define SCLK_I2S3_8CH_RX_SRC	117
 #define SCLK_I2S0_2CH_SRC	118
 #define SCLK_I2S1_2CH_SRC	119
+#define SCLK_PWM1		120
+#define SCLK_PWM2		121
+#define SCLK_OWIRE		122
 
 /* dclk */
 #define DCLK_VOP		125
@@ -188,7 +182,7 @@
 #define PCLK_I2C1		203
 #define PCLK_I2C2		204
 #define PCLK_I2C3		205
-#define PCLK_PWM		206
+#define PCLK_PWM0		206
 #define PCLK_SPI0		207
 #define PCLK_SPI1		208
 #define PCLK_SPI2		209
@@ -213,8 +207,12 @@
 #define PCLK_CRU		228
 #define PCLK_OTP_PHY		229
 #define PCLK_CPU_BOOST		230
+#define PCLK_PWM1		231
+#define PCLK_PWM2		232
+#define PCLK_CAN		233
+#define PCLK_OWIRE		234
 
-#define CLK_NR_CLKS		(PCLK_CPU_BOOST + 1)
+#define CLK_NR_CLKS		(PCLK_OWIRE + 1)
 
 /* soft-reset indices */
 
@@ -284,8 +282,8 @@
 #define SRST_I2C2		59
 #define SRST_I2C3_P		60
 #define SRST_I2C3		61
-#define SRST_PWM_P		62
-#define SRST_PWM		63
+#define SRST_PWM0_P		62
+#define SRST_PWM0		63
 
 /* cru_softrst_con4 */
 #define SRST_SPI0_P		64
@@ -325,6 +323,10 @@
 /* cru_softrst_con6 */
 #define SRST_CPU_BOOST		96
 #define SRST_CPU_BOOST_P	97
+#define SRST_PWM1_P		98
+#define SRST_PWM1		99
+#define SRST_PWM2_P		100
+#define SRST_PWM2		101
 #define SRST_PERI_NIU_A		104
 #define SRST_PERI_NIU_H		105
 #define SRST_PERI_NIU_p		106
@@ -349,6 +351,8 @@
 #define SRST_NANDC_H		123
 #define SRST_NANDC_N		124
 #define SRST_MAC_A		125
+#define SRST_CAN_P		126
+#define SRST_OWIRE_P		127
 
 /* cru_softrst_con8 */
 #define SRST_AUDIO_NIU_H	128

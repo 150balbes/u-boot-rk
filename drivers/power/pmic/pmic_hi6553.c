@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015 Linaro
  *  Peter Griffin <peter.griffin@linaro.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <asm/io.h>
 #include <common.h>
+#include <linux/delay.h>
 #include <power/pmic.h>
 #include <power/max8997_muic.h>
 #include <power/hi6553_pmic.h>

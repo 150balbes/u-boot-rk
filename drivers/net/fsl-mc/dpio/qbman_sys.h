@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2014 Freescale Semiconductor
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* qbman_sys_decl.h and qbman_sys.h are the two platform-specific files in the
@@ -21,6 +20,7 @@
 
 /* Trace the 3 different classes of read/write access to QBMan. #undef as
  * required. */
+#include <linux/bug.h>
 #undef QBMAN_CCSR_TRACE
 #undef QBMAN_CINH_TRACE
 #undef QBMAN_CENA_TRACE

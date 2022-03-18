@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
  * Author: Priyanka Jain <Priyanka.Jain@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <clock_legacy.h>
 #include <asm/io.h>
 #include <common.h>
 #include <command.h>

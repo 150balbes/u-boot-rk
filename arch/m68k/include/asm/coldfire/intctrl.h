@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Interrupt Controller Memory Map
  *
  * Copyright (C) 2004-2008 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __INTCTRL_H__
@@ -12,7 +11,7 @@
 
 #if defined(CONFIG_M5235) || defined(CONFIG_M5271) || \
     defined(CONFIG_M5275) || defined(CONFIG_M5282) || \
-    defined(CONFIG_M547x) || defined(CONFIG_M548x)
+    defined(CONFIG_M547x)
 #	define	CONFIG_SYS_CF_INTC_REG1
 #endif
 

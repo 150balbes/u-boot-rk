@@ -1,20 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Keystone2: Asynchronous EMIF Configuration
  *
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/ti-common/ti-aemif.h>
 
-#define AEMIF_WAITCYCLE_CONFIG		(CONFIG_AEMIF_CNTRL_BASE + 0x4)
-#define AEMIF_NAND_CONTROL		(CONFIG_AEMIF_CNTRL_BASE + 0x60)
-#define AEMIF_ONENAND_CONTROL		(CONFIG_AEMIF_CNTRL_BASE + 0x5c)
-#define AEMIF_CONFIG(cs)		(CONFIG_AEMIF_CNTRL_BASE + 0x10 \
-					 + (cs * 4))
+#define AEMIF_WAITCYCLE_CONFIG		(KS2_AEMIF_CNTRL_BASE + 0x4)
+#define AEMIF_NAND_CONTROL		(KS2_AEMIF_CNTRL_BASE + 0x60)
+#define AEMIF_ONENAND_CONTROL		(KS2_AEMIF_CNTRL_BASE + 0x5c)
+#define AEMIF_CONFIG(cs)		(KS2_AEMIF_CNTRL_BASE + 0x10 + (cs * 4))
 
 #define AEMIF_CFG_SELECT_STROBE(v)	((v) ? 1 << 31 : 0)
 #define AEMIF_CFG_EXTEND_WAIT(v)	((v) ? 1 << 30 : 0)

@@ -1,11 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2001
  * Denis Peter, MPL AG Switzerland
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
  #ifndef _SCSI_H
  #define _SCSI_H
+
+#include <asm/cache.h>
+#include <linux/dma-direction.h>
+
+struct udevice;
 
 struct scsi_cmd {
 	unsigned char		cmd[16];					/* command				   */
@@ -27,6 +31,7 @@ struct scsi_cmd {
 	unsigned long		trans_bytes;			/* tranfered bytes		*/
 
 	unsigned int		priv;
+	enum dma_data_direction	dma_dir;
 };
 
 /*-----------------------------------------------------------
@@ -159,16 +164,18 @@ struct scsi_cmd {
 #define SCSI_WRITE_SAME	0x41		/* Write Same (O) */
 
 /**
- * struct scsi_platdata - stores information about SCSI controller
+ * struct scsi_plat - stores information about SCSI controller
  *
  * @base: Controller base address
  * @max_lun: Maximum number of logical units
  * @max_id: Maximum number of target ids
+ * @max_bytes_per_req: Maximum number of bytes per read/write request
  */
-struct scsi_platdata {
+struct scsi_plat {
 	unsigned long base;
 	unsigned long max_lun;
 	unsigned long max_id;
+	unsigned long max_bytes_per_req;
 };
 
 /* Operations for SCSI */
@@ -200,7 +207,7 @@ extern struct scsi_ops scsi_ops;
  *
  * @dev:	SCSI bus
  * @cmd:	Command to execute
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int scsi_exec(struct udevice *dev, struct scsi_cmd *cmd);
 
@@ -208,7 +215,7 @@ int scsi_exec(struct udevice *dev, struct scsi_cmd *cmd);
  * scsi_bus_reset() - reset the bus
  *
  * @dev:	SCSI bus to reset
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int scsi_bus_reset(struct udevice *dev);
 

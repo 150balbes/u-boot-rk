@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2016 Google Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,8 +9,7 @@
 #include <timer.h>
 #include <asm/io.h>
 #include <asm/arch/timer.h>
-
-DECLARE_GLOBAL_DATA_PTR;
+#include <linux/err.h>
 
 #define AST_TICK_TIMER  1
 #define AST_TMC_RELOAD_VAL  0xffffffff
@@ -53,22 +51,20 @@ static int ast_timer_probe(struct udevice *dev)
 	return 0;
 }
 
-static int ast_timer_get_count(struct udevice *dev, u64 *count)
+static u64 ast_timer_get_count(struct udevice *dev)
 {
 	struct ast_timer_priv *priv = dev_get_priv(dev);
 
-	*count = AST_TMC_RELOAD_VAL - readl(&priv->tmc->status);
-
-	return 0;
+	return AST_TMC_RELOAD_VAL - readl(&priv->tmc->status);
 }
 
-static int ast_timer_ofdata_to_platdata(struct udevice *dev)
+static int ast_timer_of_to_plat(struct udevice *dev)
 {
 	struct ast_timer_priv *priv = dev_get_priv(dev);
 
-	priv->regs = devfdt_get_addr_ptr(dev);
-	if (IS_ERR(priv->regs))
-		return PTR_ERR(priv->regs);
+	priv->regs = dev_read_addr_ptr(dev);
+	if (!priv->regs)
+		return -EINVAL;
 
 	priv->tmc = ast_get_timer_counter(priv->regs, AST_TICK_TIMER);
 
@@ -90,8 +86,7 @@ U_BOOT_DRIVER(ast_timer) = {
 	.id = UCLASS_TIMER,
 	.of_match = ast_timer_ids,
 	.probe = ast_timer_probe,
-	.priv_auto_alloc_size = sizeof(struct ast_timer_priv),
-	.ofdata_to_platdata = ast_timer_ofdata_to_platdata,
+	.priv_auto	= sizeof(struct ast_timer_priv),
+	.of_to_plat = ast_timer_of_to_plat,
 	.ops = &ast_timer_ops,
-	.flags = DM_FLAG_PRE_RELOC,
 };

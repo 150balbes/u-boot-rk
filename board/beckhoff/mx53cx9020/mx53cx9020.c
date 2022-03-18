@@ -1,33 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015  Beckhoff Automation GmbH & Co. KG
  * Patrick Bruenn <p.bruenn@beckhoff.com>
  *
  * Based on <u-boot>/board/freescale/mx53loco/mx53loco.c
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <dm.h>
-#include <asm/io.h>
-#include <asm/arch/imx-regs.h>
+#include <cpu_func.h>
+#include <init.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/arch/crm_regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/iomux-mx53.h>
-#include <asm/arch/clock.h>
+#include <asm/global_data.h>
 #include <asm/mach-imx/mx5_video.h>
 #include <ACEX1K.h>
-#include <netdev.h>
-#include <i2c.h>
-#include <mmc.h>
-#include <fsl_esdhc.h>
 #include <asm/gpio.h>
-#include <linux/fb.h>
-#include <ipu_pixfmt.h>
-#include <fs.h>
-#include <dm/platform_data/serial_mxc.h>
+#include <linux/delay.h>
 
 enum LED_GPIOS {
 	GPIO_SD1_CD = IMX_GPIO_NR(1, 1),
@@ -58,45 +48,7 @@ static const u32 CCAT_MODE_RUN = 0x0033DC8F;
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static uint32_t mx53_dram_size[2];
-
-phys_size_t get_effective_memsize(void)
-{
-	/*
-	 * WARNING: We must override get_effective_memsize() function here
-	 * to report only the size of the first DRAM bank. This is to make
-	 * U-Boot relocator place U-Boot into valid memory, that is, at the
-	 * end of the first DRAM bank. If we did not override this function
-	 * like so, U-Boot would be placed at the address of the first DRAM
-	 * bank + total DRAM size - sizeof(uboot), which in the setup where
-	 * each DRAM bank contains 512MiB of DRAM would result in placing
-	 * U-Boot into invalid memory area close to the end of the first
-	 * DRAM bank.
-	 */
-	return mx53_dram_size[0];
-}
-
-int dram_init(void)
-{
-	mx53_dram_size[0] = get_ram_size((void *)PHYS_SDRAM_1, 1 << 30);
-	mx53_dram_size[1] = get_ram_size((void *)PHYS_SDRAM_2, 1 << 30);
-
-	gd->ram_size = mx53_dram_size[0] + mx53_dram_size[1];
-
-	return 0;
-}
-
-int dram_init_banksize(void)
-{
-	gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
-	gd->bd->bi_dram[0].size = mx53_dram_size[0];
-
-	gd->bd->bi_dram[1].start = PHYS_SDRAM_2;
-	gd->bd->bi_dram[1].size = mx53_dram_size[1];
-
-	return 0;
-}
-
+#ifdef CONFIG_REVISION_TAG
 u32 get_board_rev(void)
 {
 	struct iim_regs *iim = (struct iim_regs *)IMX_IIM_BASE;
@@ -108,6 +60,7 @@ u32 get_board_rev(void)
 
 	return (get_cpu_rev() & ~(0xF << 8)) | (rev & 0xF) << 8;
 }
+#endif
 
 /*
  * Set CCAT mode
@@ -130,6 +83,9 @@ void weim_cs0_settings(u32 mode)
 
 static void setup_gpio_eim(void)
 {
+	gpio_request(GPIO_C3_STATUS, "GPIO_C3_STATUS");
+	gpio_request(GPIO_C3_DONE, "GPIO_C3_DONE");
+	gpio_request(GPIO_C3_CONFIG, "GPIO_C3_CONFIG");
 	gpio_direction_input(GPIO_C3_STATUS);
 	gpio_direction_input(GPIO_C3_DONE);
 	gpio_direction_output(GPIO_C3_CONFIG, 1);
@@ -139,6 +95,7 @@ static void setup_gpio_eim(void)
 
 static void setup_gpio_sups(void)
 {
+	gpio_request(GPIO_SUPS_INT, "GPIO_SUPS_INT");
 	gpio_direction_input(GPIO_SUPS_INT);
 
 	static const int BLINK_INTERVALL = 50000;
@@ -155,6 +112,16 @@ static void setup_gpio_sups(void)
 
 static void setup_gpio_leds(void)
 {
+	gpio_request(GPIO_LED_SD2_R, "GPIO_LED_SD2_R");
+	gpio_request(GPIO_LED_SD2_B, "GPIO_LED_SD2_B");
+	gpio_request(GPIO_LED_SD2_G, "GPIO_LED_SD2_G");
+	gpio_request(GPIO_LED_SD1_R, "GPIO_LED_SD1_R");
+	gpio_request(GPIO_LED_SD1_B, "GPIO_LED_SD1_B");
+	gpio_request(GPIO_LED_SD1_G, "GPIO_LED_SD1_G");
+	gpio_request(GPIO_LED_PWR_R, "GPIO_LED_PWR_R");
+	gpio_request(GPIO_LED_PWR_B, "GPIO_LED_PWR_B");
+	gpio_request(GPIO_LED_PWR_G, "GPIO_LED_PWR_G");
+
 	gpio_direction_output(GPIO_LED_SD2_R, 0);
 	gpio_direction_output(GPIO_LED_SD2_B, 0);
 	gpio_direction_output(GPIO_LED_SD2_G, 0);
@@ -165,65 +132,6 @@ static void setup_gpio_leds(void)
 	gpio_direction_output(GPIO_LED_PWR_B, 0);
 	gpio_direction_output(GPIO_LED_PWR_G, 0);
 }
-
-#ifdef CONFIG_USB_EHCI_MX5
-int board_ehci_hcd_init(int port)
-{
-	/* request VBUS power enable pin, GPIO7_8 */
-	gpio_direction_output(IMX_GPIO_NR(7, 8), 1);
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg esdhc_cfg[2] = {
-	{MMC_SDHC1_BASE_ADDR},
-	{MMC_SDHC2_BASE_ADDR},
-};
-
-int board_mmc_getcd(struct mmc *mmc)
-{
-	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
-	int ret;
-
-	gpio_direction_input(GPIO_SD1_CD);
-	gpio_direction_input(GPIO_SD2_CD);
-
-	if (cfg->esdhc_base == MMC_SDHC1_BASE_ADDR)
-		ret = !gpio_get_value(GPIO_SD1_CD);
-	else
-		ret = !gpio_get_value(GPIO_SD2_CD);
-
-	return ret;
-}
-
-int board_mmc_init(bd_t *bis)
-{
-	u32 index;
-	int ret;
-
-	esdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-	esdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-
-	for (index = 0; index < CONFIG_SYS_FSL_ESDHC_NUM; index++) {
-		switch (index) {
-		case 0:
-			break;
-		case 1:
-			break;
-		default:
-			printf("Warning: you configured more ESDHC controller(%d) as supported by the board(2)\n",
-			       CONFIG_SYS_FSL_ESDHC_NUM);
-			return -EINVAL;
-		}
-		ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-#endif
 
 static int power_init(void)
 {
@@ -251,21 +159,8 @@ static void clock_1GHz(void)
 
 int board_early_init_f(void)
 {
-	setup_gpio_leds();
-	setup_gpio_sups();
-	setup_gpio_eim();
-	setup_iomux_lcd();
 
 	return 0;
-}
-
-/*
- * Do not overwrite the console
- * Use always serial for U-Boot console
- */
-int overwrite_console(void)
-{
-	return 1;
 }
 
 int board_init(void)
@@ -273,6 +168,11 @@ int board_init(void)
 	gd->bd->bi_boot_params = PHYS_SDRAM_1 + 0x100;
 
 	mxc_set_sata_internal_clock();
+
+	setup_gpio_leds();
+	setup_gpio_sups();
+	setup_gpio_eim();
+	setup_iomux_lcd();
 
 	return 0;
 }

@@ -1,4 +1,10 @@
-if ORION5X
+if ARCH_ORION5X
+
+config 88F5182
+	bool
+
+config FEROCEON
+	bool
 
 choice
 	prompt "Marvell Orion board select"
@@ -6,6 +12,8 @@ choice
 
 config TARGET_EDMINIV2
 	bool "LaCie Ethernet Disk mini V2"
+	select 88F5182
+	select FEROCEON
 	select SUPPORT_SPL
 
 endchoice
@@ -14,8 +22,5 @@ config SYS_SOC
 	default "orion5x"
 
 source "board/LaCie/edminiv2/Kconfig"
-
-config SPL_LDSCRIPT
-	default "$(CPUDIR)/orion5x/u-boot-spl.lds" if ORION5X
 
 endif

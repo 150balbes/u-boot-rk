@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Steven Scholz, imc Measurement & Control, steven.scholz@imc-berlin.de
  *
  * (C) Copyright 2002
  * Rich Ireland, Enterasys Networks, rireland@enterasys.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -14,6 +13,7 @@
 #include <common.h>
 #include <errno.h>
 #include <ACEX1K.h>
+#include <log.h>
 #include <stratixII.h>
 
 /* Define FPGA_DEBUG to 1 to get debug printf's */
@@ -42,6 +42,10 @@ static const struct altera_fpga {
 #endif
 #if defined(CONFIG_FPGA_SOCFPGA)
 	{ Altera_SoCFPGA, "SoC FPGA", socfpga_load, NULL, NULL },
+#endif
+#if defined(CONFIG_FPGA_INTEL_SDM_MAILBOX)
+	{ Intel_FPGA_SDM_Mailbox, "Intel SDM Mailbox", intel_sdm_mb_load, NULL,
+	  NULL },
 #endif
 };
 
@@ -154,6 +158,9 @@ int altera_info(Altera_desc *desc)
 		break;
 	case fast_passive_parallel_security:
 		printf("Fast Passive Parallel with Security (FPPS)\n");
+		break;
+	case secure_device_manager_mailbox:
+		puts("Secure Device Manager (SDM) Mailbox\n");
 		break;
 		/* Add new interface types here */
 	default:

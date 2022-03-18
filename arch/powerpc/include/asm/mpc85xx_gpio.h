@@ -1,12 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2010 eXMeritus, A Boeing Company
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef POWERPC_ASM_MPC85XX_GPIO_H_
 #define POWERPC_ASM_MPC85XX_GPIO_H_
 
+#ifndef CONFIG_DM_GPIO
 # include <asm/immap_85xx.h>
 
 /*
@@ -111,5 +111,5 @@ static inline int gpio_is_valid(int gpio)
 {
 	return (gpio >= 0) && (gpio < 32);
 }
-
+#endif /* not CONFIG_DM_GPIO */
 #endif /* not POWERPC_ASM_MPC85XX_GPIO_H_ */

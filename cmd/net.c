@@ -1,21 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
  * Boot support
  */
 #include <common.h>
+#include <bootstage.h>
 #include <command.h>
+#include <dm.h>
+#include <env.h>
+#include <image.h>
 #include <net.h>
-#include <boot_rkimg.h>
+#include <net/udp.h>
+#include <net/sntp.h>
 
-static int netboot_common(enum proto_t, cmd_tbl_t *, int, char * const []);
+static int netboot_common(enum proto_t, struct cmd_tbl *, int, char * const []);
 
-static int do_bootp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+#ifdef CONFIG_CMD_BOOTP
+static int do_bootp(struct cmd_tbl *cmdtp, int flag, int argc,
+		    char *const argv[])
 {
 	return netboot_common(BOOTP, cmdtp, argc, argv);
 }
@@ -25,8 +31,10 @@ U_BOOT_CMD(
 	"boot image via network using BOOTP/TFTP protocol",
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
 );
+#endif
 
-int do_tftpb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+#ifdef CONFIG_CMD_TFTPBOOT
+int do_tftpb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret;
 
@@ -37,119 +45,15 @@ int do_tftpb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 U_BOOT_CMD(
-	tftp,		3,	1,	do_tftpb,
-	"download image via network using TFTP protocol",
+	tftpboot,	3,	1,	do_tftpb,
+	"boot image via network using TFTP protocol",
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
-);
-
-#ifdef CONFIG_CMD_TFTP_BOOTM
-int do_tftpbootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-	char *tftp_argv[] = { "tftp", NULL, NULL };
-	char *bootm_argv[] = { "bootm", NULL };
-	char *fileaddr;
-	ulong filesize;
-
-	if (argc != 3)
-		return CMD_RET_USAGE;
-
-	/* tftp download */
-	tftp_argv[1] = argv[1];
-	tftp_argv[2] = argv[2];
-	if (do_tftpb(cmdtp, 0, 3, tftp_argv))
-		return -ENOENT;
-
-	fileaddr = env_get("fileaddr");
-	filesize = env_get_ulong("filesize", 16, 0);
-	if (!fileaddr || !filesize)
-		return -ENOENT;
-
-	/* bootm */
-	bootm_argv[1] = fileaddr;
-	printf("## TFTP bootm %s at %s size 0x%lx\n",
-	       argv[2], fileaddr, filesize);
-
-	return do_bootm(NULL, 0, ARRAY_SIZE(bootm_argv), bootm_argv);
-}
-
-U_BOOT_CMD(
-	tftpbootm,	3,	1,	do_tftpbootm,
-	"tftpbootm aosp/uImage/FIT image via network using TFTP protocol",
-	"[loadAddress] [[hostIPaddr:]bootfilename]"
-);
-#endif
-
-#ifdef CONFIG_CMD_TFTP_FLASH
-int do_tftpflash(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-	char *tftp_argv[] = { "tftp", NULL, NULL };
-	struct blk_desc *dev_desc;
-	disk_partition_t part;
-	ulong fileaddr;
-	ulong filesize;
-	char *part_name;
-	int ret, blknum;
-
-	if (argc != 4)
-		return CMD_RET_USAGE;
-
-	/* search partition */
-	dev_desc = rockchip_get_bootdev();
-	if (!dev_desc) {
-		printf("No boot device\n");
-		return -ENODEV;
-	}
-
-	part_name = argv[3];
-	ret = part_get_info_by_name(dev_desc, part_name, &part);
-	if (ret < 0) {
-		printf("No partition '%s'\n", part_name);
-		return -EINVAL;
-	}
-
-	/* tftp download */
-	tftp_argv[1] = argv[1];
-	tftp_argv[2] = argv[2];
-	if (do_tftpb(cmdtp, 0, ARRAY_SIZE(tftp_argv), tftp_argv))
-		return -ENOENT;
-
-	fileaddr = env_get_ulong("fileaddr", 16, 0);
-	filesize = env_get_ulong("filesize", 16, 0);
-	if (!fileaddr || !filesize)
-		return -ENOENT;
-
-	/* flash */
-	blknum = DIV_ROUND_UP(filesize, dev_desc->blksz);
-	if (blknum > part.size) {
-		printf("File size 0x%lx is too large to flash\n", filesize);
-		return -EINVAL;
-	}
-
-	printf("## TFTP flash %s to partititon '%s' size 0x%lx ... ",
-	       argv[2], part_name, filesize);
-
-	if (dev_desc->if_type == IF_TYPE_MTD)
-		dev_desc->op_flag |= BLK_MTD_CONT_WRITE;
-	ret = blk_dwrite(dev_desc, part.start, blknum, (void *)fileaddr);
-	if (dev_desc->if_type == IF_TYPE_MTD)
-		dev_desc->op_flag &= ~(BLK_MTD_CONT_WRITE);
-	if (ret != blknum)
-		printf("Failed(%d)\n", ret);
-	else
-		printf("OK\n");
-
-	return 0;
-}
-
-U_BOOT_CMD(
-	tftpflash,	4,	0,	do_tftpflash,
-	"flash image via network using TFTP protocol",
-	"[loadAddress] [[hostIPaddr:]bootfilename] [partition]"
 );
 #endif
 
 #ifdef CONFIG_CMD_TFTPPUT
-static int do_tftpput(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_tftpput(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	return netboot_common(TFTPPUT, cmdtp, argc, argv);
 }
@@ -162,7 +66,8 @@ U_BOOT_CMD(
 #endif
 
 #ifdef CONFIG_CMD_TFTPSRV
-static int do_tftpsrv(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+static int do_tftpsrv(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	return netboot_common(TFTPSRV, cmdtp, argc, argv);
 }
@@ -177,15 +82,9 @@ U_BOOT_CMD(
 );
 #endif
 
-#ifdef CONFIG_UDP_FUNCTION_FASTBOOT
-int do_fastboot_udp(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
-{
-	return netboot_common(FASTBOOT, cmdtp, argc, argv);
-}
-#endif
 
 #ifdef CONFIG_CMD_RARP
-int do_rarpb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_rarpb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	return netboot_common(RARP, cmdtp, argc, argv);
 }
@@ -198,7 +97,8 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_DHCP)
-static int do_dhcp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_dhcp(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	return netboot_common(DHCP, cmdtp, argc, argv);
 }
@@ -211,7 +111,8 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_NFS)
-static int do_nfs(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_nfs(struct cmd_tbl *cmdtp, int flag, int argc,
+		  char *const argv[])
 {
 	return netboot_common(NFS, cmdtp, argc, argv);
 }
@@ -237,26 +138,28 @@ static void netboot_update_env(void)
 		env_set("netmask", tmp);
 	}
 
+#ifdef CONFIG_CMD_BOOTP
 	if (net_hostname[0])
 		env_set("hostname", net_hostname);
+#endif
 
+#ifdef CONFIG_CMD_BOOTP
 	if (net_root_path[0])
 		env_set("rootpath", net_root_path);
+#endif
 
 	if (net_ip.s_addr) {
 		ip_to_string(net_ip, tmp);
 		env_set("ipaddr", tmp);
 	}
-#if !defined(CONFIG_BOOTP_SERVERIP)
 	/*
 	 * Only attempt to change serverip if net/bootp.c:store_net_params()
 	 * could have set it
 	 */
-	if (net_server_ip.s_addr) {
+	if (!IS_ENABLED(CONFIG_BOOTP_SERVERIP) && net_server_ip.s_addr) {
 		ip_to_string(net_server_ip, tmp);
 		env_set("serverip", tmp);
 	}
-#endif
 	if (net_dns_server.s_addr) {
 		ip_to_string(net_dns_server, tmp);
 		env_set("dnsip", tmp);
@@ -267,8 +170,10 @@ static void netboot_update_env(void)
 		env_set("dnsip2", tmp);
 	}
 #endif
+#ifdef CONFIG_CMD_BOOTP
 	if (net_nis_domain[0])
 		env_set("domain", net_nis_domain);
+#endif
 
 #if defined(CONFIG_CMD_SNTP) && defined(CONFIG_BOOTP_TIMEOFFSET)
 	if (net_ntp_time_offset) {
@@ -284,8 +189,8 @@ static void netboot_update_env(void)
 #endif
 }
 
-static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
-		char * const argv[])
+static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
+			  char *const argv[])
 {
 	char *s;
 	char *end;
@@ -293,13 +198,18 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 	int   size;
 	ulong addr;
 
-	/* pre-set load_addr */
+	net_boot_file_name_explicit = false;
+
+	/* pre-set image_load_addr */
 	s = env_get("loadaddr");
 	if (s != NULL)
-		load_addr = simple_strtoul(s, NULL, 16);
+		image_load_addr = hextoul(s, NULL);
 
 	switch (argc) {
 	case 1:
+		/* refresh bootfile name from env */
+		copy_filename(net_boot_file_name, env_get("bootfile"),
+			      sizeof(net_boot_file_name));
 		break;
 
 	case 2:	/*
@@ -308,16 +218,22 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		 * form must be written in a format which can not be
 		 * mis-interpreted as a valid number.
 		 */
-		addr = simple_strtoul(argv[1], &end, 16);
-		if (end == (argv[1] + strlen(argv[1])))
-			load_addr = addr;
-		else
+		addr = hextoul(argv[1], &end);
+		if (end == (argv[1] + strlen(argv[1]))) {
+			image_load_addr = addr;
+			/* refresh bootfile name from env */
+			copy_filename(net_boot_file_name, env_get("bootfile"),
+				      sizeof(net_boot_file_name));
+		} else {
+			net_boot_file_name_explicit = true;
 			copy_filename(net_boot_file_name, argv[1],
 				      sizeof(net_boot_file_name));
+		}
 		break;
 
 	case 3:
-		load_addr = simple_strtoul(argv[1], NULL, 16);
+		image_load_addr = hextoul(argv[1], NULL);
+		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, argv[2],
 			      sizeof(net_boot_file_name));
 
@@ -325,11 +241,12 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 
 #ifdef CONFIG_CMD_TFTPPUT
 	case 4:
-		if (strict_strtoul(argv[1], 16, &save_addr) < 0 ||
-		    strict_strtoul(argv[2], 16, &save_size) < 0) {
+		if (strict_strtoul(argv[1], 16, &image_save_addr) < 0 ||
+		    strict_strtoul(argv[2], 16, &image_save_size) < 0) {
 			printf("Invalid address/size\n");
 			return CMD_RET_USAGE;
 		}
+		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, argv[3],
 			      sizeof(net_boot_file_name));
 		break;
@@ -368,7 +285,8 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 }
 
 #if defined(CONFIG_CMD_PING)
-static int do_ping(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_ping(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -416,7 +334,7 @@ static void cdp_update_env(void)
 	}
 }
 
-int do_cdp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_cdp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int r;
 
@@ -439,7 +357,13 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_SNTP)
-int do_sntp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static struct udp_ops sntp_ops = {
+	.prereq = sntp_prereq,
+	.start = sntp_start,
+	.data = NULL,
+};
+
+int do_sntp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	char *toff;
 
@@ -463,7 +387,7 @@ int do_sntp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	else
 		net_ntp_time_offset = simple_strtol(toff, NULL, 10);
 
-	if (net_loop(SNTP) < 0) {
+	if (udp_loop(&sntp_ops) < 0) {
 		printf("SNTP failed: host %pI4 not responding\n",
 		       &net_ntp_server);
 		return CMD_RET_FAILURE;
@@ -480,7 +404,7 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_DNS)
-int do_dns(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_dns(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	if (argc == 1)
 		return CMD_RET_USAGE;
@@ -526,8 +450,8 @@ U_BOOT_CMD(
 #endif	/* CONFIG_CMD_DNS */
 
 #if defined(CONFIG_CMD_LINK_LOCAL)
-static int do_link_local(cmd_tbl_t *cmdtp, int flag, int argc,
-			char * const argv[])
+static int do_link_local(struct cmd_tbl *cmdtp, int flag, int argc,
+			 char *const argv[])
 {
 	char tmp[22];
 
@@ -555,3 +479,48 @@ U_BOOT_CMD(
 );
 
 #endif  /* CONFIG_CMD_LINK_LOCAL */
+
+#ifdef CONFIG_DM_ETH
+static int do_net_list(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	const struct udevice *current = eth_get_dev();
+	unsigned char env_enetaddr[ARP_HLEN];
+	const struct udevice *dev;
+	struct uclass *uc;
+
+	uclass_id_foreach_dev(UCLASS_ETH, dev, uc) {
+		eth_env_get_enetaddr_by_index("eth", dev_seq(dev), env_enetaddr);
+		printf("eth%d : %s %pM %s\n", dev_seq(dev), dev->name, env_enetaddr,
+		       current == dev ? "active" : "");
+	}
+	return CMD_RET_SUCCESS;
+}
+
+static struct cmd_tbl cmd_net[] = {
+	U_BOOT_CMD_MKENT(list, 1, 0, do_net_list, "", ""),
+};
+
+static int do_net(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	struct cmd_tbl *cp;
+
+	cp = find_cmd_tbl(argv[1], cmd_net, ARRAY_SIZE(cmd_net));
+
+	/* Drop the net command */
+	argc--;
+	argv++;
+
+	if (!cp || argc > cp->maxargs)
+		return CMD_RET_USAGE;
+	if (flag == CMD_FLAG_REPEAT && !cmd_is_repeatable(cp))
+		return CMD_RET_SUCCESS;
+
+	return cp->cmd(cmdtp, flag, argc, argv);
+}
+
+U_BOOT_CMD(
+	net, 2, 1, do_net,
+	"NET sub-system",
+	"list - list available devices\n"
+);
+#endif // CONFIG_DM_ETH

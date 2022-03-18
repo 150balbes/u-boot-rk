@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014  Angelo Dureghello <angelo@sysam.it>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <asm/global_data.h>
 #include <asm/processor.h>
 #include <asm/immap.h>
 

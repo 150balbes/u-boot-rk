@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  armboot - Startup Code for XScale CPU-core
  *
@@ -15,8 +16,6 @@
  *  Copyright (C) 2003	Robert Schwebel <r.schwebel@pengutronix.de>
  *  Copyright (C) 2004	Texas Instruments <r-woodruff2@ti.com>
  *  Copyright (C) 2010	Marek Vasut <marek.vasut@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -46,7 +45,7 @@ reset:
 	orr	r0,r0,#0xd3
 	msr	cpsr,r0
 
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
 	bl  cpu_init_crit
 #endif
 
@@ -93,7 +92,7 @@ c_runtime_cpu_setup:
  *
  *************************************************************************
  */
-#if !defined(CONFIG_SKIP_LOWLEVEL_INIT) || defined(CONFIG_CPU_PXA25X)
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT) || defined(CONFIG_CPU_PXA25X)
 cpu_init_crit:
 	/*
 	 * flush v4 I/D caches
@@ -112,7 +111,7 @@ cpu_init_crit:
 	mcr	p15, 0, r0, c1, c0, 0
 
 	mov	pc, lr		/* back to my caller */
-#endif /* !CONFIG_SKIP_LOWLEVEL_INIT || CONFIG_CPU_PXA25X */
+#endif /* !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT) || CONFIG_CPU_PXA25X */
 
 /*
  * Enable MMU to use DCache as DRAM.

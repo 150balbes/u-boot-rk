@@ -3,13 +3,16 @@
  * Copyright (C) 2020 Linaro Limited.
  */
 
+#define LOG_CATEGORY UCLASS_SCMI_AGENT
+
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <scmi_agent.h>
 #include <scmi_agent-uclass.h>
+#include <dm/devres.h>
+#include <dm/device_compat.h>
 #include <dm/device-internal.h>
-#include <dm/read.h>
 #include <linux/arm-smccc.h>
 #include <linux/compat.h>
 
@@ -29,7 +32,7 @@ struct scmi_smccc_channel {
 
 static int scmi_smccc_process_msg(struct udevice *dev, struct scmi_msg *msg)
 {
-	struct scmi_smccc_channel *chan = dev_get_priv(dev);
+	struct scmi_smccc_channel *chan = dev_get_plat(dev);
 	struct arm_smccc_res res;
 	int ret;
 
@@ -48,14 +51,13 @@ static int scmi_smccc_process_msg(struct udevice *dev, struct scmi_msg *msg)
 	return ret;
 }
 
-static int scmi_smccc_probe(struct udevice *dev)
+static int scmi_smccc_of_to_plat(struct udevice *dev)
 {
-	struct scmi_smccc_channel *chan = dev_get_priv(dev);
+	struct scmi_smccc_channel *chan = dev_get_plat(dev);
 	u32 func_id;
 	int ret;
 
-	func_id = dev_read_u32_default(dev, "arm,smc-id", -ENODATA);
-	if (func_id == -ENODATA) {
+	if (dev_read_u32(dev, "arm,smc-id", &func_id)) {
 		dev_err(dev, "Missing property func-id\n");
 		return -EINVAL;
 	}
@@ -63,12 +65,10 @@ static int scmi_smccc_probe(struct udevice *dev)
 	chan->func_id = func_id;
 
 	ret = scmi_dt_get_smt_buffer(dev, &chan->smt);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to get smt resources: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static const struct udevice_id scmi_smccc_ids[] = {
@@ -84,7 +84,7 @@ U_BOOT_DRIVER(scmi_smccc) = {
 	.name		= "scmi-over-smccc",
 	.id		= UCLASS_SCMI_AGENT,
 	.of_match	= scmi_smccc_ids,
-	.priv_auto_alloc_size = sizeof(struct scmi_smccc_channel),
-	.probe		= scmi_smccc_probe,
+	.plat_auto	= sizeof(struct scmi_smccc_channel),
+	.of_to_plat	= scmi_smccc_of_to_plat,
 	.ops		= &scmi_smccc_ops,
 };

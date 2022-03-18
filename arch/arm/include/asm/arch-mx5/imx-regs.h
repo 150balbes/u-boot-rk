@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_MX5_IMX_REGS_H__
@@ -44,7 +43,7 @@
 #define MMC_SDHC1_BASE_ADDR	(SPBA0_BASE_ADDR + 0x00004000)
 #define MMC_SDHC2_BASE_ADDR	(SPBA0_BASE_ADDR + 0x00008000)
 #define UART3_BASE		(SPBA0_BASE_ADDR + 0x0000C000)
-#define CSPI1_BASE_ADDR 	(SPBA0_BASE_ADDR + 0x00010000)
+#define CSPI1_BASE_ADDR		(SPBA0_BASE_ADDR + 0x00010000)
 #define SSI2_BASE_ADDR		(SPBA0_BASE_ADDR + 0x00014000)
 #define MMC_SDHC3_BASE_ADDR	(SPBA0_BASE_ADDR + 0x00020000)
 #define MMC_SDHC4_BASE_ADDR	(SPBA0_BASE_ADDR + 0x00024000)
@@ -98,7 +97,7 @@
 #define IIM_BASE_ADDR		(AIPS2_BASE_ADDR + 0x00098000)
 #define CSU_BASE_ADDR		(AIPS2_BASE_ADDR + 0x0009C000)
 #define ARM_BASE_ADDR		(AIPS2_BASE_ADDR + 0x000A0000)
-#define OWIRE_BASE_ADDR 	(AIPS2_BASE_ADDR + 0x000A4000)
+#define OWIRE_BASE_ADDR		(AIPS2_BASE_ADDR + 0x000A4000)
 #define FIRI_BASE_ADDR		(AIPS2_BASE_ADDR + 0x000A8000)
 #define CSPI2_BASE_ADDR		(AIPS2_BASE_ADDR + 0x000AC000)
 #define SDMA_BASE_ADDR		(AIPS2_BASE_ADDR + 0x000B0000)
@@ -205,30 +204,6 @@
 /*
  * CSPI register definitions
  */
-#define MXC_ECSPI
-#define MXC_CSPICTRL_EN		(1 << 0)
-#define MXC_CSPICTRL_MODE	(1 << 1)
-#define MXC_CSPICTRL_XCH	(1 << 2)
-#define MXC_CSPICTRL_MODE_MASK	(0xf << 4)
-#define MXC_CSPICTRL_CHIPSELECT(x)	(((x) & 0x3) << 12)
-#define MXC_CSPICTRL_BITCOUNT(x)	(((x) & 0xfff) << 20)
-#define MXC_CSPICTRL_PREDIV(x)	(((x) & 0xF) << 12)
-#define MXC_CSPICTRL_POSTDIV(x)	(((x) & 0xF) << 8)
-#define MXC_CSPICTRL_SELCHAN(x)	(((x) & 0x3) << 18)
-#define MXC_CSPICTRL_MAXBITS	0xfff
-#define MXC_CSPICTRL_TC		(1 << 7)
-#define MXC_CSPICTRL_RXOVF	(1 << 6)
-#define MXC_CSPIPERIOD_32KHZ	(1 << 15)
-#define MAX_SPI_BYTES	32
-
-/* Bit position inside CTRL register to be associated with SS */
-#define MXC_CSPICTRL_CHAN	18
-
-/* Bit position inside CON register to be associated with SS */
-#define MXC_CSPICON_PHA		0  /* SCLK phase control */
-#define MXC_CSPICON_POL		4  /* SCLK polarity */
-#define MXC_CSPICON_SSPOL	12 /* SS polarity */
-#define MXC_CSPICON_CTL		20 /* inactive state of SCLK */
 #define MXC_SPI_BASE_ADDRESSES \
 	CSPI1_BASE_ADDR, \
 	CSPI2_BASE_ADDR, \
@@ -416,6 +391,39 @@ struct iomuxc {
 };
 #endif
 
+#define IOMUXC_GPR2_BITMAP_SPWG	0
+#define IOMUXC_GPR2_BITMAP_JEIDA	1
+
+#define IOMUXC_GPR2_BIT_MAPPING_CH0_OFFSET	6
+#define IOMUXC_GPR2_BIT_MAPPING_CH0_MASK	(1 << IOMUXC_GPR2_BIT_MAPPING_CH0_OFFSET)
+#define IOMUXC_GPR2_BIT_MAPPING_CH0_JEIDA	(IOMUXC_GPR2_BITMAP_JEIDA << \
+						 IOMUXC_GPR2_BIT_MAPPING_CH0_OFFSET)
+#define IOMUXC_GPR2_BIT_MAPPING_CH0_SPWG	(IOMUXC_GPR2_BITMAP_SPWG << \
+						 IOMUXC_GPR2_BIT_MAPPING_CH0_OFFSET)
+
+#define IOMUXC_GPR2_DATA_WIDTH_18	0
+#define IOMUXC_GPR2_DATA_WIDTH_24	1
+
+#define IOMUXC_GPR2_DATA_WIDTH_CH0_OFFSET	5
+#define IOMUXC_GPR2_DATA_WIDTH_CH0_MASK		(1 << IOMUXC_GPR2_DATA_WIDTH_CH0_OFFSET)
+#define IOMUXC_GPR2_DATA_WIDTH_CH0_18BIT	(IOMUXC_GPR2_DATA_WIDTH_18 << \
+						 IOMUXC_GPR2_DATA_WIDTH_CH0_OFFSET)
+#define IOMUXC_GPR2_DATA_WIDTH_CH0_24BIT	(IOMUXC_GPR2_DATA_WIDTH_24 << \
+						 IOMUXC_GPR2_DATA_WIDTH_CH0_OFFSET)
+
+#define IOMUXC_GPR2_MODE_DISABLED	0
+#define IOMUXC_GPR2_MODE_ENABLED_DI0	1
+#define IOMUXC_GPR2_MODE_ENABLED_DI1	3
+
+#define IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET	0
+#define IOMUXC_GPR2_LVDS_CH0_MODE_MASK		(3 << IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
+#define IOMUXC_GPR2_LVDS_CH0_MODE_DISABLED	(IOMUXC_GPR2_MODE_DISABLED << \
+						 IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
+#define IOMUXC_GPR2_LVDS_CH0_MODE_ENABLED_DI0	(IOMUXC_GPR2_MODE_ENABLED_DI0 << \
+						 IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
+#define IOMUXC_GPR2_LVDS_CH0_MODE_ENABLED_DI1	(IOMUXC_GPR2_MODE_ENABLED_DI1 << \
+						 IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
+
 /* System Reset Controller (SRC) */
 struct src {
 	u32	scr;
@@ -442,18 +450,6 @@ struct srtc_regs {
 	u32	hpcr;		/* 0x30 */
 	u32	hpisr;		/* 0x34 */
 	u32	hpienr;		/* 0x38 */
-};
-
-/* CSPI registers */
-struct cspi_regs {
-	u32 rxdata;
-	u32 txdata;
-	u32 ctrl;
-	u32 cfg;
-	u32 intr;
-	u32 dma;
-	u32 stat;
-	u32 period;
 };
 
 struct iim_regs {
@@ -508,6 +504,23 @@ struct fuse_bank4_regs {
 };
 #endif
 
-#endif /* __ASSEMBLER__*/
+#define PWMCR_PRESCALER(x)	(((x - 1) & 0xFFF) << 4)
+#define PWMCR_DOZEEN		(1 << 24)
+#define PWMCR_WAITEN		(1 << 23)
+#define PWMCR_DBGEN		(1 << 22)
+#define PWMCR_CLKSRC_IPG_HIGH	(2 << 16)
+#define PWMCR_CLKSRC_IPG	(1 << 16)
+#define PWMCR_EN		(1 << 0)
+
+struct pwm_regs {
+	u32	cr;
+	u32	sr;
+	u32	ir;
+	u32	sar;
+	u32	pr;
+	u32	cnr;
+};
+
+#endif /* __ASSEMBLY__ */
 
 #endif				/* __ASM_ARCH_MX5_IMX_REGS_H__ */

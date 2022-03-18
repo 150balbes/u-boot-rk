@@ -1,22 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2019 NXP
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <command.h>
+#include <fdt_support.h>
 #include <i2c.h>
+#include <init.h>
+#include <net.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/immap_ls102xa.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/fsl_serdes.h>
 #include <asm/arch/ls102xa_devdis.h>
 #include <asm/arch/ls102xa_soc.h>
-#include <asm/arch/ls102xa_sata.h>
 #include <hwconfig.h>
 #include <mmc.h>
 #include <fsl_csu.h>
-#include <fsl_esdhc.h>
 #include <fsl_ifc.h>
 #include <fsl_immap.h>
 #include <netdev.h>
@@ -25,6 +29,7 @@
 #include <fsl_sec.h>
 #include <fsl_devdis.h>
 #include <spl.h>
+#include <linux/delay.h>
 #include "../common/sleep.h"
 #ifdef CONFIG_U_QE
 #include <fsl_qe.h>
@@ -36,7 +41,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define VERSION_MASK		0x00FF
 #define BANK_MASK		0x0001
-#define CONFIG_RESET		0x1
+#define CFG_RESET		0x1
 #define INIT_RESET		0x1
 
 #define CPLD_SET_MUX_SERDES	0x20
@@ -92,9 +97,7 @@ struct cpld_data {
 };
 
 #if !defined(CONFIG_QSPI_BOOT) && !defined(CONFIG_SD_BOOT_QSPI)
-static void convert_serdes_mux(int type, int need_reset);
-
-void cpld_show(void)
+static void cpld_show(void)
 {
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
 
@@ -226,6 +229,8 @@ int dram_init(void)
 	ddrmc_init();
 #endif
 
+	erratum_a008850_post();
+
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
 
 #if defined(CONFIG_DEEP_SLEEP) && !defined(CONFIG_SPL_BUILD)
@@ -235,63 +240,53 @@ int dram_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg esdhc_cfg[1] = {
-	{CONFIG_SYS_FSL_ESDHC_ADDR},
-};
-
-int board_mmc_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
-	esdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-
-	return fsl_esdhc_initialize(bis, &esdhc_cfg[0]);
-}
-#endif
-
-int board_eth_init(bd_t *bis)
-{
-#ifdef CONFIG_TSEC_ENET
-	struct fsl_pq_mdio_info mdio_info;
-	struct tsec_info_struct tsec_info[4];
-	int num = 0;
-
-#ifdef CONFIG_TSEC1
-	SET_STD_TSEC_INFO(tsec_info[num], 1);
-	if (is_serdes_configured(SGMII_TSEC1)) {
-		puts("eTSEC1 is in sgmii mode.\n");
-		tsec_info[num].flags |= TSEC_SGMII;
-	}
-	num++;
-#endif
-#ifdef CONFIG_TSEC2
-	SET_STD_TSEC_INFO(tsec_info[num], 2);
-	if (is_serdes_configured(SGMII_TSEC2)) {
-		puts("eTSEC2 is in sgmii mode.\n");
-		tsec_info[num].flags |= TSEC_SGMII;
-	}
-	num++;
-#endif
-#ifdef CONFIG_TSEC3
-	SET_STD_TSEC_INFO(tsec_info[num], 3);
-	tsec_info[num].interface = PHY_INTERFACE_MODE_RGMII_ID;
-	num++;
-#endif
-	if (!num) {
-		printf("No TSECs initialized\n");
-		return 0;
-	}
-
-	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO_BASE_ADDR;
-	mdio_info.name = DEFAULT_MII_NAME;
-	fsl_pq_mdio_init(bis, &mdio_info);
-
-	tsec_eth_init(bis, tsec_info, num);
-#endif
-
 	return pci_eth_init(bis);
 }
 
 #if !defined(CONFIG_QSPI_BOOT) && !defined(CONFIG_SD_BOOT_QSPI)
+static void convert_serdes_mux(int type, int need_reset)
+{
+	char current_serdes;
+	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
+
+	current_serdes = cpld_data->serdes_mux;
+
+	switch (type) {
+	case LANEB_SATA:
+		current_serdes &= ~MASK_LANE_B;
+		break;
+	case LANEB_SGMII1:
+		current_serdes |= (MASK_LANE_B | MASK_SGMII | MASK_LANE_C);
+		break;
+	case LANEC_SGMII1:
+		current_serdes &= ~(MASK_LANE_B | MASK_SGMII | MASK_LANE_C);
+		break;
+	case LANED_SGMII2:
+		current_serdes |= MASK_LANE_D;
+		break;
+	case LANEC_PCIEX1:
+		current_serdes |= MASK_LANE_C;
+		break;
+	case (LANED_PCIEX2 | LANEC_PCIEX1):
+		current_serdes |= MASK_LANE_C;
+		current_serdes &= ~MASK_LANE_D;
+		break;
+	default:
+		printf("CPLD serdes MUX: unsupported MUX type 0x%x\n", type);
+		return;
+	}
+
+	cpld_data->soft_mux_on |= CPLD_SET_MUX_SERDES;
+	cpld_data->serdes_mux = current_serdes;
+
+	if (need_reset == 1) {
+		printf("Reset board to enable configuration\n");
+		cpld_data->system_rst = CFG_RESET;
+	}
+}
+
 int config_serdes_mux(void)
 {
 	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
@@ -430,6 +425,7 @@ void board_init_f(ulong dummy)
 
 	preloader_console_init();
 
+	timer_init();
 	dram_init();
 
 	/* Allow OCRAM access permission as R/W */
@@ -456,14 +452,37 @@ void board_init_f(ulong dummy)
 /* program the regulator (MC34VR500) to support deep sleep */
 void ls1twr_program_regulator(void)
 {
-	unsigned int i2c_bus;
 	u8 i2c_device_id;
 
 #define LS1TWR_I2C_BUS_MC34VR500	1
 #define MC34VR500_ADDR			0x8
 #define MC34VR500_DEVICEID		0x4
 #define MC34VR500_DEVICEID_MASK		0x0f
+#if CONFIG_IS_ENABLED(DM_I2C)
+	struct udevice *dev;
+	int ret;
 
+	ret = i2c_get_chip_for_busnum(LS1TWR_I2C_BUS_MC34VR500, MC34VR500_ADDR,
+				      1, &dev);
+	if (ret) {
+		printf("%s: Cannot find udev for a bus %d\n", __func__,
+		       LS1TWR_I2C_BUS_MC34VR500);
+		return;
+	}
+	i2c_device_id = dm_i2c_reg_read(dev, 0x0) &
+					MC34VR500_DEVICEID_MASK;
+	if (i2c_device_id != MC34VR500_DEVICEID) {
+		printf("The regulator (MC34VR500) does not exist. The device does not support deep sleep.\n");
+		return;
+	}
+
+	dm_i2c_reg_write(dev, 0x31, 0x4);
+	dm_i2c_reg_write(dev, 0x4d, 0x4);
+	dm_i2c_reg_write(dev, 0x6d, 0x38);
+	dm_i2c_reg_write(dev, 0x6f, 0x37);
+	dm_i2c_reg_write(dev, 0x71, 0x30);
+#else
+	unsigned int i2c_bus;
 	i2c_bus = i2c_get_bus_num();
 	i2c_set_bus_num(LS1TWR_I2C_BUS_MC34VR500);
 	i2c_device_id = i2c_reg_read(MC34VR500_ADDR, 0x0) &
@@ -480,6 +499,7 @@ void ls1twr_program_regulator(void)
 	i2c_reg_write(MC34VR500_ADDR, 0x71, 0x30);
 
 	i2c_set_bus_num(i2c_bus);
+#endif
 }
 #endif
 
@@ -518,9 +538,6 @@ void spl_board_init(void)
 #ifdef CONFIG_BOARD_LATE_INIT
 int board_late_init(void)
 {
-#ifdef CONFIG_SCSI_AHCI_PLAT
-	ls1021a_sata_init();
-#endif
 #ifdef CONFIG_CHAIN_OF_TRUST
 	fsl_setenv_chain_of_trust();
 #endif
@@ -554,7 +571,7 @@ void board_sleep_prepare(void)
 }
 #endif
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	ft_cpu_setup(blob, bd);
 
@@ -584,7 +601,8 @@ u16 flash_read16(void *addr)
 	return (((val) >> 8) & 0x00ff) | (((val) << 8) & 0xff00);
 }
 
-#if !defined(CONFIG_QSPI_BOOT) && !defined(CONFIG_SD_BOOT_QSPI)
+#if !defined(CONFIG_QSPI_BOOT) && !defined(CONFIG_SD_BOOT_QSPI) \
+	&& !defined(CONFIG_SPL_BUILD)
 static void convert_flash_bank(char bank)
 {
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
@@ -594,11 +612,11 @@ static void convert_flash_bank(char bank)
 	cpld_data->vbank = bank;
 
 	printf("Reset board to enable configuration.\n");
-	cpld_data->system_rst = CONFIG_RESET;
+	cpld_data->system_rst = CFG_RESET;
 }
 
-static int flash_bank_cmd(cmd_tbl_t *cmdtp, int flag, int argc,
-			  char * const argv[])
+static int flash_bank_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
 {
 	if (argc != 2)
 		return CMD_RET_USAGE;
@@ -618,15 +636,15 @@ U_BOOT_CMD(
 	"bank[0-upper bank/1-lower bank] (e.g. boot_bank 0)"
 );
 
-static int cpld_reset_cmd(cmd_tbl_t *cmdtp, int flag, int argc,
-			  char * const argv[])
+static int cpld_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
 {
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
 
 	if (argc > 2)
 		return CMD_RET_USAGE;
 	if ((argc == 1) || (strcmp(argv[1], "conf") == 0))
-		cpld_data->system_rst = CONFIG_RESET;
+		cpld_data->system_rst = CFG_RESET;
 	else if (strcmp(argv[1], "init") == 0)
 		cpld_data->global_rst = INIT_RESET;
 	else
@@ -645,48 +663,7 @@ U_BOOT_CMD(
 
 );
 
-static void convert_serdes_mux(int type, int need_reset)
-{
-	char current_serdes;
-	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
-
-	current_serdes = cpld_data->serdes_mux;
-
-	switch (type) {
-	case LANEB_SATA:
-		current_serdes &= ~MASK_LANE_B;
-		break;
-	case LANEB_SGMII1:
-		current_serdes |= (MASK_LANE_B | MASK_SGMII | MASK_LANE_C);
-		break;
-	case LANEC_SGMII1:
-		current_serdes &= ~(MASK_LANE_B | MASK_SGMII | MASK_LANE_C);
-		break;
-	case LANED_SGMII2:
-		current_serdes |= MASK_LANE_D;
-		break;
-	case LANEC_PCIEX1:
-		current_serdes |= MASK_LANE_C;
-		break;
-	case (LANED_PCIEX2 | LANEC_PCIEX1):
-		current_serdes |= MASK_LANE_C;
-		current_serdes &= ~MASK_LANE_D;
-		break;
-	default:
-		printf("CPLD serdes MUX: unsupported MUX type 0x%x\n", type);
-		return;
-	}
-
-	cpld_data->soft_mux_on |= CPLD_SET_MUX_SERDES;
-	cpld_data->serdes_mux = current_serdes;
-
-	if (need_reset == 1) {
-		printf("Reset board to enable configuration\n");
-		cpld_data->system_rst = CONFIG_RESET;
-	}
-}
-
-void print_serdes_mux(void)
+static void print_serdes_mux(void)
 {
 	char current_serdes;
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
@@ -718,8 +695,8 @@ void print_serdes_mux(void)
 		printf("B.\n");
 }
 
-static int serdes_mux_cmd(cmd_tbl_t *cmdtp, int flag, int argc,
-			  char * const argv[])
+static int serdes_mux_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
 {
 	if (argc != 2)
 		return CMD_RET_USAGE;

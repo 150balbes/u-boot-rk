@@ -126,7 +126,7 @@ The following flags will be defined:
 
 The POST layer will export the following interface routines:
 
-  o) int post_run(bd_t *bd, char *name, int flags);
+  o) int post_run(struct bd_info *bd, char *name, int flags);
 
      This routine will run the test (or the group of tests) specified
      by the name and flag arguments. More specifically, if the name
@@ -159,17 +159,6 @@ The POST layer will export the following interface routines:
 Also, the following board-specific routines will be called from the
 U-Boot common code:
 
-  o) int board_power_mode(void)
-
-     This routine will return the mode the system is running in
-     (POST_POWERON, POST_NORMAL or POST_SHUTDOWN).
-
-  o) void board_poweroff(void)
-
-     This routine will turn off the power supply of the board. It
-     will be called on power-fail booting after running all POST
-     tests.
-
   o) int post_hotkeys_pressed(gd_t *gd)
 
      This routine will scan the keyboard to detect if a magic key
@@ -186,7 +175,7 @@ struct post_test {
     char *cmd;
     char *desc;
     int flags;
-    int (*test)(bd_t *bd, int flags);
+    int (*test)(struct bd_info *bd, int flags);
 };
 
   o) name
@@ -375,7 +364,7 @@ declaration/body:
 ...
 
 ...
-int watchdog_post_test(bd_t *bd, int flags)
+int watchdog_post_test(struct bd_info *bd, int flags)
 {
 	unsigned long start_time;
 

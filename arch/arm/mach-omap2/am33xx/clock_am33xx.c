@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * clock_am33xx.c
  *
  * clocks for AM33XX based boards
  *
  * Copyright (C) 2013, Texas Instruments, Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -52,6 +51,13 @@ const struct dpll_regs dpll_ddr_regs = {
 	.cm_div_m2_dpll		= CM_WKUP + 0xA0,
 };
 
+const struct dpll_regs dpll_disp_regs = {
+	.cm_clkmode_dpll	= CM_WKUP + 0x98,
+	.cm_idlest_dpll		= CM_WKUP + 0x48,
+	.cm_clksel_dpll		= CM_WKUP + 0x54,
+	.cm_div_m2_dpll		= CM_WKUP + 0xA4,
+};
+
 struct dpll_params dpll_mpu_opp100 = {
 		CONFIG_SYS_MPUCLK, OSC-1, 1, -1, -1, -1, -1};
 const struct dpll_params dpll_core_opp100 = {
@@ -71,7 +77,7 @@ const struct dpll_params dpll_mpu_opp[NUM_CRYSTAL_FREQ][NUM_OPPS] = {
 		{-1, -1, -1, -1, -1, -1, -1},	/* OPP RESERVED	*/
 		{25, 0, 1, -1, -1, -1, -1},	/* OPP 100 */
 		{30, 0, 1, -1, -1, -1, -1},	/* OPP 120 */
-		{100, 3, 1, -1, -1, -1, -1},	/* OPP TB */
+		{100, 2, 1, -1, -1, -1, -1},	/* OPP TB */
 		{125, 2, 1, -1, -1, -1, -1}	/* OPP NT */
 	},
 	{	/* 25 MHz */
@@ -109,22 +115,22 @@ const struct dpll_params dpll_per_192MHz[NUM_CRYSTAL_FREQ] = {
 const struct dpll_params dpll_ddr3_303MHz[NUM_CRYSTAL_FREQ] = {
 		{505, 15, 2, -1, -1, -1, -1}, /*19.2*/
 		{101, 3, 2, -1, -1, -1, -1}, /* 24 MHz */
-		{303, 24, 1, -1, 4, -1, -1}, /* 25 MHz */
-		{303, 12, 2, -1, 4, -1, -1}  /* 26 MHz */
+		{303, 24, 1, -1, -1, -1, -1}, /* 25 MHz */
+		{303, 12, 2, -1, -1, -1, -1}  /* 26 MHz */
 };
 
 const struct dpll_params dpll_ddr3_400MHz[NUM_CRYSTAL_FREQ] = {
 		{125, 5, 1, -1, -1, -1, -1}, /*19.2*/
 		{50, 2, 1, -1, -1, -1, -1}, /* 24 MHz */
-		{16, 0, 1, -1, 4, -1, -1}, /* 25 MHz */
-		{200, 12, 1, -1, 4, -1, -1}  /* 26 MHz */
+		{16, 0, 1, -1, -1, -1, -1}, /* 25 MHz */
+		{200, 12, 1, -1, -1, -1, -1}  /* 26 MHz */
 };
 
 const struct dpll_params dpll_ddr2_266MHz[NUM_CRYSTAL_FREQ] = {
 		{665, 47, 1, -1, -1, -1, -1}, /*19.2*/
 		{133, 11, 1, -1, -1, -1, -1}, /* 24 MHz */
-		{266, 24, 1, -1, 4, -1, -1}, /* 25 MHz */
-		{133, 12, 1, -1, 4, -1, -1}  /* 26 MHz */
+		{266, 24, 1, -1, -1, -1, -1}, /* 25 MHz */
+		{133, 12, 1, -1, -1, -1, -1}  /* 26 MHz */
 };
 
 __weak const struct dpll_params *get_dpll_mpu_params(void)
@@ -214,12 +220,17 @@ void enable_basic_clocks(void)
 		&cmper->gpio2clkctrl,
 		&cmper->gpio3clkctrl,
 		&cmper->i2c1clkctrl,
+		&cmper->i2c2clkctrl,
 		&cmper->cpgmac0clkctrl,
 		&cmper->spi0clkctrl,
 		&cmrtc->rtcclkctrl,
 		&cmper->usb0clkctrl,
 		&cmper->emiffwclkctrl,
 		&cmper->emifclkctrl,
+#if CONFIG_IS_ENABLED(AM335X_LCD) && !CONFIG_IS_ENABLED(DM_VIDEO)
+		&cmper->lcdclkctrl,
+		&cmper->lcdcclkstctrl,
+#endif
 		0
 	};
 

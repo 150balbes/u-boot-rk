@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011-2014 Pierrick Hascoet, Abilis Systems
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _CONFIG_TB100_H_
@@ -21,9 +20,7 @@
 #define CONFIG_SYS_INIT_SP_ADDR		\
 	(CONFIG_SYS_SDRAM_BASE + 0x1000 - GENERATED_GBL_DATA_SIZE)
 
-#define CONFIG_SYS_MALLOC_LEN		SZ_128K
 #define CONFIG_SYS_BOOTM_LEN		SZ_32M
-#define CONFIG_SYS_LOAD_ADDR		0x82000000
 
 /*
  * UART configuration
@@ -39,7 +36,6 @@
  * Until Realtek PHY driver is fixed fall back to generic PHY driver
  * which implements all required functionality and behaves much more stable.
  *
- * #define CONFIG_PHY_REALTEK
  *
  */
 
@@ -50,27 +46,12 @@
 #define ETH1_BASE_ADDRESS		0xFE110000
 
 /*
- * Command line configuration
- */
-
-#define CONFIG_AUTO_COMPLETE
-#define CONFIG_CMDLINE_EDITING
-
-/*
- * Environment settings
- */
-#define CONFIG_ENV_SIZE			SZ_2K
-#define CONFIG_ENV_OFFSET		0
-
-/*
  * Environment configuration
  */
 #define CONFIG_BOOTFILE			"uImage"
-#define CONFIG_LOADADDR			CONFIG_SYS_LOAD_ADDR
 
 /*
  * Console configuration
  */
-#define CONFIG_SYS_LONGHELP
 
 #endif /* _CONFIG_TB100_H_ */

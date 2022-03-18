@@ -7,14 +7,15 @@ config CPU
 	  they can work correctly in the OS. This provides a framework for
 	  finding out information about available CPUs and making changes.
 
-config AMP
-	bool "Enable AMP drivers using Driver Model"
+config CPU_MPC83XX
+	bool "Enable MPC83xx CPU driver"
+	depends on CPU
+	select CLK_MPC83XX
 	help
-	  This support Asymmetric Multi-Processing, cpus can run on different
-	  firmware.
+	  Support CPU cores for SoCs of the MPC83xx series.
 
-config ROCKCHIP_AMP
-	bool "Enable Rockchip AMP driver"
-	depends on AMP && ROCKCHIP_SMCCC && RKIMG_BOOTLOADER
+config CPU_RISCV
+	bool "Enable RISC-V CPU driver"
+	depends on CPU && RISCV
 	help
-	  This enable Rockchip AMP driver support.
+	  Support CPU cores for RISC-V architecture.

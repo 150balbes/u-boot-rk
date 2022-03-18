@@ -1,15 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NVIDIA Tegra I2C controller
  *
  * Copyright 2010-2011 NVIDIA Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _TEGRA_I2C_H_
 #define _TEGRA_I2C_H_
 
 #include <asm/types.h>
+
+struct udevice;
 
 enum {
 	I2C_TIMEOUT_USEC = 10000,	/* Wait time for completion */
@@ -149,7 +150,7 @@ struct i2c_ctlr {
 /**
  * Returns the bus number of the DVC controller
  *
- * @return number of bus, or -1 if there is no DVC active
+ * Return: number of bus, or -1 if there is no DVC active
  */
 int tegra_i2c_get_dvc_bus(struct udevice **busp);
 

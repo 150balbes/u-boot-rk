@@ -1,11 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2016 Rockchip Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_LVDS_RK3288_H
 #define _ASM_ARCH_LVDS_RK3288_H
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 #define RK3288_LVDS_CH0_REG0			0x00
 #define RK3288_LVDS_CH0_REG0_LVDS_EN		BIT(7)

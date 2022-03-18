@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Vasily Khoruzhick <anarsoul@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -9,18 +8,16 @@
 #include <errno.h>
 #include <i2c.h>
 #include <edid.h>
+#include <log.h>
 #include <video_bridge.h>
+#include <linux/delay.h>
 #include "../anx98xx-edp.h"
-#include "../drm/rockchip_bridge.h"
 
 #define DP_MAX_LINK_RATE		0x001
 #define DP_MAX_LANE_COUNT		0x002
 #define DP_MAX_LANE_COUNT_MASK		0x1f
 
-DECLARE_GLOBAL_DATA_PTR;
-
 struct anx6345_priv {
-	u8 chipid;
 	u8 edid[EDID_SIZE];
 };
 
@@ -77,7 +74,7 @@ static int anx6345_read(struct udevice *dev, unsigned int addr_off,
 static int anx6345_write_r0(struct udevice *dev, unsigned char reg_addr,
 			    unsigned char value)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 
 	return anx6345_write(dev, chip->chip_addr, reg_addr, value);
 }
@@ -85,7 +82,7 @@ static int anx6345_write_r0(struct udevice *dev, unsigned char reg_addr,
 static int anx6345_read_r0(struct udevice *dev, unsigned char reg_addr,
 			   unsigned char *value)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 
 	return anx6345_read(dev, chip->chip_addr, reg_addr, value);
 }
@@ -93,7 +90,7 @@ static int anx6345_read_r0(struct udevice *dev, unsigned char reg_addr,
 static int anx6345_write_r1(struct udevice *dev, unsigned char reg_addr,
 			    unsigned char value)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 
 	return anx6345_write(dev, chip->chip_addr + 1, reg_addr, value);
 }
@@ -101,7 +98,7 @@ static int anx6345_write_r1(struct udevice *dev, unsigned char reg_addr,
 static int anx6345_read_r1(struct udevice *dev, unsigned char reg_addr,
 			   unsigned char *value)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 
 	return anx6345_read(dev, chip->chip_addr + 1, reg_addr, value);
 }
@@ -256,13 +253,6 @@ static int anx6345_read_dpcd(struct udevice *dev, u32 reg, u8 *val)
 static int anx6345_read_edid(struct udevice *dev, u8 *buf, int size)
 {
 	struct anx6345_priv *priv = dev_get_priv(dev);
-	int ret;
-
-	ret = anx6345_read_aux_i2c(dev, 0x50, 0x0, EDID_SIZE, priv->edid);
-	if (ret < 0) {
-		dev_err(dev, "failed to get edid\n");
-		return ret;
-	}
 
 	if (size > EDID_SIZE)
 		size = EDID_SIZE;
@@ -277,11 +267,12 @@ static int anx6345_attach(struct udevice *dev)
 	return 0;
 }
 
-static int anx6345_init(struct udevice *dev)
+static int anx6345_enable(struct udevice *dev)
 {
+	u8 chipid, colordepth, lanes, data_rate, c;
+	int ret, i, bpp;
+	struct display_timing timing;
 	struct anx6345_priv *priv = dev_get_priv(dev);
-	u8 c;
-	int ret, i;
 
 	/* Deassert reset and enable power */
 	ret = video_bridge_set_active(dev, true);
@@ -296,16 +287,16 @@ static int anx6345_init(struct udevice *dev)
 	/* Write 0 to the powerdown reg (powerup everything) */
 	anx6345_write_r1(dev, ANX9804_POWERD_CTRL_REG, 0);
 
-	ret = anx6345_read_r1(dev, ANX9804_DEV_IDH_REG, &priv->chipid);
+	ret = anx6345_read_r1(dev, ANX9804_DEV_IDH_REG, &chipid);
 	if (ret)
 		debug("%s: read id failed: %d\n", __func__, ret);
 
-	switch (priv->chipid) {
+	switch (chipid) {
 	case 0x63:
 		debug("ANX63xx detected.\n");
 		break;
 	default:
-		debug("Error anx6345 chipid mismatch: %.2x\n", priv->chipid);
+		debug("Error anx6345 chipid mismatch: %.2x\n", (int)chipid);
 		return -ENODEV;
 	}
 
@@ -347,16 +338,7 @@ static int anx6345_init(struct udevice *dev)
 	anx6345_write_r0(dev, ANX9804_HDCP_CONTROL_0_REG, 0x00);
 	anx6345_write_r0(dev, 0xa7, 0x00);
 
-	return 0;
-}
-
-static int anx6345_enable(struct udevice *dev)
-{
-	u8 colordepth, lanes, data_rate, c;
-	int i, bpp;
-	struct display_timing timing;
-	struct anx6345_priv *priv = dev_get_priv(dev);
-
+	anx6345_read_aux_i2c(dev, 0x50, 0x0, EDID_SIZE, priv->edid);
 	if (edid_get_timing(priv->edid, EDID_SIZE, &timing, &bpp) != 0) {
 		debug("Failed to parse EDID\n");
 		return -EIO;
@@ -391,7 +373,7 @@ static int anx6345_enable(struct udevice *dev)
 	mdelay(5);
 	for (i = 0; i < 100; i++) {
 		anx6345_read_r0(dev, ANX9804_LINK_TRAINING_CTRL_REG, &c);
-		if ((priv->chipid == 0x63) && (c & 0x80) == 0)
+		if ((chipid == 0x63) && (c & 0x80) == 0)
 			break;
 
 		mdelay(5);
@@ -402,8 +384,8 @@ static int anx6345_enable(struct udevice *dev)
 	}
 
 	/* Enable */
-	anx6345_write_r1(dev, ANX9804_VID_CTRL1_REG, ANX9804_VID_CTRL1_VID_EN |
-			 ANX9804_VID_CTRL1_DDR_CTRL | ANX9804_VID_CTRL1_EDGE);
+	anx6345_write_r1(dev, ANX9804_VID_CTRL1_REG,
+			 ANX9804_VID_CTRL1_VID_EN | ANX9804_VID_CTRL1_EDGE);
 	/* Force stream valid */
 	anx6345_write_r0(dev, ANX9804_SYS_CTRL3_REG,
 			 ANX9804_SYS_CTRL3_F_HPD |
@@ -416,40 +398,20 @@ static int anx6345_enable(struct udevice *dev)
 
 static int anx6345_probe(struct udevice *dev)
 {
-	struct rockchip_bridge *bridge =
-		(struct rockchip_bridge *)dev_get_driver_data(dev);
-
 	if (device_get_uclass_id(dev->parent) != UCLASS_I2C)
 		return -EPROTONOSUPPORT;
 
-	bridge->dev = dev;
-
-	return anx6345_init(dev);
+	return anx6345_enable(dev);
 }
 
-static const struct video_bridge_ops anx6345_ops = {
+struct video_bridge_ops anx6345_ops = {
 	.attach = anx6345_attach,
 	.set_backlight = anx6345_set_backlight,
 	.read_edid = anx6345_read_edid,
 };
 
-static void anx6345_bridge_enable(struct rockchip_bridge *bridge)
-{
-	anx6345_enable(bridge->dev);
-}
-
-static const struct rockchip_bridge_funcs anx6345_bridge_funcs = {
-	.enable = anx6345_bridge_enable,
-};
-
-static struct rockchip_bridge anx6345_driver_data = {
-	.funcs = &anx6345_bridge_funcs,
-};
-
 static const struct udevice_id anx6345_ids[] = {
-	{
-		.compatible = "analogix,anx6345",
-		.data = (ulong)&anx6345_driver_data, },
+	{ .compatible = "analogix,anx6345", },
 	{ }
 };
 
@@ -459,5 +421,5 @@ U_BOOT_DRIVER(analogix_anx6345) = {
 	.of_match = anx6345_ids,
 	.probe	= anx6345_probe,
 	.ops	= &anx6345_ops,
-	.priv_auto_alloc_size = sizeof(struct anx6345_priv),
+	.priv_auto	= sizeof(struct anx6345_priv),
 };

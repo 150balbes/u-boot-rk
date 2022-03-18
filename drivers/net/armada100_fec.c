@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011
  * eInfochips Ltd. <www.einfochips.com>
@@ -6,17 +7,17 @@
  * (C) Copyright 2010
  * Marvell Semiconductor <www.marvell.com>
  * Contributor: Mahavir Jain <mjain@marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
 #include <net.h>
 #include <malloc.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include <asm/types.h>
 #include <asm/byteorder.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/mii.h>
 #include <asm/io.h>
@@ -420,7 +421,7 @@ static void armdfec_init_rx_desc_ring(struct armdfec_device *darmdfec)
 	darmdfec->p_rxdesc_curr = darmdfec->p_rxdesc;
 }
 
-static int armdfec_init(struct eth_device *dev, bd_t *bd)
+static int armdfec_init(struct eth_device *dev, struct bd_info *bd)
 {
 	struct armdfec_device *darmdfec = to_darmdfec(dev);
 	struct armdfec_reg *regs = darmdfec->regs;
@@ -716,7 +717,7 @@ int armada100_fec_register(unsigned long base_addr)
 	struct mii_dev *mdiodev = mdio_alloc();
 	if (!mdiodev)
 		return -ENOMEM;
-	strncpy(mdiodev->name, dev->name, MDIO_NAME_LEN);
+	strlcpy(mdiodev->name, dev->name, MDIO_NAME_LEN);
 	mdiodev->read = smi_reg_read;
 	mdiodev->write = smi_reg_write;
 

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Google, Inc
+ * Copyright 2020 NXP
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
 #include <malloc.h>
 #include <mmc.h>
 #include "mmc_private.h"
@@ -13,7 +14,25 @@
 static struct list_head mmc_devices;
 static int cur_dev_num = -1;
 
-#if !CONFIG_IS_ENABLED(MMC_TINY)
+#if CONFIG_IS_ENABLED(MMC_TINY)
+static struct mmc mmc_static;
+struct mmc *find_mmc_device(int dev_num)
+{
+	return &mmc_static;
+}
+
+void mmc_do_preinit(void)
+{
+	struct mmc *m = &mmc_static;
+	if (m->preinit)
+		mmc_start_init(m);
+}
+
+struct blk_desc *mmc_get_blk_desc(struct mmc *mmc)
+{
+	return &mmc->block_dev;
+}
+#else
 struct mmc *find_mmc_device(int dev_num)
 {
 	struct mmc *m;
@@ -56,9 +75,6 @@ void mmc_do_preinit(void)
 	list_for_each(entry, &mmc_devices) {
 		m = list_entry(entry, struct mmc, link);
 
-#ifdef CONFIG_FSL_ESDHC_ADAPTER_IDENT
-		mmc_set_preinit(m, 1);
-#endif
 		if (m->preinit)
 			mmc_start_init(m);
 	}
@@ -129,6 +145,15 @@ static struct mmc mmc_static = {
 struct mmc *mmc_create(const struct mmc_config *cfg, void *priv)
 {
 	struct mmc *mmc = &mmc_static;
+
+	/* First MMC device registered, fail to register a new one.
+	 * Given users are not expecting this to fail, instead
+	 * of failing let's just return the only MMC device
+	 */
+	if (mmc->cfg) {
+		debug("Warning: MMC_TINY doesn't support multiple MMC devices\n");
+		return mmc;
+	}
 
 	mmc->cfg = cfg;
 	mmc->priv = priv;

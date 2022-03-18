@@ -1,13 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (c) 2015 Purna Chandra Mandal <purna.mandal@microchip.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
 #ifndef __MICROCHIP_PIC32_ETH_H_
 #define __MICROCHIP_PIC32_ETH_H_
 
+#include <linux/bitops.h>
 #include <mach/pic32.h>
 
 /* Ethernet */

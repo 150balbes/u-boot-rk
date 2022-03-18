@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Stefan Roese <sr@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
 #include <asm/arch/reset_manager.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 
 int board_early_init_f(void)
 {

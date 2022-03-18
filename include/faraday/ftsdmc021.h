@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  *
  * (C) Copyright 2011 Andes Technology Corp
  * Macpaul Lin <macpaul@andestech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -15,6 +14,7 @@
 #define __FTSDMC021_H
 
 #ifndef __ASSEMBLY__
+#include <linux/bitops.h>
 struct ftsdmc021 {
 	unsigned int	tp1;		/* 0x00 - SDRAM Timing Parameter 1 */
 	unsigned int	tp2;		/* 0x04 - SDRAM Timing Parameter 2 */

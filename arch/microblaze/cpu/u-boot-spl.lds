@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013 - 2014 Xilinx, Inc
  *
  * Michal Simek <michal.simek@xilinx.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -54,10 +53,10 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end = .;
 	}
-	__end = . ;
+	_end = . ;
 }
 
 #if defined(CONFIG_SPL_MAX_FOOTPRINT)
-ASSERT(__end - _start < (CONFIG_SPL_MAX_FOOTPRINT), \
+ASSERT(_end - _start <= (CONFIG_SPL_MAX_FOOTPRINT), \
         "SPL image plus BSS too big");
 #endif

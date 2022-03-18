@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Originally from Linux v4.9
  * Paul Mackerras	August 1996.
@@ -16,11 +17,13 @@
  *
  * This file follows drivers/of/base.c with functions in the same order as the
  * Linux version.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
+#include <malloc.h>
+#include <asm/global_data.h>
+#include <linux/bug.h>
 #include <linux/libfdt.h>
 #include <dm/of_access.h>
 #include <linux/ctype.h>
@@ -169,6 +172,38 @@ const void *of_get_property(const struct device_node *np, const char *name,
 	struct property *pp = of_find_property(np, name, lenp);
 
 	return pp ? pp->value : NULL;
+}
+
+const struct property *of_get_first_property(const struct device_node *np)
+{
+	if (!np)
+		return NULL;
+
+	return  np->properties;
+}
+
+const struct property *of_get_next_property(const struct device_node *np,
+					    const struct property *property)
+{
+	if (!np)
+		return NULL;
+
+	return property->next;
+}
+
+const void *of_get_property_by_prop(const struct device_node *np,
+				    const struct property *property,
+				    const char **name,
+				    int *lenp)
+{
+	if (!np || !property)
+		return NULL;
+	if (name)
+		*name = property->name;
+	if (lenp)
+		*lenp = property->length;
+
+	return property->value;
 }
 
 static const char *of_prop_next_string(struct property *prop, const char *cur)
@@ -377,6 +412,33 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 	return np;
 }
 
+static int of_device_has_prop_value(const struct device_node *device,
+				    const char *propname, const void *propval,
+				    int proplen)
+{
+	struct property *prop = of_find_property(device, propname, NULL);
+
+	if (!prop || !prop->value || prop->length != proplen)
+		return 0;
+	return !memcmp(prop->value, propval, proplen);
+}
+
+struct device_node *of_find_node_by_prop_value(struct device_node *from,
+					       const char *propname,
+					       const void *propval, int proplen)
+{
+	struct device_node *np;
+
+	for_each_of_allnodes_from(from, np) {
+		if (of_device_has_prop_value(np, propname, propval, proplen) &&
+		    of_node_get(np))
+			break;
+	}
+	of_node_put(from);
+
+	return np;
+}
+
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
 	struct device_node *np;
@@ -401,7 +463,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
  * @propname:	name of the property to be searched.
  * @len:	requested length of property value
  *
- * @return the property value on success, -EINVAL if the property does not
+ * Return: the property value on success, -EINVAL if the property does not
  * exist, -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  */
@@ -422,48 +484,7 @@ static void *of_find_property_value_of_size(const struct device_node *np,
 
 int of_read_u32(const struct device_node *np, const char *propname, u32 *outp)
 {
-	const __be32 *val;
-
-	debug("%s: %s: ", __func__, propname);
-	if (!np)
-		return -EINVAL;
-	val = of_find_property_value_of_size(np, propname, sizeof(*outp));
-	if (IS_ERR(val)) {
-		debug("(not found)\n");
-		return PTR_ERR(val);
-	}
-
-	*outp = be32_to_cpup(val);
-	debug("%#x (%d)\n", *outp, *outp);
-
-	return 0;
-}
-
-/**
- * of_property_read_u64 - Find and read a 64 bit integer from a property
- * @np:         device node from which the property value is to be read.
- * @propname:   name of the property to be searched.
- * @out_value:  pointer to return value, modified only if return value is 0.
- *
- * Search for a property in a device node and read a 64-bit value from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
- *
- * The out_value is modified only if a valid u64 value can be decoded.
- */
-int of_property_read_u64(const struct device_node *np, const char *propname,
-                         u64 *out_value)
-{
-	const __be32 *val = of_find_property_value_of_size(np, propname,
-							   sizeof(*out_value));
-
-	if (IS_ERR(val))
-		return PTR_ERR(val);
-
-	*out_value = of_read_number(val, 2);
-
-	return 0;
+	return of_read_u32_index(np, propname, 0, outp);
 }
 
 int of_read_u32_array(const struct device_node *np, const char *propname,
@@ -485,21 +506,44 @@ int of_read_u32_array(const struct device_node *np, const char *propname,
 	return 0;
 }
 
-int of_write_u32_array(const struct device_node *np, const char *propname,
-		       u32 *values, size_t sz)
+int of_read_u32_index(const struct device_node *np, const char *propname,
+		      int index, u32 *outp)
 {
-	__be32 *val;
+	const __be32 *val;
 
 	debug("%s: %s: ", __func__, propname);
+	if (!np)
+		return -EINVAL;
+
 	val = of_find_property_value_of_size(np, propname,
-					     sz * sizeof(*values));
-
-	if (IS_ERR(val))
+					     sizeof(*outp) * (index + 1));
+	if (IS_ERR(val)) {
+		debug("(not found)\n");
 		return PTR_ERR(val);
+	}
 
-	debug("size %zd\n", sz);
-	while (sz--)
-		*val++ = cpu_to_be32p(values++);
+	*outp = be32_to_cpup(val + index);
+	debug("%#x (%d)\n", *outp, *outp);
+
+	return 0;
+}
+
+int of_read_u64(const struct device_node *np, const char *propname, u64 *outp)
+{
+	const __be64 *val;
+
+	debug("%s: %s: ", __func__, propname);
+	if (!np)
+		return -EINVAL;
+	val = of_find_property_value_of_size(np, propname, sizeof(*outp));
+	if (IS_ERR(val)) {
+		debug("(not found)\n");
+		return PTR_ERR(val);
+	}
+
+	*outp = be64_to_cpup(val);
+	debug("%#llx (%lld)\n", (unsigned long long)*outp,
+              (unsigned long long)*outp);
 
 	return 0;
 }
@@ -537,7 +581,8 @@ int of_property_match_string(const struct device_node *np, const char *propname,
  * @propname:	name of the property to be searched.
  * @out_strs:	output array of string pointers.
  * @sz:		number of array elements to read.
- * @skip:	Number of strings to skip over at beginning of list.
+ * @skip:	Number of strings to skip over at beginning of list (cannot be
+ *	negative)
  *
  * Don't call this function directly. It is a utility helper for the
  * of_property_read_string*() family of functions.
@@ -576,7 +621,7 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 {
 	const __be32 *list, *list_end;
 	int rc = 0, cur_index = 0;
-	uint32_t count = 0;
+	uint32_t count;
 	struct device_node *node = NULL;
 	phandle phandle;
 	int size;
@@ -702,45 +747,31 @@ struct device_node *of_parse_phandle(const struct device_node *np,
 
 int of_parse_phandle_with_args(const struct device_node *np,
 			       const char *list_name, const char *cells_name,
-			       int index, struct of_phandle_args *out_args)
+			       int cell_count, int index,
+			       struct of_phandle_args *out_args)
 {
 	if (index < 0)
 		return -EINVAL;
 
-	return __of_parse_phandle_with_args(np, list_name, cells_name, 0,
-					    index, out_args);
+	return __of_parse_phandle_with_args(np, list_name, cells_name,
+					    cell_count, index, out_args);
 }
 
 int of_count_phandle_with_args(const struct device_node *np,
-			       const char *list_name, const char *cells_name)
+			       const char *list_name, const char *cells_name,
+			       int cell_count)
 {
-	return __of_parse_phandle_with_args(np, list_name, cells_name, 0,
-					    -1, NULL);
+	return __of_parse_phandle_with_args(np, list_name, cells_name,
+					    cell_count, -1, NULL);
 }
 
 static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 			 int id, const char *stem, int stem_len)
 {
-	struct alias_prop *oldap;
 	ap->np = np;
 	ap->id = id;
 	strncpy(ap->stem, stem, stem_len);
 	ap->stem[stem_len] = 0;
-
-	/* Delete U-Boot alias which is same with kernel */
-	mutex_lock(&of_mutex);
-	list_for_each_entry(oldap, &aliases_lookup, link) {
-		if (stem && !strcmp(stem, oldap->alias) && (id == oldap->id)) {
-			/* Always use from U-Boot aliase */
-			if (strcmp(stem, "mmc"))
-				continue;
-
-			list_del(&oldap->link);
-			break;
-		}
-	}
-	mutex_unlock(&of_mutex);
-
 	list_add_tail(&ap->link, &aliases_lookup);
 	debug("adding DT alias:%s: stem=%s id=%i node=%s\n",
 	      ap->alias, ap->stem, ap->id, of_node_full_name(np));
@@ -828,42 +859,22 @@ int of_alias_get_id(const struct device_node *np, const char *stem)
 	return id;
 }
 
-struct device_node *of_alias_get_dev(const char *stem, int id)
+int of_alias_get_highest_id(const char *stem)
 {
 	struct alias_prop *app;
-	struct device_node *np = NULL;
+	int id = -1;
 
 	mutex_lock(&of_mutex);
 	list_for_each_entry(app, &aliases_lookup, link) {
 		if (strcmp(app->stem, stem) != 0)
 			continue;
 
-		if (id == app->id) {
-			np = app->np;
-			break;
-		}
+		if (app->id > id)
+			id = app->id;
 	}
 	mutex_unlock(&of_mutex);
 
-	return np;
-}
-
-struct device_node *of_alias_dump(void)
-{
-	struct alias_prop *app;
-	struct device_node *np = NULL;
-
-	mutex_lock(&of_mutex);
-	list_for_each_entry(app, &aliases_lookup, link) {
-		printf("%10s%d: %20s, phandle=%d %4s\n",
-		       app->stem, app->id,
-		       app->np->full_name, app->np->phandle,
-		       of_get_property(app->np, "u-boot,dm-pre-reloc", NULL) ||
-		       of_get_property(app->np, "u-boot,dm-spl", NULL) ? "*" : "");
-	}
-	mutex_unlock(&of_mutex);
-
-	return np;
+	return id;
 }
 
 struct device_node *of_get_stdout(void)

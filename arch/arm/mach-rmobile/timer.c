@@ -1,15 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012 Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
  * (C) Copyright 2012 Renesas Solutions Corp.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <div64.h>
+#include <init.h>
+#include <time.h>
 #include <asm/io.h>
 #include <asm/arch-armv7/globaltimer.h>
 #include <asm/arch/rmobile.h>
+#include <linux/delay.h>
 
 static struct globaltimer *global_timer = \
 		(struct globaltimer *)GLOBAL_TIMER_BASE_ADDR;

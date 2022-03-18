@@ -2,6 +2,8 @@
 #include <dm.h>
 #include <miiphy.h>
 #include <asm-generic/gpio.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include "ihs_phys.h"
 #include "dt_helpers.h"
@@ -108,9 +110,7 @@ int register_miiphy_bus(uint k, struct mii_dev **bus)
 
 	if (!mdiodev)
 		return -ENOMEM;
-	strncpy(mdiodev->name,
-		name,
-		MDIO_NAME_LEN);
+	strlcpy(mdiodev->name, name, MDIO_NAME_LEN);
 	mdiodev->read = bb_miiphy_read;
 	mdiodev->write = bb_miiphy_write;
 

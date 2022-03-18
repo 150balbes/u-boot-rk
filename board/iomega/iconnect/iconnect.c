@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2009-2012
  * Wojciech Dubowik <wojciech.dubowik@neratec.com>
  * Luka Perkov <luka@openwrt.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
 #include <miiphy.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/mpp.h>
+#include <asm/global_data.h>
 #include "iconnect.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -89,5 +90,12 @@ int board_init(void)
 	/* adress of boot parameters */
 	gd->bd->bi_boot_params = mvebu_sdram_bar(0) + 0x100;
 
+	return 0;
+}
+
+int board_late_init(void)
+{
+	/* Do late init to ensure successful enumeration of PCIe devices */
+	pci_init();
 	return 0;
 }

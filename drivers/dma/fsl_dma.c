@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2004,2007,2008 Freescale Semiconductor, Inc.
  * (C) Copyright 2002, 2003 Motorola Inc.
@@ -5,8 +6,6 @@
  *
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -131,11 +130,9 @@ int dmacpy(phys_addr_t dest, phys_addr_t src, phys_size_t count) {
 
 /*
  * 85xx/86xx use dma to initialize SDRAM when !CONFIG_ECC_INIT_VIA_DDRCONTROLLER
- * while 83xx uses dma to initialize SDRAM when CONFIG_DDR_ECC_INIT_VIA_DMA
  */
 #if ((!defined CONFIG_MPC83xx && defined(CONFIG_DDR_ECC) &&	\
-	!defined(CONFIG_ECC_INIT_VIA_DDRCONTROLLER)) ||		\
-	(defined(CONFIG_MPC83xx) && defined(CONFIG_DDR_ECC_INIT_VIA_DMA)))
+	!defined(CONFIG_ECC_INIT_VIA_DDRCONTROLLER)))
 void dma_meminit(uint val, uint size)
 {
 	uint *p = 0;

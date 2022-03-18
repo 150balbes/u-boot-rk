@@ -1,5 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2016 Toradex, Inc.
-# SPDX-License-Identifier:	GPL-2.0+
 
 # Common for all Toradex modules
 ifeq ($(CONFIG_SPL_BUILD),y)
@@ -8,4 +8,5 @@ obj- := __dummy__.o
 else
 obj-$(CONFIG_TDX_CFG_BLOCK) += tdx-cfg-block.o
 obj-y += tdx-common.o
+obj-y += tdx-eeprom.o
 endif

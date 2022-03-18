@@ -1,14 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Atmel Corporation
  *		      Wenyou Yang <wenyou.yang@atmel.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <dm.h>
+#include <wdt.h>
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91_wdt.h>
 
 #define EN_UPLL_TIMEOUT		500
 

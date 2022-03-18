@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2004 by Thomas Rathbone, HP Labs
  * Copyright (C) 2005 by Ivan Kokshaysky
  * Copyright (C) 2006 by SAN People
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef AT91_UDC_H
@@ -36,7 +35,7 @@
 
 #define AT91_UDP_ISR		0x1c		/* Interrupt Status Register */
 #define     AT91_UDP_EP(n)	(1 << (n))	/* Endpoint Interrupt Status */
-#define     AT91_UDP_RXSUSP	(1 <<  8) 	/* USB Suspend Interrupt Status */
+#define     AT91_UDP_RXSUSP	(1 <<  8)	/* USB Suspend Interrupt Status */
 #define     AT91_UDP_RXRSM	(1 <<  9)	/* USB Resume Interrupt Status */
 #define     AT91_UDP_EXTRSM	(1 << 10)	/* External Resume Interrupt Status [AT91RM9200 only] */
 #define     AT91_UDP_SOFINT	(1 << 11)	/* Start of Frame Interrupt Status */
@@ -165,4 +164,3 @@ struct at91_request {
 #define DBG(stuff...)		debug("udc: " stuff)
 
 #endif
-

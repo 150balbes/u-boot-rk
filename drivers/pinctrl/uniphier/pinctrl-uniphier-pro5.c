@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015-2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,19 +9,6 @@
 #include <dm/pinctrl.h>
 
 #include "pinctrl-uniphier.h"
-
-static const struct uniphier_pinctrl_pin uniphier_pro5_pins[] = {
-	UNIPHIER_PINCTRL_PIN(47, 0),
-	UNIPHIER_PINCTRL_PIN(48, 0),
-	UNIPHIER_PINCTRL_PIN(49, 0),
-	UNIPHIER_PINCTRL_PIN(50, 0),
-	UNIPHIER_PINCTRL_PIN(53, 0),
-	UNIPHIER_PINCTRL_PIN(54, 0),
-	UNIPHIER_PINCTRL_PIN(87, 0),
-	UNIPHIER_PINCTRL_PIN(88, 0),
-	UNIPHIER_PINCTRL_PIN(101, 0),
-	UNIPHIER_PINCTRL_PIN(102, 0),
-};
 
 static const unsigned emmc_pins[] = {36, 37, 38, 39, 40, 41, 42};
 static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0};
@@ -51,6 +37,12 @@ static const unsigned nand_cs1_pins[] = {26, 27};
 static const int nand_cs1_muxvals[] = {0, 0};
 static const unsigned sd_pins[] = {250, 251, 252, 253, 254, 255, 256, 257, 258};
 static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned spi0_pins[] = {120, 121, 122, 123};
+static const int spi0_muxvals[] = {0, 0, 0, 0};
+static const unsigned spi1_pins[] = {134, 139, 85, 86};
+static const int spi1_muxvals[] = {1, 1, 1, 1};
+static const unsigned spi2_pins[] = {55, 56, 57, 58, 82, 83, 84};
+static const int spi2_muxvals[] = {0, 0, 0, 0, 1, 1, 1};
 static const unsigned system_bus_pins[] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 					   14, 15, 16, 17};
 static const int system_bus_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -102,6 +94,9 @@ static const struct uniphier_pinctrl_group uniphier_pro5_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(nand),
 	UNIPHIER_PINCTRL_GROUP(nand_cs1),
 	UNIPHIER_PINCTRL_GROUP(sd),
+	UNIPHIER_PINCTRL_GROUP(spi0),
+	UNIPHIER_PINCTRL_GROUP(spi1),
+	UNIPHIER_PINCTRL_GROUP(spi2),
 	UNIPHIER_PINCTRL_GROUP(system_bus),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs0),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs1),
@@ -131,6 +126,9 @@ static const char * const uniphier_pro5_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(i2c6),
 	UNIPHIER_PINMUX_FUNCTION(nand),
 	UNIPHIER_PINMUX_FUNCTION(sd),
+	UNIPHIER_PINMUX_FUNCTION(spi0),
+	UNIPHIER_PINMUX_FUNCTION(spi1),
+	UNIPHIER_PINMUX_FUNCTION(spi2),
 	UNIPHIER_PINMUX_FUNCTION(system_bus),
 	UNIPHIER_PINMUX_FUNCTION_SPL(uart0),
 	UNIPHIER_PINMUX_FUNCTION_SPL(uart1),
@@ -142,8 +140,6 @@ static const char * const uniphier_pro5_functions[] = {
 };
 
 static struct uniphier_pinctrl_socdata uniphier_pro5_pinctrl_socdata = {
-	.pins = uniphier_pro5_pins,
-	.pins_count = ARRAY_SIZE(uniphier_pro5_pins),
 	.groups = uniphier_pro5_groups,
 	.groups_count = ARRAY_SIZE(uniphier_pro5_groups),
 	.functions = uniphier_pro5_functions,
@@ -167,7 +163,9 @@ U_BOOT_DRIVER(uniphier_pro5_pinctrl) = {
 	.id = UCLASS_PINCTRL,
 	.of_match = of_match_ptr(uniphier_pro5_pinctrl_match),
 	.probe = uniphier_pro5_pinctrl_probe,
-	.priv_auto_alloc_size = sizeof(struct uniphier_pinctrl_priv),
+	.priv_auto	= sizeof(struct uniphier_pinctrl_priv),
 	.ops = &uniphier_pinctrl_ops,
+#if !CONFIG_IS_ENABLED(OF_CONTROL)
 	.flags = DM_FLAG_PRE_RELOC,
+#endif
 };

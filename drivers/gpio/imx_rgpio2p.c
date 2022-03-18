@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2016 Freescale Semiconductor, Inc.
  *
  * RGPIO2P driver for the Freescale i.MX7ULP.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,9 +11,8 @@
 #include <fdtdec.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <dm/device-internal.h>
 #include <malloc.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 enum imx_rgpio2p_direction {
 	IMX_RGPIO2P_DIRECTION_IN,
@@ -135,7 +133,7 @@ static const struct dm_gpio_ops imx_rgpio2p_ops = {
 static int imx_rgpio2p_probe(struct udevice *dev)
 {
 	struct imx_rgpio2p_data *bank = dev_get_priv(dev);
-	struct imx_rgpio2p_plat *plat = dev_get_platdata(dev);
+	struct imx_rgpio2p_plat *plat = dev_get_plat(dev);
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 	int banknum;
 	char name[18], *str;
@@ -154,13 +152,13 @@ static int imx_rgpio2p_probe(struct udevice *dev)
 
 static int imx_rgpio2p_bind(struct udevice *dev)
 {
-	struct imx_rgpio2p_plat *plat = dev->platdata;
+	struct imx_rgpio2p_plat *plat = dev_get_plat(dev);
 	fdt_addr_t addr;
 
 	/*
-	 * If platdata already exsits, directly return.
-	 * Actually only when DT is not supported, platdata
-	 * is statically initialized in U_BOOT_DEVICES.Here
+	 * If plat already exsits, directly return.
+	 * Actually only when DT is not supported, plat
+	 * is statically initialized in U_BOOT_DRVINFOS.Here
 	 * will return.
 	 */
 	if (plat)
@@ -174,15 +172,20 @@ static int imx_rgpio2p_bind(struct udevice *dev)
 	 * TODO:
 	 * When every board is converted to driver model and DT is supported,
 	 * this can be done by auto-alloc feature, but not using calloc
-	 * to alloc memory for platdata.
+	 * to alloc memory for plat.
+	 *
+	 * For example imx_rgpio2p_plat uses platform data rather than device
+	 * tree.
+	 *
+	 * NOTE: DO NOT COPY this code if you are using device tree.
 	 */
 	plat = calloc(1, sizeof(*plat));
 	if (!plat)
 		return -ENOMEM;
 
 	plat->regs = (struct gpio_regs *)addr;
-	plat->bank_index = dev->req_seq;
-	dev->platdata = plat;
+	plat->bank_index = dev_seq(dev);
+	dev_set_plat(dev, plat);
 
 	return 0;
 }
@@ -198,7 +201,7 @@ U_BOOT_DRIVER(imx_rgpio2p) = {
 	.id	= UCLASS_GPIO,
 	.ops	= &imx_rgpio2p_ops,
 	.probe	= imx_rgpio2p_probe,
-	.priv_auto_alloc_size = sizeof(struct imx_rgpio2p_plat),
+	.priv_auto	= sizeof(struct imx_rgpio2p_plat),
 	.of_match = imx_rgpio2p_ids,
 	.bind	= imx_rgpio2p_bind,
 };
@@ -213,7 +216,7 @@ static const struct imx_rgpio2p_plat imx_plat[] = {
 	{ 5, (struct gpio_regs *)RGPIO2P_GPIO6_BASE_ADDR },
 };
 
-U_BOOT_DEVICES(imx_rgpio2ps) = {
+U_BOOT_DRVINFOS(imx_rgpio2ps) = {
 	{ "imx_rgpio2p", &imx_plat[0] },
 	{ "imx_rgpio2p", &imx_plat[1] },
 	{ "imx_rgpio2p", &imx_plat[2] },

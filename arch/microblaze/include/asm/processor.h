@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Michal Simek <monstr@monstr.eu>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_MICROBLAZE_PROCESSOR_H
@@ -9,7 +8,7 @@
 
 /* References to section boundaries */
 
-extern char __end[];
+extern char _end[];
 extern char __text_start[];
 
 /* Microblaze board initialization function */

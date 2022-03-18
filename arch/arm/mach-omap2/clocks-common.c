@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * Clock initialization for OMAP4
@@ -10,11 +11,12 @@
  * Based on previous work by:
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	Rajendra Nayak <rnayak@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
+#include <hang.h>
 #include <i2c.h>
+#include <init.h>
+#include <log.h>
 #include <asm/omap_common.h>
 #include <asm/gpio.h>
 #include <asm/arch/clock.h>
@@ -550,7 +552,7 @@ void scale_vcores(struct vcores_data const *vcores)
 		if (pv->value[opp]) {
 			/* Handle non-empty members only */
 			pv->value[opp] = optimize_vcore_voltage(pv, opp);
-     			px = (struct volts *)vcores;
+			px = (struct volts *)vcores;
 			j = 0;
 			while (px < pv) {
 				/*
@@ -910,13 +912,15 @@ void prcm_init(void)
 		enable_basic_uboot_clocks();
 }
 
+#if !CONFIG_IS_ENABLED(DM_I2C)
 void gpi2c_init(void)
 {
 	static int gpi2c = 1;
 
 	if (gpi2c) {
-		i2c_init(CONFIG_SYS_OMAP24_I2C_SPEED,
-			 CONFIG_SYS_OMAP24_I2C_SLAVE);
+		i2c_init(CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE);
 		gpi2c = 0;
 	}
 }
+#endif

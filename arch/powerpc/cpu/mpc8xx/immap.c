@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -11,6 +10,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <asm/global_data.h>
 
 #include <asm/immap_8xx.h>
 #include <asm/cpm_8xx.h>
@@ -19,7 +19,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static int do_siuinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_siuinfo(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	immap_t __iomem *immap = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	sysconf8xx_t __iomem *sc = &immap->im_siu_conf;
@@ -36,8 +37,8 @@ static int do_siuinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
-static int do_memcinfo(cmd_tbl_t *cmdtp, int flag, int argc,
-		       char * const argv[])
+static int do_memcinfo(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[])
 {
 	immap_t __iomem *immap = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	memctl8xx_t __iomem *memctl = &immap->im_memctl;
@@ -59,7 +60,8 @@ static int do_memcinfo(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_carinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_carinfo(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	immap_t __iomem *immap = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	car8xx_t __iomem *car = &immap->im_clkrst;
@@ -120,7 +122,8 @@ static void binary(char *label, uint value, int nbits)
 #define PC_NBITS	12
 #define PD_NBITS	13
 
-static int do_iopinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_iopinfo(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	immap_t __iomem *immap = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	iop8xx_t __iomem *iop = &immap->im_ioport;
@@ -173,7 +176,8 @@ static int do_iopinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
  * this needs a clean up for smaller tighter code
  * use *uint and set the address based on cmd + port
  */
-static int do_iopset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_iopset(struct cmd_tbl *cmdtp, int flag, int argc,
+		     char *const argv[])
 {
 	uint rcode = 0;
 	iopin_t iopin;
@@ -329,7 +333,8 @@ static void prbrg(int n, uint val)
 	putc('\n');
 }
 
-static int do_brginfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_brginfo(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	immap_t __iomem *immap = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t __iomem *cp = &immap->im_cpm;
@@ -341,6 +346,26 @@ static int do_brginfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	return 0;
 }
+
+#ifdef CONFIG_CMD_REGINFO
+void print_reginfo(void)
+{
+	immap_t __iomem     *immap  = (immap_t __iomem *)CONFIG_SYS_IMMR;
+	sit8xx_t __iomem *timers = &immap->im_sit;
+
+	printf("\nSystem Configuration registers\n"
+		"\tIMMR\t0x%08X\n", get_immr());
+	do_siuinfo(NULL, 0, 0, NULL);
+
+	printf("Memory Controller Registers\n");
+	do_memcinfo(NULL, 0, 0, NULL);
+
+	printf("\nSystem Integration Timers\n");
+	printf("\tTBSCR\t0x%04X\tRTCSC\t0x%04X\n",
+	       in_be16(&timers->sit_tbscr), in_be16(&timers->sit_rtcsc));
+	printf("\tPISCR\t0x%04X\n", in_be16(&timers->sit_piscr));
+}
+#endif
 
 /***************************************************/
 

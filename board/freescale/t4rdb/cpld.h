@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /**
  * Copyright 2014 Freescale Semiconductor
  *
  * Author: Chunhe Lan <Chunhe.Lan@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * This file provides support for the ngPIXIS, a board-specific FPGA used on
  * some Freescale reference boards.
@@ -46,4 +45,3 @@ void cpld_write(unsigned int reg, u8 value);
 #define CPLD_READ(reg) cpld_read(offsetof(struct cpld_data, reg))
 #define CPLD_WRITE(reg, value) \
 		cpld_write(offsetof(struct cpld_data, reg), value)
-

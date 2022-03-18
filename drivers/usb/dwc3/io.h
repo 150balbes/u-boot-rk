@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * io.h - DesignWare USB3 DRD IO Header
  *
@@ -11,13 +12,12 @@
  *
  * commit 2c4cbe6e5a : usb: dwc3: add tracepoints to aid debugging
  *
- * SPDX-License-Identifier:     GPL-2.0
- *
  */
 
 #ifndef __DRIVERS_USB_DWC3_IO_H
 #define __DRIVERS_USB_DWC3_IO_H
 
+#include <cpu_func.h>
 #include <asm/io.h>
 
 #define	CACHELINE_SIZE		CONFIG_SYS_CACHELINE_SIZE

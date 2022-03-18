@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Watchdog driver for the FTWDT010 Watch Dog Driver
  *
@@ -8,14 +9,14 @@
  * Copyright (C) 2011 Andes Technology Corporation
  * Macpaul Lin, Andes Technology Corporation <macpaul@andestech.com>
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  * 27/11/2004 Initial release, Faraday.
  * 12/01/2011 Port to u-boot, Macpaul Lin.
  */
 
 #ifndef __FTWDT010_H
 #define __FTWDT010_H
+
+#include <clock_legacy.h>
 
 struct ftwdt010_wdt {
 	unsigned int	wdcounter;	/* Counter Reg		- 0x00 */
@@ -83,10 +84,10 @@ struct ftwdt010_wdt {
 
 /*
  * Variable timeout should be set in ms.
- * (CONFIG_SYS_CLK_FREQ/1000) equals 1 ms.
+ * (get_board_sys_clk()/1000) equals 1 ms.
  * WDLOAD = timeout * TIMEOUT_FACTOR.
  */
-#define FTWDT010_TIMEOUT_FACTOR		(CONFIG_SYS_CLK_FREQ / 1000) /* 1 ms */
+#define FTWDT010_TIMEOUT_FACTOR		(get_board_sys_clk() / 1000) /* 1 ms */
 
 void ftwdt010_wdt_reset(void);
 void ftwdt010_wdt_disable(void);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
@@ -6,12 +7,12 @@
  * Copyright (C) 2011 Andes Technology Corporation
  * Shawn Lin, Andes Technology Corporation <nobuhiro@andestech.com>
  * Macpaul Lin, Andes Technology Corporation <macpaul@andestech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _U_BOOT_NDS32_H_
 #define _U_BOOT_NDS32_H_	1
+
+#include <linux/types.h>
 
 /* for the following variables, see start.S */
 extern ulong IRQ_STACK_START;	/* top of IRQ stack */

@@ -1,15 +1,16 @@
+/* SPDX-License-Identifier: Intel */
 /*
  * Copyright (C) 2013, Intel Corporation
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
  *
  * Ported from Intel released Quark UEFI BIOS
  * QuarkSocPkg/QuarkNorthCluster/MemoryInit/Pei
- *
- * SPDX-License-Identifier:	Intel
  */
 
 #ifndef _MRC_UTIL_H_
 #define _MRC_UTIL_H_
+
+#include <log.h>
 
 /* Turn on this macro to enable MRC debugging output */
 #undef  MRC_DEBUG

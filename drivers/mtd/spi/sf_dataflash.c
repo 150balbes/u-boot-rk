@@ -1,19 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Atmel DataFlash probing
  *
  * Copyright (C) 2004-2009, 2015 Freescale Semiconductor, Inc.
  * Haikun Wang (haikun.wang@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
+#include <flash.h>
+#include <log.h>
 #include <spi.h>
 #include <spi_flash.h>
 #include <div64.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/math64.h>
 
@@ -691,6 +693,6 @@ U_BOOT_DRIVER(spi_dataflash) = {
 	.id		= UCLASS_SPI_FLASH,
 	.of_match	= spi_dataflash_ids,
 	.probe		= spi_dataflash_probe,
-	.priv_auto_alloc_size = sizeof(struct dataflash),
+	.priv_auto	= sizeof(struct dataflash),
 	.ops		= &spi_dataflash_ops,
 };

@@ -1,11 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * USB 3.0 DRD Controller
  *
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 #define USB3_PHY_REF_SSP_EN		BIT(29)
 #define USB3_PHY_OTG_VBUSVLDECTSEL	BIT(16)

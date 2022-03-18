@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/include/asm/arch-rmobile/rcar-base.h
  *
  * Copyright (C) 2013,2014 Renesas Electronics Corporation
- *
- * SPDX-License-Identifier: GPL-2.0
-*/
+ */
 
 #ifndef __ASM_ARCH_RCAR_BASE_H
 #define __ASM_ARCH_RCAR_BASE_H
@@ -70,14 +69,6 @@
 #define SMSTPCR9		0xE6150994
 #define SMSTPCR10		0xE6150998
 #define SMSTPCR11		0xE615099C
-
-/*
- * SH-I2C
- * Ch2 and ch3 are different address. These are defined
- * in the header of each SoCs.
- */
-#define CONFIG_SYS_I2C_SH_BASE0	0xE6500000
-#define CONFIG_SYS_I2C_SH_BASE1	0xE6510000
 
 /* RCAR-I2C */
 #define CONFIG_SYS_RCAR_I2C0_BASE	0xE6508000

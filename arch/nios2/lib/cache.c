@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Thomas Chou <thomas@wytron.com.tw>
  * Copyright (C) 2009, Wind River Systems Inc
  * Implemented by fredrik.markstrom@gmail.com and ivarholmqvist@gmail.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/cache.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 

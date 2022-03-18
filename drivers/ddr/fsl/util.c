@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2008-2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
+ * Copyright 2021 NXP
  */
 
 #include <common.h>
@@ -9,9 +9,11 @@
 #include <asm/fsl_law.h>
 #endif
 #include <div64.h>
+#include <linux/delay.h>
 
 #include <fsl_ddr.h>
 #include <fsl_immap.h>
+#include <log.h>
 #include <asm/io.h>
 #if defined(CONFIG_FSL_LSCH2) || defined(CONFIG_FSL_LSCH3) || \
 	defined(CONFIG_ARM)
@@ -74,10 +76,13 @@ unsigned int get_memory_clk_period_ps(const unsigned int ctrl_num)
 
 	/* Round to nearest 10ps, being careful about 64-bit multiply/divide */
 	unsigned long long rem, mclk_ps = ULL_2E12;
-
-	/* Now perform the big divide, the result fits in 32-bits */
-	rem = do_div(mclk_ps, data_rate);
-	result = (rem >= (data_rate >> 1)) ? mclk_ps + 1 : mclk_ps;
+	if (data_rate) {
+		/* Now perform the big divide, the result fits in 32-bits */
+		rem = do_div(mclk_ps, data_rate);
+		result = (rem >= (data_rate >> 1)) ? mclk_ps + 1 : mclk_ps;
+	} else {
+		result = 0;
+	}
 
 	return result;
 }
@@ -390,7 +395,7 @@ void fsl_ddr_sync_memctl_refresh(unsigned int first_ctrl,
 
 void remove_unused_controllers(fsl_ddr_info_t *info)
 {
-#ifdef CONFIG_FSL_LSCH3
+#ifdef CONFIG_SYS_FSL_HAS_CCN504
 	int i;
 	u64 nodeid;
 	void *hnf_sam_ctrl = (void *)(CCI_HN_F_0_BASE + CCN_HN_F_SAM_CTL);

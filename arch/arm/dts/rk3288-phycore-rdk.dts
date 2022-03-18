@@ -53,7 +53,6 @@
 
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = &emmc;
 	};
 
 	user_buttons: user-buttons {

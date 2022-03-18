@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (c) 2007 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_MX31_IMX_REGS_H
@@ -38,17 +37,6 @@ struct clock_control_regs {
 	u32 pmcr0;
 	u32 pmcr1;
 	u32 pdr2;
-};
-
-struct cspi_regs {
-	u32 rxdata;
-	u32 txdata;
-	u32 ctrl;
-	u32 intr;
-	u32 dma;
-	u32 stat;
-	u32 period;
-	u32 test;
 };
 
 /* IIM control registers */
@@ -890,26 +878,6 @@ struct esdc_regs {
 /*
  * CSPI register definitions
  */
-#define MXC_CSPI
-#define MXC_CSPICTRL_EN		(1 << 0)
-#define MXC_CSPICTRL_MODE	(1 << 1)
-#define MXC_CSPICTRL_XCH	(1 << 2)
-#define MXC_CSPICTRL_SMC	(1 << 3)
-#define MXC_CSPICTRL_POL	(1 << 4)
-#define MXC_CSPICTRL_PHA	(1 << 5)
-#define MXC_CSPICTRL_SSCTL	(1 << 6)
-#define MXC_CSPICTRL_SSPOL	(1 << 7)
-#define MXC_CSPICTRL_CHIPSELECT(x)	(((x) & 0x3) << 24)
-#define MXC_CSPICTRL_BITCOUNT(x)	(((x) & 0x1f) << 8)
-#define MXC_CSPICTRL_DATARATE(x)	(((x) & 0x7) << 16)
-#define MXC_CSPICTRL_TC		(1 << 8)
-#define MXC_CSPICTRL_RXOVF	(1 << 6)
-#define MXC_CSPICTRL_MAXBITS	0x1f
-
-#define MXC_CSPIPERIOD_32KHZ	(1 << 15)
-#define MAX_SPI_BYTES	4
-
-
 #define MXC_SPI_BASE_ADDRESSES \
 	0x43fa4000, \
 	0x50010000, \

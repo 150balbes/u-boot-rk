@@ -1,21 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015 Google, Inc
  *
  * (C) Copyright 2008-2020 Rockchip Electronics
  * Peter, Software Engineering, <superpeter.cai@gmail.com>.
  * Jianqun Xu, Software Engineering, <jay.xu@rock-chips.com>.
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <dm/of_access.h>
+#include <dm/device_compat.h>
 #include <syscon.h>
 #include <linux/errno.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch/clock.h>
+#include <asm/arch-rockchip/clock.h>
+#include <asm/arch-rockchip/gpio.h>
 #include <dm/pinctrl.h>
 #include <dt-bindings/clock/rk3288-cru.h>
 
@@ -108,20 +109,59 @@ static int rockchip_gpio_get_function(struct udevice *dev, unsigned offset)
 	int ret;
 
 	ret = pinctrl_get_gpio_mux(priv->pinctrl, priv->bank, offset);
-	if (ret < 0) {
-		dev_err(dev, "fail to get gpio mux %d\n", ret);
+	if (ret)
 		return ret;
-	}
-
-	/* If it's not 0, then it is not a GPIO */
-	if (ret > 0)
-		return GPIOF_FUNC;
-
 	is_output = READ_REG(&regs->swport_ddr) & OFFSET_TO_BIT(offset);
-
+	
 	return is_output ? GPIOF_OUTPUT : GPIOF_INPUT;
 #endif
 }
+
+/* Simple SPL interface to GPIOs */
+#if defined(CONFIG_SPL_BUILD) && !defined(CONFIG_ROCKCHIP_GPIO_V2)
+
+enum {
+	PULL_NONE_1V8 = 0,
+	PULL_DOWN_1V8 = 1,
+	PULL_UP_1V8 = 3,
+};
+
+int spl_gpio_set_pull(void *vregs, uint gpio, int pull)
+{
+	u32 *regs = vregs;
+	uint val;
+
+	regs += gpio >> GPIO_BANK_SHIFT;
+	gpio &= GPIO_OFFSET_MASK;
+	switch (pull) {
+	case GPIO_PULL_UP:
+		val = PULL_UP_1V8;
+		break;
+	case GPIO_PULL_DOWN:
+		val = PULL_DOWN_1V8;
+		break;
+	case GPIO_PULL_NORMAL:
+	default:
+		val = PULL_NONE_1V8;
+		break;
+	}
+	clrsetbits_le32(regs, 3 << (gpio * 2), val << (gpio * 2));
+
+	return 0;
+}
+
+int spl_gpio_output(void *vregs, uint gpio, int value)
+{
+	struct rockchip_gpio_regs * const regs = vregs;
+
+	clrsetbits_le32(&regs->swport_dr, 1 << gpio, value << gpio);
+
+	/* Set direction */
+	clrsetbits_le32(&regs->swport_ddr, 1 << gpio, 1 << gpio);
+
+	return 0;
+}
+#endif /* CONFIG_SPL_BUILD */
 
 static int rockchip_gpio_probe(struct udevice *dev)
 {
@@ -187,11 +227,11 @@ static const struct udevice_id rockchip_gpio_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(gpio_rockchip) = {
-	.name	= "gpio_rockchip",
+U_BOOT_DRIVER(rockchip_gpio_bank) = {
+	.name	= "rockchip_gpio_bank",
 	.id	= UCLASS_GPIO,
 	.of_match = rockchip_gpio_ids,
 	.ops	= &gpio_rockchip_ops,
-	.priv_auto_alloc_size = sizeof(struct rockchip_gpio_priv),
+	.priv_auto	= sizeof(struct rockchip_gpio_priv),
 	.probe	= rockchip_gpio_probe,
 };

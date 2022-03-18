@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+ OR X11
 /*
  * (C) Copyright 2017 Theobroma Systems Design und Consulting GmbH
- *
- * SPDX-License-Identifier:     GPL-2.0+	X11
  */
 
 #include "rk3368-u-boot.dtsi"
 
 / {
 	chosen {
-		stdout-path = "serial4:115200n8";
 		u-boot,spl-boot-order = &emmc;
 	};
 };
@@ -47,7 +45,7 @@
 };
 
 &sgrf {
-        u-boot,dm-pre-reloc;
+	u-boot,dm-pre-reloc;
 };
 
 &cru {
@@ -63,5 +61,13 @@
 };
 
 &emmc {
+	/* mmc to sram can't do dma, prevent aborts transferring TF-A parts */
+	u-boot,spl-fifo-mode;
 	u-boot,dm-pre-reloc;
+};
+
+&timer0 {
+	u-boot,dm-pre-reloc;
+	clock-frequency = <24000000>;
+	status = "okay";
 };

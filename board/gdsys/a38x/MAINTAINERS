@@ -1,6 +1,5 @@
 A38X BOARD
-M:	Dirk Eibach <eibach@gdsys.cc>
-M:	Mario Six <six@gdsys.de>
+M:	Mario Six <mario.six@gdsys.cc>
 S:	Maintained
 F:	board/gdsys/a38x/
 F:	include/configs/controlcenterdc.h

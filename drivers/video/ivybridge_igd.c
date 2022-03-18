@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
@@ -9,14 +8,18 @@
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
+#include <log.h>
 #include <pci_rom.h>
 #include <vbe.h>
+#include <video.h>
+#include <asm/global_data.h>
 #include <asm/intel_regs.h>
 #include <asm/io.h>
 #include <asm/mtrr.h>
 #include <asm/pci.h>
 #include <asm/arch/pch.h>
 #include <asm/arch/sandybridge.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -125,62 +128,6 @@ static const struct gt_powermeter ivb_pm_gt1[] = {
 	{ 0xaa3c, 0x00001c00 },
 	{ 0xaa54, 0x00000004 },
 	{ 0xaa60, 0x00060000 },
-	{ 0 }
-};
-
-static const struct gt_powermeter ivb_pm_gt2[] = {
-	{ 0xa800, 0x10000000 },
-	{ 0xa804, 0x00033800 },
-	{ 0xa808, 0x00000902 },
-	{ 0xa80c, 0x0c002f00 },
-	{ 0xa810, 0x12000400 },
-	{ 0xa814, 0x00000000 },
-	{ 0xa818, 0x00d20800 },
-	{ 0xa81c, 0x00000002 },
-	{ 0xa820, 0x03004b02 },
-	{ 0xa824, 0x00000600 },
-	{ 0xa828, 0x07000773 },
-	{ 0xa82c, 0x00000000 },
-	{ 0xa830, 0x00010032 },
-	{ 0xa834, 0x1520040d },
-	{ 0xa838, 0x00020105 },
-	{ 0xa83c, 0x00083700 },
-	{ 0xa840, 0x0000151d },
-	{ 0xa844, 0x00000000 },
-	{ 0xa848, 0x20001b00 },
-	{ 0xa84c, 0x0a000010 },
-	{ 0xa850, 0x00000000 },
-	{ 0xa854, 0x00000008 },
-	{ 0xa858, 0x00000008 },
-	{ 0xa85c, 0x00000000 },
-	{ 0xa860, 0x00020000 },
-	{ 0xa248, 0x0000221e },
-	{ 0xa900, 0x00000000 },
-	{ 0xa904, 0x00003500 },
-	{ 0xa908, 0x00000000 },
-	{ 0xa90c, 0x0c000000 },
-	{ 0xa910, 0x12000500 },
-	{ 0xa914, 0x00000000 },
-	{ 0xa918, 0x00b20000 },
-	{ 0xa91c, 0x00000000 },
-	{ 0xa920, 0x08004b02 },
-	{ 0xa924, 0x00000200 },
-	{ 0xa928, 0x07000820 },
-	{ 0xa92c, 0x00000000 },
-	{ 0xa930, 0x00030000 },
-	{ 0xa934, 0x050f020d },
-	{ 0xa938, 0x00020300 },
-	{ 0xa93c, 0x00903900 },
-	{ 0xa940, 0x00000000 },
-	{ 0xa944, 0x00000000 },
-	{ 0xa948, 0x20001b00 },
-	{ 0xa94c, 0x0a000010 },
-	{ 0xa950, 0x00000000 },
-	{ 0xa954, 0x00000008 },
-	{ 0xa960, 0x00110000 },
-	{ 0xaa3c, 0x00003900 },
-	{ 0xaa54, 0x00000008 },
-	{ 0xaa60, 0x00110000 },
 	{ 0 }
 };
 
@@ -777,7 +724,6 @@ static int gma_func0_init(struct udevice *dev)
 {
 	struct udevice *nbridge;
 	void *gtt_bar;
-	ulong base;
 	u32 reg32;
 	int ret;
 	int rev;
@@ -797,11 +743,6 @@ static int gma_func0_init(struct udevice *dev)
 	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
 	dm_pci_write_config32(dev, PCI_COMMAND, reg32);
 
-	/* Use write-combining for the graphics memory, 256MB */
-	base = dm_pci_read_bar32(dev, 2);
-	mtrr_add_request(MTRR_TYPE_WRCOMB, base, 256 << 20);
-	mtrr_commit(true);
-
 	gtt_bar = (void *)(ulong)dm_pci_read_bar32(dev, 0);
 	debug("GT bar %p\n", gtt_bar);
 	ret = gma_pm_init_pre_vbios(gtt_bar, rev);
@@ -813,6 +754,8 @@ static int gma_func0_init(struct udevice *dev)
 
 static int bd82x6x_video_probe(struct udevice *dev)
 {
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
+	ulong fbbase;
 	void *gtt_bar;
 	int ret, rev;
 
@@ -829,6 +772,22 @@ static int bd82x6x_video_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
+	/* Use write-combining for the graphics memory, 256MB */
+	fbbase = IS_ENABLED(CONFIG_VIDEO_COPY) ? plat->copy_base : plat->base;
+	mtrr_add_request(MTRR_TYPE_WRCOMB, fbbase, 256 << 20);
+	mtrr_commit(true);
+
+	return 0;
+}
+
+static int bd82x6x_video_bind(struct udevice *dev)
+{
+	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
+
+	/* Set the maximum supported resolution */
+	uc_plat->size = 2560 * 1600 * 4;
+	log_debug("%s: Frame buffer size %x\n", __func__, uc_plat->size);
+
 	return 0;
 }
 
@@ -841,5 +800,6 @@ U_BOOT_DRIVER(bd82x6x_video) = {
 	.name	= "bd82x6x_video",
 	.id	= UCLASS_VIDEO,
 	.of_match = bd82x6x_video_ids,
+	.bind	= bd82x6x_video_bind,
 	.probe	= bd82x6x_video_probe,
 };

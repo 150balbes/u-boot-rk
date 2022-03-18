@@ -5,10 +5,14 @@
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <dm/pinctrl.h>
 #include <regmap.h>
 #include <syscon.h>
 #include <fdtdec.h>
+#include <linux/bitops.h>
+#include <linux/libfdt.h>
+#include <asm/global_data.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -58,9 +62,8 @@ void rockchip_get_recalced_mux(struct rockchip_pin_bank *bank, int pin,
 	*bit = data->bit;
 }
 
-static enum rockchip_pin_route_type
-rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
-		       int mux, u32 *reg, u32 *value)
+bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
+			    int mux, u32 *reg, u32 *value)
 {
 	struct rockchip_pinctrl_priv *priv = bank->priv;
 	struct rockchip_pin_ctrl *ctrl = priv->ctrl;
@@ -75,12 +78,12 @@ rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
 	}
 
 	if (i >= ctrl->niomux_routes)
-		return ROUTE_TYPE_INVALID;
+		return false;
 
 	*reg = data->route_offset;
 	*value = data->route_val;
 
-	return data->route_type;
+	return true;
 }
 
 int rockchip_get_mux_data(int mux_type, int pin, u8 *bit, int *mask)
@@ -123,7 +126,7 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 
 	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
 		debug("pin %d is unrouted\n", pin);
-		return -ENOTSUPP;
+		return -EINVAL;
 	}
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY)
@@ -165,7 +168,7 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
 
 	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
 		debug("pin %d is unrouted\n", pin);
-		return -ENOTSUPP;
+		return -EINVAL;
 	}
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY) {
@@ -200,7 +203,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 
 	ret = rockchip_verify_mux(bank, pin, mux);
 	if (ret < 0)
-		return ret == -ENOTSUPP ? 0 : ret;
+		return ret;
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY)
 		return 0;
@@ -211,39 +214,8 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		return -ENOTSUPP;
 
 	ret = ctrl->set_mux(bank, pin, mux);
-	if (ret)
-		return ret;
 
-	if (bank->route_mask & BIT(pin)) {
-		struct regmap *regmap;
-		u32 route_reg = 0, route_val = 0;
-
-		ret = rockchip_get_mux_route(bank, pin, mux,
-					     &route_reg, &route_val);
-		switch (ret) {
-		case ROUTE_TYPE_DEFAULT:
-			if (bank->iomux[iomux_num].type & IOMUX_SOURCE_PMU)
-				regmap = priv->regmap_pmu;
-			else if (bank->iomux[iomux_num].type & IOMUX_L_SOURCE_PMU)
-				regmap = (pin % 8 < 4) ? priv->regmap_pmu : priv->regmap_base;
-			else
-				regmap = priv->regmap_base;
-
-			regmap_write(regmap, route_reg, route_val);
-			break;
-		case ROUTE_TYPE_TOPGRF:
-			regmap_write(priv->regmap_base, route_reg, route_val);
-			break;
-		case ROUTE_TYPE_PMUGRF:
-			regmap_write(priv->regmap_pmu, route_reg, route_val);
-			break;
-		case ROUTE_TYPE_INVALID: /* Fall through */
-		default:
-			break;
-		}
-	}
-
-	return 0;
+	return ret;
 }
 
 static int rockchip_perpin_drv_list[DRV_TYPE_MAX][8] = {
@@ -505,16 +477,7 @@ static int rockchip_pinctrl_set_state(struct udevice *dev,
 	return 0;
 }
 
-static int rockchip_pinctrl_get_pins_count(struct udevice *dev)
-{
-	struct rockchip_pinctrl_priv *priv = dev_get_priv(dev);
-	struct rockchip_pin_ctrl *ctrl = priv->ctrl;
-
-	return ctrl->nr_pins;
-}
-
 const struct pinctrl_ops rockchip_pinctrl_ops = {
-	.get_pins_count			= rockchip_pinctrl_get_pins_count,
 	.set_state			= rockchip_pinctrl_set_state,
 	.get_gpio_mux			= rockchip_pinctrl_get_gpio_mux,
 };
@@ -527,7 +490,6 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			(struct rockchip_pin_ctrl *)dev_get_driver_data(dev);
 	struct rockchip_pin_bank *bank;
 	int grf_offs, pmu_offs, drv_grf_offs, drv_pmu_offs, i, j;
-	u32 nr_pins;
 
 	grf_offs = ctrl->grf_mux_offset;
 	pmu_offs = ctrl->pmu_mux_offset;
@@ -535,13 +497,12 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 	drv_grf_offs = ctrl->grf_drv_offset;
 	bank = ctrl->pin_banks;
 
-	nr_pins = 0;
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		int bank_pins = 0;
 
 		bank->priv = priv;
-		bank->pin_base = nr_pins;
-		nr_pins += bank->nr_pins;
+		bank->pin_base = ctrl->nr_pins;
+		ctrl->nr_pins += bank->nr_pins;
 
 		/* calculate iomux and drv offsets */
 		for (j = 0; j < 4; j++) {
@@ -549,7 +510,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			struct rockchip_drv *drv = &bank->drv[j];
 			int inc;
 
-			if (bank_pins >= nr_pins)
+			if (bank_pins >= bank->nr_pins)
 				break;
 
 			/* preset iomux offset value, set new start value */
@@ -585,7 +546,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			inc = (iom->type & (IOMUX_WIDTH_4BIT |
 					    IOMUX_WIDTH_3BIT |
 					    IOMUX_8WIDTH_2BIT)) ? 8 : 4;
-			if ((iom->type & IOMUX_SOURCE_PMU) || (iom->type & IOMUX_L_SOURCE_PMU))
+			if (iom->type & IOMUX_SOURCE_PMU)
 				pmu_offs += inc;
 			else
 				grf_offs += inc;
@@ -628,8 +589,6 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			}
 		}
 	}
-
-	WARN_ON(nr_pins != ctrl->nr_pins);
 
 	return ctrl;
 }

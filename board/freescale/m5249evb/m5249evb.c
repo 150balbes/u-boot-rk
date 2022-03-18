@@ -1,14 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2004
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
+#include <init.h>
 #include <malloc.h>
+#include <asm/global_data.h>
 #include <asm/immap.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -90,7 +92,8 @@ int dram_init(void)
 };
 
 
-int testdram (void) {
+int testdram(void)
+{
 	/* TODO: XXX XXX XXX */
 	printf ("DRAM test not implemented!\n");
 

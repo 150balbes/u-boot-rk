@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuation settings for the esd TASREG board.
  *
  * (C) Copyright 2004
  * Stefan Roese, esd gmbh germany, stefan.roese@esd-electronics.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -20,10 +19,7 @@
  */
 #define CONFIG_MCFTMR
 
-#define CONFIG_MCFUART
 #define CONFIG_SYS_UART_PORT		(0)
-
-#undef  CONFIG_WATCHDOG
 
 #undef CONFIG_MONITOR_IS_IN_RAM		/* no pre-loader required!!! ;-) */
 
@@ -31,24 +27,6 @@
  * BOOTP options
  */
 #undef CONFIG_BOOTP_BOOTFILESIZE
-#undef CONFIG_BOOTP_BOOTPATH
-#undef CONFIG_BOOTP_GATEWAY
-#undef CONFIG_BOOTP_HOSTNAME
-
-/*
- * Command line configuration.
- */
-
-#define CONFIG_SYS_LONGHELP				/* undef to save memory		*/
-
-#define CONFIG_SYS_DEVICE_NULLDEV	1	/* include nulldev device	*/
-#define CONFIG_AUTO_COMPLETE	1	/* add autocompletion support	*/
-#define CONFIG_MX_CYCLIC	1	/* enable mdc/mwc commands	*/
-
-#define CONFIG_SYS_LOAD_ADDR		0x200000	/* default load address */
-
-#define CONFIG_SYS_MEMTEST_START	0x400
-#define CONFIG_SYS_MEMTEST_END		0x380000
 
 /*
  * Clock configuration: enable only one of the following options
@@ -79,10 +57,6 @@
 	. = DEFINED(env_offset) ? env_offset : .; \
 	env/embedded.o(.text);
 
-#define CONFIG_ENV_OFFSET		0x4000	/* Address of Environment Sector*/
-#define CONFIG_ENV_SIZE		0x2000	/* Total Size of Environment Sector	*/
-#define CONFIG_ENV_SECT_SIZE	0x2000 /* see README - env sector total size	*/
-
 /*-----------------------------------------------------------------------
  * Start addresses for the final memory configuration
  * (Set up by the startup code)
@@ -99,7 +73,6 @@
 #define CONFIG_SYS_MONITOR_BASE	(CONFIG_SYS_FLASH_BASE + 0x400)
 
 #define CONFIG_SYS_MONITOR_LEN		0x20000
-#define CONFIG_SYS_MALLOC_LEN		(1 * 1024*1024)	/* Reserve 1 MB for malloc()	*/
 #define CONFIG_SYS_BOOTPARAMS_LEN	64*1024
 
 /*
@@ -112,15 +85,11 @@
 /*-----------------------------------------------------------------------
  * FLASH organization
  */
-#define CONFIG_SYS_FLASH_CFI
 #ifdef CONFIG_SYS_FLASH_CFI
 
-#	define CONFIG_FLASH_CFI_DRIVER	1
 #	define CONFIG_SYS_FLASH_SIZE		0x1000000	/* Max size that the board might have */
 #	define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
-#	define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
 #	define CONFIG_SYS_MAX_FLASH_SECT	137	/* max number of sectors on one chip */
-#	define CONFIG_SYS_FLASH_PROTECTION	/* "Real" (hardware) sectors protection */
 #	define CONFIG_SYS_FLASH_CHECKSUM
 #	define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BASE }
 #endif
@@ -128,7 +97,6 @@
 /*-----------------------------------------------------------------------
  * Cache Configuration
  */
-#define CONFIG_SYS_CACHELINE_SIZE	16
 
 #define ICACHE_STATUS			(CONFIG_SYS_INIT_RAM_ADDR + \
 					 CONFIG_SYS_INIT_RAM_SIZE - 8)

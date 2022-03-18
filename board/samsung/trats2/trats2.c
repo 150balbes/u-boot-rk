@@ -1,17 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013 Samsung Electronics Co., Ltd. All rights reserved.
  * Sanghee Kim <sh0130.kim@samsung.com>
  * Piotr Wilczek <p.wilczek@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <lcd.h>
+#include <log.h>
 #include <asm/gpio.h>
 #include <asm/arch/pinmux.h>
 #include <asm/arch/power.h>
 #include <asm/arch/mipi_dsim.h>
+#include <linux/delay.h>
 #include <power/pmic.h>
 #include <power/max77686_pmic.h>
 #include <power/battery.h>
@@ -23,8 +24,6 @@
 #include <usb.h>
 #include <usb/dwc2_udc.h>
 #include <usb_mass_storage.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 static unsigned int board_rev = -1;
 
@@ -68,10 +67,12 @@ static void check_hw_revision(void)
 	board_rev = modelrev << 8;
 }
 
+#ifdef CONFIG_REVISION_TAG
 u32 get_board_rev(void)
 {
 	return board_rev;
 }
+#endif
 
 static inline u32 get_model_rev(void)
 {
@@ -130,7 +131,7 @@ int exynos_init(void)
 
 int exynos_power_init(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	int chrg;
 	struct power_battery *pb;
 	struct pmic *p_chrg, *p_muic, *p_fg, *p_bat;
@@ -193,7 +194,7 @@ int exynos_power_init(void)
 #ifdef CONFIG_USB_GADGET
 static int s5pc210_phy_control(int on)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	int ret = 0;
 	unsigned int val;
 	struct pmic *p, *p_pmic, *p_muic;
@@ -270,7 +271,7 @@ int board_usb_init(int index, enum usb_init_type init)
 
 int g_dnl_board_usb_cable_connected(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	struct pmic *muic = pmic_get("MAX77693_MUIC");
 	if (!muic)
 		return 0;
@@ -289,7 +290,7 @@ int g_dnl_board_usb_cable_connected(void)
 #ifdef CONFIG_LCD
 int mipi_power(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	struct pmic *p = pmic_get("MAX77686_PMIC");
 
 	/* LDO8 VMIPI_1.0V_AP */
@@ -303,7 +304,7 @@ int mipi_power(void)
 
 void exynos_lcd_power_on(void)
 {
-#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
+#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
 	struct pmic *p = pmic_get("MAX77686_PMIC");
 
 	/* LCD_2.2V_EN: GPC0[1] */

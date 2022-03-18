@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
+#include <net.h>
 #include <asm/io.h>
 #include <netdev.h>
 #include <fm_eth.h>
@@ -13,7 +13,7 @@
 
 #include "../common/fman.h"
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 #ifdef CONFIG_FMAN_ENET
 	int i;
@@ -65,7 +65,7 @@ int board_eth_init(bd_t *bis)
 	for (i = FM1_DTSEC1; i < FM1_DTSEC1 + CONFIG_SYS_NUM_FM1_DTSEC; i++)
 		fm_info_set_mdio(i, dev);
 
-	/* XFI on lane A, MAC 9 */
+	/* 10GBase-R on lane A, MAC 9 */
 	fm_info_set_phy_address(FM1_10GEC1, FM1_10GEC1_PHY_ADDR);
 	dev = miiphy_get_dev_by_name(DEFAULT_FM_TGEC_MDIO_NAME);
 	fm_info_set_mdio(FM1_10GEC1, dev);

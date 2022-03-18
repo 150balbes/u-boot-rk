@@ -1,15 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * board.c
  *
  * Board functions for TI AM43XX based boards
  *
  * Copyright (C) 2013, Texas Instruments, Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <eeprom.h>
+#include <image.h>
+#include <asm/global_data.h>
+#include <dm/uclass.h>
+#include <env.h>
+#include <fdt_support.h>
 #include <i2c.h>
+#include <init.h>
+#include <net.h>
 #include <linux/errno.h>
 #include <spl.h>
 #include <usb.h>
@@ -26,8 +33,6 @@
 #include <power/pmic.h>
 #include <power/tps65218.h>
 #include <power/tps62362.h>
-#include <miiphy.h>
-#include <cpsw.h>
 #include <linux/usb/gadget.h>
 #include <dwc3-uboot.h>
 #include <dwc3-omap-uboot.h>
@@ -43,13 +48,15 @@ static struct ctrl_dev *cdev = (struct ctrl_dev *)CTRL_DEVICE_BASE;
 #ifdef CONFIG_TI_I2C_BOARD_DETECT
 void do_board_detect(void)
 {
+	/* Ensure I2C is initialized for EEPROM access*/
+	gpi2c_init();
 	if (ti_i2c_eeprom_am_get(CONFIG_EEPROM_BUS_ADDRESS,
 				 CONFIG_EEPROM_CHIP_ADDRESS))
 		printf("ti_i2c_eeprom_init failed\n");
 }
 #endif
 
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
 
 const struct dpll_params dpll_mpu[NUM_CRYSTAL_FREQ][NUM_OPPS] = {
 	{	/* 19.2 MHz */
@@ -242,7 +249,7 @@ const struct emif_regs ddr3_emif_regs_400Mhz_production = {
 	.read_idle_ctrl			= 0x00050000,
 	.zq_config			= 0x50074BE4,
 	.temp_alert_config		= 0x0,
-	.emif_ddr_phy_ctlr_1		= 0x0E004008,
+	.emif_ddr_phy_ctlr_1		= 0x00048008,
 	.emif_ddr_ext_phy_ctrl_1	= 0x08020080,
 	.emif_ddr_ext_phy_ctrl_2	= 0x00000066,
 	.emif_ddr_ext_phy_ctrl_3	= 0x00000091,
@@ -384,9 +391,9 @@ const struct dpll_params *get_dpll_per_params(void)
 
 void scale_vcores_generic(u32 m)
 {
-	int mpu_vdd;
+	int mpu_vdd, ddr_volt;
 
-	if (i2c_probe(TPS65218_CHIP_PM))
+	if (power_tps65218_init(0))
 		return;
 
 	switch (m) {
@@ -423,9 +430,13 @@ void scale_vcores_generic(u32 m)
 		return;
 	}
 
+	if (board_is_eposevm())
+		ddr_volt = TPS65218_DCDC3_VOLT_SEL_1200MV;
+	else
+		ddr_volt = TPS65218_DCDC3_VOLT_SEL_1350MV;
+
 	/* Set DCDC3 (DDR) voltage */
-	if (tps65218_voltage_update(TPS65218_DCDC3,
-	    TPS65218_DCDC3_VOLT_SEL_1350MV)) {
+	if (tps65218_voltage_update(TPS65218_DCDC3, ddr_volt)) {
 		printf("%s failure\n", __func__);
 		return;
 	}
@@ -435,7 +446,7 @@ void scale_vcores_idk(u32 m)
 {
 	int mpu_vdd;
 
-	if (i2c_probe(TPS62362_I2C_ADDR))
+	if (power_tps62362_init(0))
 		return;
 
 	switch (m) {
@@ -458,14 +469,12 @@ void scale_vcores_idk(u32 m)
 		puts("Unknown MPU clock, not scaling\n");
 		return;
 	}
-
 	/* Set VDD_MPU voltage */
 	if (tps62362_voltage_update(TPS62362_SET3, mpu_vdd)) {
 		printf("%s failure\n", __func__);
 		return;
 	}
 }
-
 void gpi2c_init(void)
 {
 	/* When needed to be invoked prior to BSS initialization */
@@ -473,8 +482,6 @@ void gpi2c_init(void)
 
 	if (first_time) {
 		enable_i2c0_pin_mux();
-		i2c_init(CONFIG_SYS_OMAP24_I2C_SPEED,
-			 CONFIG_SYS_OMAP24_I2C_SLAVE);
 		first_time = false;
 	}
 }
@@ -520,6 +527,62 @@ static void enable_vtt_regulator(void)
 	writel(temp, AM33XX_GPIO5_BASE + OMAP_GPIO_OE);
 }
 
+enum {
+	RTC_BOARD_EPOS = 1,
+	RTC_BOARD_EVM14,
+	RTC_BOARD_EVM12,
+	RTC_BOARD_GPEVM,
+	RTC_BOARD_SK,
+};
+
+/*
+ * In the rtc_only+DRR in self-refresh boot path we have the board type info
+ * in the rtc scratch pad register hence we bypass the costly i2c reads to
+ * eeprom and directly programthe board name string
+ */
+void rtc_only_update_board_type(u32 btype)
+{
+	const char *name = "";
+	const char *rev = "1.0";
+
+	switch (btype) {
+	case RTC_BOARD_EPOS:
+		name = "AM43EPOS";
+		break;
+	case RTC_BOARD_EVM14:
+		name = "AM43__GP";
+		rev = "1.4";
+		break;
+	case RTC_BOARD_EVM12:
+		name = "AM43__GP";
+		rev = "1.2";
+		break;
+	case RTC_BOARD_GPEVM:
+		name = "AM43__GP";
+		break;
+	case RTC_BOARD_SK:
+		name = "AM43__SK";
+		break;
+	}
+	ti_i2c_eeprom_am_set(name, rev);
+}
+
+u32 rtc_only_get_board_type(void)
+{
+	if (board_is_eposevm())
+		return RTC_BOARD_EPOS;
+	else if (board_is_evm_14_or_later())
+		return RTC_BOARD_EVM14;
+	else if (board_is_evm_12_or_later())
+		return RTC_BOARD_EVM12;
+	else if (board_is_gpevm())
+		return RTC_BOARD_GPEVM;
+	else if (board_is_sk())
+		return RTC_BOARD_SK;
+
+	return 0;
+}
+
 void sdram_init(void)
 {
 	/*
@@ -554,20 +617,19 @@ void sdram_init(void)
 /* setup board specific PMIC */
 int power_init_board(void)
 {
-	struct pmic *p;
-
+	int rc;
 	if (board_is_idk()) {
-		power_tps62362_init(I2C_PMIC);
-		p = pmic_get("TPS62362");
-		if (p && !pmic_probe(p))
-			puts("PMIC:  TPS62362\n");
+		rc = power_tps62362_init(0);
+		if (rc)
+			goto done;
+		puts("PMIC:  TPS62362\n");
 	} else {
-		power_tps65218_init(I2C_PMIC);
-		p = pmic_get("TPS65218_PMIC");
-		if (p && !pmic_probe(p))
-			puts("PMIC:  TPS65218\n");
+		rc = power_tps65218_init(0);
+		if (rc)
+			goto done;
+		puts("PMIC:  TPS65218\n");
 	}
-
+done:
 	return 0;
 }
 
@@ -579,6 +641,11 @@ int board_init(void)
 
 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 	gpmc_init();
+
+	/*
+	 * Call this to initialize *ctrl again
+	 */
+	hw_data_init();
 
 	/* Clear all important bits for DSS errata that may need to be tweaked*/
 	mreqprio_0 = readl(&cdev->mreqprio_0) & MREQPRIO_0_SAB_INIT1_MASK &
@@ -616,8 +683,22 @@ int board_init(void)
 }
 
 #ifdef CONFIG_BOARD_LATE_INIT
+#if CONFIG_IS_ENABLED(DM_USB) && CONFIG_IS_ENABLED(OF_CONTROL)
+static int device_okay(const char *path)
+{
+	int node;
+
+	node = fdt_path_offset(gd->fdt_blob, path);
+	if (node < 0)
+		return 0;
+
+	return fdtdec_get_is_enabled(gd->fdt_blob, node);
+}
+#endif
+
 int board_late_init(void)
 {
+	struct udevice *dev;
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 	set_board_info_env(NULL);
 
@@ -628,10 +709,22 @@ int board_late_init(void)
 	if (get_device_type() == HS_DEVICE)
 		env_set("boot_fit", "1");
 #endif
+
+#if CONFIG_IS_ENABLED(DM_USB) && CONFIG_IS_ENABLED(OF_CONTROL)
+	if (device_okay("/ocp/omap_dwc3@48380000"))
+		enable_usb_clocks(0);
+	if (device_okay("/ocp/omap_dwc3@483c0000"))
+		enable_usb_clocks(1);
+#endif
+
+	/* Just probe the potentially supported cdce913 device */
+	uclass_get_device_by_name(UCLASS_CLK, "cdce913@65", &dev);
+
 	return 0;
 }
 #endif
 
+#if !CONFIG_IS_ENABLED(DM_USB_GADGET)
 #ifdef CONFIG_USB_DWC3
 static struct dwc3_device usb_otg_ss1 = {
 	.maximum_speed = USB_SPEED_HIGH,
@@ -734,112 +827,10 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 	return 0;
 }
 #endif /* defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_OMAP) */
-
-#ifdef CONFIG_DRIVER_TI_CPSW
-
-static void cpsw_control(int enabled)
-{
-	/* Additional controls can be added here */
-	return;
-}
-
-static struct cpsw_slave_data cpsw_slaves[] = {
-	{
-		.slave_reg_ofs	= 0x208,
-		.sliver_reg_ofs	= 0xd80,
-		.phy_addr	= 16,
-	},
-	{
-		.slave_reg_ofs	= 0x308,
-		.sliver_reg_ofs	= 0xdc0,
-		.phy_addr	= 1,
-	},
-};
-
-static struct cpsw_platform_data cpsw_data = {
-	.mdio_base		= CPSW_MDIO_BASE,
-	.cpsw_base		= CPSW_BASE,
-	.mdio_div		= 0xff,
-	.channels		= 8,
-	.cpdma_reg_ofs		= 0x800,
-	.slaves			= 1,
-	.slave_data		= cpsw_slaves,
-	.ale_reg_ofs		= 0xd00,
-	.ale_entries		= 1024,
-	.host_port_reg_ofs	= 0x108,
-	.hw_stats_reg_ofs	= 0x900,
-	.bd_ram_ofs		= 0x2000,
-	.mac_control		= (1 << 5),
-	.control		= cpsw_control,
-	.host_port_num		= 0,
-	.version		= CPSW_CTRL_VERSION_2,
-};
-
-int board_eth_init(bd_t *bis)
-{
-	int rv;
-	uint8_t mac_addr[6];
-	uint32_t mac_hi, mac_lo;
-
-	/* try reading mac address from efuse */
-	mac_lo = readl(&cdev->macid0l);
-	mac_hi = readl(&cdev->macid0h);
-	mac_addr[0] = mac_hi & 0xFF;
-	mac_addr[1] = (mac_hi & 0xFF00) >> 8;
-	mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
-	mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
-	mac_addr[4] = mac_lo & 0xFF;
-	mac_addr[5] = (mac_lo & 0xFF00) >> 8;
-
-	if (!env_get("ethaddr")) {
-		puts("<ethaddr> not set. Validating first E-fuse MAC\n");
-		if (is_valid_ethaddr(mac_addr))
-			eth_env_set_enetaddr("ethaddr", mac_addr);
-	}
-
-	mac_lo = readl(&cdev->macid1l);
-	mac_hi = readl(&cdev->macid1h);
-	mac_addr[0] = mac_hi & 0xFF;
-	mac_addr[1] = (mac_hi & 0xFF00) >> 8;
-	mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
-	mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
-	mac_addr[4] = mac_lo & 0xFF;
-	mac_addr[5] = (mac_lo & 0xFF00) >> 8;
-
-	if (!env_get("eth1addr")) {
-		if (is_valid_ethaddr(mac_addr))
-			eth_env_set_enetaddr("eth1addr", mac_addr);
-	}
-
-	if (board_is_eposevm()) {
-		writel(RMII_MODE_ENABLE | RMII_CHIPCKL_ENABLE, &cdev->miisel);
-		cpsw_slaves[0].phy_if = PHY_INTERFACE_MODE_RMII;
-		cpsw_slaves[0].phy_addr = 16;
-	} else if (board_is_sk()) {
-		writel(RGMII_MODE_ENABLE, &cdev->miisel);
-		cpsw_slaves[0].phy_if = PHY_INTERFACE_MODE_RGMII;
-		cpsw_slaves[0].phy_addr = 4;
-		cpsw_slaves[1].phy_addr = 5;
-	} else if (board_is_idk()) {
-		writel(RGMII_MODE_ENABLE, &cdev->miisel);
-		cpsw_slaves[0].phy_if = PHY_INTERFACE_MODE_RGMII;
-		cpsw_slaves[0].phy_addr = 0;
-	} else {
-		writel(RGMII_MODE_ENABLE, &cdev->miisel);
-		cpsw_slaves[0].phy_if = PHY_INTERFACE_MODE_RGMII;
-		cpsw_slaves[0].phy_addr = 0;
-	}
-
-	rv = cpsw_register(&cpsw_data);
-	if (rv < 0)
-		printf("Error %d registering CPSW switch\n", rv);
-
-	return rv;
-}
-#endif
+#endif /* !CONFIG_IS_ENABLED(DM_USB_GADGET) */
 
 #if defined(CONFIG_OF_LIBFDT) && defined(CONFIG_OF_BOARD_SETUP)
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	ft_cpu_setup(blob, bd);
 
@@ -847,10 +838,14 @@ int ft_board_setup(void *blob, bd_t *bd)
 }
 #endif
 
-#ifdef CONFIG_SPL_LOAD_FIT
+#if defined(CONFIG_SPL_LOAD_FIT) || defined(CONFIG_DTB_RESELECT)
 int board_fit_config_name_match(const char *name)
 {
-	if (board_is_evm() && !strcmp(name, "am437x-gp-evm"))
+	bool eeprom_read = board_ti_was_eeprom_read();
+
+	if (!strcmp(name, "am4372-generic") && !eeprom_read)
+		return 0;
+	else if (board_is_evm() && !strcmp(name, "am437x-gp-evm"))
 		return 0;
 	else if (board_is_sk() && !strcmp(name, "am437x-sk-evm"))
 		return 0;
@@ -863,8 +858,19 @@ int board_fit_config_name_match(const char *name)
 }
 #endif
 
+#ifdef CONFIG_DTB_RESELECT
+int embedded_dtb_select(void)
+{
+	do_board_detect();
+	fdtdec_setup();
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_TI_SECURE_DEVICE
-void board_fit_image_post_process(void **p_image, size_t *p_size)
+void board_fit_image_post_process(const void *fit, int node, void **p_image,
+				  size_t *p_size)
 {
 	secure_boot_verify_image(p_image, p_size);
 }

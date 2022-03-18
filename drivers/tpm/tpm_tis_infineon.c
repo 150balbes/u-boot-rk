@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 Infineon Technologies
  *
@@ -16,15 +17,15 @@
  * Dorn, Dave Safford, Reiner Sailer, and Kyleen Hall.
  *
  * Version: 2.1.1
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
 #include <fdtdec.h>
 #include <i2c.h>
-#include <tpm.h>
+#include <log.h>
+#include <tpm-v1.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -32,8 +33,6 @@
 
 #include "tpm_tis.h"
 #include "tpm_internal.h"
-
-DECLARE_GLOBAL_DATA_PTR;
 
 enum i2c_chip_type {
 	SLB9635,
@@ -51,10 +50,10 @@ static const char * const chip_name[] = {
 	[UNKNOWN] = "unknown/fallback to slb9635",
 };
 
-#define	TPM_ACCESS(l)			(0x0000 | ((l) << 4))
-#define	TPM_STS(l)			(0x0001 | ((l) << 4))
-#define	TPM_DATA_FIFO(l)		(0x0005 | ((l) << 4))
-#define	TPM_DID_VID(l)			(0x0006 | ((l) << 4))
+#define	TPM_INFINEON_ACCESS(l)			(0x0000 | ((l) << 4))
+#define	TPM_INFINEON_STS(l)			(0x0001 | ((l) << 4))
+#define	TPM_INFINEON_DATA_FIFO(l)		(0x0005 | ((l) << 4))
+#define	TPM_INFINEON_DID_VID(l)			(0x0006 | ((l) << 4))
 
 /*
  * tpm_tis_i2c_read() - read from TPM register
@@ -198,7 +197,7 @@ static int tpm_tis_i2c_check_locality(struct udevice *dev, int loc)
 	u8 buf;
 	int rc;
 
-	rc = tpm_tis_i2c_read(dev, TPM_ACCESS(loc), &buf, 1);
+	rc = tpm_tis_i2c_read(dev, TPM_INFINEON_ACCESS(loc), &buf, 1);
 	if (rc < 0)
 		return rc;
 
@@ -216,12 +215,12 @@ static void tpm_tis_i2c_release_locality(struct udevice *dev, int loc,
 	const u8 mask = TPM_ACCESS_REQUEST_PENDING | TPM_ACCESS_VALID;
 	u8 buf;
 
-	if (tpm_tis_i2c_read(dev, TPM_ACCESS(loc), &buf, 1) < 0)
+	if (tpm_tis_i2c_read(dev, TPM_INFINEON_ACCESS(loc), &buf, 1) < 0)
 		return;
 
 	if (force || (buf & mask) == mask) {
 		buf = TPM_ACCESS_ACTIVE_LOCALITY;
-		tpm_tis_i2c_write(dev, TPM_ACCESS(loc), &buf, 1);
+		tpm_tis_i2c_write(dev, TPM_INFINEON_ACCESS(loc), &buf, 1);
 	}
 }
 
@@ -241,7 +240,7 @@ static int tpm_tis_i2c_request_locality(struct udevice *dev, int loc)
 		return rc;
 	}
 
-	rc = tpm_tis_i2c_write(dev, TPM_ACCESS(loc), &buf, 1);
+	rc = tpm_tis_i2c_write(dev, TPM_INFINEON_ACCESS(loc), &buf, 1);
 	if (rc) {
 		debug("%s: Failed to write to TPM: %d\n", __func__, rc);
 		return rc;
@@ -272,7 +271,7 @@ static u8 tpm_tis_i2c_status(struct udevice *dev)
 	/* NOTE: Since i2c read may fail, return 0 in this case --> time-out */
 	u8 buf;
 
-	if (tpm_tis_i2c_read(dev, TPM_STS(chip->locality), &buf, 1) < 0)
+	if (tpm_tis_i2c_read(dev, TPM_INFINEON_STS(chip->locality), &buf, 1) < 0)
 		return 0;
 	else
 		return buf;
@@ -287,7 +286,7 @@ static int tpm_tis_i2c_ready(struct udevice *dev)
 	u8 buf = TPM_STS_COMMAND_READY;
 
 	debug("%s\n", __func__);
-	rc = tpm_tis_i2c_write_long(dev, TPM_STS(chip->locality), &buf, 1);
+	rc = tpm_tis_i2c_write_long(dev, TPM_INFINEON_STS(chip->locality), &buf, 1);
 	if (rc)
 		debug("%s: rc=%d\n", __func__, rc);
 
@@ -307,7 +306,7 @@ static ssize_t tpm_tis_i2c_get_burstcount(struct udevice *dev)
 	stop = chip->timeout_d;
 	do {
 		/* Note: STS is little endian */
-		addr = TPM_STS(chip->locality) + 1;
+		addr = TPM_INFINEON_STS(chip->locality) + 1;
 		if (tpm_tis_i2c_read(dev, addr, buf, 3) < 0)
 			burstcnt = 0;
 		else
@@ -361,7 +360,7 @@ static int tpm_tis_i2c_recv_data(struct udevice *dev, u8 *buf, size_t count)
 		if (burstcnt > (count - size))
 			burstcnt = count - size;
 
-		rc = tpm_tis_i2c_read(dev, TPM_DATA_FIFO(chip->locality),
+		rc = tpm_tis_i2c_read(dev, TPM_INFINEON_DATA_FIFO(chip->locality),
 				      &(buf[size]), burstcnt);
 		if (rc == 0)
 			size += burstcnt;
@@ -374,7 +373,8 @@ static int tpm_tis_i2c_recv(struct udevice *dev, u8 *buf, size_t count)
 {
 	struct tpm_chip *chip = dev_get_priv(dev);
 	int size = 0;
-	int expected, status;
+	int status;
+	unsigned int expected;
 	int rc;
 
 	status = tpm_tis_i2c_status(dev);
@@ -394,7 +394,7 @@ static int tpm_tis_i2c_recv(struct udevice *dev, u8 *buf, size_t count)
 	}
 
 	expected = get_unaligned_be32(buf + TPM_RSP_SIZE_BYTE);
-	if ((size_t)expected > count) {
+	if ((size_t)expected > count || (size_t)expected < TPM_HEADER_SIZE) {
 		debug("Error size=%x, expected=%x, count=%x\n", size, expected,
 		      count);
 		return -ENOSPC;
@@ -462,7 +462,7 @@ static int tpm_tis_i2c_send(struct udevice *dev, const u8 *buf, size_t len)
 			burstcnt = CONFIG_TPM_TIS_I2C_BURST_LIMITATION_LEN;
 #endif /* CONFIG_TPM_TIS_I2C_BURST_LIMITATION */
 
-		rc = tpm_tis_i2c_write(dev, TPM_DATA_FIFO(chip->locality),
+		rc = tpm_tis_i2c_write(dev, TPM_INFINEON_DATA_FIFO(chip->locality),
 				       &(buf[count]), burstcnt);
 		if (rc == 0)
 			count += burstcnt;
@@ -482,7 +482,7 @@ static int tpm_tis_i2c_send(struct udevice *dev, const u8 *buf, size_t len)
 	}
 
 	/* Go and do it */
-	rc = tpm_tis_i2c_write(dev, TPM_STS(chip->locality), &sts, 1);
+	rc = tpm_tis_i2c_write(dev, TPM_INFINEON_STS(chip->locality), &sts, 1);
 	if (rc < 0)
 		return rc;
 	debug("%s: done, rc=%d\n", __func__, rc);
@@ -525,7 +525,7 @@ static int tpm_tis_i2c_init(struct udevice *dev)
 		return rc;
 
 	/* Read four bytes from DID_VID register */
-	if (tpm_tis_i2c_read(dev, TPM_DID_VID(0), (uchar *)&vendor, 4) < 0) {
+	if (tpm_tis_i2c_read(dev, TPM_INFINEON_DID_VID(0), (uchar *)&vendor, 4) < 0) {
 		tpm_tis_i2c_release_locality(dev, 0, 1);
 		return -EIO;
 	}
@@ -583,7 +583,7 @@ static int tpm_tis_i2c_close(struct udevice *dev)
 	return 0;
 }
 
-static int tpm_tis_get_desc(struct udevice *dev, char *buf, int size)
+static int tpm_tis_i2c_get_desc(struct udevice *dev, char *buf, int size)
 {
 	struct tpm_chip *chip = dev_get_priv(dev);
 
@@ -615,7 +615,7 @@ static int tpm_tis_i2c_probe(struct udevice *dev)
 static const struct tpm_ops tpm_tis_i2c_ops = {
 	.open		= tpm_tis_i2c_open,
 	.close		= tpm_tis_i2c_close,
-	.get_desc	= tpm_tis_get_desc,
+	.get_desc	= tpm_tis_i2c_get_desc,
 	.send		= tpm_tis_i2c_send,
 	.recv		= tpm_tis_i2c_recv,
 	.cleanup	= tpm_tis_i2c_cleanup,
@@ -633,5 +633,5 @@ U_BOOT_DRIVER(tpm_tis_i2c) = {
 	.of_match = tpm_tis_i2c_ids,
 	.ops    = &tpm_tis_i2c_ops,
 	.probe	= tpm_tis_i2c_probe,
-	.priv_auto_alloc_size = sizeof(struct tpm_chip),
+	.priv_auto	= sizeof(struct tpm_chip),
 };

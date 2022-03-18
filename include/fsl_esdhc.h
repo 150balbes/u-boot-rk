@@ -1,10 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * FSL SD/MMC Defines
  *-------------------------------------------------------------------
  *
  * Copyright 2007-2008,2010-2011 Freescale Semiconductor, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2020 NXP
  */
 
 #ifndef  __FSL_ESDHC_H__
@@ -16,30 +16,18 @@
 /* needed for the mmc_cfg definition */
 #include <mmc.h>
 
-#ifdef CONFIG_FSL_ESDHC_ADAPTER_IDENT
-#include "../board/freescale/common/qixis.h"
-#endif
-
 /* FSL eSDHC-specific constants */
 #define SYSCTL			0x0002e02c
 #define SYSCTL_INITA		0x08000000
 #define SYSCTL_TIMEOUT_MASK	0x000f0000
 #define SYSCTL_CLOCK_MASK	0x0000fff0
-#if !defined(CONFIG_FSL_USDHC)
 #define SYSCTL_CKEN		0x00000008
 #define SYSCTL_PEREN		0x00000004
 #define SYSCTL_HCKEN		0x00000002
 #define SYSCTL_IPGEN		0x00000001
-#endif
 #define SYSCTL_RSTA		0x01000000
 #define SYSCTL_RSTC		0x02000000
 #define SYSCTL_RSTD		0x04000000
-
-#define VENDORSPEC_CKEN		0x00004000
-#define VENDORSPEC_PEREN	0x00002000
-#define VENDORSPEC_HCKEN	0x00001000
-#define VENDORSPEC_IPGEN	0x00000800
-#define VENDORSPEC_INIT		0x20007809
 
 #define IRQSTAT			0x0002e030
 #define IRQSTAT_DMAE		(0x10000000)
@@ -86,8 +74,10 @@
 #define IRQSTATEN_TC		(0x00000002)
 #define IRQSTATEN_CC		(0x00000001)
 
+/* eSDHC control register */
 #define ESDHCCTL		0x0002e40c
 #define ESDHCCTL_PCS		(0x00080000)
+#define ESDHCCTL_FAF		(0x00040000)
 
 #define PRSSTAT			0x0002e024
 #define PRSSTAT_DAT0		(0x01000000)
@@ -106,6 +96,12 @@
 #define PROCTL_INIT		0x00000020
 #define PROCTL_DTW_4		0x00000002
 #define PROCTL_DTW_8		0x00000004
+#define PROCTL_D3CD		0x00000008
+#define PROCTL_DMAS_MASK	0x00000300
+#define PROCTL_DMAS_SDMA	0x00000000
+#define PROCTL_DMAS_ADMA1	0x00000100
+#define PROCTL_DMAS_ADMA2	0x00000300
+#define PROCTL_VOLT_SEL		0x00000400
 
 #define CMDARG			0x0002e008
 
@@ -130,7 +126,7 @@
 #define XFERTYP_DMAEN		0x00000001
 
 #define CINS_TIMEOUT		1000
-#define PIO_TIMEOUT		100000
+#define PIO_TIMEOUT		500
 
 #define DSADDR		0x2e004
 
@@ -164,20 +160,58 @@
 #define BLKATTR_SIZE(x)	(x & 0x1fff)
 #define MAX_BLK_CNT	0x7fff	/* so malloc will have enough room with 32M */
 
-#define ESDHC_HOSTCAPBLT_VS18	0x04000000
-#define ESDHC_HOSTCAPBLT_VS30	0x02000000
-#define ESDHC_HOSTCAPBLT_VS33	0x01000000
-#define ESDHC_HOSTCAPBLT_SRS	0x00800000
-#define ESDHC_HOSTCAPBLT_DMAS	0x00400000
-#define ESDHC_HOSTCAPBLT_HSS	0x00200000
+/* Auto CMD error status register / system control 2 register */
+#define EXECUTE_TUNING		0x00400000
+#define SMPCLKSEL		0x00800000
+#define UHSM_MASK		0x00070000
+#define UHSM_SDR104_HS200	0x00030000
 
-#define ESDHC_VENDORSPEC_VSELECT 0x00000002 /* Use 1.8V */
+/* Host controller capabilities register */
+#define HOSTCAPBLT_VS18		0x04000000
+#define HOSTCAPBLT_VS30		0x02000000
+#define HOSTCAPBLT_VS33		0x01000000
+#define HOSTCAPBLT_SRS		0x00800000
+#define HOSTCAPBLT_DMAS		0x00400000
+#define HOSTCAPBLT_HSS		0x00200000
+
+/* Tuning block control register */
+#define TBCTL_TB_EN		0x00000004
+#define HS400_MODE		0x00000010
+#define HS400_WNDW_ADJUST	0x00000040
+
+/* SD clock control register */
+#define CMD_CLK_CTL		0x00008000
+
+/* SD timing control register */
+#define FLW_CTL_BG		0x00008000
+
+/* DLL config 0 register */
+#define DLL_ENABLE		0x80000000
+#define DLL_RESET		0x40000000
+#define DLL_FREQ_SEL		0x08000000
+
+/* DLL config 1 register */
+#define DLL_PD_PULSE_STRETCH_SEL 0x80000000
+
+/* DLL status 0 register */
+#define DLL_STS_SLV_LOCK	0x08000000
+
+#define MAX_TUNING_LOOP		40
+
+#define HOSTVER_VENDOR(x)	(((x) >> 8) & 0xff)
+#define VENDOR_V_10		0x00
+#define VENDOR_V_20		0x10
+#define VENDOR_V_21		0x11
+#define VENDOR_V_22		0x12
+#define VENDOR_V_23		0x13
+#define VENDOR_V_30		0x20
+#define VENDOR_V_31		0x21
+#define VENDOR_V_32		0x22
 
 struct fsl_esdhc_cfg {
 	phys_addr_t esdhc_base;
 	u32	sdhc_clk;
 	u8	max_bus_width;
-	int	wp_enable;
 	int	vs18_enable; /* Use 1.8V if set to 1 */
 	struct mmc_config cfg;
 };
@@ -212,12 +246,12 @@ struct fsl_esdhc_cfg {
 #endif
 
 #ifdef CONFIG_FSL_ESDHC
-int fsl_esdhc_mmc_init(bd_t *bis);
-int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg);
-void fdt_fixup_esdhc(void *blob, bd_t *bd);
+int fsl_esdhc_mmc_init(struct bd_info *bis);
+int fsl_esdhc_initialize(struct bd_info *bis, struct fsl_esdhc_cfg *cfg);
+void fdt_fixup_esdhc(void *blob, struct bd_info *bd);
 #else
-static inline int fsl_esdhc_mmc_init(bd_t *bis) { return -ENOSYS; }
-static inline void fdt_fixup_esdhc(void *blob, bd_t *bd) {}
+static inline int fsl_esdhc_mmc_init(struct bd_info *bis) { return -ENOSYS; }
+static inline void fdt_fixup_esdhc(void *blob, struct bd_info *bd) {}
 #endif /* CONFIG_FSL_ESDHC */
 void __noreturn mmc_boot(void);
 void mmc_spl_load_image(uint32_t offs, unsigned int size, void *vdst);

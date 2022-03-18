@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
  * Copyright (c) 2017 Álvaro Fernández Rojas <noltari@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -27,13 +26,13 @@ static int print_cpu_list(bool detail)
 	for (uclass_first_device(UCLASS_CPU, &dev);
 		     dev;
 		     uclass_next_device(&dev)) {
-		struct cpu_platdata *plat = dev_get_parent_platdata(dev);
+		struct cpu_plat *plat = dev_get_parent_plat(dev);
 		struct cpu_info info;
 		bool first = true;
 		int ret, i;
 
 		ret = cpu_get_desc(dev, buf, sizeof(buf));
-		printf("%3d: %-10s %s\n", dev->seq, dev->name,
+		printf("%3d: %-10s %s\n", dev_seq(dev), dev->name,
 		       ret ? "<no description>" : buf);
 		if (!detail)
 			continue;
@@ -65,7 +64,7 @@ static int print_cpu_list(bool detail)
 	return 0;
 }
 
-static int do_cpu_list(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_cpu_list(struct cmd_tbl *cmdtp, int flag, int argc,
 		       char *const argv[])
 {
 	if (print_cpu_list(false))
@@ -74,7 +73,7 @@ static int do_cpu_list(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_cpu_detail(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_cpu_detail(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char *const argv[])
 {
 	if (print_cpu_list(true))
@@ -83,7 +82,7 @@ static int do_cpu_detail(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static cmd_tbl_t cmd_cpu_sub[] = {
+static struct cmd_tbl cmd_cpu_sub[] = {
 	U_BOOT_CMD_MKENT(list, 2, 1, do_cpu_list, "", ""),
 	U_BOOT_CMD_MKENT(detail, 4, 0, do_cpu_detail, "", ""),
 };
@@ -91,10 +90,10 @@ static cmd_tbl_t cmd_cpu_sub[] = {
 /*
  * Process a cpu sub-command
  */
-static int do_cpu(cmd_tbl_t *cmdtp, int flag, int argc,
-		  char * const argv[])
+static int do_cpu(struct cmd_tbl *cmdtp, int flag, int argc,
+		  char *const argv[])
 {
-	cmd_tbl_t *c = NULL;
+	struct cmd_tbl *c = NULL;
 
 	/* Strip off leading 'cpu' command argument */
 	argc--;

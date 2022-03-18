@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2008 RuggedCom, Inc.
  * Richard Retanubun <RichardRetanubun@RuggedCom.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -21,10 +20,13 @@
 #include <efi.h>
 
 #define MSDOS_MBR_SIGNATURE 0xAA55
+#define MSDOS_MBR_BOOT_CODE_SIZE 440
 #define EFI_PMBR_OSTYPE_EFI 0xEF
 #define EFI_PMBR_OSTYPE_EFI_GPT 0xEE
 
-#define GPT_HEADER_SIGNATURE 0x5452415020494645ULL
+#define GPT_HEADER_SIGNATURE_UBOOT 0x5452415020494645ULL // 'EFI PART'
+#define GPT_HEADER_CHROMEOS_IGNORE 0x454d45524f4e4749ULL // 'IGNOREME'
+
 #define GPT_HEADER_REVISION_V1 0x00010000
 #define GPT_PRIMARY_PARTITION_TABLE_LBA 1ULL
 #define GPT_ENTRY_NUMBERS		CONFIG_EFI_PARTITION_ENTRIES_NUMBERS
@@ -54,6 +56,9 @@
 #define PARTITION_LINUX_LVM_GUID \
 	EFI_GUID( 0xe6d6d379, 0xf507, 0x44c2, \
 		0xa2, 0x3c, 0x23, 0x8f, 0x2a, 0x3d, 0xf9, 0x28)
+#define PARTITION_U_BOOT_ENVIRONMENT \
+	EFI_GUID( 0x3de21764, 0x95bd, 0x54bd, \
+		0xa5, 0xc3, 0x4a, 0xbe, 0x78, 0x6f, 0x38, 0xa8)
 
 /* linux/include/efi.h */
 typedef u16 efi_char16_t;
@@ -112,7 +117,7 @@ typedef struct _gpt_entry {
 } __packed gpt_entry;
 
 typedef struct _legacy_mbr {
-	u8 boot_code[440];
+	u8 boot_code[MSDOS_MBR_BOOT_CODE_SIZE];
 	__le32 unique_mbr_signature;
 	__le16 unknown;
 	struct partition partition_record[4];

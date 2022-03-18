@@ -6,6 +6,7 @@
 #define __COMPILER_H__
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifdef USE_HOSTCC
 
@@ -46,10 +47,12 @@
 # include <byteswap.h>
 #elif defined(__MACH__) || defined(__FreeBSD__)
 # include <machine/endian.h>
-typedef unsigned long ulong;
 #endif
 #ifdef __FreeBSD__
 # include <sys/endian.h> /* htole32 and friends */
+# define __BYTE_ORDER BYTE_ORDER
+# define __LITTLE_ENDIAN LITTLE_ENDIAN
+# define __BIG_ENDIAN BIG_ENDIAN
 #elif defined(__OpenBSD__)
 # include <endian.h>
 # define __BYTE_ORDER BYTE_ORDER
@@ -63,6 +66,10 @@ typedef uint8_t __u8;
 typedef uint16_t __u16;
 typedef uint32_t __u32;
 typedef unsigned int uint;
+typedef unsigned long ulong;
+
+/* Define these on the host so we can build some target code */
+typedef __u32 u32;
 
 #define uswap_16(x) \
 	((((x) & 0xff00) >> 8) | \
@@ -117,13 +124,8 @@ typedef unsigned int uint;
 
 #else /* !USE_HOSTCC */
 
-#ifdef CONFIG_USE_STDINT
-/* Provided by gcc. */
-#include <stdint.h>
-#else
 /* Type for `void *' pointers. */
 typedef unsigned long int uintptr_t;
-#endif
 
 #include <linux/string.h>
 #include <linux/types.h>
@@ -145,5 +147,25 @@ typedef unsigned long int uintptr_t;
 
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
+
+#ifdef __LP64__
+#define MEM_SUPPORT_64BIT_DATA	1
+#else
+#define MEM_SUPPORT_64BIT_DATA	0
+#endif
+
+/**
+ * tools_build() - check if we are building host tools
+ *
+ * Return: true if building for the host, false if for a target
+ */
+static inline bool tools_build(void)
+{
+#ifdef USE_HOSTCC
+	return true;
+#else
+	return false;
+#endif
+}
 
 #endif

@@ -1,16 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 NXP Semiconductors
  * Copyright (C) 2017 Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <blk.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <errno.h>
+#include <log.h>
+#include <malloc.h>
 #include <memalign.h>
 #include <pci.h>
+#include <time.h>
 #include <dm/device-internal.h>
+#include <linux/compat.h>
 #include "nvme.h"
 
 #define NVME_Q_DEPTH		2
@@ -690,10 +695,10 @@ int nvme_scan_namespace(void)
 static int nvme_blk_probe(struct udevice *udev)
 {
 	struct nvme_dev *ndev = dev_get_priv(udev->parent);
-	struct blk_desc *desc = dev_get_uclass_platdata(udev);
+	struct blk_desc *desc = dev_get_uclass_plat(udev);
 	struct nvme_ns *ns = dev_get_priv(udev);
 	u8 flbas;
-	struct pci_child_platdata *pplat;
+	struct pci_child_plat *pplat;
 	struct nvme_id_ns *id;
 
 	id = memalign(ndev->page_size, sizeof(struct nvme_id_ns));
@@ -718,11 +723,10 @@ static int nvme_blk_probe(struct udevice *udev)
 	desc->log2blksz = ns->lba_shift;
 	desc->blksz = 1 << ns->lba_shift;
 	desc->bdev = udev;
-	pplat = dev_get_parent_platdata(udev->parent);
+	pplat = dev_get_parent_plat(udev->parent);
 	sprintf(desc->vendor, "0x%.4x", pplat->vendor);
 	memcpy(desc->product, ndev->serial, sizeof(ndev->serial));
 	memcpy(desc->revision, ndev->firmware_rev, sizeof(ndev->firmware_rev));
-	part_init(desc);
 
 	free(id);
 	return 0;
@@ -734,11 +738,12 @@ static ulong nvme_blk_rw(struct udevice *udev, lbaint_t blknr,
 	struct nvme_ns *ns = dev_get_priv(udev);
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_command c;
-	struct blk_desc *desc = dev_get_uclass_platdata(udev);
+	struct blk_desc *desc = dev_get_uclass_plat(udev);
 	int status;
 	u64 prp2;
 	u64 total_len = blkcnt << desc->log2blksz;
 	u64 temp_len = total_len;
+	uintptr_t temp_buffer = (uintptr_t)buffer;
 
 	u64 slba = blknr;
 	u16 lbas = 1 << (dev->max_transfer_shift - ns->lba_shift);
@@ -766,19 +771,19 @@ static ulong nvme_blk_rw(struct udevice *udev, lbaint_t blknr,
 		}
 
 		if (nvme_setup_prps(dev, &prp2,
-				    lbas << ns->lba_shift, (ulong)buffer))
+				    lbas << ns->lba_shift, temp_buffer))
 			return -EIO;
 		c.rw.slba = cpu_to_le64(slba);
 		slba += lbas;
 		c.rw.length = cpu_to_le16(lbas - 1);
-		c.rw.prp1 = cpu_to_le64((ulong)buffer);
+		c.rw.prp1 = cpu_to_le64(temp_buffer);
 		c.rw.prp2 = cpu_to_le64(prp2);
 		status = nvme_submit_sync_cmd(dev->queues[NVME_IO_Q],
 				&c, NULL, IO_TIMEOUT);
 		if (status)
 			break;
 		temp_len -= (u32)lbas << ns->lba_shift;
-		buffer += lbas << ns->lba_shift;
+		temp_buffer += lbas << ns->lba_shift;
 	}
 
 	if (read)
@@ -810,7 +815,7 @@ U_BOOT_DRIVER(nvme_blk) = {
 	.id	= UCLASS_BLK,
 	.probe	= nvme_blk_probe,
 	.ops	= &nvme_blk_ops,
-	.priv_auto_alloc_size = sizeof(struct nvme_ns),
+	.priv_auto	= sizeof(struct nvme_ns),
 };
 
 static int nvme_bind(struct udevice *udev)
@@ -923,7 +928,7 @@ U_BOOT_DRIVER(nvme) = {
 	.id	= UCLASS_NVME,
 	.bind	= nvme_bind,
 	.probe	= nvme_probe,
-	.priv_auto_alloc_size = sizeof(struct nvme_dev),
+	.priv_auto	= sizeof(struct nvme_dev),
 };
 
 struct pci_device_id nvme_supported[] = {

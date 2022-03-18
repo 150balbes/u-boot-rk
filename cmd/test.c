@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2000-2009
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
 #include <fs.h>
+#include <log.h>
 
 #define OP_INVALID	0
 #define OP_NOT		1
@@ -51,7 +51,8 @@ const struct {
 	{0, "-e", OP_FILE_EXISTS, 4},
 };
 
-static int do_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_test(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	char * const *ap;
 	int i, op, left, adv, expr, last_expr, last_unop, last_binop;
@@ -114,28 +115,28 @@ static int do_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			expr = strcmp(ap[0], ap[2]) > 0;
 			break;
 		case OP_INT_EQ:
-			expr = simple_strtol(ap[0], NULL, 10) ==
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) ==
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_INT_NEQ:
-			expr = simple_strtol(ap[0], NULL, 10) !=
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) !=
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_INT_LT:
-			expr = simple_strtol(ap[0], NULL, 10) <
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) <
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_INT_LE:
-			expr = simple_strtol(ap[0], NULL, 10) <=
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) <=
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_INT_GT:
-			expr = simple_strtol(ap[0], NULL, 10) >
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) >
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_INT_GE:
-			expr = simple_strtol(ap[0], NULL, 10) >=
-					simple_strtol(ap[2], NULL, 10);
+			expr = simple_strtol(ap[0], NULL, 0) >=
+					simple_strtol(ap[2], NULL, 0);
 			break;
 		case OP_FILE_EXISTS:
 			expr = file_exists(ap[1], ap[2], ap[3], FS_TYPE_ANY);
@@ -191,7 +192,8 @@ U_BOOT_CMD(
 	"[args..]"
 );
 
-static int do_false(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_false(struct cmd_tbl *cmdtp, int flag, int argc,
+		    char *const argv[])
 {
 	return 1;
 }
@@ -202,7 +204,8 @@ U_BOOT_CMD(
 	NULL
 );
 
-static int do_true(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_true(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	return 0;
 }

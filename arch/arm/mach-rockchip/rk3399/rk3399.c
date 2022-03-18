@@ -1,22 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2016 Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/armv8/mmu.h>
-#include <asm/arch/bootrom.h>
-#include <asm/arch/grf_rk3399.h>
-#include <asm/arch/cru_rk3399.h>
-#include <asm/arch/hardware.h>
-#include <asm/io.h>
+#include <fdt_support.h>
+#include <init.h>
+#include <log.h>
+#include <spl.h>
+#include <spl_gpio.h>
 #include <syscon.h>
+#include <asm/armv8/mmu.h>
+#include <asm/global_data.h>
+#include <asm/io.h>
+#include <asm/arch-rockchip/bootrom.h>
+#include <asm/arch-rockchip/clock.h>
+#include <asm/arch-rockchip/gpio.h>
+#include <asm/arch-rockchip/grf_rk3399.h>
+#include <asm/arch-rockchip/hardware.h>
+#include <linux/bitops.h>
+#include <power/regulator.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #define GRF_EMMCCORE_CON11 0xff77f02c
-#define PMU_GRF_SOC_CON0   0xff320180
+#define GRF_BASE	0xff770000
+
+const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
+	[BROM_BOOTSOURCE_EMMC] = "/sdhci@fe330000",
+	[BROM_BOOTSOURCE_SPINOR] = "/spi@ff1d0000/flash@0",
+	[BROM_BOOTSOURCE_SD] = "/mmc@fe320000",
+};
 
 static struct mm_region rk3399_mem_map[] = {
 	{
@@ -40,15 +54,8 @@ static struct mm_region rk3399_mem_map[] = {
 
 struct mm_region *mem_map = rk3399_mem_map;
 
-const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
-	[BROM_BOOTSOURCE_EMMC] = "/sdhci@fe330000",
-	[BROM_BOOTSOURCE_SPINOR] = "/spi@ff1d0000",
-	[BROM_BOOTSOURCE_SD] = "/dwmmc@fe320000",
-};
-
 #ifdef CONFIG_SPL_BUILD
 
-#define TIMER_CHN10_BASE	0xff8680a0
 #define TIMER_END_COUNT_L	0x00
 #define TIMER_END_COUNT_H	0x04
 #define TIMER_INIT_COUNT_L	0x10
@@ -56,36 +63,32 @@ const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
 #define TIMER_CONTROL_REG	0x1c
 
 #define TIMER_EN	0x1
-#define	TIMER_FMODE	(0 << 1)
-#define	TIMER_RMODE	(1 << 1)
+#define TIMER_FMODE	BIT(0)
+#define TIMER_RMODE	BIT(1)
 
 void rockchip_stimer_init(void)
 {
-	writel(0xffffffff, TIMER_CHN10_BASE + TIMER_END_COUNT_L);
-	writel(0xffffffff, TIMER_CHN10_BASE + TIMER_END_COUNT_H);
-	writel(0, TIMER_CHN10_BASE + TIMER_INIT_COUNT_L);
-	writel(0, TIMER_CHN10_BASE + TIMER_INIT_COUNT_H);
-	writel(TIMER_EN | TIMER_FMODE, TIMER_CHN10_BASE + TIMER_CONTROL_REG);
+	/* If Timer already enabled, don't re-init it */
+	u32 reg = readl(CONFIG_ROCKCHIP_STIMER_BASE + TIMER_CONTROL_REG);
+
+	if (reg & TIMER_EN)
+		return;
+
+	writel(0xffffffff, CONFIG_ROCKCHIP_STIMER_BASE + TIMER_END_COUNT_L);
+	writel(0xffffffff, CONFIG_ROCKCHIP_STIMER_BASE + TIMER_END_COUNT_H);
+	writel(0, CONFIG_ROCKCHIP_STIMER_BASE + TIMER_INIT_COUNT_L);
+	writel(0, CONFIG_ROCKCHIP_STIMER_BASE + TIMER_INIT_COUNT_H);
+	writel(TIMER_EN | TIMER_FMODE, CONFIG_ROCKCHIP_STIMER_BASE + \
+	       TIMER_CONTROL_REG);
 }
 #endif
 
-#define GRF_BASE	0xff770000
-#define PMUGRF_BASE	0xff320000
-#define PMUSGRF_BASE	0xff330000
-#define PMUCRU_BASE	0xff750000
-#define NIU_PERILP_NSP_ADDR	0xffad8188
-#define QOS_PRIORITY_LEVEL(h, l)	((((h) & 3) << 8) | ((l) & 3))
-
-#ifndef CONFIG_TPL_BUILD
 int arch_cpu_init(void)
 {
-	struct rk3399_pmugrf_regs *pmugrf = (void *)PMUGRF_BASE;
-	struct rk3399_grf_regs * const grf = (void *)GRF_BASE;
-
-	/* We do some SoC one time setting here. */
 
 #ifdef CONFIG_SPL_BUILD
-	struct rk3399_pmusgrf_regs *sgrf = (void *)PMUSGRF_BASE;
+	struct rk3399_pmusgrf_regs *sgrf;
+	struct rk3399_grf_regs *grf;
 
 	/*
 	 * Disable DDR and SRAM security regions.
@@ -96,34 +99,24 @@ int arch_cpu_init(void)
 	 * driver, which tries to DMA from/to the stack (likely)
 	 * located in this range.
 	 */
+	sgrf = syscon_get_first_range(ROCKCHIP_SYSCON_PMUSGRF);
 	rk_clrsetreg(&sgrf->ddr_rgn_con[16], 0x1ff, 0);
 	rk_clrreg(&sgrf->slv_secure_con4, 0x2000);
-#endif
 
-	/* eMMC clock generator: disable the clock multipilier */
+	/*  eMMC clock generator: disable the clock multipilier */
+	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
 	rk_clrreg(&grf->emmccore_con[11], 0x0ff);
-
-	/* PWM3 select pwm3a io */
-	rk_clrreg(&pmugrf->soc_con0, 1 << 5);
-
-#if defined(CONFIG_ROCKCHIP_RK3399PRO)
-	struct rk3399_pmucru *pmucru = (void *)PMUCRU_BASE;
-
-	/* set wifi_26M to 24M and disabled by default */
-	writel(0x7f002000, &pmucru->pmucru_clksel[1]);
-	writel(0x01000100, &pmucru->pmucru_clkgate_con[0]);
 #endif
-
-	/* Set perilp_nsp QOS priority to 3 for USB 3.0 */
-	writel(QOS_PRIORITY_LEVEL(3, 3), NIU_PERILP_NSP_ADDR);
 
 	return 0;
 }
-#endif
 
+#ifdef CONFIG_DEBUG_UART_BOARD_INIT
 void board_debug_uart_init(void)
 {
 #define GRF_BASE	0xff770000
+#define GPIO0_BASE	0xff720000
+#define PMUGRF_BASE	0xff320000
 	struct rk3399_grf_regs * const grf = (void *)GRF_BASE;
 
 #if defined(CONFIG_DEBUG_UART_BASE) && (CONFIG_DEBUG_UART_BASE == 0xff180000)
@@ -134,24 +127,189 @@ void board_debug_uart_init(void)
 	rk_clrsetreg(&grf->gpio2c_iomux,
 		     GRF_GPIO2C1_SEL_MASK,
 		     GRF_UART0BT_SOUT << GRF_GPIO2C1_SEL_SHIFT);
+#elif defined(CONFIG_DEBUG_UART_BASE) && (CONFIG_DEBUG_UART_BASE == 0xff1B0000)
+	/* Enable early UART3 on the RK3399 */
+	rk_clrsetreg(&grf->gpio3b_iomux,
+		     GRF_GPIO3B6_SEL_MASK,
+		     GRF_UART3_SIN << GRF_GPIO3B6_SEL_SHIFT);
+	rk_clrsetreg(&grf->gpio3b_iomux,
+		     GRF_GPIO3B7_SEL_MASK,
+		     GRF_UART3_SOUT << GRF_GPIO3B7_SEL_SHIFT);
 #else
-	/* Enable early UART2 channel on the RK3399/RK3399PRO */
+	struct rk3399_pmugrf_regs * const pmugrf = (void *)PMUGRF_BASE;
+	struct rockchip_gpio_regs * const gpio = (void *)GPIO0_BASE;
+
+	if (IS_ENABLED(CONFIG_SPL_BUILD) &&
+	    IS_ENABLED(CONFIG_TARGET_CHROMEBOOK_BOB)) {
+		rk_setreg(&grf->io_vsel, 1 << 0);
+
+		/*
+		 * Let's enable these power rails here, we are already running
+		 * the SPI-Flash-based code.
+		 */
+		spl_gpio_output(gpio, GPIO(BANK_B, 2), 1);  /* PP1500_EN */
+		spl_gpio_set_pull(&pmugrf->gpio0_p, GPIO(BANK_B, 2),
+				  GPIO_PULL_NORMAL);
+
+		spl_gpio_output(gpio, GPIO(BANK_B, 4), 1);  /* PP3000_EN */
+		spl_gpio_set_pull(&pmugrf->gpio0_p, GPIO(BANK_B, 4),
+				  GPIO_PULL_NORMAL);
+	}
+
+	/* Enable early UART2 channel C on the RK3399 */
 	rk_clrsetreg(&grf->gpio4c_iomux,
 		     GRF_GPIO4C3_SEL_MASK,
 		     GRF_UART2DGBC_SIN << GRF_GPIO4C3_SEL_SHIFT);
 	rk_clrsetreg(&grf->gpio4c_iomux,
 		     GRF_GPIO4C4_SEL_MASK,
 		     GRF_UART2DBGC_SOUT << GRF_GPIO4C4_SEL_SHIFT);
-#if defined(CONFIG_ROCKCHIP_RK3399PRO)
-	/* Set channel A as UART2 input */
-	rk_clrsetreg(&grf->soc_con7,
-		     GRF_UART_DBG_SEL_MASK,
-		     GRF_UART_DBG_SEL_A << GRF_UART_DBG_SEL_SHIFT);
-#else
 	/* Set channel C as UART2 input */
 	rk_clrsetreg(&grf->soc_con7,
 		     GRF_UART_DBG_SEL_MASK,
 		     GRF_UART_DBG_SEL_C << GRF_UART_DBG_SEL_SHIFT);
 #endif
+}
+#endif
+
+#if defined(CONFIG_SPL_BUILD) && !defined(CONFIG_TPL_BUILD)
+const char *spl_decode_boot_device(u32 boot_device)
+{
+	int i;
+	static const struct {
+		u32 boot_device;
+		const char *ofpath;
+	} spl_boot_devices_tbl[] = {
+		{ BOOT_DEVICE_MMC1, "/mmc@fe320000" },
+		{ BOOT_DEVICE_MMC2, "/sdhci@fe330000" },
+		{ BOOT_DEVICE_SPI, "/spi@ff1d0000" },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(spl_boot_devices_tbl); ++i)
+		if (spl_boot_devices_tbl[i].boot_device == boot_device)
+			return spl_boot_devices_tbl[i].ofpath;
+
+	return NULL;
+}
+
+void spl_perform_fixups(struct spl_image_info *spl_image)
+{
+	void *blob = spl_image->fdt_addr;
+	const char *boot_ofpath;
+	int chosen;
+
+	/*
+	 * Inject the ofpath of the device the full U-Boot (or Linux in
+	 * Falcon-mode) was booted from into the FDT, if a FDT has been
+	 * loaded at the same time.
+	 */
+	if (!blob)
+		return;
+
+	boot_ofpath = spl_decode_boot_device(spl_image->boot_device);
+	if (!boot_ofpath) {
+		pr_err("%s: could not map boot_device to ofpath\n", __func__);
+		return;
+	}
+
+	chosen = fdt_find_or_add_subnode(blob, 0, "chosen");
+	if (chosen < 0) {
+		pr_err("%s: could not find/create '/chosen'\n", __func__);
+		return;
+	}
+	fdt_setprop_string(blob, chosen,
+			   "u-boot,spl-boot-device", boot_ofpath);
+}
+
+#if defined(SPL_GPIO)
+static void rk3399_force_power_on_reset(void)
+{
+	ofnode node;
+	struct gpio_desc sysreset_gpio;
+
+	debug("%s: trying to force a power-on reset\n", __func__);
+
+	node = ofnode_path("/config");
+	if (!ofnode_valid(node)) {
+		debug("%s: no /config node?\n", __func__);
+		return;
+	}
+
+	if (gpio_request_by_name_nodev(node, "sysreset-gpio", 0,
+				       &sysreset_gpio, GPIOD_IS_OUT)) {
+		debug("%s: could not find a /config/sysreset-gpio\n", __func__);
+		return;
+	}
+
+	dm_gpio_set_value(&sysreset_gpio, 1);
+}
+#endif
+
+void __weak led_setup(void)
+{
+}
+
+void spl_board_init(void)
+{
+	led_setup();
+
+#if defined(SPL_GPIO)
+	struct rockchip_cru *cru = rockchip_get_cru();
+
+	/*
+	 * The RK3399 resets only 'almost all logic' (see also in the TRM
+	 * "3.9.4 Global software reset"), when issuing a software reset.
+	 * This may cause issues during boot-up for some configurations of
+	 * the application software stack.
+	 *
+	 * To work around this, we test whether the last reset reason was
+	 * a power-on reset and (if not) issue an overtemp-reset to reset
+	 * the entire module.
+	 *
+	 * While this was previously fixed by modifying the various places
+	 * that could generate a software reset (e.g. U-Boot's sysreset
+	 * driver, the ATF or Linux), we now have it here to ensure that
+	 * we no longer have to track this through the various components.
+	 */
+	if (cru->glb_rst_st != 0)
+		rk3399_force_power_on_reset();
+#endif
+
+#if defined(SPL_DM_REGULATOR)
+	/*
+	 * Turning the eMMC and SPI back on (if disabled via the Qseven
+	 * BIOS_ENABLE) signal is done through a always-on regulator).
+	 */
+	if (regulators_enable_boot_on(false))
+		debug("%s: Cannot enable boot on regulator\n", __func__);
 #endif
 }
+#endif
+
+#if defined(CONFIG_USB_GADGET)
+#include <usb.h>
+
+#if defined(CONFIG_USB_DWC3_GADGET) && !defined(CONFIG_DM_USB_GADGET)
+#include <dwc3-uboot.h>
+
+static struct dwc3_device dwc3_device_data = {
+	.maximum_speed = USB_SPEED_HIGH,
+	.base = 0xfe800000,
+	.dr_mode = USB_DR_MODE_PERIPHERAL,
+	.index = 0,
+	.dis_u2_susphy_quirk = 1,
+	.hsphy_mode = USBPHY_INTERFACE_MODE_UTMIW,
+};
+
+int usb_gadget_handle_interrupts(int index)
+{
+	dwc3_uboot_handle_interrupt(0);
+	return 0;
+}
+
+int board_usb_init(int index, enum usb_init_type init)
+{
+	return dwc3_uboot_init(&dwc3_device_data);
+}
+#endif /* CONFIG_USB_DWC3_GADGET */
+
+#endif /* CONFIG_USB_GADGET */

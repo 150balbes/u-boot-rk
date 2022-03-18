@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * LPC32xx SLC NAND flash controller driver
  *
@@ -10,8 +11,11 @@
  */
 
 #include <common.h>
+#include <log.h>
 #include <nand.h>
+#include <linux/bug.h>
 #include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/config.h>

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2010,2011 NVIDIA Corporation <www.nvidia.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ARCH_EMC_H_
@@ -82,7 +81,7 @@ struct emc_ctlr {
  *
  * @param blob	Device tree blob
  * @param rate	Clock speed of memory controller in Hz (=2x memory bus rate)
- * @return 0 if ok, else -ve error code (look in emc.c to decode it)
+ * Return: 0 if ok, else -ve error code (look in emc.c to decode it)
  */
 int tegra_set_emc(const void *blob, unsigned rate);
 
@@ -90,7 +89,7 @@ int tegra_set_emc(const void *blob, unsigned rate);
  * Get a pointer to the EMC controller from the device tree.
  *
  * @param blob	Device tree blob
- * @return pointer to EMC controller
+ * Return: pointer to EMC controller
  */
 struct emc_ctlr *emc_get_controller(const void *blob);
 

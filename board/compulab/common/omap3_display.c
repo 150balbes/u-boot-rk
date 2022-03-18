@@ -1,23 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012 - 2013 CompuLab, Ltd. <www.compulab.co.il>
  *
  * Authors: Nikita Kiryanov <nikita@compulab.co.il>
  *
  * Parsing code based on linux/drivers/video/pxafb.c
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <env.h>
 #include <stdio_dev.h>
 #include <asm/arch/dss.h>
 #include <lcd.h>
 #include <scf0403_lcd.h>
 #include <asm/arch-omap3/dss.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 enum display_type {
 	NONE,
@@ -246,7 +244,7 @@ static int parse_pixclock(char *pixclock)
 	int divisor, pixclock_val;
 	char *pixclk_start = pixclock;
 
-	pixclock_val = simple_strtoul(pixclock, &pixclock, 10);
+	pixclock_val = dectoul(pixclock, &pixclock);
 	divisor = DIV_ROUND_UP(PIXEL_CLK_NUMERATOR, pixclock_val);
 	/* 0 and 1 are illegal values for PCD */
 	if (divisor <= 1)

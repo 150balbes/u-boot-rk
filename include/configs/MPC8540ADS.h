@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2004, 2011 Freescale Semiconductor.
  * (C) Copyright 2002,2003 Motorola,Inc.
  * Xianghua Xiao <X.Xiao@motorola.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -22,16 +21,10 @@
  * default CCARBAR is at 0xff700000
  * assume U-Boot is less than 0.5MB
  */
-#define	CONFIG_SYS_TEXT_BASE	0xfff80000
 
 #ifndef CONFIG_HAS_FEC
 #define CONFIG_HAS_FEC		1	/* 8540 has FEC */
 #endif
-
-#define CONFIG_PCI_INDIRECT_BRIDGE
-#define CONFIG_SYS_PCI_64BIT	1	/* enable 64-bit PCI resources */
-#define CONFIG_TSEC_ENET		/* tsec ethernet support */
-#define CONFIG_ENV_OVERWRITE
 
 /*
  * sysclk for MPC85xx
@@ -51,26 +44,17 @@
  * Note that PCI-X won't work at 33MHz.
  */
 
-#ifndef CONFIG_SYS_CLK_FREQ
-#define CONFIG_SYS_CLK_FREQ	33000000
-#endif
-
 /*
  * These can be toggled for performance analysis, otherwise use default.
  */
 #define CONFIG_L2_CACHE			/* toggle L2 cache */
 #define CONFIG_BTB			/* toggle branch predition */
 
-#define CONFIG_SYS_MEMTEST_START	0x00200000	/* memtest region */
-#define CONFIG_SYS_MEMTEST_END		0x00400000
-
 #define CONFIG_SYS_CCSRBAR		0xe0000000
 #define CONFIG_SYS_CCSRBAR_PHYS_LOW	CONFIG_SYS_CCSRBAR
 
 /* DDR Setup */
 #define CONFIG_SPD_EEPROM		/* Use SPD EEPROM for DDR setup*/
-#define CONFIG_DDR_SPD
-#undef CONFIG_FSL_DDR_INTERACTIVE
 
 #define CONFIG_MEM_INIT_VALUE		0xDeadBeef
 
@@ -100,10 +84,7 @@
 #define CONFIG_SYS_LBC_SDRAM_SIZE	64		/* LBC SDRAM is 64MB */
 
 #define CONFIG_SYS_FLASH_BASE		0xff000000	/* start of FLASH 16M */
-#define CONFIG_SYS_BR0_PRELIM		0xff001801	/* port size 32bit */
 
-#define CONFIG_SYS_OR0_PRELIM		0xff006ff7	/* 16MB Flash */
-#define CONFIG_SYS_MAX_FLASH_BANKS	1		/* number of banks */
 #define CONFIG_SYS_MAX_FLASH_SECT	64		/* sectors per device */
 #undef	CONFIG_SYS_FLASH_CHECKSUM
 #define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
@@ -117,11 +98,7 @@
 #undef  CONFIG_SYS_RAMBOOT
 #endif
 
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_SYS_FLASH_CFI
 #define CONFIG_SYS_FLASH_EMPTY_INFO
-
-#undef CONFIG_CLOCKS_IN_MHZ
 
 /*
  * Local Bus Definitions
@@ -145,8 +122,6 @@
  * FIXME: the top 17 bits of BR2.
  */
 
-#define CONFIG_SYS_BR2_PRELIM		0xf0001861
-
 /*
  * The SDRAM size in MB, CONFIG_SYS_LBC_SDRAM_SIZE, is 64.
  *
@@ -160,8 +135,6 @@
  * 0    4    8    12   16   20   24   28
  * 1111 1100 0000 0000 0110 1001 0000 0001 = fc006901
  */
-
-#define CONFIG_SYS_OR2_PRELIM		0xfc006901
 
 #define CONFIG_SYS_LBC_LCRR		0x00030004    /* LB clock ratio reg */
 #define CONFIG_SYS_LBC_LBCR		0x00000000    /* LB config reg */
@@ -190,8 +163,6 @@
 /*
  * 32KB, 8-bit wide for ADS config reg
  */
-#define CONFIG_SYS_BR4_PRELIM          0xf8000801
-#define CONFIG_SYS_OR4_PRELIM		0xffffe1f1
 #define CONFIG_SYS_BCSR		(CONFIG_SYS_BR4_PRELIM & 0xffff8000)
 
 #define CONFIG_SYS_INIT_RAM_LOCK	1
@@ -202,10 +173,8 @@
 #define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
 
 #define CONFIG_SYS_MONITOR_LEN		(256 * 1024)    /* Reserve 256 kB for Mon */
-#define CONFIG_SYS_MALLOC_LEN		(128 * 1024)    /* Reserved for malloc */
 
 /* Serial Port */
-#define CONFIG_CONS_INDEX     1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE    1
 #define CONFIG_SYS_NS16550_CLK		get_bus_freq(0)
@@ -219,11 +188,6 @@
 /*
  * I2C
  */
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_FSL
-#define CONFIG_SYS_FSL_I2C_SPEED	400000
-#define CONFIG_SYS_FSL_I2C_SLAVE	0x7F
-#define CONFIG_SYS_FSL_I2C_OFFSET	0x3000
 #define CONFIG_SYS_I2C_NOPROBES		{ {0, 0x69} }
 
 /* RapidIO MMU */
@@ -246,8 +210,6 @@
 #define CONFIG_SYS_PCI1_IO_SIZE	0x100000	/* 1M */
 
 #if defined(CONFIG_PCI)
-#undef CONFIG_EEPRO100
-#undef CONFIG_TULIP
 
 #if !defined(CONFIG_PCI_PNP)
     #define PCI_ENET0_IOADDR	0xe0000000
@@ -256,13 +218,11 @@
 #endif
 
 #undef CONFIG_PCI_SCAN_SHOW		/* show pci devices on startup */
-#define CONFIG_SYS_PCI_SUBSYS_VENDORID 0x1057  /* Motorola */
 
 #endif	/* CONFIG_PCI */
 
 #if defined(CONFIG_TSEC_ENET)
 
-#define CONFIG_MII		1	/* MII PHY management */
 #define CONFIG_TSEC1	1
 #define CONFIG_TSEC1_NAME	"TSEC0"
 #define CONFIG_TSEC2	1
@@ -290,14 +250,6 @@
 /*
  * Environment
  */
-#ifndef CONFIG_SYS_RAMBOOT
-  #define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE + 0x40000)
-  #define CONFIG_ENV_SECT_SIZE	0x40000	/* 256K(one sector) for env */
-  #define CONFIG_ENV_SIZE		0x2000
-#else
-  #define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE - 0x1000)
-  #define CONFIG_ENV_SIZE		0x2000
-#endif
 
 #define CONFIG_LOADS_ECHO	1	/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	1	/* allow baudrate change */
@@ -306,23 +258,10 @@
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
-
-/*
- * Command line configuration.
- */
-
-#undef CONFIG_WATCHDOG			/* watchdog disabled */
 
 /*
  * Miscellaneous configurable options
  */
-#define CONFIG_SYS_LONGHELP			/* undef to save memory	*/
-#define CONFIG_CMDLINE_EDITING			/* Command-line editing */
-#define CONFIG_AUTO_COMPLETE			/* add autocompletion support */
-#define CONFIG_SYS_LOAD_ADDR	0x2000000	/* default load address */
 
 /*
  * For booting Linux, the board info and command line data
@@ -331,10 +270,6 @@
  */
 #define CONFIG_SYS_BOOTMAPSZ	(64 << 20)	/* Initial Memory map for Linux*/
 #define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/* Increase max gunzip size */
-
-#if defined(CONFIG_CMD_KGDB)
-#define CONFIG_KGDB_BAUDRATE	230400	/* speed to run kgdb serial port */
-#endif
 
 /*
  * Environment Configuration
@@ -349,15 +284,13 @@
 
 #define CONFIG_IPADDR    192.168.1.253
 
-#define CONFIG_HOSTNAME		unknown
+#define CONFIG_HOSTNAME		"unknown"
 #define CONFIG_ROOTPATH		"/nfsroot"
 #define CONFIG_BOOTFILE		"your.uImage"
 
 #define CONFIG_SERVERIP  192.168.1.1
 #define CONFIG_GATEWAYIP 192.168.1.1
 #define CONFIG_NETMASK   255.255.255.0
-
-#define CONFIG_LOADADDR  200000	/* default location for tftp and bootm */
 
 #define	CONFIG_EXTRA_ENV_SETTINGS				        \
    "netdev=eth0\0"                                                      \
@@ -366,24 +299,5 @@
    "ramdiskfile=your.ramdisk.u-boot\0"					\
    "fdtaddr=400000\0"							\
    "fdtfile=your.fdt.dtb\0"
-
-#define CONFIG_NFSBOOTCOMMAND	                                        \
-   "setenv bootargs root=/dev/nfs rw "                                  \
-      "nfsroot=$serverip:$rootpath "                                    \
-      "ip=$ipaddr:$serverip:$gatewayip:$netmask:$hostname:$netdev:off " \
-      "console=$consoledev,$baudrate $othbootargs;"                     \
-   "tftp $loadaddr $bootfile;"                                          \
-   "tftp $fdtaddr $fdtfile;"						\
-   "bootm $loadaddr - $fdtaddr"
-
-#define CONFIG_RAMBOOTCOMMAND \
-   "setenv bootargs root=/dev/ram rw "                                  \
-      "console=$consoledev,$baudrate $othbootargs;"                     \
-   "tftp $ramdiskaddr $ramdiskfile;"                                    \
-   "tftp $loadaddr $bootfile;"                                          \
-   "tftp $fdtaddr $fdtfile;"						\
-   "bootm $loadaddr $ramdiskaddr $fdtaddr"
-
-#define CONFIG_BOOTCOMMAND  CONFIG_NFSBOOTCOMMAND
 
 #endif	/* __CONFIG_H */

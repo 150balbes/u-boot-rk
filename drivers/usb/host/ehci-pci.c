@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*-
  * Copyright (c) 2007-2008, Juniper Networks, Inc.
  * All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
+#include <init.h>
+#include <log.h>
 #include <pci.h>
 #include <usb.h>
 #include <asm/io.h>
@@ -162,8 +163,8 @@ U_BOOT_DRIVER(ehci_pci) = {
 	.remove = ehci_pci_remove,
 	.of_match = ehci_pci_ids,
 	.ops	= &ehci_usb_ops,
-	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
-	.priv_auto_alloc_size = sizeof(struct ehci_pci_priv),
+	.plat_auto	= sizeof(struct usb_plat),
+	.priv_auto	= sizeof(struct ehci_pci_priv),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
 

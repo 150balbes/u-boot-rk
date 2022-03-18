@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <i2c.h>
 #include <fdt_support.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/fsl_serdes.h>
 #include <asm/arch/ppa.h>
 #include <asm/arch/soc.h>
+#include <asm/arch-fsl-layerscape/fsl_icid.h>
 #include <hwconfig.h>
 #include <ahci.h>
 #include <mmc.h>
@@ -69,7 +71,7 @@ int board_init(void)
 {
 	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CONFIG_SYS_FSL_SCFG_ADDR;
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_NXP_ESBC
 	/*
 	 * In case of Secure Boot, the IBR configures the SMMU
 	 * to allow only Secure transactions.
@@ -157,7 +159,7 @@ int misc_init_r(void)
 }
 #endif
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	u64 base[CONFIG_NR_DRAM_BANKS];
 	u64 size[CONFIG_NR_DRAM_BANKS];
@@ -172,8 +174,12 @@ int ft_board_setup(void *blob, bd_t *bd)
 	ft_cpu_setup(blob, bd);
 
 #ifdef CONFIG_SYS_DPAA_FMAN
+#ifndef CONFIG_DM_ETH
 	fdt_fixup_fman_ethernet(blob);
 #endif
+#endif
+
+	fdt_fixup_icid(blob);
 
 	return 0;
 }

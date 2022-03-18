@@ -1,6 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 OR IBM-pibs */
 /*
- * SPDX-License-Identifier:	GPL-2.0	IBM-pibs
- *
  * Additions (C) Copyright 2009 Industrie Dial Face S.p.A.
  */
 /*----------------------------------------------------------------------------+
@@ -40,6 +39,7 @@ void miiphy_init(void);
 int miiphy_set_current_dev(const char *devname);
 const char *miiphy_get_current_dev(void);
 struct mii_dev *mdio_get_current_dev(void);
+struct list_head *mdio_get_list_head(void);
 struct mii_dev *miiphy_get_dev_by_name(const char *devname);
 struct phy_device *mdio_phydev_for_ethname(const char *devname);
 
@@ -81,7 +81,15 @@ struct bb_miiphy_bus {
 extern struct bb_miiphy_bus bb_miiphy_buses[];
 extern int bb_miiphy_buses_num;
 
-void bb_miiphy_init(void);
+/**
+ * bb_miiphy_init() - Initialize bit-banged MII bus driver
+ *
+ * It is called during the generic post-relocation init sequence.
+ *
+ * Return: 0 if OK
+ */
+int bb_miiphy_init(void);
+
 int bb_miiphy_read(struct mii_dev *miidev, int addr, int devad, int reg);
 int bb_miiphy_write(struct mii_dev *miidev, int addr, int devad, int reg,
 		    u16 value);
@@ -118,8 +126,6 @@ int bb_miiphy_write(struct mii_dev *miidev, int addr, int devad, int reg,
 #define ESTATUS_1000XF		0x8000
 #define ESTATUS_1000XH		0x4000
 
-#ifdef CONFIG_DM_MDIO
-
 /**
  * struct mdio_perdev_priv - Per-device class data for MDIO DM
  *
@@ -154,17 +160,43 @@ void dm_mdio_probe_devices(void);
 /**
  * dm_mdio_phy_connect - Wrapper over phy_connect for DM MDIO
  *
- * @dev: mdio dev
- * @addr: PHY address on MDIO bus
+ * @mdiodev: mdio device the PHY is accesible on
+ * @phyaddr: PHY address on MDIO bus
  * @ethdev: ethernet device to connect to the PHY
  * @interface: MAC-PHY protocol
  *
- * @return pointer to phy_device, or 0 on error
+ * Return: pointer to phy_device, or 0 on error
  */
-struct phy_device *dm_mdio_phy_connect(struct udevice *dev, int addr,
+struct phy_device *dm_mdio_phy_connect(struct udevice *mdiodev, int phyaddr,
 				       struct udevice *ethdev,
 				       phy_interface_t interface);
 
-#endif
+/**
+ * dm_eth_phy_connect - Connect an Eth device to a PHY based on device tree
+ *
+ * Picks up the DT phy-handle and phy-mode from ethernet device node and
+ * connects the ethernet device to the linked PHY.
+ *
+ * @ethdev: ethernet device
+ *
+ * Return: pointer to phy_device, or 0 on error
+ */
+struct phy_device *dm_eth_phy_connect(struct udevice *ethdev);
+
+/* indicates none of the child buses is selected */
+#define MDIO_MUX_SELECT_NONE	-1
+
+/**
+ * struct mdio_mux_ops - MDIO MUX operations
+ *
+ * @select: Selects a child bus
+ * @deselect: Clean up selection.  Optional, can be NULL
+ */
+struct mdio_mux_ops {
+	int (*select)(struct udevice *mux, int cur, int sel);
+	int (*deselect)(struct udevice *mux, int sel);
+};
+
+#define mdio_mux_get_ops(dev) ((struct mdio_mux_ops *)(dev)->driver->ops)
 
 #endif

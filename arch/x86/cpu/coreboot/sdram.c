@@ -1,45 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2010,2011
  * Graeme Russ, <graeme.russ@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
 #include <asm/e820.h>
-#include <asm/arch/sysinfo.h>
+#include <asm/cb_sysinfo.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-unsigned install_e820_map(unsigned max_entries, struct e820entry *entries)
+unsigned int install_e820_map(unsigned int max_entries,
+			      struct e820_entry *entries)
 {
-	unsigned num_entries;
-	int i;
-
-	num_entries = min((unsigned)lib_sysinfo.n_memranges, max_entries);
-	if (num_entries < lib_sysinfo.n_memranges) {
-		printf("Warning: Limiting e820 map to %d entries.\n",
-			num_entries);
-	}
-	for (i = 0; i < num_entries; i++) {
-		struct memrange *memrange = &lib_sysinfo.memrange[i];
-
-		entries[i].addr = memrange->base;
-		entries[i].size = memrange->size;
-
-		/*
-		 * coreboot has some extensions (type 6 & 16) to the E820 types.
-		 * When we detect this, mark it as E820_RESERVED.
-		 */
-		if (memrange->type == CB_MEM_VENDOR_RSVD ||
-		    memrange->type == CB_MEM_TABLE)
-			entries[i].type = E820_RESERVED;
-		else
-			entries[i].type = memrange->type;
-	}
-
-	return num_entries;
+	return cb_install_e820_map(max_entries, entries);
 }
 
 /*

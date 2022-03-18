@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) Marvell International Ltd. and its affiliates
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __DDR3_AXP_CONFIG_H
@@ -17,11 +16,7 @@
  * Level 3: Provides the windows margin of each DQ as a results of DQS
  *          centeralization
  */
-#ifdef CONFIG_DDR_LOG_LEVEL
 #define	DDR3_LOG_LEVEL	CONFIG_DDR_LOG_LEVEL
-#else
-#define	DDR3_LOG_LEVEL	0
-#endif
 
 #define DDR3_PBS        1
 

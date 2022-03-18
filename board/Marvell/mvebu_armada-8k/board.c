@@ -1,15 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Stefan Roese <sr@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <i2c.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -140,7 +142,7 @@ int board_xhci_enable(fdt_addr_t base)
 
 int board_early_init_f(void)
 {
-	/* Nothing to do (yet), perhaps later some pin-muxing etc */
+	/* Nothing to do yet */
 
 	return 0;
 }

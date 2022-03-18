@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013 Google, Inc
  *
  * (C) Copyright 2012
  * Pavel Herrmann <morpheus.ibis@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -15,9 +14,9 @@
 
 static int simple_hello(struct udevice *dev, int ch)
 {
-	const struct dm_demo_pdata *pdata = dev_get_platdata(dev);
+	const struct dm_demo_pdata *pdata = dev_get_plat(dev);
 
-	printf("Hello from %08x: %s %d\n", map_to_sysmem(dev), pdata->colour,
+	printf("Hello from %08x: %s %d\n", (uint)map_to_sysmem(dev), pdata->colour,
 	       pdata->sides);
 
 	return 0;
@@ -27,7 +26,7 @@ static const struct demo_ops simple_ops = {
 	.hello = simple_hello,
 };
 
-static int demo_shape_ofdata_to_platdata(struct udevice *dev)
+static int demo_shape_of_to_plat(struct udevice *dev)
 {
 	/* Parse the data that is common with all demo devices */
 	return demo_parse_dt(dev);
@@ -42,7 +41,7 @@ U_BOOT_DRIVER(demo_simple_drv) = {
 	.name	= "demo_simple_drv",
 	.of_match = demo_shape_id,
 	.id	= UCLASS_DEMO,
-	.ofdata_to_platdata = demo_shape_ofdata_to_platdata,
+	.of_to_plat = demo_shape_of_to_plat,
 	.ops	= &simple_ops,
-	.platdata_auto_alloc_size = sizeof(struct dm_demo_pdata),
+	.plat_auto	= sizeof(struct dm_demo_pdata),
 };

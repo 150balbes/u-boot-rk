@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Most of this source has been derived from the Linux USB
  * project:
@@ -13,8 +14,6 @@
  *
  * Adapted for U-Boot:
  * (C) Copyright 2001 Denis Peter, MPL AG Switzerland
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /****************************************************************************
@@ -25,19 +24,21 @@
 #include <common.h>
 #include <command.h>
 #include <dm.h>
+#include <env.h>
 #include <errno.h>
+#include <log.h>
+#include <malloc.h>
 #include <memalign.h>
 #include <asm/processor.h>
 #include <asm/unaligned.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/list.h>
 #include <asm/byteorder.h>
 #ifdef CONFIG_SANDBOX
 #include <asm/state.h>
 #endif
 #include <asm/unaligned.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 #include <usb.h>
 
@@ -143,7 +144,8 @@ int usb_get_port_status(struct usb_device *dev, int port, void *data)
 
 	if (!usb_hub_is_root_hub(dev->dev) && usb_hub_is_superspeed(dev)) {
 		struct usb_port_status *status = (struct usb_port_status *)data;
-		u16 tmp = (status->wPortStatus) & USB_SS_PORT_STAT_MASK;
+		u16 tmp = le16_to_cpu(status->wPortStatus) &
+			USB_SS_PORT_STAT_MASK;
 
 		if (status->wPortStatus & USB_SS_PORT_STAT_POWER)
 			tmp |= USB_PORT_STAT_POWER;
@@ -151,7 +153,7 @@ int usb_get_port_status(struct usb_device *dev, int port, void *data)
 		    USB_SS_PORT_STAT_SPEED_5GBPS)
 			tmp |= USB_PORT_STAT_SUPER_SPEED;
 
-		status->wPortStatus = tmp;
+		status->wPortStatus = cpu_to_le16(tmp);
 	}
 #endif
 
@@ -236,26 +238,18 @@ static struct usb_hub_device *usb_hub_allocate(void)
 
 #define MAX_TRIES 5
 
-static inline char *portspeed(int portstatus)
+static inline const char *portspeed(int portstatus)
 {
-	char *speed_str;
-
 	switch (portstatus & USB_PORT_STAT_SPEED_MASK) {
 	case USB_PORT_STAT_SUPER_SPEED:
-		speed_str = "5 Gb/s";
-		break;
+		return "5 Gb/s";
 	case USB_PORT_STAT_HIGH_SPEED:
-		speed_str = "480 Mb/s";
-		break;
+		return "480 Mb/s";
 	case USB_PORT_STAT_LOW_SPEED:
-		speed_str = "1.5 Mb/s";
-		break;
+		return "1.5 Mb/s";
 	default:
-		speed_str = "12 Mb/s";
-		break;
+		return "12 Mb/s";
 	}
-
-	return speed_str;
 }
 
 /**
@@ -965,9 +959,9 @@ UCLASS_DRIVER(usb_hub) = {
 	.post_bind	= dm_scan_fdt_dev,
 	.post_probe	= usb_hub_post_probe,
 	.child_pre_probe	= usb_child_pre_probe,
-	.per_child_auto_alloc_size = sizeof(struct usb_device),
-	.per_child_platdata_auto_alloc_size = sizeof(struct usb_dev_platdata),
-	.per_device_auto_alloc_size = sizeof(struct usb_hub_device),
+	.per_child_auto	= sizeof(struct usb_device),
+	.per_child_plat_auto	= sizeof(struct usb_dev_plat),
+	.per_device_auto	= sizeof(struct usb_hub_device),
 };
 
 static const struct usb_device_id hub_id_table[] = {

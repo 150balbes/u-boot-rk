@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * From Coreboot src/northbridge/intel/sandybridge/report_platform.c
  *
  * Copyright (C) 2012 Google Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
+#include <log.h>
 #include <asm/cpu.h>
 #include <asm/pci.h>
 #include <asm/report_platform.h>

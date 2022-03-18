@@ -4,8 +4,12 @@
  * Copyright (C) 2019-2020 Linaro Limited.
  */
 
+#define LOG_CATEGORY UCLASS_SCMI_AGENT
+
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <dm/device_compat.h>
 #include <errno.h>
 #include <scmi_agent.h>
 #include <asm/cache.h>
@@ -26,7 +30,6 @@ int scmi_dt_get_smt_buffer(struct udevice *dev, struct scmi_smt *smt)
 	int ret;
 	struct ofnode_phandle_args args;
 	struct resource resource;
-	phys_addr_t paddr;
 
 	ret = dev_read_phandle_with_args(dev, "shmem", NULL, 0, 0, &args);
 	if (ret)
@@ -36,22 +39,22 @@ int scmi_dt_get_smt_buffer(struct udevice *dev, struct scmi_smt *smt)
 	if (ret)
 		return ret;
 
-	paddr = resource.start;
 	smt->size = resource_size(&resource);
 	if (smt->size < sizeof(struct scmi_smt_header)) {
 		dev_err(dev, "Shared memory buffer too small\n");
 		return -EINVAL;
 	}
 
-	smt->buf = devm_ioremap(dev, paddr, smt->size);
+	smt->buf = devm_ioremap(dev, resource.start, smt->size);
 	if (!smt->buf)
 		return -ENOMEM;
 
 #ifdef CONFIG_ARM
 	if (dcache_status())
-		mmu_set_region_dcache_behaviour(round_down((ulong)smt->buf, SZ_4K),
-						round_up((ulong)smt->size, SZ_4K),
+		mmu_set_region_dcache_behaviour(ALIGN_DOWN((uintptr_t)smt->buf, MMU_SECTION_SIZE),
+						ALIGN(smt->size, MMU_SECTION_SIZE),
 						DCACHE_OFF);
+
 #endif
 
 	return 0;

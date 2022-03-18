@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Advanced Crypto Engine - SHA Firmware
  * Copyright (c) 2012  Samsung Electronics
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include "ace_sha.h"
+#include <log.h>
+#include <rand.h>
 
 #ifdef CONFIG_SHA_HW_ACCEL
 #include <u-boot/sha256.h>

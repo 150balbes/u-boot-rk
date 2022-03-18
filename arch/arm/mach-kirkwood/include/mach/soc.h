@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
  *
  * Header file for the Marvell's Feroceon CPU core.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_KIRKWOOD_H
@@ -32,7 +31,7 @@
 #define KW_RTC_BASE			(KW_REGISTER(0x10300))
 #define KW_NANDF_BASE			(KW_REGISTER(0x10418))
 #define MVEBU_SPI_BASE			(KW_REGISTER(0x10600))
-#define KW_CPU_WIN_BASE			(KW_REGISTER(0x20000))
+#define MVEBU_CPU_WIN_BASE			(KW_REGISTER(0x20000))
 #define KW_CPU_REG_BASE			(KW_REGISTER(0x20100))
 #define MVEBU_TIMER_BASE			(KW_REGISTER(0x20300))
 #define KW_REG_PCIE_BASE		(KW_REGISTER(0x40000))

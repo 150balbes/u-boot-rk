@@ -1,20 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Board functions for Compulab CM-FX6 board
  *
  * Copyright (C) 2014, Compulab Ltd - http://compulab.co.il/
  *
  * Author: Nikita Kiryanov <nikita@compulab.co.il>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <ahci.h>
 #include <dm.h>
 #include <dwc_ahsata.h>
-#include <fsl_esdhc.h>
+#include <env.h>
+#include <fsl_esdhc_imx.h>
+#include <init.h>
 #include <miiphy.h>
 #include <mtd_node.h>
+#include <net.h>
 #include <netdev.h>
 #include <errno.h>
 #include <usb.h>
@@ -25,6 +27,7 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/mxc_hdmi.h>
+#include <asm/global_data.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/mach-imx/sata.h>
 #include <asm/mach-imx/video.h>
@@ -33,6 +36,7 @@
 #include <dm/platform_data/serial_mxc.h>
 #include <dm/device-internal.h>
 #include <jffs2/load_kernel.h>
+#include <linux/delay.h>
 #include "common.h"
 #include "../common/eeprom.h"
 #include "../common/common.h"
@@ -146,6 +150,11 @@ int board_video_skip(void)
 static inline void cm_fx6_setup_display(void) {}
 #endif /* CONFIG_VIDEO_IPUV3 */
 
+int ipu_displays_init(void)
+{
+	return board_video_skip();
+}
+
 #ifdef CONFIG_DWC_AHSATA
 static int cm_fx6_issd_gpios[] = {
 	/* The order of the GPIOs in the array is important! */
@@ -210,48 +219,6 @@ static int cm_fx6_setup_issd(void)
 
 #define CM_FX6_SATA_INIT_RETRIES	10
 
-# if !CONFIG_IS_ENABLED(AHCI)
-int sata_initialize(void)
-{
-	int err, i;
-
-	/* Make sure this gpio has logical 0 value */
-	gpio_direction_output(CM_FX6_SATA_PWLOSS_INT, 0);
-	udelay(100);
-	cm_fx6_sata_power(1);
-
-	for (i = 0; i < CM_FX6_SATA_INIT_RETRIES; i++) {
-		err = setup_sata();
-		if (err) {
-			printf("SATA setup failed: %d\n", err);
-			return err;
-		}
-
-		udelay(100);
-
-		err = __sata_initialize();
-		if (!err)
-			break;
-
-		/* There is no device on the SATA port */
-		if (sata_port_status(0, 0) == 0)
-			break;
-
-		/* There's a device, but link not established. Retry */
-	}
-
-	return err;
-}
-
-int sata_stop(void)
-{
-	__sata_stop();
-	cm_fx6_sata_power(0);
-	mdelay(250);
-
-	return 0;
-}
-# endif
 #else
 static int cm_fx6_setup_issd(void) { return 0; }
 #endif
@@ -492,7 +459,7 @@ static int handle_mac_address(char *env_var, uint eeprom_bus)
 
 #define SB_FX6_I2C_EEPROM_BUS	0
 #define NO_MAC_ADDR		"No MAC address found for %s\n"
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int err;
 
@@ -548,35 +515,6 @@ static void cm_fx6_setup_gpmi_nand(void)
 static void cm_fx6_setup_gpmi_nand(void) {}
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
-static struct fsl_esdhc_cfg usdhc_cfg[3] = {
-	{USDHC1_BASE_ADDR},
-	{USDHC2_BASE_ADDR},
-	{USDHC3_BASE_ADDR},
-};
-
-static enum mxc_clock usdhc_clk[3] = {
-	MXC_ESDHC_CLK,
-	MXC_ESDHC2_CLK,
-	MXC_ESDHC3_CLK,
-};
-
-int board_mmc_init(bd_t *bis)
-{
-	int i;
-
-	cm_fx6_set_usdhc_iomux();
-	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
-		usdhc_cfg[i].sdhc_clk = mxc_get_clock(usdhc_clk[i]);
-		usdhc_cfg[i].max_bus_width = 4;
-		fsl_esdhc_initialize(bis, &usdhc_cfg[i]);
-		enable_usdhc_clk(1, i);
-	}
-
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_MXC_SPI
 int cm_fx6_setup_ecspi(void)
 {
@@ -590,7 +528,7 @@ int cm_fx6_setup_ecspi(void) { return 0; }
 #ifdef CONFIG_OF_BOARD_SETUP
 #define USDHC3_PATH	"/soc/aips-bus@02100000/usdhc@02198000/"
 
-struct node_info nodes[] = {
+static const struct node_info nodes[] = {
 	/*
 	 * Both entries target the same flash chip. The st,m25p compatible
 	 * is used in the vendor device trees, while upstream uses (the
@@ -600,7 +538,7 @@ struct node_info nodes[] = {
 	{ "jedec,spi-nor",	MTD_DEV_TYPE_NOR,	},
 };
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	u32 baseboard_rev;
 	int nodeoffset;
@@ -679,7 +617,7 @@ int board_init(void)
 	cm_fx6_setup_display();
 
 	/* This should be done in the MMC driver when MX6 has a clock driver */
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 	if (IS_ENABLED(CONFIG_BLK)) {
 		int i;
 
@@ -689,6 +627,27 @@ int board_init(void)
 	}
 #endif
 
+	return 0;
+}
+
+int board_late_init(void)
+{
+#ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
+	char baseboard_name[16];
+	int err;
+
+	if (is_mx6dq())
+		env_set("board_rev", "MX6Q");
+	else if (is_mx6dl())
+		env_set("board_rev", "MX6DL");
+
+	err = cl_eeprom_get_product_name((uchar *)baseboard_name, 0);
+	if (err)
+		return 0;
+
+	if (!strncmp("SB-FX6m", baseboard_name, 7))
+		env_set("board_name", "Utilite");
+#endif
 	return 0;
 }
 
@@ -761,18 +720,20 @@ int dram_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_REVISION_TAG
 u32 get_board_rev(void)
 {
 	return cl_eeprom_get_board_rev(CONFIG_SYS_I2C_EEPROM_BUS);
 }
+#endif
 
-static struct mxc_serial_platdata cm_fx6_mxc_serial_plat = {
+static struct mxc_serial_plat cm_fx6_mxc_serial_plat = {
 	.reg = (struct mxc_uart *)UART4_BASE,
 };
 
-U_BOOT_DEVICE(cm_fx6_serial) = {
+U_BOOT_DRVINFO(cm_fx6_serial) = {
 	.name	= "serial_mxc",
-	.platdata = &cm_fx6_mxc_serial_plat,
+	.plat = &cm_fx6_mxc_serial_plat,
 };
 
 #if CONFIG_IS_ENABLED(AHCI)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * An inteface for configuring a hardware via u-boot environment.
  *
@@ -5,15 +6,16 @@
  * Copyright 2011 Freescale Semiconductor, Inc.
  *
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef HWCONFIG_TEST
 #include <config.h>
 #include <common.h>
+#include <env.h>
 #include <exports.h>
 #include <hwconfig.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #else
@@ -177,7 +179,7 @@ int hwconfig_arg_cmp_f(const char *opt, const char *arg, char *buf)
  *
  * This call is similar to hwconfig_f(), except that it takes additional
  * argument @subopt. In this example:
- * 	"dr_usb:mode=peripheral"
+ *	"dr_usb:mode=peripheral"
  * "dr_usb" is an option, "mode" is a sub-option, and "peripheral" is its
  * argument.
  */

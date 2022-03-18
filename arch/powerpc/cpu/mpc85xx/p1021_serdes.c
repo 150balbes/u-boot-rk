@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/immap_85xx.h>
 #include <asm/fsl_serdes.h>
+#include <linux/delay.h>
 
 typedef struct serdes_85xx {
 	u32	srdscr0;	/* 0x00 - SRDS Control Register 0 */

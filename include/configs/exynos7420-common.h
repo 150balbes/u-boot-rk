@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuration settings for the Espresso7420 board.
  * Copyright (C) 2016 Samsung Electronics
  * Thomas Abraham <thomas.ab@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_EXYNOS7420_COMMON_H
@@ -11,16 +10,10 @@
 
 /* High Level Configuration Options */
 #define CONFIG_SAMSUNG			/* in a SAMSUNG core */
-#define CONFIG_EXYNOS7420		/* Exynos7 Family */
 #define CONFIG_S5P
 
 #include <asm/arch/cpu.h>		/* get chip and board defs */
 #include <linux/sizes.h>
-
-#define CONFIG_ARCH_CPU_INIT
-
-/* Size of malloc() pool before and after relocation */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (80 << 20))
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_CBSIZE		1024	/* Console I/O Buffer Size */
@@ -43,12 +36,7 @@
 #define CONFIG_IRAM_END			(CONFIG_IRAM_BASE + CONFIG_IRAM_SIZE)
 #define CPU_RELEASE_ADDR		secondary_boot_addr
 
-/* Number of CPUs available */
-#define CONFIG_CORE_COUNT		0x8
-
 /* select serial console configuration */
-
-#define CONFIG_SYS_LOAD_ADDR		(CONFIG_SYS_SDRAM_BASE + 0x3E00000)
 
 #define PHYS_SDRAM_1		CONFIG_SYS_SDRAM_BASE
 #define PHYS_SDRAM_1_SIZE	SDRAM_BANK_SIZE
@@ -68,7 +56,6 @@
 #define PHYS_SDRAM_8_SIZE	SDRAM_BANK_SIZE
 
 /* Configuration of ENV Blocks */
-#define CONFIG_ENV_SIZE	(16 << 10) /* 16 KB */
 
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 1) \

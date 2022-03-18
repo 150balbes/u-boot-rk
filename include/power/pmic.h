@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Copyright (C) 2014-2015 Samsung Electronics
  *  Przemyslaw Marczak <p.marczak@samsung.com>
  *
  *  Copyright (C) 2011-2012 Samsung Electronics
  *  Lukasz Majewski <l.majewski@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CORE_PMIC_H_
@@ -18,7 +17,8 @@
 
 enum { PMIC_I2C, PMIC_SPI, PMIC_NONE};
 
-#ifdef CONFIG_POWER
+/* TODO: Change to !CONFIG_IS_ENABLED(DM_PMIC) when SPL_DM_PMIC exists */
+#if CONFIG_IS_ENABLED(POWER_LEGACY)
 enum { I2C_PMIC, I2C_NUM, };
 enum { PMIC_READ, PMIC_WRITE, };
 enum { PMIC_SENSOR_BYTE_ORDER_LITTLE, PMIC_SENSOR_BYTE_ORDER_BIG, };
@@ -83,8 +83,9 @@ struct pmic {
 	struct pmic *parent;
 	struct list_head list;
 };
-#endif /* CONFIG_POWER */
+#endif /* CONFIG_IS_ENABLED(POWER_LEGACY) */
 
+/* TODO: Change to CONFIG_IS_ENABLED(DM_PMIC) when SPL_DM_PMIC exists */
 #ifdef CONFIG_DM_PMIC
 /**
  * U-Boot PMIC Framework
@@ -165,9 +166,6 @@ struct dm_pmic_ops {
 	int (*read)(struct udevice *dev, uint reg, uint8_t *buffer, int len);
 	int (*write)(struct udevice *dev, uint reg, const uint8_t *buffer,
 		     int len);
-	int (*suspend)(struct udevice *dev);
-	int (*resume)(struct udevice *dev);
-	int (*shutdown)(struct udevice *dev);
 };
 
 /**
@@ -191,7 +189,6 @@ enum pmic_op_type {
  * @driver - driver name for the sub-node with prefix
  */
 struct pmic_child_info {
-	const char *addr;
 	const char *prefix;
 	const char *driver;
 };
@@ -204,7 +201,7 @@ struct pmic_child_info {
  *
  * @pmic       - pmic device - the parent of found child's
  * @child_info - N-childs info array
- * @return a positive number of childs, or 0 if no child found (error)
+ * Return: a positive number of childs, or 0 if no child found (error)
  *
  * Note: For N-childs the child_info array should have N+1 entries and the last
  * entry prefix should be NULL - the same as for drivers compatible.
@@ -239,7 +236,7 @@ int pmic_bind_children(struct udevice *pmic, ofnode parent,
  *
  * @name - device name
  * @devp - returned pointer to the pmic device
- * @return 0 on success or negative value of errno.
+ * Return: 0 on success or negative value of errno.
  *
  * The returned devp device can be used with pmic_read/write calls
  */
@@ -251,7 +248,7 @@ int pmic_get(const char *name, struct udevice **devp);
  * The required pmic device can be obtained by 'pmic_get()'
  *
  * @dev - pointer to the UCLASS_PMIC device
- * @return register count value on success or negative value of errno.
+ * Return: register count value on success or negative value of errno.
  */
 int pmic_reg_count(struct udevice *dev);
 
@@ -264,7 +261,7 @@ int pmic_reg_count(struct udevice *dev);
  * @reg    - device register offset
  * @buffer - pointer to read/write buffer
  * @len    - byte count for read/write
- * @return 0 on success or negative value of errno.
+ * Return: 0 on success or negative value of errno.
  */
 int pmic_read(struct udevice *dev, uint reg, uint8_t *buffer, int len);
 int pmic_write(struct udevice *dev, uint reg, const uint8_t *buffer, int len);
@@ -274,7 +271,7 @@ int pmic_write(struct udevice *dev, uint reg, const uint8_t *buffer, int len);
  *
  * @dev:	PMIC device to read
  * @reg:	Register to read
- * @return value read on success or negative value of errno.
+ * Return: value read on success or negative value of errno.
  */
 int pmic_reg_read(struct udevice *dev, uint reg);
 
@@ -284,7 +281,7 @@ int pmic_reg_read(struct udevice *dev, uint reg);
  * @dev:	PMIC device to write
  * @reg:	Register to write
  * @value:	Value to write
- * @return 0 on success or negative value of errno.
+ * Return: 0 on success or negative value of errno.
  */
 int pmic_reg_write(struct udevice *dev, uint reg, uint value);
 
@@ -298,37 +295,25 @@ int pmic_reg_write(struct udevice *dev, uint reg, uint value);
  * @reg:	Register to update
  * @clr:	Bit mask to clear (set those bits that you want cleared)
  * @set:	Bit mask to set (set those bits that you want set)
- * @return 0 on success or negative value of errno.
+ * Return: 0 on success or negative value of errno.
  */
 int pmic_clrsetbits(struct udevice *dev, uint reg, uint clr, uint set);
 
-/**
- * pmic_suspend() - suspend of PMIC
- *
- * @dev:	PMIC device
- * @return 0 on success or negative value of errno.
+/*
+ * This structure holds the private data for PMIC uclass
+ * For now we store information about the number of bytes
+ * being sent at once to the device.
  */
-int pmic_suspend(struct udevice *dev);
+struct uc_pmic_priv {
+	uint trans_len;
+};
 
-/**
- * pmic_resume() - resume of PMIC
- *
- * @dev:	PMIC device
- * @return 0 on success or negative value of errno.
- */
-int pmic_resume(struct udevice *dev);
+#endif /* DM_PMIC */
 
-/**
- * pmic_shutdown() - power off supplies of PMIC
- *
- * @dev:	PMIC device to update
- * @return 0 on success or negative value of errno.
- */
-int pmic_shutdown(struct udevice *dev);
+/* TODO: Change to CONFIG_IS_ENABLED(DM_PMIC) when SPL_DM_PMIC exists */
+#if CONFIG_IS_ENABLED(POWER_LEGACY)
 
-#endif /* CONFIG_DM_PMIC */
-
-#ifdef CONFIG_POWER
+/* Legacy API, do not use */
 int pmic_init(unsigned char bus);
 int power_init_board(void);
 int pmic_dialog_init(unsigned char bus);
@@ -339,7 +324,7 @@ int pmic_probe(struct pmic *p);
 int pmic_reg_read(struct pmic *p, u32 reg, u32 *val);
 int pmic_reg_write(struct pmic *p, u32 reg, u32 val);
 int pmic_set_output(struct pmic *p, u32 reg, int ldo, int on);
-#endif
+#endif /* CONFIG_IS_ENABLED(POWER_LEGACY) */
 
 #define pmic_i2c_addr (p->hw.i2c.addr)
 #define pmic_i2c_tx_num (p->hw.i2c.tx_num)

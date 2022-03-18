@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <efi.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/u-boot-x86.h>
 
 DECLARE_GLOBAL_DATA_PTR;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Marvell International Ltd.
  *
@@ -7,15 +8,16 @@
  *   - drivers/pci/pcie_imx.c
  *   - drivers/pci/pci_mvebu.c
  *   - drivers/pci/pcie_xilinx.c
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <pci.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm-generic/gpio.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -111,6 +113,11 @@ struct pcie_dw_mvebu {
 	void *cfg_base;
 	fdt_size_t cfg_size;
 	int first_busno;
+
+	/* IO and MEM PCI regions */
+	int region_count;
+	struct pci_region io;
+	struct pci_region mem;
 };
 
 static int pcie_dw_get_link_speed(const void *regs_base)
@@ -123,6 +130,34 @@ static int pcie_dw_get_link_width(const void *regs_base)
 {
 	return (readl(regs_base + PCIE_LINK_STATUS_REG) &
 		PCIE_LINK_STATUS_WIDTH_MASK) >> PCIE_LINK_STATUS_WIDTH_OFF;
+}
+
+/**
+ * pcie_dw_prog_outbound_atu() - Configure ATU for outbound accesses
+ *
+ * @pcie: Pointer to the PCI controller state
+ * @index: ATU region index
+ * @type: ATU accsess type
+ * @cpu_addr: the physical address for the translation entry
+ * @pci_addr: the pcie bus address for the translation entry
+ * @size: the size of the translation entry
+ */
+static void pcie_dw_prog_outbound_atu(struct pcie_dw_mvebu *pcie, int index,
+				      int type, u64 cpu_addr, u64 pci_addr,
+				      u32 size)
+{
+	writel(PCIE_ATU_REGION_OUTBOUND | index,
+	       pcie->ctrl_base + PCIE_ATU_VIEWPORT);
+	writel(lower_32_bits(cpu_addr), pcie->ctrl_base + PCIE_ATU_LOWER_BASE);
+	writel(upper_32_bits(cpu_addr), pcie->ctrl_base + PCIE_ATU_UPPER_BASE);
+	writel(lower_32_bits(cpu_addr + size - 1),
+	       pcie->ctrl_base + PCIE_ATU_LIMIT);
+	writel(lower_32_bits(pci_addr),
+	       pcie->ctrl_base + PCIE_ATU_LOWER_TARGET);
+	writel(upper_32_bits(pci_addr),
+	       pcie->ctrl_base + PCIE_ATU_UPPER_TARGET);
+	writel(type, pcie->ctrl_base + PCIE_ATU_CR1);
+	writel(PCIE_ATU_ENABLE, pcie->ctrl_base + PCIE_ATU_CR2);
 }
 
 /**
@@ -143,26 +178,29 @@ static uintptr_t set_cfg_address(struct pcie_dw_mvebu *pcie,
 				 pci_dev_t d, uint where)
 {
 	uintptr_t va_address;
+	u32 atu_type;
 
 	/*
 	 * Region #0 is used for Outbound CFG space access.
 	 * Direction = Outbound
 	 * Region Index = 0
 	 */
-	writel(0, pcie->ctrl_base + PCIE_ATU_VIEWPORT);
 
 	if (PCI_BUS(d) == (pcie->first_busno + 1))
 		/* For local bus, change TLP Type field to 4. */
-		writel(PCIE_ATU_TYPE_CFG0, pcie->ctrl_base + PCIE_ATU_CR1);
+		atu_type = PCIE_ATU_TYPE_CFG0;
 	else
 		/* Otherwise, change TLP Type field to 5. */
-		writel(PCIE_ATU_TYPE_CFG1, pcie->ctrl_base + PCIE_ATU_CR1);
+		atu_type = PCIE_ATU_TYPE_CFG1;
 
 	if (PCI_BUS(d) == pcie->first_busno) {
 		/* Accessing root port configuration space. */
 		va_address = (uintptr_t)pcie->ctrl_base;
 	} else {
-		writel(d << 8, pcie->ctrl_base + PCIE_ATU_LOWER_TARGET);
+		d = PCI_MASK_BUS(d) | (PCI_BUS(d) - pcie->first_busno);
+		pcie_dw_prog_outbound_atu(pcie, PCIE_ATU_REGION_INDEX0,
+					  atu_type, (u64)pcie->cfg_base,
+					  d << 8, pcie->cfg_size);
 		va_address = (uintptr_t)pcie->cfg_base;
 	}
 
@@ -206,7 +244,7 @@ static int pcie_dw_addr_valid(pci_dev_t d, int first_busno)
  *
  * Return: 0 on success
  */
-static int pcie_dw_mvebu_read_config(struct udevice *bus, pci_dev_t bdf,
+static int pcie_dw_mvebu_read_config(const struct udevice *bus, pci_dev_t bdf,
 				     uint offset, ulong *valuep,
 				     enum pci_size_t size)
 {
@@ -229,6 +267,11 @@ static int pcie_dw_mvebu_read_config(struct udevice *bus, pci_dev_t bdf,
 
 	debug("(addr,val)=(0x%04x, 0x%08lx)\n", offset, value);
 	*valuep = pci_conv_32_to_size(value, offset, size);
+
+	if (pcie->region_count > 1)
+		pcie_dw_prog_outbound_atu(pcie, PCIE_ATU_REGION_INDEX0,
+					  PCIE_ATU_TYPE_IO, pcie->io.phys_start,
+					  pcie->io.bus_start, pcie->io.size);
 
 	return 0;
 }
@@ -270,6 +313,11 @@ static int pcie_dw_mvebu_write_config(struct udevice *bus, pci_dev_t bdf,
 	old = readl(va_address);
 	value = pci_conv_size_to_32(old, value, offset, size);
 	writel(value, va_address);
+
+	if (pcie->region_count > 1)
+		pcie_dw_prog_outbound_atu(pcie, PCIE_ATU_REGION_INDEX0,
+					  PCIE_ATU_TYPE_IO, pcie->io.phys_start,
+					  pcie->io.bus_start, pcie->io.size);
 
 	return 0;
 }
@@ -387,34 +435,6 @@ static int pcie_dw_mvebu_pcie_link_up(const void *regs_base, u32 cap_speed)
 }
 
 /**
- * pcie_dw_regions_setup() - iATU region setup
- *
- * @pcie: Pointer to the PCI controller state
- *
- * Configure the iATU regions in the PCIe controller for outbound access.
- */
-static void pcie_dw_regions_setup(struct pcie_dw_mvebu *pcie)
-{
-	/*
-	 * Region #0 is used for Outbound CFG space access.
-	 * Direction = Outbound
-	 * Region Index = 0
-	 */
-	writel(0, pcie->ctrl_base + PCIE_ATU_VIEWPORT);
-
-	writel((u32)(uintptr_t)pcie->cfg_base, pcie->ctrl_base
-	       + PCIE_ATU_LOWER_BASE);
-	writel(0, pcie->ctrl_base + PCIE_ATU_UPPER_BASE);
-	writel((u32)(uintptr_t)pcie->cfg_base + pcie->cfg_size,
-	       pcie->ctrl_base + PCIE_ATU_LIMIT);
-
-	writel(0, pcie->ctrl_base + PCIE_ATU_LOWER_TARGET);
-	writel(0, pcie->ctrl_base + PCIE_ATU_UPPER_TARGET);
-	writel(PCIE_ATU_TYPE_CFG0, pcie->ctrl_base + PCIE_ATU_CR1);
-	writel(PCIE_ATU_ENABLE, pcie->ctrl_base + PCIE_ATU_CR2);
-}
-
-/**
  * pcie_dw_set_host_bars() - Configure the host BARs
  *
  * @regs_base: A pointer to the PCIe controller registers
@@ -462,7 +482,7 @@ static int pcie_dw_mvebu_probe(struct udevice *dev)
 	struct pcie_dw_mvebu *pcie = dev_get_priv(dev);
 	struct udevice *ctlr = pci_get_controller(dev);
 	struct pci_controller *hose = dev_get_uclass_priv(ctlr);
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	struct gpio_desc reset_gpio;
 
 	gpio_request_by_name(dev, "marvell,reset-gpio", 0, &reset_gpio,
@@ -475,26 +495,49 @@ static int pcie_dw_mvebu_probe(struct udevice *dev)
 	 * using this GPIO.
 	 */
 	if (dm_gpio_is_valid(&reset_gpio)) {
-		dm_gpio_set_value(&reset_gpio, 1);
+		dm_gpio_set_value(&reset_gpio, 1); /* assert */
+		mdelay(200);
+		dm_gpio_set_value(&reset_gpio, 0); /* de-assert */
 		mdelay(200);
 	}
 #else
 	debug("PCIE Reset on GPIO support is missing\n");
-#endif /* CONFIG_DM_GPIO */
+#endif /* DM_GPIO */
 
-	pcie->first_busno = dev->seq;
+	pcie->first_busno = dev_seq(dev);
 
 	/* Don't register host if link is down */
 	if (!pcie_dw_mvebu_pcie_link_up(pcie->ctrl_base, LINK_SPEED_GEN_3)) {
-		printf("PCIE-%d: Link down\n", dev->seq);
+		printf("PCIE-%d: Link down\n", dev_seq(dev));
 	} else {
-		printf("PCIE-%d: Link up (Gen%d-x%d, Bus%d)\n", dev->seq,
+		printf("PCIE-%d: Link up (Gen%d-x%d, Bus%d)\n", dev_seq(dev),
 		       pcie_dw_get_link_speed(pcie->ctrl_base),
 		       pcie_dw_get_link_width(pcie->ctrl_base),
 		       hose->first_busno);
 	}
 
-	pcie_dw_regions_setup(pcie);
+	pcie->region_count = hose->region_count - CONFIG_NR_DRAM_BANKS;
+
+	/* Store the IO and MEM windows settings for future use by the ATU */
+	if (pcie->region_count > 1) {
+		/* IO base */
+		pcie->io.phys_start = hose->regions[0].phys_start;
+		/* IO_bus_addr */
+		pcie->io.bus_start  = hose->regions[0].bus_start;
+		/* IO size */
+		pcie->io.size       = hose->regions[0].size;
+	}
+
+	/* MEM base */
+	pcie->mem.phys_start = hose->regions[pcie->region_count - 1].phys_start;
+	/* MEM_bus_addr */
+	pcie->mem.bus_start  = hose->regions[pcie->region_count - 1].bus_start;
+	/* MEM size */
+	pcie->mem.size       = hose->regions[pcie->region_count - 1].size;
+
+	pcie_dw_prog_outbound_atu(pcie, PCIE_ATU_REGION_INDEX1,
+				  PCIE_ATU_TYPE_MEM, pcie->mem.phys_start,
+				  pcie->mem.bus_start, pcie->mem.size);
 
 	/* Set the CLASS_REV of RC CFG header to PCI_CLASS_BRIDGE_PCI */
 	clrsetbits_le32(pcie->ctrl_base + PCI_CLASS_REVISION,
@@ -506,7 +549,7 @@ static int pcie_dw_mvebu_probe(struct udevice *dev)
 }
 
 /**
- * pcie_dw_mvebu_ofdata_to_platdata() - Translate from DT to device state
+ * pcie_dw_mvebu_of_to_plat() - Translate from DT to device state
  *
  * @dev: A pointer to the device being operated on
  *
@@ -516,7 +559,7 @@ static int pcie_dw_mvebu_probe(struct udevice *dev)
  *
  * Return: 0 on success, else -EINVAL
  */
-static int pcie_dw_mvebu_ofdata_to_platdata(struct udevice *dev)
+static int pcie_dw_mvebu_of_to_plat(struct udevice *dev)
 {
 	struct pcie_dw_mvebu *pcie = dev_get_priv(dev);
 
@@ -549,7 +592,7 @@ U_BOOT_DRIVER(pcie_dw_mvebu) = {
 	.id			= UCLASS_PCI,
 	.of_match		= pcie_dw_mvebu_ids,
 	.ops			= &pcie_dw_mvebu_ops,
-	.ofdata_to_platdata	= pcie_dw_mvebu_ofdata_to_platdata,
+	.of_to_plat	= pcie_dw_mvebu_of_to_plat,
 	.probe			= pcie_dw_mvebu_probe,
-	.priv_auto_alloc_size	= sizeof(struct pcie_dw_mvebu),
+	.priv_auto	= sizeof(struct pcie_dw_mvebu),
 };

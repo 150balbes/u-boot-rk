@@ -1,17 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Display driver for Allwinner SoCs.
  *
  * (C) Copyright 2013-2014 Luc Verhaegen <libv@skynet.be>
  * (C) Copyright 2014-2015 Hans de Goede <hdegoede@redhat.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <display.h>
+#include <dm.h>
+#include <cpu_func.h>
+#include <efi_loader.h>
+#include <init.h>
+#include <time.h>
+#include <linux/delay.h>
 
 #include <asm/arch/clock.h>
 #include <asm/arch/display.h>
-#include <asm/arch/gpio.h>
 #include <asm/arch/lcdc.h>
 #include <asm/arch/pwm.h>
 #include <asm/arch/tve.h>
@@ -24,11 +29,14 @@
 #include <fdt_support.h>
 #include <i2c.h>
 #include <malloc.h>
+#include <video.h>
 #include <video_fb.h>
+#include <dm/uclass-internal.h>
 #include "../videomodes.h"
 #include "../anx9804.h"
 #include "../hitachi_tx18d42vm_lcd.h"
 #include "../ssd2828.h"
+#include "simplefb_common.h"
 
 #ifdef CONFIG_VIDEO_LCD_BL_PWM_ACTIVE_LOW
 #define PWM_ON 0
@@ -39,6 +47,11 @@
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
+
+/* Maximum LCD size we support */
+#define LCD_MAX_WIDTH		3840
+#define LCD_MAX_HEIGHT		2160
+#define LCD_MAX_LOG2_BPP	VIDEO_BPP32
 
 enum sunxi_monitor {
 	sunxi_monitor_none,
@@ -53,13 +66,12 @@ enum sunxi_monitor {
 };
 #define SUNXI_MONITOR_LAST sunxi_monitor_composite_pal_nc
 
-struct sunxi_display {
-	GraphicDevice graphic_device;
+struct sunxi_display_priv {
 	enum sunxi_monitor monitor;
 	unsigned int depth;
 	unsigned int fb_addr;
 	unsigned int fb_size;
-} sunxi_display;
+};
 
 const struct ctfb_res_modes composite_video_modes[2] = {
 	/*  x     y  hz  pixclk ps/kHz   le   ri  up  lo   hs vs  s  vmode */
@@ -111,6 +123,13 @@ static int sunxi_hdmi_hpd_detect(int hpd_delay)
 
 	writel(SUNXI_HDMI_CTRL_ENABLE, &hdmi->ctrl);
 	writel(SUNXI_HDMI_PAD_CTRL0_HDP, &hdmi->pad_ctrl0);
+
+	/* Enable PLLs for eventual DDC */
+	writel(SUNXI_HDMI_PAD_CTRL1 | SUNXI_HDMI_PAD_CTRL1_HALVE,
+	       &hdmi->pad_ctrl1);
+	writel(SUNXI_HDMI_PLL_CTRL | SUNXI_HDMI_PLL_CTRL_DIV(15),
+	       &hdmi->pll_ctrl);
+	writel(SUNXI_HDMI_PLL_DBG0_PLL3, &hdmi->pll_dbg0);
 
 	while (timer_get_us() < tmo) {
 		if (readl(&hdmi->hpd) & SUNXI_HDMI_HPD_DETECT)
@@ -202,7 +221,9 @@ static int sunxi_hdmi_edid_get_block(int block, u8 *buf)
 	return r;
 }
 
-static int sunxi_hdmi_edid_get_mode(struct ctfb_res_modes *mode)
+static int sunxi_hdmi_edid_get_mode(struct sunxi_display_priv *sunxi_display,
+				    struct ctfb_res_modes *mode,
+				    bool verbose_mode)
 {
 	struct edid1_info edid1;
 	struct edid_cea861_info cea681[4];
@@ -213,13 +234,6 @@ static int sunxi_hdmi_edid_get_mode(struct ctfb_res_modes *mode)
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 	int i, r, ext_blocks = 0;
-
-	/* SUNXI_HDMI_CTRL_ENABLE & PAD_CTRL0 are already set by hpd_detect */
-	writel(SUNXI_HDMI_PAD_CTRL1 | SUNXI_HDMI_PAD_CTRL1_HALVE,
-	       &hdmi->pad_ctrl1);
-	writel(SUNXI_HDMI_PLL_CTRL | SUNXI_HDMI_PLL_CTRL_DIV(15),
-	       &hdmi->pll_ctrl);
-	writel(SUNXI_HDMI_PLL_DBG0_PLL3, &hdmi->pll_dbg0);
 
 	/* Reset i2c controller */
 	setbits_le32(&ccm->hdmi_clk_cfg, CCM_HDMI_CTRL_DDC_GATE);
@@ -240,7 +254,8 @@ static int sunxi_hdmi_edid_get_mode(struct ctfb_res_modes *mode)
 	if (r == 0) {
 		r = edid_check_info(&edid1);
 		if (r) {
-			printf("EDID: invalid EDID data\n");
+			if (verbose_mode)
+				printf("EDID: invalid EDID data\n");
 			r = -EINVAL;
 		}
 	}
@@ -284,14 +299,14 @@ static int sunxi_hdmi_edid_get_mode(struct ctfb_res_modes *mode)
 	}
 
 	/* Check for basic audio support, if found enable hdmi output */
-	sunxi_display.monitor = sunxi_monitor_dvi;
+	sunxi_display->monitor = sunxi_monitor_dvi;
 	for (i = 0; i < ext_blocks; i++) {
 		if (cea681[i].extension_tag != EDID_CEA861_EXTENSION_TAG ||
 		    cea681[i].revision < 2)
 			continue;
 
 		if (EDID_CEA861_SUPPORTS_BASIC_AUDIO(cea681[i]))
-			sunxi_display.monitor = sunxi_monitor_hdmi;
+			sunxi_display->monitor = sunxi_monitor_hdmi;
 	}
 
 	return 0;
@@ -407,9 +422,9 @@ static void sunxi_frontend_mode_set(const struct ctfb_res_modes *mode,
 static void sunxi_frontend_enable(void) {}
 #endif
 
-static bool sunxi_is_composite(void)
+static bool sunxi_is_composite(enum sunxi_monitor monitor)
 {
-	switch (sunxi_display.monitor) {
+	switch (monitor) {
 	case sunxi_monitor_none:
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
@@ -459,14 +474,15 @@ static void sunxi_composer_init(void)
 	setbits_le32(&de_be->mode, SUNXI_DE_BE_MODE_ENABLE);
 }
 
-static u32 sunxi_rgb2yuv_coef[12] = {
+static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
 	0x00003f69, 0x00003ed6, 0x000001c1, 0x00000808,
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
 };
 
 static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
-				    unsigned int address)
+				    unsigned int address,
+				    enum sunxi_monitor monitor)
 {
 	struct sunxi_de_be_reg * const de_be =
 		(struct sunxi_de_be_reg *)SUNXI_DE_BE0_BASE;
@@ -495,7 +511,7 @@ static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
 #endif
 			     SUNXI_DE_BE_MODE_INTERLACE_ENABLE);
 
-	if (sunxi_is_composite()) {
+	if (sunxi_is_composite(monitor)) {
 		writel(SUNXI_DE_BE_OUTPUT_COLOR_CTRL_ENABLE,
 		       &de_be->output_color_ctrl);
 		for (i = 0; i < 12; i++)
@@ -513,119 +529,6 @@ static void sunxi_composer_enable(void)
 
 	setbits_le32(&de_be->reg_ctrl, SUNXI_DE_BE_REG_CTRL_LOAD_REGS);
 	setbits_le32(&de_be->mode, SUNXI_DE_BE_MODE_START);
-}
-
-/*
- * LCDC, what allwinner calls a CRTC, so timing controller and serializer.
- */
-static void sunxi_lcdc_pll_set(int tcon, int dotclock,
-			       int *clk_div, int *clk_double)
-{
-	struct sunxi_ccm_reg * const ccm =
-		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
-	int value, n, m, min_m, max_m, diff;
-	int best_n = 0, best_m = 0, best_diff = 0x0FFFFFFF;
-	int best_double = 0;
-	bool use_mipi_pll = false;
-
-	if (tcon == 0) {
-#ifdef CONFIG_VIDEO_LCD_IF_PARALLEL
-		min_m = 6;
-		max_m = 127;
-#endif
-#ifdef CONFIG_VIDEO_LCD_IF_LVDS
-		min_m = max_m = 7;
-#endif
-	} else {
-		min_m = 1;
-		max_m = 15;
-	}
-
-	/*
-	 * Find the lowest divider resulting in a matching clock, if there
-	 * is no match, pick the closest lower clock, as monitors tend to
-	 * not sync to higher frequencies.
-	 */
-	for (m = min_m; m <= max_m; m++) {
-		n = (m * dotclock) / 3000;
-
-		if ((n >= 9) && (n <= 127)) {
-			value = (3000 * n) / m;
-			diff = dotclock - value;
-			if (diff < best_diff) {
-				best_diff = diff;
-				best_m = m;
-				best_n = n;
-				best_double = 0;
-			}
-		}
-
-		/* These are just duplicates */
-		if (!(m & 1))
-			continue;
-
-		n = (m * dotclock) / 6000;
-		if ((n >= 9) && (n <= 127)) {
-			value = (6000 * n) / m;
-			diff = dotclock - value;
-			if (diff < best_diff) {
-				best_diff = diff;
-				best_m = m;
-				best_n = n;
-				best_double = 1;
-			}
-		}
-	}
-
-#ifdef CONFIG_MACH_SUN6I
-	/*
-	 * Use the MIPI pll if we've been unable to find any matching setting
-	 * for PLL3, this happens with high dotclocks because of min_m = 6.
-	 */
-	if (tcon == 0 && best_n == 0) {
-		use_mipi_pll = true;
-		best_m = 6;  /* Minimum m for tcon0 */
-	}
-
-	if (use_mipi_pll) {
-		clock_set_pll3(297000000); /* Fix the video pll at 297 MHz */
-		clock_set_mipi_pll(best_m * dotclock * 1000);
-		debug("dotclock: %dkHz = %dkHz via mipi pll\n",
-		      dotclock, clock_get_mipi_pll() / best_m / 1000);
-	} else
-#endif
-	{
-		clock_set_pll3(best_n * 3000000);
-		debug("dotclock: %dkHz = %dkHz: (%d * 3MHz * %d) / %d\n",
-		      dotclock,
-		      (best_double + 1) * clock_get_pll3() / best_m / 1000,
-		      best_double + 1, best_n, best_m);
-	}
-
-	if (tcon == 0) {
-		u32 pll;
-
-		if (use_mipi_pll)
-			pll = CCM_LCD_CH0_CTRL_MIPI_PLL;
-		else if (best_double)
-			pll = CCM_LCD_CH0_CTRL_PLL3_2X;
-		else
-			pll = CCM_LCD_CH0_CTRL_PLL3;
-
-		writel(CCM_LCD_CH0_CTRL_GATE | CCM_LCD_CH0_CTRL_RST | pll,
-		       &ccm->lcd0_ch0_clk_cfg);
-	} else {
-		writel(CCM_LCD_CH1_CTRL_GATE |
-		       (best_double ? CCM_LCD_CH1_CTRL_PLL3_2X :
-				      CCM_LCD_CH1_CTRL_PLL3) |
-		       CCM_LCD_CH1_CTRL_M(best_m), &ccm->lcd0_ch1_clk_cfg);
-		if (sunxi_is_composite())
-			setbits_le32(&ccm->lcd0_ch1_clk_cfg,
-				     CCM_LCD_CH1_CTRL_HALF_SCLK1);
-	}
-
-	*clk_div = best_m;
-	*clk_double = best_double;
 }
 
 static void sunxi_lcdc_init(void)
@@ -722,38 +625,14 @@ static void sunxi_lcdc_backlight_enable(void)
 		gpio_direction_output(pin, PWM_ON);
 }
 
-static void sunxi_ctfb_mode_to_display_timing(const struct ctfb_res_modes *mode,
-					      struct display_timing *timing)
-{
-	timing->pixelclock.typ = mode->pixclock_khz * 1000;
-
-	timing->hactive.typ = mode->xres;
-	timing->hfront_porch.typ = mode->right_margin;
-	timing->hback_porch.typ = mode->left_margin;
-	timing->hsync_len.typ = mode->hsync_len;
-
-	timing->vactive.typ = mode->yres;
-	timing->vfront_porch.typ = mode->lower_margin;
-	timing->vback_porch.typ = mode->upper_margin;
-	timing->vsync_len.typ = mode->vsync_len;
-
-	if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
-		timing->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
-	else
-		timing->flags |= DISPLAY_FLAGS_HSYNC_LOW;
-	if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
-		timing->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
-	else
-		timing->flags |= DISPLAY_FLAGS_VSYNC_LOW;
-	if (mode->vmode == FB_VMODE_INTERLACED)
-		timing->flags |= DISPLAY_FLAGS_INTERLACED;
-}
-
-static void sunxi_lcdc_tcon0_mode_set(const struct ctfb_res_modes *mode,
+static void sunxi_lcdc_tcon0_mode_set(struct sunxi_display_priv *sunxi_display,
+				      const struct ctfb_res_modes *mode,
 				      bool for_ext_vga_dac)
 {
 	struct sunxi_lcdc_reg * const lcdc =
 		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	struct sunxi_ccm_reg * const ccm =
+		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 	int clk_div, clk_double, pin;
 	struct display_timing timing;
 
@@ -773,32 +652,37 @@ static void sunxi_lcdc_tcon0_mode_set(const struct ctfb_res_modes *mode,
 #endif
 	}
 
-	sunxi_lcdc_pll_set(0, mode->pixclock_khz, &clk_div, &clk_double);
+	lcdc_pll_set(ccm, 0, mode->pixclock_khz, &clk_div, &clk_double,
+		     sunxi_is_composite(sunxi_display->monitor));
 
-	sunxi_ctfb_mode_to_display_timing(mode, &timing);
+	video_ctfb_mode_to_display_timing(mode, &timing);
 	lcdc_tcon0_mode_set(lcdc, &timing, clk_div, for_ext_vga_dac,
-			    sunxi_display.depth, CONFIG_VIDEO_LCD_DCLK_PHASE);
+			    sunxi_display->depth, CONFIG_VIDEO_LCD_DCLK_PHASE);
 }
 
 #if defined CONFIG_VIDEO_HDMI || defined CONFIG_VIDEO_VGA || defined CONFIG_VIDEO_COMPOSITE
 static void sunxi_lcdc_tcon1_mode_set(const struct ctfb_res_modes *mode,
 				      int *clk_div, int *clk_double,
-				      bool use_portd_hvsync)
+				      bool use_portd_hvsync,
+				      enum sunxi_monitor monitor)
 {
 	struct sunxi_lcdc_reg * const lcdc =
 		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	struct sunxi_ccm_reg * const ccm =
+		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 	struct display_timing timing;
 
-	sunxi_ctfb_mode_to_display_timing(mode, &timing);
+	video_ctfb_mode_to_display_timing(mode, &timing);
 	lcdc_tcon1_mode_set(lcdc, &timing, use_portd_hvsync,
-			    sunxi_is_composite());
+			    sunxi_is_composite(monitor));
 
 	if (use_portd_hvsync) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPD(26), SUNXI_GPD_LCD0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPD(27), SUNXI_GPD_LCD0);
 	}
 
-	sunxi_lcdc_pll_set(1, mode->pixclock_khz, clk_div, clk_double);
+	lcdc_pll_set(ccm, 1, mode->pixclock_khz, clk_div, clk_double,
+		     sunxi_is_composite(monitor));
 }
 #endif /* CONFIG_VIDEO_HDMI || defined CONFIG_VIDEO_VGA || CONFIG_VIDEO_COMPOSITE */
 
@@ -852,7 +736,8 @@ static void sunxi_hdmi_setup_info_frames(const struct ctfb_res_modes *mode)
 }
 
 static void sunxi_hdmi_mode_set(const struct ctfb_res_modes *mode,
-				int clk_div, int clk_double)
+				int clk_div, int clk_double,
+				enum sunxi_monitor monitor)
 {
 	struct sunxi_hdmi_reg * const hdmi =
 		(struct sunxi_hdmi_reg *)SUNXI_HDMI_BASE;
@@ -861,7 +746,7 @@ static void sunxi_hdmi_mode_set(const struct ctfb_res_modes *mode,
 	/* Write clear interrupt status bits */
 	writel(SUNXI_HDMI_IRQ_STATUS_BITS, &hdmi->irq);
 
-	if (sunxi_display.monitor == sunxi_monitor_hdmi)
+	if (monitor == sunxi_monitor_hdmi)
 		sunxi_hdmi_setup_info_frames(mode);
 
 	/* Set input sync enable */
@@ -916,7 +801,7 @@ static void sunxi_hdmi_enable(void)
 
 #if defined CONFIG_VIDEO_VGA || defined CONFIG_VIDEO_COMPOSITE
 
-static void sunxi_tvencoder_mode_set(void)
+static void sunxi_tvencoder_mode_set(enum sunxi_monitor monitor)
 {
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
@@ -928,7 +813,7 @@ static void sunxi_tvencoder_mode_set(void)
 	/* Clock on */
 	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TVE0);
 
-	switch (sunxi_display.monitor) {
+	switch (monitor) {
 	case sunxi_monitor_vga:
 		tvencoder_mode_set(tve, tve_mode_vga);
 		break;
@@ -986,11 +871,11 @@ static void sunxi_vga_external_dac_enable(void)
 static int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
 {
 	struct ssd2828_config cfg = {
-		.csx_pin = name_to_gpio(CONFIG_VIDEO_LCD_SPI_CS),
-		.sck_pin = name_to_gpio(CONFIG_VIDEO_LCD_SPI_SCLK),
-		.sdi_pin = name_to_gpio(CONFIG_VIDEO_LCD_SPI_MOSI),
-		.sdo_pin = name_to_gpio(CONFIG_VIDEO_LCD_SPI_MISO),
-		.reset_pin = name_to_gpio(CONFIG_VIDEO_LCD_SSD2828_RESET),
+		.csx_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_CS),
+		.sck_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_SCLK),
+		.sdi_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MOSI),
+		.sdo_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MISO),
+		.reset_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SSD2828_RESET),
 		.ssd2828_tx_clk_khz  = CONFIG_VIDEO_LCD_SSD2828_TX_CLK * 1000,
 		.ssd2828_color_depth = 24,
 #ifdef CONFIG_VIDEO_LCD_PANEL_MIPI_4_LANE_513_MBPS_VIA_SSD2828
@@ -1016,6 +901,42 @@ static int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
 }
 #endif /* CONFIG_VIDEO_LCD_SSD2828 */
 
+#ifdef CONFIG_VIDEO_LCD_PANEL_I2C
+static void sunxi_panel_i2c_init(struct sunxi_display_priv *sunxi_display)
+{
+	const char *name = CONFIG_VIDEO_LCD_PANEL_I2C_NAME;
+	struct udevice *i2c_bus;
+	int ret;
+
+	ret = uclass_get_device_by_name(UCLASS_I2C, name, &i2c_bus);
+	if (ret)
+		return;
+
+	if (IS_ENABLED(CONFIG_VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804)) {
+		/*
+		 * The anx9804 needs 1.8V from eldo3, we do this here
+		 * and not via CONFIG_AXP_ELDO3_VOLT from board_init()
+		 * to avoid turning this on when using hdmi output.
+		 */
+		axp_set_eldo(3, 1800);
+		anx9804_init(i2c_bus, 4,
+			     ANX9804_DATA_RATE_1620M,
+			     sunxi_display->depth);
+	}
+	if (IS_ENABLED(CONFIG_VIDEO_LCD_TL059WV5C0)) {
+		struct udevice *chip;
+
+		ret = i2c_get_chip(i2c_bus, 0x5c, 1, &chip);
+		if (ret)
+			return;
+
+		dm_i2c_reg_write(chip, 0x04, 0x42); /* Turn on the LCD */
+	}
+}
+#else
+static void sunxi_panel_i2c_init(struct sunxi_display_priv *sunxi_display) {}
+#endif
+
 static void sunxi_engines_init(void)
 {
 	sunxi_composer_init();
@@ -1023,56 +944,43 @@ static void sunxi_engines_init(void)
 	sunxi_drc_init();
 }
 
-static void sunxi_mode_set(const struct ctfb_res_modes *mode,
+static void sunxi_mode_set(struct sunxi_display_priv *sunxi_display,
+			   const struct ctfb_res_modes *mode,
 			   unsigned int address)
 {
+	enum sunxi_monitor monitor = sunxi_display->monitor;
 	int __maybe_unused clk_div, clk_double;
 	struct sunxi_lcdc_reg * const lcdc =
 		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
 	struct sunxi_tve_reg * __maybe_unused const tve =
 		(struct sunxi_tve_reg *)SUNXI_TVE0_BASE;
 
-	switch (sunxi_display.monitor) {
+	switch (sunxi_display->monitor) {
 	case sunxi_monitor_none:
 		break;
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
 #ifdef CONFIG_VIDEO_HDMI
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 0);
-		sunxi_hdmi_mode_set(mode, clk_div, clk_double);
+		sunxi_composer_mode_set(mode, address, monitor);
+		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 0, monitor);
+		sunxi_hdmi_mode_set(mode, clk_div, clk_double, monitor);
 		sunxi_composer_enable();
-		lcdc_enable(lcdc, sunxi_display.depth);
+		lcdc_enable(lcdc, sunxi_display->depth);
 		sunxi_hdmi_enable();
 #endif
 		break;
 	case sunxi_monitor_lcd:
 		sunxi_lcdc_panel_enable();
-		if (IS_ENABLED(CONFIG_VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804)) {
-			/*
-			 * The anx9804 needs 1.8V from eldo3, we do this here
-			 * and not via CONFIG_AXP_ELDO3_VOLT from board_init()
-			 * to avoid turning this on when using hdmi output.
-			 */
-			axp_set_eldo(3, 1800);
-			anx9804_init(CONFIG_VIDEO_LCD_I2C_BUS, 4,
-				     ANX9804_DATA_RATE_1620M,
-				     sunxi_display.depth);
-		}
 		if (IS_ENABLED(CONFIG_VIDEO_LCD_HITACHI_TX18D42VM)) {
 			mdelay(50); /* Wait for lcd controller power on */
 			hitachi_tx18d42vm_init();
 		}
-		if (IS_ENABLED(CONFIG_VIDEO_LCD_TL059WV5C0)) {
-			unsigned int orig_i2c_bus = i2c_get_bus_num();
-			i2c_set_bus_num(CONFIG_VIDEO_LCD_I2C_BUS);
-			i2c_reg_write(0x5c, 0x04, 0x42); /* Turn on the LCD */
-			i2c_set_bus_num(orig_i2c_bus);
-		}
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon0_mode_set(mode, false);
+		if (IS_ENABLED(CONFIG_VIDEO_LCD_PANEL_I2C))
+			sunxi_panel_i2c_init(sunxi_display);
+		sunxi_composer_mode_set(mode, address, monitor);
+		sunxi_lcdc_tcon0_mode_set(sunxi_display, mode, false);
 		sunxi_composer_enable();
-		lcdc_enable(lcdc, sunxi_display.depth);
+		lcdc_enable(lcdc, sunxi_display->depth);
 #ifdef CONFIG_VIDEO_LCD_SSD2828
 		sunxi_ssd2828_init(mode);
 #endif
@@ -1080,17 +988,17 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 		break;
 	case sunxi_monitor_vga:
 #ifdef CONFIG_VIDEO_VGA
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 1);
-		sunxi_tvencoder_mode_set();
+		sunxi_composer_mode_set(mode, address, monitor);
+		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 1, monitor);
+		sunxi_tvencoder_mode_set(monitor);
 		sunxi_composer_enable();
-		lcdc_enable(lcdc, sunxi_display.depth);
+		lcdc_enable(lcdc, sunxi_display->depth);
 		tvencoder_enable(tve);
 #elif defined CONFIG_VIDEO_VGA_VIA_LCD
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon0_mode_set(mode, true);
+		sunxi_composer_mode_set(mode, address, monitor);
+		sunxi_lcdc_tcon0_mode_set(sunxi_display, mode, true);
 		sunxi_composer_enable();
-		lcdc_enable(lcdc, sunxi_display.depth);
+		lcdc_enable(lcdc, sunxi_display->depth);
 		sunxi_vga_external_dac_enable();
 #endif
 		break;
@@ -1099,11 +1007,11 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 	case sunxi_monitor_composite_pal_m:
 	case sunxi_monitor_composite_pal_nc:
 #ifdef CONFIG_VIDEO_COMPOSITE
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 0);
-		sunxi_tvencoder_mode_set();
+		sunxi_composer_mode_set(mode, address, monitor);
+		sunxi_lcdc_tcon1_mode_set(mode, &clk_div, &clk_double, 0, monitor);
+		sunxi_tvencoder_mode_set(monitor);
 		sunxi_composer_enable();
-		lcdc_enable(lcdc, sunxi_display.depth);
+		lcdc_enable(lcdc, sunxi_display->depth);
 		tvencoder_enable(tve);
 #endif
 		break;
@@ -1113,7 +1021,6 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 static const char *sunxi_get_mon_desc(enum sunxi_monitor monitor)
 {
 	switch (monitor) {
-	case sunxi_monitor_none:		return "none";
 	case sunxi_monitor_dvi:			return "dvi";
 	case sunxi_monitor_hdmi:		return "hdmi";
 	case sunxi_monitor_lcd:			return "lcd";
@@ -1122,13 +1029,9 @@ static const char *sunxi_get_mon_desc(enum sunxi_monitor monitor)
 	case sunxi_monitor_composite_ntsc:	return "composite-ntsc";
 	case sunxi_monitor_composite_pal_m:	return "composite-pal-m";
 	case sunxi_monitor_composite_pal_nc:	return "composite-pal-nc";
+	case sunxi_monitor_none:		/* fall through */
+	default:				return "none";
 	}
-	return NULL; /* never reached */
-}
-
-ulong board_get_usable_ram_top(ulong total_size)
-{
-	return gd->ram_top - CONFIG_SUNXI_MAX_FB_SIZE;
 }
 
 static bool sunxi_has_hdmi(void)
@@ -1179,24 +1082,25 @@ static enum sunxi_monitor sunxi_get_default_mon(bool allow_hdmi)
 		return sunxi_monitor_none;
 }
 
-void *video_hw_init(void)
+static int sunxi_de_probe(struct udevice *dev)
 {
-	static GraphicDevice *graphic_device = &sunxi_display.graphic_device;
+	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
+	struct sunxi_display_priv *sunxi_display = dev_get_priv(dev);
 	const struct ctfb_res_modes *mode;
 	struct ctfb_res_modes custom;
 	const char *options;
 #ifdef CONFIG_VIDEO_HDMI
-	int ret, hpd, hpd_delay, edid;
+	int hpd, hpd_delay, edid;
+	bool hdmi_present;
 #endif
 	int i, overscan_offset, overscan_x, overscan_y;
 	unsigned int fb_dma_addr;
 	char mon[16];
 	char *lcd_mode = CONFIG_VIDEO_LCD_MODE;
 
-	memset(&sunxi_display, 0, sizeof(struct sunxi_display));
-
 	video_get_ctfb_res_modes(RES_MODE_1024x768, 24, &mode,
-				 &sunxi_display.depth, &options);
+				 &sunxi_display->depth, &options);
 #ifdef CONFIG_VIDEO_HDMI
 	hpd = video_get_option_int(options, "hpd", 1);
 	hpd_delay = video_get_option_int(options, "hpd_delay", 500);
@@ -1204,63 +1108,75 @@ void *video_hw_init(void)
 #endif
 	overscan_x = video_get_option_int(options, "overscan_x", -1);
 	overscan_y = video_get_option_int(options, "overscan_y", -1);
-	sunxi_display.monitor = sunxi_get_default_mon(true);
+	sunxi_display->monitor = sunxi_get_default_mon(true);
 	video_get_option_string(options, "monitor", mon, sizeof(mon),
-				sunxi_get_mon_desc(sunxi_display.monitor));
+				sunxi_get_mon_desc(sunxi_display->monitor));
 	for (i = 0; i <= SUNXI_MONITOR_LAST; i++) {
 		if (strcmp(mon, sunxi_get_mon_desc(i)) == 0) {
-			sunxi_display.monitor = i;
+			sunxi_display->monitor = i;
 			break;
 		}
 	}
 	if (i > SUNXI_MONITOR_LAST)
 		printf("Unknown monitor: '%s', falling back to '%s'\n",
-		       mon, sunxi_get_mon_desc(sunxi_display.monitor));
+		       mon, sunxi_get_mon_desc(sunxi_display->monitor));
 
 #ifdef CONFIG_VIDEO_HDMI
 	/* If HDMI/DVI is selected do HPD & EDID, and handle fallback */
-	if (sunxi_display.monitor == sunxi_monitor_dvi ||
-	    sunxi_display.monitor == sunxi_monitor_hdmi) {
+	if (sunxi_display->monitor == sunxi_monitor_dvi ||
+	    sunxi_display->monitor == sunxi_monitor_hdmi) {
 		/* Always call hdp_detect, as it also enables clocks, etc. */
-		ret = sunxi_hdmi_hpd_detect(hpd_delay);
-		if (ret) {
+		hdmi_present = (sunxi_hdmi_hpd_detect(hpd_delay) == 1);
+		if (hdmi_present && edid) {
 			printf("HDMI connected: ");
-			if (edid && sunxi_hdmi_edid_get_mode(&custom) == 0)
+			if (sunxi_hdmi_edid_get_mode(sunxi_display, &custom, true) == 0)
 				mode = &custom;
-		} else if (hpd) {
+			else
+				hdmi_present = false;
+		}
+		/* Fall back to EDID in case HPD failed */
+		if (edid && !hdmi_present) {
+			if (sunxi_hdmi_edid_get_mode(sunxi_display, &custom, false) == 0) {
+				mode = &custom;
+				hdmi_present = true;
+			}
+		}
+		/* Shut down when display was not found */
+		if ((hpd || edid) && !hdmi_present) {
 			sunxi_hdmi_shutdown();
-			sunxi_display.monitor = sunxi_get_default_mon(false);
+			sunxi_display->monitor = sunxi_get_default_mon(false);
 		} /* else continue with hdmi/dvi without a cable connected */
 	}
 #endif
 
-	switch (sunxi_display.monitor) {
+	switch (sunxi_display->monitor) {
 	case sunxi_monitor_none:
-		return NULL;
+		printf("Unknown monitor\n");
+		return -EINVAL;
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
 		if (!sunxi_has_hdmi()) {
 			printf("HDMI/DVI not supported on this board\n");
-			sunxi_display.monitor = sunxi_monitor_none;
-			return NULL;
+			sunxi_display->monitor = sunxi_monitor_none;
+			return -EINVAL;
 		}
 		break;
 	case sunxi_monitor_lcd:
 		if (!sunxi_has_lcd()) {
 			printf("LCD not supported on this board\n");
-			sunxi_display.monitor = sunxi_monitor_none;
-			return NULL;
+			sunxi_display->monitor = sunxi_monitor_none;
+			return -EINVAL;
 		}
-		sunxi_display.depth = video_get_params(&custom, lcd_mode);
+		sunxi_display->depth = video_get_params(&custom, lcd_mode);
 		mode = &custom;
 		break;
 	case sunxi_monitor_vga:
 		if (!sunxi_has_vga()) {
 			printf("VGA not supported on this board\n");
-			sunxi_display.monitor = sunxi_monitor_none;
-			return NULL;
+			sunxi_display->monitor = sunxi_monitor_none;
+			return -EINVAL;
 		}
-		sunxi_display.depth = 18;
+		sunxi_display->depth = 18;
 		break;
 	case sunxi_monitor_composite_pal:
 	case sunxi_monitor_composite_ntsc:
@@ -1268,72 +1184,89 @@ void *video_hw_init(void)
 	case sunxi_monitor_composite_pal_nc:
 		if (!sunxi_has_composite()) {
 			printf("Composite video not supported on this board\n");
-			sunxi_display.monitor = sunxi_monitor_none;
-			return NULL;
+			sunxi_display->monitor = sunxi_monitor_none;
+			return -EINVAL;
 		}
-		if (sunxi_display.monitor == sunxi_monitor_composite_pal ||
-		    sunxi_display.monitor == sunxi_monitor_composite_pal_nc)
+		if (sunxi_display->monitor == sunxi_monitor_composite_pal ||
+		    sunxi_display->monitor == sunxi_monitor_composite_pal_nc)
 			mode = &composite_video_modes[0];
 		else
 			mode = &composite_video_modes[1];
-		sunxi_display.depth = 24;
+		sunxi_display->depth = 24;
 		break;
 	}
 
 	/* Yes these defaults are quite high, overscan on composite sucks... */
 	if (overscan_x == -1)
-		overscan_x = sunxi_is_composite() ? 32 : 0;
+		overscan_x = sunxi_is_composite(sunxi_display->monitor) ? 32 : 0;
 	if (overscan_y == -1)
-		overscan_y = sunxi_is_composite() ? 20 : 0;
+		overscan_y = sunxi_is_composite(sunxi_display->monitor) ? 20 : 0;
 
-	sunxi_display.fb_size =
-		(mode->xres * mode->yres * 4 + 0xfff) & ~0xfff;
+	sunxi_display->fb_size = plat->size;
 	overscan_offset = (overscan_y * mode->xres + overscan_x) * 4;
 	/* We want to keep the fb_base for simplefb page aligned, where as
 	 * the sunxi dma engines will happily accept an unaligned address. */
 	if (overscan_offset)
-		sunxi_display.fb_size += 0x1000;
-
-	if (sunxi_display.fb_size > CONFIG_SUNXI_MAX_FB_SIZE) {
-		printf("Error need %dkB for fb, but only %dkB is reserved\n",
-		       sunxi_display.fb_size >> 10,
-		       CONFIG_SUNXI_MAX_FB_SIZE >> 10);
-		return NULL;
-	}
+		sunxi_display->fb_size += 0x1000;
 
 	printf("Setting up a %dx%d%s %s console (overscan %dx%d)\n",
 	       mode->xres, mode->yres,
 	       (mode->vmode == FB_VMODE_INTERLACED) ? "i" : "",
-	       sunxi_get_mon_desc(sunxi_display.monitor),
+	       sunxi_get_mon_desc(sunxi_display->monitor),
 	       overscan_x, overscan_y);
 
-	gd->fb_base = gd->bd->bi_dram[0].start +
-		      gd->bd->bi_dram[0].size - sunxi_display.fb_size;
+	sunxi_display->fb_addr = plat->base;
 	sunxi_engines_init();
 
-	fb_dma_addr = gd->fb_base - CONFIG_SYS_SDRAM_BASE;
-	sunxi_display.fb_addr = gd->fb_base;
+#ifdef CONFIG_EFI_LOADER
+	efi_add_memory_map(sunxi_display->fb_addr, sunxi_display->fb_size,
+			   EFI_RESERVED_MEMORY_TYPE);
+#endif
+
+	fb_dma_addr = sunxi_display->fb_addr - CONFIG_SYS_SDRAM_BASE;
 	if (overscan_offset) {
 		fb_dma_addr += 0x1000 - (overscan_offset & 0xfff);
-		sunxi_display.fb_addr += (overscan_offset + 0xfff) & ~0xfff;
-		memset((void *)gd->fb_base, 0, sunxi_display.fb_size);
-		flush_cache(gd->fb_base, sunxi_display.fb_size);
+		sunxi_display->fb_addr += ALIGN(overscan_offset, 0x1000);
+		memset((void *)sunxi_display->fb_addr, 0, sunxi_display->fb_size);
+		flush_cache(sunxi_display->fb_addr, sunxi_display->fb_size);
 	}
-	sunxi_mode_set(mode, fb_dma_addr);
+	sunxi_mode_set(sunxi_display, mode, fb_dma_addr);
 
-	/*
-	 * These are the only members of this structure that are used. All the
-	 * others are driver specific. The pitch is stored in plnSizeX.
-	 */
-	graphic_device->frameAdrs = sunxi_display.fb_addr;
-	graphic_device->gdfIndex = GDF_32BIT_X888RGB;
-	graphic_device->gdfBytesPP = 4;
-	graphic_device->winSizeX = mode->xres - 2 * overscan_x;
-	graphic_device->winSizeY = mode->yres - 2 * overscan_y;
-	graphic_device->plnSizeX = mode->xres * graphic_device->gdfBytesPP;
+	/* The members of struct video_priv to be set by the driver. */
+	uc_priv->bpix = VIDEO_BPP32;
+	uc_priv->xsize = mode->xres;
+	uc_priv->ysize = mode->yres;
 
-	return graphic_device;
+	video_set_flush_dcache(dev, true);
+
+	return 0;
 }
+
+static int sunxi_de_bind(struct udevice *dev)
+{
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
+
+	plat->size = LCD_MAX_WIDTH * LCD_MAX_HEIGHT * VNBYTES(LCD_MAX_LOG2_BPP);
+
+	return 0;
+}
+
+static const struct video_ops sunxi_de_ops = {
+};
+
+U_BOOT_DRIVER(sunxi_de) = {
+	.name	= "sunxi_de",
+	.id	= UCLASS_VIDEO,
+	.ops	= &sunxi_de_ops,
+	.bind	= sunxi_de_bind,
+	.probe	= sunxi_de_probe,
+	.priv_auto = sizeof(struct sunxi_display_priv),
+	.flags	= DM_FLAG_PRE_RELOC,
+};
+
+U_BOOT_DRVINFO(sunxi_de) = {
+	.name = "sunxi_de"
+};
 
 /*
  * Simplefb support.
@@ -1341,7 +1274,9 @@ void *video_hw_init(void)
 #if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_VIDEO_DT_SIMPLEFB)
 int sunxi_simplefb_setup(void *blob)
 {
-	static GraphicDevice *graphic_device = &sunxi_display.graphic_device;
+	struct sunxi_display_priv *sunxi_display;
+	struct video_priv *uc_priv;
+	struct udevice *de;
 	int offset, ret;
 	u64 start, size;
 	const char *pipeline = NULL;
@@ -1352,7 +1287,19 @@ int sunxi_simplefb_setup(void *blob)
 #define PIPELINE_PREFIX
 #endif
 
-	switch (sunxi_display.monitor) {
+	ret = uclass_find_device_by_name(UCLASS_VIDEO, "sunxi_de", &de);
+	if (ret) {
+		printf("DE not present\n");
+		return 0;
+	} else if (!device_active(de)) {
+		printf("DE is present but not probed\n");
+		return 0;
+	}
+
+	uc_priv = dev_get_uclass_priv(de);
+	sunxi_display = dev_get_priv(de);
+
+	switch (sunxi_display->monitor) {
 	case sunxi_monitor_none:
 		return 0;
 	case sunxi_monitor_dvi:
@@ -1377,17 +1324,7 @@ int sunxi_simplefb_setup(void *blob)
 		break;
 	}
 
-	/* Find a prefilled simpefb node, matching out pipeline config */
-	offset = fdt_node_offset_by_compatible(blob, -1,
-					       "allwinner,simple-framebuffer");
-	while (offset >= 0) {
-		ret = fdt_stringlist_search(blob, offset, "allwinner,pipeline",
-					    pipeline);
-		if (ret == 0)
-			break;
-		offset = fdt_node_offset_by_compatible(blob, offset,
-					       "allwinner,simple-framebuffer");
-	}
+	offset = sunxi_simplefb_fdt_match(blob, pipeline);
 	if (offset < 0) {
 		eprintf("Cannot setup simplefb: node not found\n");
 		return 0; /* Keep older kernels working */
@@ -1400,16 +1337,17 @@ int sunxi_simplefb_setup(void *blob)
 	 * linux/arch/arm/mm/ioremap.c around line 301.
 	 */
 	start = gd->bd->bi_dram[0].start;
-	size = gd->bd->bi_dram[0].size - sunxi_display.fb_size;
+	size = sunxi_display->fb_addr - start;
 	ret = fdt_fixup_memory_banks(blob, &start, &size, 1);
 	if (ret) {
 		eprintf("Cannot setup simplefb: Error reserving memory\n");
 		return ret;
 	}
 
-	ret = fdt_setup_simplefb_node(blob, offset, sunxi_display.fb_addr,
-			graphic_device->winSizeX, graphic_device->winSizeY,
-			graphic_device->plnSizeX, "x8r8g8b8");
+	ret = fdt_setup_simplefb_node(blob, offset, sunxi_display->fb_addr,
+				      uc_priv->xsize, uc_priv->ysize,
+				      VNBYTES(uc_priv->bpix) * uc_priv->xsize,
+				      "x8r8g8b8");
 	if (ret)
 		eprintf("Cannot setup simplefb: Error setting properties\n");
 

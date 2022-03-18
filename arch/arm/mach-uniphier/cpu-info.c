@@ -1,20 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013-2014 Panasonic Corporation
  * Copyright (C) 2015-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <common.h>
+#include <init.h>
+#include <stdio.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/printk.h>
 
+#include "base-address.h"
 #include "soc-info.h"
 
 int print_cpuinfo(void)
 {
 	unsigned int id, model, rev, required_model = 1, required_rev = 1;
+	int ret;
+
+	ret = uniphier_base_address_init();
+	if (ret)
+		return ret;
 
 	id = uniphier_get_soc_id();
 	model = uniphier_get_soc_model();
@@ -59,11 +66,11 @@ int print_cpuinfo(void)
 	printf(" (model %d, revision %d)\n", model, rev);
 
 	if (model < required_model) {
-		printf("Only model %d or newer is supported.\n",
+		pr_err("Only model %d or newer is supported.\n",
 		       required_model);
 		return -ENOTSUPP;
 	} else if (rev < required_rev) {
-		printf("Only revision %d or newer is supported.\n",
+		pr_err("Only revision %d or newer is supported.\n",
 		       required_rev);
 		return -ENOTSUPP;
 	}

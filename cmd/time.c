@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -24,7 +24,8 @@ static void report_time(ulong cycles)
 	printf(" %lu.%03lu seconds\n", seconds, milliseconds);
 }
 
-static int do_time(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_time(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	ulong cycles = 0;
 	int retval = 0;

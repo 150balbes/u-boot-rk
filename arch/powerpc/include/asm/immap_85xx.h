@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * MPC85xx Internal Memory Map
  *
@@ -5,8 +6,6 @@
  *
  * Copyright(c) 2002,2003 Motorola Inc.
  * Xianghua Xiao (x.xiao@motorola.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __IMMAP_85xx__
@@ -125,9 +124,7 @@ typedef struct ccsr_i2c {
 } ccsr_i2c_t;
 
 #if defined(CONFIG_ARCH_MPC8540) || \
-	defined(CONFIG_ARCH_MPC8541) || \
-	defined(CONFIG_ARCH_MPC8548) || \
-	defined(CONFIG_ARCH_MPC8555)
+	defined(CONFIG_ARCH_MPC8548)
 /* DUART Registers */
 typedef struct ccsr_duart {
 	u8	res1[1280];
@@ -273,6 +270,7 @@ typedef struct ccsr_gpio {
 	u32	gpier;
 	u32	gpimr;
 	u32	gpicr;
+	u32	gpibe;
 } ccsr_gpio_t;
 #endif
 
@@ -1512,7 +1510,7 @@ typedef struct par_io {
  */
 
 typedef struct cpc_corenet {
-	u32 	cpccsr0;	/* Config/status reg */
+	u32	cpccsr0;	/* Config/status reg */
 	u32	res1;
 	u32	cpccfg0;	/* Configuration register */
 	u32	res2;
@@ -1575,7 +1573,7 @@ typedef struct cpc_corenet {
 #define CPC_SRCR0_SRAMSZ_16_WAY	0x00000008
 #define CPC_SRCR0_SRAMSZ_32_WAY	0x0000000a
 #define CPC_SRCR0_SRAMEN	0x00000001
-#define	CPC_ERRDIS_TMHITDIS  	0x00000080	/* multi-way hit disable */
+#define	CPC_ERRDIS_TMHITDIS	0x00000080	/* multi-way hit disable */
 #define CPC_HDBCR0_CDQ_SPEC_DIS	0x08000000
 #define CPC_HDBCR0_TAG_ECC_SCRUB_DIS	0x01000000
 #define CPC_HDBCR0_DATA_ECC_SCRUB_DIS	0x00400000
@@ -1759,7 +1757,7 @@ typedef struct ccsr_gur {
 /* use reserved bits 18~23 as scratch space to host DDR PLL ratio */
 #define FSL_CORENET_RCWSR0_MEM_PLL_RAT_RESV_SHIFT	8
 #define FSL_CORENET_RCWSR0_MEM_PLL_RAT_MASK	0x3f
-#if defined(CONFIG_ARCH_T4240) || defined(CONFIG_ARCH_T4160)
+#if defined(CONFIG_ARCH_T4240)
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL		0xfc000000
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL_SHIFT	26
 #define FSL_CORENET2_RCWSR4_SRDS2_PRTCL		0x00fe0000
@@ -1786,16 +1784,15 @@ typedef struct ccsr_gur {
 #define FSL_CORENET_RCWSR13_EC1_FM1_DTSEC4_MII	0x20000000
 #define FSL_CORENET_RCWSR13_EC2	0x0c000000 /* bits 420..421 */
 #define FSL_CORENET_RCWSR13_EC2_FM1_DTSEC5_RGMII	0x00000000
-#define FSL_CORENET_RCWSR13_EC2_FM1_GPIO	0x10000000
-#define FSL_CORENET_RCWSR13_EC2_FM1_DTSEC5_MII	0x20000000
+#define FSL_CORENET_RCWSR13_EC2_FM1_GPIO	0x04000000
 #define FSL_CORENET_RCWSR13_MAC2_GMII_SEL	0x00000080
 #define FSL_CORENET_RCWSR13_MAC2_GMII_SEL_L2_SWITCH	0x00000000
-#define FSL_CORENET_RCWSR13_MAC2_GMII_SEL_ENET_PORT	0x80000000
+#define FSL_CORENET_RCWSR13_MAC2_GMII_SEL_ENET_PORT	0x00000080
 #define CONFIG_SYS_FSL_SCFG_PIXCLKCR_OFFSET	0x28
 #define PXCKEN_MASK	0x80000000
 #define PXCK_MASK	0x00FF0000
 #define PXCK_BITS_START	16
-#elif defined(CONFIG_ARCH_T1024) || defined(CONFIG_ARCH_T1023)
+#elif defined(CONFIG_ARCH_T1024)
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL		0xff800000
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL_SHIFT	23
 #define FSL_CORENET_RCWSR6_BOOT_LOC		0x0f800000
@@ -1809,7 +1806,7 @@ typedef struct ccsr_gur {
 #define PXCKEN_MASK				0x80000000
 #define PXCK_MASK				0x00FF0000
 #define PXCK_BITS_START				16
-#elif defined(CONFIG_ARCH_T2080) || defined(CONFIG_ARCH_T2081)
+#elif defined(CONFIG_ARCH_T2080)
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL		0xff000000
 #define FSL_CORENET2_RCWSR4_SRDS1_PRTCL_SHIFT	24
 #define FSL_CORENET2_RCWSR4_SRDS2_PRTCL		0x00ff0000
@@ -1854,7 +1851,7 @@ typedef struct ccsr_gur {
 #define FSL_CORENET_RCWSR11_EC2_USB2			0x00100000
 #endif
 #if defined(CONFIG_ARCH_P2041) || \
-	defined(CONFIG_ARCH_P3041) || defined(CONFIG_ARCH_P5020)
+	defined(CONFIG_ARCH_P3041)
 #define FSL_CORENET_RCWSR11_EC1_FM1_DTSEC4_RGMII	0x00000000
 #define FSL_CORENET_RCWSR11_EC1_FM1_DTSEC4_MII		0x00800000
 #define FSL_CORENET_RCWSR11_EC1_FM1_DTSEC4_NONE		0x00c00000
@@ -1872,7 +1869,7 @@ typedef struct ccsr_gur {
 #define FSL_CORENET_RCWSR11_EC2_FM2_DTSEC5_MII          0x00100000
 #define FSL_CORENET_RCWSR11_EC2_FM2_DTSEC5_NONE         0x00180000
 #endif
-#if defined(CONFIG_ARCH_T4240) || defined(CONFIG_ARCH_T4160)
+#if defined(CONFIG_ARCH_T4240)
 #define FSL_CORENET_RCWSR13_EC1			0x60000000 /* bits 417..418 */
 #define FSL_CORENET_RCWSR13_EC1_FM2_DTSEC5_RGMII	0x00000000
 #define FSL_CORENET_RCWSR13_EC1_FM2_GPIO		0x40000000
@@ -1881,7 +1878,7 @@ typedef struct ccsr_gur {
 #define FSL_CORENET_RCWSR13_EC2_FM1_DTSEC6_RGMII	0x08000000
 #define FSL_CORENET_RCWSR13_EC2_FM1_GPIO		0x10000000
 #endif
-#if defined(CONFIG_ARCH_T2080) || defined(CONFIG_ARCH_T2081)
+#if defined(CONFIG_ARCH_T2080)
 #define FSL_CORENET_RCWSR13_EC1			0x60000000 /* bits 417..418 */
 #define FSL_CORENET_RCWSR13_EC1_DTSEC3_RGMII	0x00000000
 #define FSL_CORENET_RCWSR13_EC1_GPIO		0x40000000
@@ -2158,10 +2155,7 @@ typedef struct ccsr_gur {
 #define MPC85xx_PORDEVSR_SGMII4_DIS	0x04000000
 #define MPC85xx_PORDEVSR_SRDS2_IO_SEL	0x38000000
 #define MPC85xx_PORDEVSR_PCI1		0x00800000
-#if defined(CONFIG_ARCH_P1022)
-#define MPC85xx_PORDEVSR_IO_SEL		0x007c0000
-#define MPC85xx_PORDEVSR_IO_SEL_SHIFT	18
-#elif defined(CONFIG_ARCH_P1023)
+#if defined(CONFIG_ARCH_P1023)
 #define MPC85xx_PORDEVSR_IO_SEL		0x00600000
 #define MPC85xx_PORDEVSR_IO_SEL_SHIFT	21
 #else
@@ -2206,15 +2200,8 @@ typedef struct ccsr_gur {
 	u32	gpiocr;		/* GPIO control */
 #endif
 	u8	res3[12];
-#if defined(CONFIG_ARCH_MPC8569)
-	u32	plppar1;	/* Platform port pin assignment 1 */
-	u32	plppar2;	/* Platform port pin assignment 2 */
-	u32	plpdir1;	/* Platform port pin direction 1 */
-	u32	plpdir2;	/* Platform port pin direction 2 */
-#else
 	u32	gpoutdr;	/* General-purpose output data */
 	u8	res4[12];
-#endif
 	u32	gpindr;		/* General-purpose input data */
 	u8	res5[12];
 	u32	pmuxcr;		/* Alt. function signal multiplex control */
@@ -2285,12 +2272,6 @@ typedef struct ccsr_gur {
 #define MPC85xx_PMUXCR_QE10		0x00000020
 #define MPC85xx_PMUXCR_QE11		0x00000010
 #define MPC85xx_PMUXCR_QE12		0x00000008
-#endif
-#if defined(CONFIG_ARCH_P1022)
-#define MPC85xx_PMUXCR_TDM_MASK		0x0001cc00
-#define MPC85xx_PMUXCR_TDM		0x00014800
-#define MPC85xx_PMUXCR_SPI_MASK		0x00600000
-#define MPC85xx_PMUXCR_SPI		0x00000000
 #endif
 #if defined(CONFIG_ARCH_BSC9131)
 #define MPC85xx_PMUXCR_TSEC2_DMA_GPIO_IRQ	0x40000000
@@ -2370,10 +2351,6 @@ typedef struct ccsr_gur {
 #define MPC85xx_PMUXCR2_POST_EXPOSE		0x00004000
 #define MPC85xx_PMUXCR2_DEBUG_MUX_SEL_USBPHY	0x00002000
 #define MPC85xx_PMUXCR2_PLL_LKDT_EXPOSE		0x00001000
-#endif
-#if defined(CONFIG_ARCH_P1022)
-#define MPC85xx_PMUXCR2_ETSECUSB_MASK	0x001f8000
-#define MPC85xx_PMUXCR2_USB		0x00150000
 #endif
 #if defined(CONFIG_ARCH_BSC9131) || defined(CONFIG_ARCH_BSC9132)
 #if defined(CONFIG_ARCH_BSC9131)
@@ -2480,11 +2457,7 @@ typedef struct ccsr_gur {
 	u32	svr;		/* System version */
 	u8	res10[8];
 	u32	rstcr;		/* Reset control */
-#if defined(CONFIG_ARCH_MPC8568) || defined(CONFIG_ARCH_MPC8569)
-	u8	res11a[76];
-	par_io_t qe_par_io[7];
-	u8	res11b[1600];
-#elif defined(CONFIG_ARCH_P1021) || defined(CONFIG_ARCH_P1025)
+#if defined(CONFIG_ARCH_P1021) || defined(CONFIG_ARCH_P1025)
 	u8      res11a[12];
 	u32     iovselsr;
 	u8      res11b[60];
@@ -2523,7 +2496,7 @@ typedef struct ccsr_gur {
 
 #ifdef CONFIG_SYS_FSL_QORIQ_CHASSIS2
 #define MAX_SERDES 4
-#if defined(CONFIG_ARCH_T1024) || defined(CONFIG_ARCH_T1023)
+#if defined(CONFIG_ARCH_T1024)
 #define SRDS_MAX_LANES 4
 #else
 #define SRDS_MAX_LANES 8
@@ -2701,66 +2674,6 @@ enum {
 	FSL_SRDS_B3_LANE_C = 22,
 	FSL_SRDS_B3_LANE_D = 23,
 };
-
-typedef struct ccsr_qman {
-#ifdef CONFIG_SYS_FSL_QMAN_V3
-	u8	res0[0x200];
-#else
-	struct {
-		u32	qcsp_lio_cfg;	/* 0x0 - SW Portal n LIO cfg */
-		u32	qcsp_io_cfg;	/* 0x4 - SW Portal n IO cfg */
-		u32	res;
-		u32	qcsp_dd_cfg;	/* 0xc - SW Portal n Dynamic Debug cfg */
-	} qcsp[32];
-#endif
-	/* Not actually reserved, but irrelevant to u-boot */
-	u8	res[0xbf8 - 0x200];
-	u32	ip_rev_1;
-	u32	ip_rev_2;
-	u32	fqd_bare;	/* FQD Extended Base Addr Register */
-	u32	fqd_bar;	/* FQD Base Addr Register */
-	u8	res1[0x8];
-	u32	fqd_ar;		/* FQD Attributes Register */
-	u8	res2[0xc];
-	u32	pfdr_bare;	/* PFDR Extended Base Addr Register */
-	u32	pfdr_bar;	/* PFDR Base Addr Register */
-	u8	res3[0x8];
-	u32	pfdr_ar;	/* PFDR Attributes Register */
-	u8	res4[0x4c];
-	u32	qcsp_bare;	/* QCSP Extended Base Addr Register */
-	u32	qcsp_bar;	/* QCSP Base Addr Register */
-	u8	res5[0x78];
-	u32	ci_sched_cfg;	/* Initiator Scheduling Configuration */
-	u32	srcidr;		/* Source ID Register */
-	u32	liodnr;		/* LIODN Register */
-	u8	res6[4];
-	u32	ci_rlm_cfg;	/* Initiator Read Latency Monitor Cfg */
-	u32	ci_rlm_avg;	/* Initiator Read Latency Monitor Avg */
-	u8	res7[0x2e8];
-#ifdef CONFIG_SYS_FSL_QMAN_V3
-	struct {
-		u32	qcsp_lio_cfg;	/* 0x0 - SW Portal n LIO cfg */
-		u32	qcsp_io_cfg;	/* 0x4 - SW Portal n IO cfg */
-		u32	res;
-		u32	qcsp_dd_cfg;	/* 0xc - SW Portal n Dynamic Debug cfg*/
-	} qcsp[50];
-#endif
-} ccsr_qman_t;
-
-typedef struct ccsr_bman {
-	/* Not actually reserved, but irrelevant to u-boot */
-	u8	res[0xbf8];
-	u32	ip_rev_1;
-	u32	ip_rev_2;
-	u32	fbpr_bare;	/* FBPR Extended Base Addr Register */
-	u32	fbpr_bar;	/* FBPR Base Addr Register */
-	u8	res1[0x8];
-	u32	fbpr_ar;	/* FBPR Attributes Register */
-	u8	res2[0xf0];
-	u32	srcidr;		/* Source ID Register */
-	u32	liodnr;		/* LIODN Register */
-	u8	res7[0x2f4];
-} ccsr_bman_t;
 
 typedef struct ccsr_pme {
 	u8	res0[0x804];
@@ -2940,7 +2853,7 @@ struct ccsr_pman {
 #define CONFIG_SYS_MPC85xx_PCIX2_OFFSET		0x9000
 #define CONFIG_SYS_MPC85xx_PCIE1_OFFSET         0xa000
 #define CONFIG_SYS_MPC85xx_PCIE2_OFFSET         0x9000
-#if defined(CONFIG_ARCH_MPC8572) || defined(CONFIG_ARCH_P2020)
+#if defined(CONFIG_ARCH_P2020)
 #define CONFIG_SYS_MPC85xx_PCIE3_OFFSET         0x8000
 #else
 #define CONFIG_SYS_MPC85xx_PCIE3_OFFSET         0xb000

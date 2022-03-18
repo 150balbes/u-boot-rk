@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <net.h>
+#include <asm/global_data.h>
 #include <linux/libfdt.h>
 #include <fdt_support.h>
 #include <asm/io.h>
@@ -17,12 +19,17 @@
 #include <tsec.h>
 #include <asm/arch/immap_ls102xa.h>
 #include <fsl_sec.h>
+#include <dm.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 void ft_fixup_enet_phy_connect_type(void *fdt)
 {
+#ifdef CONFIG_DM_ETH
+	struct udevice *dev;
+#else
 	struct eth_device *dev;
+#endif
 	struct tsec_private *priv;
 	const char *enet_path, *phy_path;
 	char enet[16];
@@ -30,7 +37,12 @@ void ft_fixup_enet_phy_connect_type(void *fdt)
 	int phy_node;
 	int i = 0;
 	uint32_t ph;
+#ifdef CONFIG_DM_ETH
+	char *name[3] = { "ethernet@2d10000", "ethernet@2d50000",
+			  "ethernet@2d90000" };
+#else
 	char *name[3] = { "eTSEC1", "eTSEC2", "eTSEC3" };
+#endif
 
 	for (; i < ARRAY_SIZE(name); i++) {
 		dev = eth_get_dev_by_name(name[i]);
@@ -41,7 +53,11 @@ void ft_fixup_enet_phy_connect_type(void *fdt)
 			continue;
 		}
 
+#ifdef CONFIG_DM_ETH
+		priv = dev_get_priv(dev);
+#else
 		priv = dev->priv;
+#endif
 		if (priv->flags & TSEC_SGMII)
 			continue;
 
@@ -65,13 +81,13 @@ void ft_fixup_enet_phy_connect_type(void *fdt)
 		do_fixup_by_path(fdt, enet_path, "phy-connection-type",
 				 phy_string_for_interface(
 				 PHY_INTERFACE_MODE_RGMII_ID),
-				 sizeof(phy_string_for_interface(
-				 PHY_INTERFACE_MODE_RGMII_ID)),
+				 strlen(phy_string_for_interface(
+				 PHY_INTERFACE_MODE_RGMII_ID)) + 1,
 				 1);
 	}
 }
 
-void ft_cpu_setup(void *blob, bd_t *bd)
+void ft_cpu_setup(void *blob, struct bd_info *bd)
 {
 	int off;
 	int val;
@@ -115,9 +131,9 @@ void ft_cpu_setup(void *blob, bd_t *bd)
 	sysclk_path = fdt_get_alias(blob, "sysclk");
 	if (sysclk_path)
 		do_fixup_by_path_u32(blob, sysclk_path, "clock-frequency",
-				     CONFIG_SYS_CLK_FREQ, 1);
+				     get_board_sys_clk(), 1);
 	do_fixup_by_compat_u32(blob, "fsl,qoriq-sysclk-2.0",
-			       "clock-frequency", CONFIG_SYS_CLK_FREQ, 1);
+			       "clock-frequency", get_board_sys_clk(), 1);
 
 #if defined(CONFIG_DEEP_SLEEP) && defined(CONFIG_SD_BOOT)
 #define UBOOT_HEAD_LEN	0x1000
@@ -168,13 +184,13 @@ void ft_cpu_setup(void *blob, bd_t *bd)
 #if defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)
 	off = fdt_node_offset_by_compat_reg(blob, FSL_IFC_COMPAT,
 					    CONFIG_SYS_IFC_ADDR);
-	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED, 0);
+	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED);
 #else
 	off = fdt_node_offset_by_compat_reg(blob, FSL_QSPI_COMPAT,
 					    QSPI0_BASE_ADDR);
-	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED, 0);
+	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED);
 	off = fdt_node_offset_by_compat_reg(blob, FSL_DSPI_COMPAT,
 					    DSPI1_BASE_ADDR);
-	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED, 0);
+	fdt_set_node_status(blob, off, FDT_STATUS_DISABLED);
 #endif
 }

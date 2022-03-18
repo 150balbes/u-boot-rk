@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuration settings for the VInCo platform.
  *
@@ -6,8 +7,6 @@
  *		      Bo Shen <voice.shen@atmel.com>
  * Copyright (C) 2015 Free Electrons
  *		      Gregory CLEMENT gregory.clement@free-electrons.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -16,46 +15,31 @@
 #include "at91-sama5_common.h"
 
 /* The value in the common file is too far away for the VInCo platform */
-#ifdef CONFIG_SYS_TEXT_BASE
-#undef CONFIG_SYS_TEXT_BASE
-#endif
-#define CONFIG_SYS_TEXT_BASE		0x20f00000
 
 /* serial console */
-#define CONFIG_ATMEL_USART
-#define CONFIG_USART_BASE		ATMEL_BASE_USART3
-#define	CONFIG_USART_ID			ATMEL_ID_USART3
+#define CONFIG_USART_BASE		0xfc00c000
+#define CONFIG_USART_ID			30
+
+/* Timer */
+#define CONFIG_SYS_TIMER_COUNTER	0xfc06863c
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS		1
-#define CONFIG_SYS_SDRAM_BASE           ATMEL_BASE_DDRCS
+#define CONFIG_SYS_SDRAM_BASE           0x20000000
 #define CONFIG_SYS_SDRAM_SIZE		0x4000000
 
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_SDRAM_BASE + 4 * 1024 - GENERATED_GBL_DATA_SIZE)
 
-#define CONFIG_SYS_LOAD_ADDR		0x22000000 /* load address */
-
 /* SerialFlash */
 
 #ifdef CONFIG_CMD_SF
-#define CONFIG_ATMEL_SPI
 #define CONFIG_ATMEL_SPI0
-#define CONFIG_SPI_FLASH_STMICRO
-#define CONFIG_SF_DEFAULT_BUS		0
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED		50000000
-#define CONFIG_ENV_SPI_MAX_HZ		50000000
-#define CONFIG_SF_DEFAULT_MODE		(SPI_MODE_0)
-#define CONFIG_ENV_SPI_MODE		(SPI_MODE_0)
 #endif
 
 /* MMC */
 
 #ifdef CONFIG_CMD_MMC
-#define CONFIG_SUPPORT_EMMC_BOOT
-#define CONFIG_GENERIC_ATMEL_MCI
-#define ATMEL_BASE_MMCI			ATMEL_BASE_MCI1
+#define ATMEL_BASE_MMCI			0xfc000000
 #define CONFIG_SYS_MMC_CLK_OD		500000
 
 /* For generating MMC partitions */
@@ -65,29 +49,15 @@
 /* USB device */
 
 /* Ethernet Hardware */
-#define CONFIG_PHY_SMSC
-#define CONFIG_MACB
 #define CONFIG_RMII
 #define CONFIG_NET_RETRY_COUNT		20
 #define CONFIG_MACB_SEARCH_PHY
 
-#ifdef CONFIG_SYS_USE_SERIALFLASH
+#ifdef CONFIG_SPI_BOOT
 /* bootstrap + u-boot + env + linux in serial flash */
-#define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
-#define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 /* Use our own mapping for the VInCo platform */
-#undef CONFIG_ENV_OFFSET
-#undef CONFIG_ENV_SIZE
-
-#define CONFIG_ENV_OFFSET       0x10000
-#define CONFIG_ENV_SIZE         0x10000
 
 /* Update the bootcommand according to our mapping for the VInCo platform */
-#undef CONFIG_BOOTCOMMAND
-#define CONFIG_BOOTCOMMAND  "mmc dev 0 0;" \
-			    "mmc read ${loadaddr} ${k_offset} ${k_blksize};" \
-			    "mmc read ${oftaddr} ${dtb_offset} ${dtb_blksize};" \
-			    "bootz ${loadaddr} -  ${oftaddr}"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"kernel_start=0x20000\0" \

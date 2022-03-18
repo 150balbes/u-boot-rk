@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2009, 2011, 2016 Freescale Semiconductor, Inc.
  *
  * (C) Copyright 2008, Excito Elektronik i Sk=E5ne AB
  *
  * Author: Tor Krill tor@excito.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <env.h>
+#include <log.h>
 #include <pci.h>
 #include <usb.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <usb/ehci-ci.h>
 #include <hwconfig.h>
 #include <fsl_usb.h>
@@ -56,7 +59,7 @@ static int usb_phy_clk_valid(struct usb_ehci *ehci)
 }
 
 #if CONFIG_IS_ENABLED(DM_USB)
-static int ehci_fsl_ofdata_to_platdata(struct udevice *dev)
+static int ehci_fsl_of_to_plat(struct udevice *dev)
 {
 	struct ehci_fsl_priv *priv = dev_get_priv(dev);
 	const void *prop;
@@ -98,11 +101,12 @@ static int ehci_fsl_probe(struct udevice *dev)
 	struct usb_ehci *ehci = NULL;
 	struct ehci_hccr *hccr;
 	struct ehci_hcor *hcor;
+	struct ehci_ctrl *ehci_ctrl = &priv->ehci;
 
 	/*
 	 * Get the base address for EHCI controller from the device node
 	 */
-	priv->hcd_base = devfdt_get_addr(dev);
+	priv->hcd_base = dev_read_addr(dev);
 	if (priv->hcd_base == FDT_ADDR_T_NONE) {
 		debug("Can't get the EHCI register base address\n");
 		return -ENXIO;
@@ -115,6 +119,8 @@ static int ehci_fsl_probe(struct udevice *dev)
 	hccr = (struct ehci_hccr *)(&ehci->caplength);
 	hcor = (struct ehci_hcor *)
 		((void *)hccr + HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
+
+	ehci_ctrl->has_fsl_erratum_a005275 = has_erratum_a005275();
 
 	if (ehci_fsl_init(priv, ehci, hccr, hcor) < 0)
 		return -ENXIO;
@@ -136,12 +142,12 @@ U_BOOT_DRIVER(ehci_fsl) = {
 	.name	= "ehci_fsl",
 	.id	= UCLASS_USB,
 	.of_match = ehci_usb_ids,
-	.ofdata_to_platdata = ehci_fsl_ofdata_to_platdata,
+	.of_to_plat = ehci_fsl_of_to_plat,
 	.probe = ehci_fsl_probe,
 	.remove = ehci_deregister,
 	.ops	= &ehci_usb_ops,
-	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
-	.priv_auto_alloc_size = sizeof(struct ehci_fsl_priv),
+	.plat_auto	= sizeof(struct usb_plat),
+	.priv_auto	= sizeof(struct ehci_fsl_priv),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
 #else
@@ -154,6 +160,8 @@ U_BOOT_DRIVER(ehci_fsl) = {
 int ehci_hcd_init(int index, enum usb_init_type init,
 		struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
+	struct ehci_ctrl *ehci_ctrl = container_of(hccr,
+					struct ehci_ctrl, hccr);
 	struct usb_ehci *ehci = NULL;
 
 	switch (index) {
@@ -171,6 +179,8 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 	*hccr = (struct ehci_hccr *)((uint32_t)&ehci->caplength);
 	*hcor = (struct ehci_hcor *)((uint32_t) *hccr +
 			HC_LENGTH(ehci_readl(&(*hccr)->cr_capbase)));
+
+	ehci_ctrl->has_fsl_erratum_a005275 = has_erratum_a005275();
 
 	return ehci_fsl_init(index, ehci, *hccr, *hcor);
 }

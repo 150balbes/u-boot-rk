@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * The file use ls102xa/timer.c as a reference.
  */
 
 #include <common.h>
+#include <init.h>
+#include <time.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <div64.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/syscounter.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -56,13 +59,14 @@ static inline unsigned long long us_to_tick(unsigned long long usec)
 	return usec;
 }
 
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
 int timer_init(void)
 {
 	struct sctr_regs *sctr = (struct sctr_regs *)SCTR_BASE_ADDR;
 	unsigned long val, freq;
 
 	freq = CONFIG_SC_TIMER_CLK;
-	asm("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
+	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
 
 	writel(freq, &sctr->cntfid0);
 
@@ -77,12 +81,13 @@ int timer_init(void)
 
 	return 0;
 }
+#endif
 
 unsigned long long get_ticks(void)
 {
 	unsigned long long now;
 
-	asm("mrrc p15, 0, %Q0, %R0, c14" : "=r" (now));
+	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (now));
 
 	gd->arch.tbl = (unsigned long)(now & 0xffffffff);
 	gd->arch.tbu = (unsigned long)(now >> 32);
@@ -90,14 +95,9 @@ unsigned long long get_ticks(void)
 	return now;
 }
 
-ulong get_timer_masked(void)
-{
-	return tick_to_time(get_ticks());
-}
-
 ulong get_timer(ulong base)
 {
-	return get_timer_masked() - base;
+	return tick_to_time(get_ticks()) - base;
 }
 
 void __udelay(unsigned long usec)

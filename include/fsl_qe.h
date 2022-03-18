@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2006-2009 Freescale Semiconductor, Inc.
  *
  * Dave Liu <daveliu@freescale.com>
  * based on source code of Shlomi Gridish
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __QE_H__
@@ -20,6 +19,8 @@
 
 #define QE_DATAONLY_BASE	0
 #define QE_DATAONLY_SIZE	(QE_MURAM_SIZE - QE_DATAONLY_BASE)
+
+struct udevice;
 
 /* QE threads SNUM
 */
@@ -39,7 +40,7 @@ typedef struct qe_snum {
 #define	QE_RISC_ALLOCATION_RISC2	0x2  /* RISC 2 */
 #define	QE_RISC_ALLOCATION_RISC3	0x4  /* RISC 3 */
 #define	QE_RISC_ALLOCATION_RISC4	0x8  /* RISC 4 */
-#define	QE_RISC_ALLOCATION_RISC1_AND_RISC2 	(QE_RISC_ALLOCATION_RISC1 | \
+#define	QE_RISC_ALLOCATION_RISC1_AND_RISC2	(QE_RISC_ALLOCATION_RISC1 | \
 						 QE_RISC_ALLOCATION_RISC2)
 #define	QE_RISC_ALLOCATION_FOUR_RISCS	(QE_RISC_ALLOCATION_RISC1 | \
 					 QE_RISC_ALLOCATION_RISC2 | \
@@ -228,7 +229,8 @@ typedef enum qe_clock {
 
 /* Structure that defines QE firmware binary files.
  *
- * See doc/README.qe_firmware for a description of these fields.
+ * See Documentation/powerpc/qe_firmware.rst in the Linux kernel tree for
+ * a description of these fields.
  */
 struct qe_firmware {
 	struct qe_header {
@@ -296,4 +298,7 @@ int u_qe_firmware_resume(const struct qe_firmware *firmware,
 			 qe_map_t *qe_immrr);
 #endif
 
+#if defined(CONFIG_PINCTRL)
+int par_io_of_config(struct udevice *dev);
+#endif
 #endif /* __QE_H__ */

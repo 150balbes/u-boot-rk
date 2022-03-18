@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2011
  * egnite GmbH <info@egnite.de>
  *
  * Configuation settings for Ethernut 5 with AT91SAM9XE.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -13,16 +12,10 @@
 #include <asm/hardware.h>
 
 /* The first stage boot loader expects u-boot running at this address. */
-#define CONFIG_SYS_TEXT_BASE	0x27000000	/* 16MB available */
 
 /* The first stage boot loader takes care of low level initialization. */
-#define CONFIG_SKIP_LOWLEVEL_INIT
-
-/* Set our official architecture number. */
-#define CONFIG_MACH_TYPE MACH_TYPE_ETHERNUT5
 
 /* CPU information */
-#define CONFIG_ARCH_CPU_INIT
 
 /* ARM asynchronous clock */
 #define CONFIG_SYS_AT91_SLOW_CLOCK	32768	/* slow clock xtal */
@@ -35,33 +28,16 @@
 				GENERATED_GBL_DATA_SIZE)
 
 /* 128MB SDRAM in 1 bank */
-#define CONFIG_NR_DRAM_BANKS		1
 #define CONFIG_SYS_SDRAM_BASE		0x20000000
 #define CONFIG_SYS_SDRAM_SIZE		(128 << 20)
-#define CONFIG_SYS_LOAD_ADDR		CONFIG_SYS_SDRAM_BASE
-#define CONFIG_LOADADDR			CONFIG_SYS_LOAD_ADDR
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (1 << 20))
-#define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_TEXT_BASE \
-					- CONFIG_SYS_MALLOC_LEN)
 
 /* 512kB on-chip NOR flash */
-# define CONFIG_SYS_MAX_FLASH_BANKS	1
 # define CONFIG_SYS_FLASH_BASE		0x00200000 /* AT91SAM9XE_FLASH_BASE */
-# define CONFIG_AT91_EFLASH
 # define CONFIG_SYS_MAX_FLASH_SECT	32
-# define CONFIG_SYS_FLASH_PROTECTION	/* First stage loader in sector 0 */
 # define CONFIG_EFLASH_PROTSECTORS	1
 
 
 /* bootstrap + u-boot + env + linux in dataflash on CS0 */
-#define CONFIG_ENV_OFFSET	0x3DE000
-#define CONFIG_ENV_SIZE		(132 << 10)
-#define CONFIG_ENV_SECT_SIZE	CONFIG_ENV_SIZE
-#define CONFIG_ENV_SPI_MAX_HZ	15000000
-
-#ifndef MINIMAL_LOADER
-#endif
 
 /* NAND flash */
 #ifdef CONFIG_CMD_NAND
@@ -76,21 +52,15 @@
 #endif
 
 /* JFFS2 */
-#ifdef CONFIG_CMD_JFFS2
-#define CONFIG_JFFS2_CMDLINE
-#define CONFIG_JFFS2_NAND
-#endif
 
 /* Ethernet */
 #define CONFIG_NET_RETRY_COUNT		20
-#define CONFIG_MACB
 #define CONFIG_RMII
 #define CONFIG_PHY_ID			0
 #define CONFIG_MACB_SEARCH_PHY
 
 /* MMC */
 #ifdef CONFIG_CMD_MMC
-#define CONFIG_GENERIC_ATMEL_MCI
 #define CONFIG_SYS_MMC_CD_PIN		AT91_PIO_PORTC, 8
 #endif
 
@@ -107,17 +77,11 @@
 
 /* RTC */
 #if defined(CONFIG_CMD_DATE) || defined(CONFIG_CMD_SNTP)
-#define CONFIG_RTC_PCF8563
 #define CONFIG_SYS_I2C_RTC_ADDR		0x51
 #endif
 
 /* I2C */
 #define CONFIG_SYS_MAX_I2C_BUS	1
-
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_SOFT			/* I2C bit-banged */
-#define CONFIG_SYS_I2C_SOFT_SPEED	100000
-#define CONFIG_SYS_I2C_SOFT_SLAVE	0
 
 #define I2C_SOFT_DECLARATIONS
 
@@ -142,24 +106,13 @@
 /* DHCP/BOOTP options */
 #ifdef CONFIG_CMD_DHCP
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
 #define CONFIG_SYS_AUTOLOAD	"n"
 #endif
 
 /* File systems */
 
 /* Boot command */
-#define CONFIG_CMDLINE_TAG
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_INITRD_TAG
-#define CONFIG_BOOTCOMMAND	"sf probe 0:0; " \
-				"sf read 0x22000000 0xc6000 0x294000; " \
-				"bootm 0x22000000"
 
 /* Misc. u-boot settings */
-#define CONFIG_SYS_LONGHELP
-#define CONFIG_CMDLINE_EDITING
 
 #endif

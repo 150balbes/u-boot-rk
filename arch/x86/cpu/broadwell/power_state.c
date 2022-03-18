@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * From coreboot src/soc/intel/broadwell/romstage/power_state.c
  *
  * Copyright (C) 2016 Google, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
+#include <log.h>
 #include <pci.h>
 #include <asm/io.h>
 #include <asm/intel_regs.h>
@@ -23,11 +23,10 @@ static int prev_sleep_state(struct chipset_power_state *ps)
 
 	if (ps->pm1_sts & WAK_STS) {
 		switch ((ps->pm1_cnt & SLP_TYP) >> SLP_TYP_SHIFT) {
-#if CONFIG_HAVE_ACPI_RESUME
 		case SLP_TYP_S3:
-			prev_sleep_state = SLEEP_STATE_S3;
+			if (IS_ENABLED(CONFIG_HAVE_ACPI_RESUME))
+				prev_sleep_state = SLEEP_STATE_S3;
 			break;
-#endif
 		case SLP_TYP_S5:
 			prev_sleep_state = SLEEP_STATE_S5;
 			break;

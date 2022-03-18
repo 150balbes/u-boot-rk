@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * Copyright (C) 2004-2007, 2012 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -13,11 +12,10 @@
 #include <asm/io.h>
 #include <asm/immap.h>
 
-DECLARE_GLOBAL_DATA_PTR;
-
 #if defined(CONFIG_CMD_NAND)
 #include <nand.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/rawnand.h>
 
 #define SET_CLE		0x10
 #define SET_ALE		0x08

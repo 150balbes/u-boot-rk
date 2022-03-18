@@ -1,20 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * From Coreboot src/southbridge/intel/bd82x6x/early_me.c
  *
  * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
+#include <log.h>
+#include <sysreset.h>
 #include <asm/pci.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <asm/arch/me.h>
 #include <asm/arch/pch.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 
 static const char *const me_ack_values[] = {
 	[ME_HFS_ACK_NO_DID]	= "No DID Ack received",
@@ -139,17 +141,17 @@ int intel_early_me_init_done(struct udevice *dev, struct udevice *me_dev,
 	case ME_HFS_ACK_RESET:
 		/* Non-power cycle reset */
 		set_global_reset(dev, 0);
-		reset_cpu(0);
+		sysreset_walk_halt(SYSRESET_COLD);
 		break;
 	case ME_HFS_ACK_PWR_CYCLE:
 		/* Power cycle reset */
 		set_global_reset(dev, 0);
-		x86_full_reset();
+		sysreset_walk_halt(SYSRESET_COLD);
 		break;
 	case ME_HFS_ACK_GBL_RESET:
 		/* Global reset */
 		set_global_reset(dev, 1);
-		x86_full_reset();
+		sysreset_walk_halt(SYSRESET_COLD);
 		break;
 	case ME_HFS_ACK_S3:
 	case ME_HFS_ACK_S4:

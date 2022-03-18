@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is part of UBIFS.
  *
@@ -8,15 +9,21 @@
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
+#include <env.h>
+#include <gzip.h>
+#include <log.h>
+#include <malloc.h>
 #include <memalign.h>
+#include <asm/global_data.h>
 #include "ubifs.h"
+#include <part.h>
+#include <dm/devres.h>
 #include <u-boot/zlib.h>
 
+#include <linux/compat.h>
 #include <linux/err.h>
 #include <linux/lzo.h>
 
@@ -69,24 +76,6 @@ struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 
 #ifdef __UBOOT__
-/* from mm/util.c */
-
-/**
- * kmemdup - duplicate region of memory
- *
- * @src: memory region to duplicate
- * @len: memory region length
- * @gfp: GFP mask to use
- */
-void *kmemdup(const void *src, size_t len, gfp_t gfp)
-{
-	void *p;
-
-	p = kmalloc(len, gfp);
-	if (p)
-		memcpy(p, src, len);
-	return p;
-}
 
 struct crypto_comp {
 	int compressor;
@@ -126,6 +115,7 @@ crypto_comp_decompress(const struct ubifs_info *c, struct crypto_comp *tfm,
 {
 	struct ubifs_compressor *compr = ubifs_compressors[tfm->compressor];
 	int err;
+	size_t tmp_len = *dlen;
 
 	if (compr->compr_type == UBIFS_COMPR_NONE) {
 		memcpy(dst, src, slen);
@@ -133,11 +123,12 @@ crypto_comp_decompress(const struct ubifs_info *c, struct crypto_comp *tfm,
 		return 0;
 	}
 
-	err = compr->decompress(src, slen, dst, (size_t *)dlen);
+	err = compr->decompress(src, slen, dst, &tmp_len);
 	if (err)
 		ubifs_err(c, "cannot decompress %d bytes, compressor %s, "
 			  "error %d", slen, compr->name, err);
 
+	*dlen = tmp_len;
 	return err;
 
 	return 0;
@@ -466,14 +457,10 @@ out:
 		dbg_gen("cannot find next direntry, error %d", err);
 
 out_free:
-	if (file->private_data)
-		kfree(file->private_data);
-	if (file)
-		free(file);
-	if (dentry)
-		free(dentry);
-	if (dir)
-		free(dir);
+	kfree(file->private_data);
+	free(file);
+	free(dentry);
+	free(dir);
 
 	return ret;
 }
@@ -565,7 +552,7 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
 	return 0;
 }
 
-int ubifs_set_blk_dev(struct blk_desc *rbdd, disk_partition_t *info)
+int ubifs_set_blk_dev(struct blk_desc *rbdd, struct disk_partition *info)
 {
 	if (rbdd) {
 		debug("UBIFS cannot be used with normal block devices\n");

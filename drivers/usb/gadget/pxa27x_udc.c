@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PXA27x USB device driver for u-boot.
  *
  * Copyright (C) 2007 Rodolfo Giometti <giometti@linux.it>
  * Copyright (C) 2007 Eurotech S.p.A.  <info@eurotech.it>
  * Copyright (C) 2008 Vivek Kutal      <vivek.kutal@azingo.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 
@@ -14,6 +13,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <usbdevice.h>
+#include <linux/delay.h>
 #include <usb/pxa27x_udc.h>
 #include <usb/udc.h>
 
@@ -472,7 +472,7 @@ void udc_irq(void)
  * so using '|=' isn't safe as it may ack an interrupt.
  */
 #define UDCCR_OEN		(1 << 31)   /* On-the-Go Enable */
-#define UDCCR_MASK_BITS     	(UDCCR_OEN | UDCCR_UDE)
+#define UDCCR_MASK_BITS		(UDCCR_OEN | UDCCR_UDE)
 
 static inline void udc_set_mask_UDCCR(int mask)
 {

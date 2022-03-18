@@ -1,19 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002 ELTEC Elektronik AG
  * Frank Gottschling <fgottschling@eltec.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* i8042.c - Intel 8042 keyboard driver routines */
 
 #include <common.h>
 #include <dm.h>
+#include <env.h>
 #include <errno.h>
 #include <i8042.h>
 #include <input.h>
 #include <keyboard.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -75,7 +78,7 @@ static int kbd_output_full(void)
  * check_leds() - Check the keyboard LEDs and update them it needed
  *
  * @ret:	Value to return
- * @return value of @ret
+ * Return: value of @ret
  */
 static int i8042_kbd_update_leds(struct udevice *dev, int leds)
 {
@@ -147,8 +150,8 @@ static int kbd_reset(int quirk)
 	else if ((quirk & QUIRK_DUP_POR) && config == KBD_POR)
 		config = kbd_cmd_read(CMD_RD_CONFIG);
 
-	config |= CONFIG_AT_TRANS;
-	config &= ~(CONFIG_KIRQ_EN | CONFIG_MIRQ_EN);
+	config |= CFG_AT_TRANS;
+	config &= ~(CFG_KIRQ_EN | CFG_MIRQ_EN);
 	if (kbd_cmd_write(CMD_WR_CONFIG, config))
 		goto err;
 
@@ -168,19 +171,8 @@ static int kbd_controller_present(void)
 	return in8(I8042_STS_REG) != 0xff;
 }
 
-/*
- * Implement a weak default function for boards that optionally
- * need to skip the i8042 initialization.
- *
- * TODO(sjg@chromium.org): Use device tree for this?
- */
-int __weak board_i8042_skip(void)
-{
-	/* As default, don't skip */
-	return 0;
-}
-
-void i8042_flush(void)
+/** Flush all buffer from keyboard controller to host*/
+static void i8042_flush(void)
 {
 	int timeout;
 
@@ -203,7 +195,13 @@ void i8042_flush(void)
 	}
 }
 
-int i8042_disable(void)
+/**
+ * Disables the keyboard so that key strokes no longer generate scancodes to
+ * the host.
+ *
+ * Return: 0 if ok, -1 if keyboard input was found while disabling
+ */
+static int i8042_disable(void)
 {
 	if (kbd_input_empty() == 0)
 		return -1;
@@ -267,7 +265,7 @@ static int i8042_start(struct udevice *dev)
 	char *penv;
 	int ret;
 
-	if (!kbd_controller_present() || board_i8042_skip()) {
+	if (!kbd_controller_present()) {
 		debug("i8042 keyboard controller is not present\n");
 		return -ENOENT;
 	}
@@ -295,6 +293,15 @@ static int i8042_start(struct udevice *dev)
 	return 0;
 }
 
+static int i8042_kbd_remove(struct udevice *dev)
+{
+	if (i8042_disable())
+		log_debug("i8042_disable() failed. fine, continue.\n");
+	i8042_flush();
+
+	return 0;
+}
+
 /**
  * Set up the i8042 keyboard. This is called by the stdio device handler
  *
@@ -305,7 +312,7 @@ static int i8042_start(struct udevice *dev)
  * wait for the keyboard to init. We do this only when a key is first
  * read - see kbd_wait_for_fifo_init().
  *
- * @return 0 if ok, -ve on error
+ * Return: 0 if ok, -ve on error
  */
 static int i8042_kbd_probe(struct udevice *dev)
 {
@@ -349,6 +356,7 @@ U_BOOT_DRIVER(i8042_kbd) = {
 	.id	= UCLASS_KEYBOARD,
 	.of_match = i8042_kbd_ids,
 	.probe = i8042_kbd_probe,
+	.remove = i8042_kbd_remove,
 	.ops	= &i8042_kbd_ops,
-	.priv_auto_alloc_size = sizeof(struct i8042_kbd_priv),
+	.priv_auto	= sizeof(struct i8042_kbd_priv),
 };

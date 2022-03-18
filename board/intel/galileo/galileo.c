@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -13,7 +12,7 @@
  * Intel Galileo gen2 board uses GPIO Resume Well bank pin0 as the PERST# pin.
  *
  * We cannot use any public GPIO APIs in <asm-generic/gpio.h> to control this
- * pin, as these APIs will eventually call into gpio_ich6_ofdata_to_platdata()
+ * pin, as these APIs will eventually call into gpio_ich6_of_to_plat()
  * in the Intel ICH6 GPIO driver where it calls PCI configuration space access
  * APIs which will trigger PCI enumeration process.
  *

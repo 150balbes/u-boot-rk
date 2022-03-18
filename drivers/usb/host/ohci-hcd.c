@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * URB OHCI HCD (Host Controller Driver) for USB on the AT91RM9200 and PCI bus.
  *
@@ -16,8 +17,6 @@
  *
  * Modified for the MP2USB by (C) Copyright 2005 Eric Benard
  * ebenard@eukrea.com - based on s3c24x0's driver
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 /*
  * IMPORTANT NOTES
@@ -29,9 +28,12 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/byteorder.h>
 #include <dm.h>
 #include <errno.h>
+#include <asm/cache.h>
+#include <linux/delay.h>
 
 #if defined(CONFIG_PCI_OHCI)
 # include <pci.h>
@@ -52,7 +54,7 @@
 
 #if defined(CONFIG_CPU_ARM920T) || \
 	defined(CONFIG_PCI_OHCI) || \
-	defined(CONFIG_DM_PCI) || \
+	defined(CONFIG_PCI) || \
 	defined(CONFIG_SYS_OHCI_USE_NPS)
 # define OHCI_USE_NPS		/* force NoPowerSwitching mode */
 #endif

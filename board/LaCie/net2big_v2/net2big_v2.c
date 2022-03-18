@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Simon Guinot <sguinot@lacie.com>
  *
@@ -5,13 +6,15 @@
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
+#include <env.h>
 #include <i2c.h>
+#include <init.h>
+#include <net.h>
+#include <asm/global_data.h>
 #include <asm/mach-types.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
@@ -237,14 +240,15 @@ int misc_init_r(void)
 /* Configure and initialize PHY */
 void reset_phy(void)
 {
-	mv_phy_88e1116_init("egiga0", 8);
+	mv_phy_88e1116_init("ethernet-controller@72000", 8);
 }
 #endif
 
 #if defined(CONFIG_KIRKWOOD_GPIO)
 /* Return GPIO push button status */
 static int
-do_read_push_button(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+do_read_push_button(struct cmd_tbl *cmdtp, int flag, int argc,
+		    char *const argv[])
 {
 	return !kw_gpio_get_value(NET2BIG_V2_GPIO_PUSH_BUTTON);
 }

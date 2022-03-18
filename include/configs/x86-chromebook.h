@@ -1,15 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _X86_CHROMEBOOK_H
 #define _X86_CHROMEBOOK_H
 
 #define CONFIG_SYS_MONITOR_LEN			(1 << 20)
-
-#define CONFIG_MISC_INIT_R
 
 #define CONFIG_X86_MRC_ADDR			0xfffa0000
 #define CONFIG_X86_REFCODE_ADDR			0xffea0000
@@ -30,11 +27,6 @@
 #define CONFIG_BIOSEMU
 #define VIDEO_IO_OFFSET				0
 #define CONFIG_X86EMU_RAW_IO
-
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE			0x1000
-#define CONFIG_ENV_SECT_SIZE		0x1000
-#define CONFIG_ENV_OFFSET		0x003f8000
 
 #define CONFIG_STD_DEVICES_SETTINGS	"stdin=usbkbd,i8042-kbd,serial\0" \
 					"stdout=vidconsole,serial\0" \

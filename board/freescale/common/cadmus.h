@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2004 Freescale Semiconductor.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CADMUS_H_
@@ -20,7 +19,7 @@ extern unsigned int get_board_version(void);
 /*
  * Returns either 33000000 or 66000000 as the SYS_CLK_FREQ.
  */
-extern unsigned long get_clock_freq(void);
+extern unsigned long get_board_sys_clk(void);
 
 
 /*

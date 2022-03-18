@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  armboot - Startup Code for SA1100 CPU
  *
@@ -5,8 +6,6 @@
  *  Copyright (C) 1999	Magnus Damm <kieraypc01.p.y.kie.era.ericsson.se>
  *  Copyright (C) 2000	Wolfgang Denk <wd@denx.de>
  *  Copyright (c) 2001	Alex Züpke <azu@sysgo.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -40,7 +39,7 @@ reset:
 	 * we do sys-critical inits only at reboot,
 	 * not when booting from ram!
 	 */
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
 	bl	cpu_init_crit
 #endif
 
@@ -96,7 +95,7 @@ cpu_init_crit:
 	ldr	r1, cpuspeed
 	str	r1, [r0, #PPCR]
 
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT_ONLY
+#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT_ONLY)
 	/*
 	 * before relocating, we have to setup RAM timing
 	 * because memory timing is board-dependend, you will

@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _X86_TABLES_H_
@@ -50,8 +49,10 @@ void table_fill_string(char *dest, const char *src, size_t n, char pad);
  * This writes x86 configuration tables, including PIRQ routing table,
  * Multi-Processor table and ACPI table. Whether a specific type of
  * configuration table is written is controlled by a Kconfig option.
+ *
+ * Return: 0 if OK, -ENOSPC if table too large
  */
-void write_tables(void);
+int write_tables(void);
 
 /**
  * write_pirq_routing_table() - Write PIRQ routing table

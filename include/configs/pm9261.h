@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
@@ -5,8 +6,6 @@
  * Ilko Iliev <www.ronetix.at>
  *
  * Configuation settings for the RONETIX PM9261 board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -25,13 +24,6 @@
 #define MAIN_PLL_DIV		2
 #define CONFIG_SYS_AT91_SLOW_CLOCK	32768		/* slow clock xtal */
 #define CONFIG_SYS_AT91_MAIN_CLOCK	18432000
-
-#define CONFIG_SYS_AT91_CPU_NAME	"AT91SAM9261"
-#define CONFIG_PM9261		1	/* on a Ronetix PM9261 Board	*/
-#define CONFIG_ARCH_CPU_INIT
-#define CONFIG_SYS_TEXT_BASE	0
-
-#define CONFIG_MACH_TYPE	MACH_TYPE_PM9261
 
 /* clocks */
 /* CKGR_MOR - enable main osc. */
@@ -132,12 +124,6 @@
 		 AT91_WDT_MR_WDDIS |				\
 		 AT91_WDT_MR_WDD(0xfff))
 
-#define CONFIG_CMDLINE_TAG	1	/* enable passing of ATAGs */
-#define CONFIG_SETUP_MEMORY_TAGS 1
-#define CONFIG_INITRD_TAG	1
-
-#undef CONFIG_SKIP_LOWLEVEL_INIT
-
 /*
  * Hardware drivers
  */
@@ -155,12 +141,8 @@
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE	1
-#define CONFIG_BOOTP_BOOTPATH		1
-#define CONFIG_BOOTP_GATEWAY		1
-#define CONFIG_BOOTP_HOSTNAME		1
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS			1
 #define PHYS_SDRAM				0x20000000
 #define PHYS_SDRAM_SIZE				0x04000000	/* 64 megs */
 
@@ -176,21 +158,9 @@
 #define CONFIG_SYS_NAND_READY_PIN		GPIO_PIN_PA(16)
 
 /* NOR flash */
-#define CONFIG_SYS_FLASH_CFI			1
-#define CONFIG_FLASH_CFI_DRIVER			1
 #define PHYS_FLASH_1				0x10000000
 #define CONFIG_SYS_FLASH_BASE			PHYS_FLASH_1
 #define CONFIG_SYS_MAX_FLASH_SECT		256
-#define CONFIG_SYS_MAX_FLASH_BANKS		1
-
-/* Ethernet */
-#define CONFIG_DRIVER_DM9000			1
-#define CONFIG_DM9000_BASE			0x30000000
-#define DM9000_IO				CONFIG_DM9000_BASE
-#define DM9000_DATA				(CONFIG_DM9000_BASE + 4)
-#define CONFIG_DM9000_USE_16BIT			1
-#define CONFIG_NET_RETRY_COUNT			20
-#define CONFIG_RESET_PHY_R			1
 
 /* USB */
 #define CONFIG_USB_ATMEL
@@ -201,11 +171,6 @@
 #define CONFIG_SYS_USB_OHCI_SLOT_NAME		"at91sam9261"
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS	2
 
-#define CONFIG_SYS_LOAD_ADDR			0x22000000
-
-#define CONFIG_SYS_MEMTEST_START		PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END			0x23e00000
-
 #undef CONFIG_SYS_USE_DATAFLASH_CS0
 #undef CONFIG_SYS_USE_NANDFLASH
 #define CONFIG_SYS_USE_FLASH	1
@@ -213,29 +178,12 @@
 #ifdef CONFIG_SYS_USE_DATAFLASH_CS0
 
 /* bootstrap + u-boot + env + linux in dataflash on CS0 */
-#define CONFIG_ENV_OFFSET	0x4200
-#define CONFIG_ENV_SIZE		0x4200
-#define CONFIG_ENV_SECT_SIZE	0x210
-#define CONFIG_ENV_SPI_MAX_HZ	15000000
-#define CONFIG_BOOTCOMMAND	"sf probe 0; " \
-				"sf read 0x22000000 0x84000 0x210000; " \
-				"bootm 0x22000000"
 
 #elif defined(CONFIG_SYS_USE_NANDFLASH) /* CONFIG_SYS_USE_NANDFLASH */
 
 /* bootstrap + u-boot + env + linux in nandflash */
-#define CONFIG_ENV_OFFSET		0x60000
-#define CONFIG_ENV_OFFSET_REDUND	0x80000
-#define CONFIG_ENV_SIZE			0x20000		/* 1 sector = 128 kB */
-#define CONFIG_BOOTCOMMAND	"nand read 0x22000000 0xA0000 0x200000; bootm"
 
 #elif defined (CONFIG_SYS_USE_FLASH)
-
-#define CONFIG_ENV_OFFSET	0x40000
-#define CONFIG_ENV_SECT_SIZE	0x10000
-#define	CONFIG_ENV_SIZE		0x10000
-#define CONFIG_ENV_OVERWRITE	1
-
 /* JFFS Partition offset set */
 #define CONFIG_SYS_JFFS2_FIRST_BANK	0
 #define CONFIG_SYS_JFFS2_NUM_BANKS	1
@@ -243,22 +191,11 @@
 /* 512k reserved for u-boot */
 #define CONFIG_SYS_JFFS2_FIRST_SECTOR	11
 
-#define CONFIG_BOOTCOMMAND	"run flashboot"
-
-#define MTDIDS_DEFAULT		"nor0=physmap-flash.0,nand0=nand"
-#define MTDPARTS_DEFAULT		\
-	"mtdparts=physmap-flash.0:"	\
-		"256k(u-boot)ro,"	\
-		"64k(u-boot-env)ro,"	\
-		"1408k(kernel),"	\
-		"-(rootfs);"		\
-	"nand:-(nand)"
-
 #define CONFIG_CON_ROT "fbcon=rotate:3 "
 
 #define CONFIG_EXTRA_ENV_SETTINGS				\
-	"mtdids=" MTDIDS_DEFAULT "\0"				\
-	"mtdparts=" MTDPARTS_DEFAULT "\0"			\
+	"mtdids=" CONFIG_MTDIDS_DEFAULT "\0"				\
+	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0"			\
 	"partition=nand0,0\0"					\
 	"ramargs=setenv bootargs $(bootargs) $(mtdparts)\0"	\
 	"nfsargs=setenv bootargs root=/dev/nfs rw "		\
@@ -276,15 +213,6 @@
 #else
 #error "Undefined memory device"
 #endif
-
-#define CONFIG_SYS_LONGHELP		1
-#define CONFIG_CMDLINE_EDITING	1
-
-/*
- * Size of malloc() pool
- */
-#define CONFIG_SYS_MALLOC_LEN		\
-		ROUND(3 * CONFIG_ENV_SIZE + 128 * 1024, 0x1000)
 
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
 #define CONFIG_SYS_INIT_SP_ADDR	(CONFIG_SYS_SDRAM_BASE + 16 * 1024 - \

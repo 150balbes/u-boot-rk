@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <bootstage.h>
 #include <command.h>
+#include <env.h>
 #include <image.h>
+#include <lmb.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <u-boot/zlib.h>
 #include <bzlib.h>
 #include <watchdog.h>
-#include <environment.h>
 #include <asm/byteorder.h>
 #ifdef CONFIG_SHOW_BOOT_PROGRESS
 # include <status_led.h>
@@ -25,34 +28,19 @@ DECLARE_GLOBAL_DATA_PTR;
 #define LINUX_MAX_ARGS		256
 
 static ulong get_sp (void);
-static void set_clocks_in_mhz (bd_t *kbd);
+static void set_clocks_in_mhz (struct bd_info *kbd);
 
 void arch_lmb_reserve(struct lmb *lmb)
 {
-	ulong sp;
-
-	/*
-	 * Booting a (Linux) kernel image
-	 *
-	 * Allocate space for command line and board info - the
-	 * address should be as high as possible within the reach of
-	 * the kernel (see CONFIG_SYS_BOOTMAPSZ settings), but in unused
-	 * memory, which means far enough below the current stack
-	 * pointer.
-	 */
-	sp = get_sp();
-	debug ("## Current stack ends at 0x%08lx ", sp);
-
-	/* adjust sp by 1K to be safe */
-	sp -= 1024;
-	lmb_reserve(lmb, sp, (CONFIG_SYS_SDRAM_BASE + gd->ram_size - sp));
+	arch_lmb_reserve_generic(lmb, get_sp(), gd->ram_top, 1024);
 }
 
-int do_bootm_linux(int flag, int argc, char * const argv[], bootm_headers_t *images)
+int do_bootm_linux(int flag, int argc, char *const argv[],
+		   bootm_headers_t *images)
 {
 	int ret;
-	bd_t  *kbd;
-	void  (*kernel) (bd_t *, ulong, ulong, ulong, ulong);
+	struct bd_info  *kbd;
+	void  (*kernel) (struct bd_info *, ulong, ulong, ulong, ulong);
 	struct lmb *lmb = &images->lmb;
 
 	/*
@@ -76,7 +64,7 @@ int do_bootm_linux(int flag, int argc, char * const argv[], bootm_headers_t *ima
 	if (ret)
 		goto error;
 
-	kernel = (void (*)(bd_t *, ulong, ulong, ulong, ulong))images->ep;
+	kernel = (void (*)(struct bd_info *, ulong, ulong, ulong, ulong))images->ep;
 
 	debug("## Transferring control to Linux (at address %08lx) ...\n",
 	      (ulong) kernel);
@@ -109,7 +97,7 @@ static ulong get_sp (void)
 	return sp;
 }
 
-static void set_clocks_in_mhz (bd_t *kbd)
+static void set_clocks_in_mhz (struct bd_info *kbd)
 {
 	char *s;
 

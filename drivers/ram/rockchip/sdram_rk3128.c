@@ -1,18 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
  * (C) Copyright 2017 Rockchip Electronics Co., Ltd.
- *
- * SPDX-License-Identifier:     GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <ram.h>
 #include <syscon.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/grf_rk3128.h>
-#include <asm/arch/sdram.h>
+#include <asm/arch-rockchip/clock.h>
+#include <asm/arch-rockchip/grf_rk3128.h>
+#include <asm/arch-rockchip/sdram.h>
 
-DECLARE_GLOBAL_DATA_PTR;
 struct dram_info {
 	struct ram_info info;
 	struct rk3128_grf *grf;
@@ -44,7 +43,6 @@ static struct ram_ops rk3128_dmc_ops = {
 	.get_info = rk3128_dmc_get_info,
 };
 
-
 static const struct udevice_id rk3128_dmc_ids[] = {
 	{ .compatible = "rockchip,rk3128-dmc" },
 	{ }
@@ -56,5 +54,5 @@ U_BOOT_DRIVER(dmc_rk3128) = {
 	.of_match = rk3128_dmc_ids,
 	.ops = &rk3128_dmc_ops,
 	.probe = rk3128_dmc_probe,
-	.priv_auto_alloc_size = sizeof(struct dram_info),
+	.priv_auto	= sizeof(struct dram_info),
 };

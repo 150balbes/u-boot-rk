@@ -1,15 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2016 Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/arch/bootrom.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/grf_rk3328.h>
-#include <asm/arch/uart.h>
+#include <init.h>
+#include <asm/arch-rockchip/bootrom.h>
+#include <asm/arch-rockchip/hardware.h>
+#include <asm/arch-rockchip/grf_rk3328.h>
+#include <asm/arch-rockchip/uart.h>
 #include <asm/armv8/mmu.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -17,9 +18,12 @@ DECLARE_GLOBAL_DATA_PTR;
 #define CRU_BASE		0xFF440000
 #define GRF_BASE		0xFF100000
 #define UART2_BASE		0xFF130000
+#define FW_DDR_CON_REG		0xFF7C0040
 
-#define CRU_MISC_CON		0xff440084
-#define FW_DDR_CON_REG		0xff7c0040
+const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
+	[BROM_BOOTSOURCE_EMMC] = "/rksdmmc@ff520000",
+	[BROM_BOOTSOURCE_SD] = "/rksdmmc@ff500000",
+};
 
 static struct mm_region rk3328_mem_map[] = {
 	{
@@ -43,36 +47,19 @@ static struct mm_region rk3328_mem_map[] = {
 
 struct mm_region *mem_map = rk3328_mem_map;
 
-const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
-	[BROM_BOOTSOURCE_EMMC] = "/rksdmmc@ff520000",
-	[BROM_BOOTSOURCE_SD] = "/rksdmmc@ff500000",
-};
-
-#ifndef CONFIG_TPL_BUILD
 int arch_cpu_init(void)
 {
 #ifdef CONFIG_SPL_BUILD
-	struct rk3328_grf_regs * const grf = (void *)GRF_BASE;
 	/* We do some SoC one time setting here. */
 
 	/* Disable the ddr secure region setting to make it non-secure */
 	rk_setreg(FW_DDR_CON_REG, 0x200);
-
-	/* Enable force to jtag, jtag_tclk/tms iomuxed with sdmmc0_d2/d3 */
-	rk_setreg(&grf->soc_con[4], 1 << 12);
-
-	/* HDMI phy clock source select HDMIPHY clock out */
-	rk_clrreg(CRU_MISC_CON, 1 << 13);
-
-	/* TODO: ECO version */
 #endif
 	return 0;
 }
-#endif
 
 void board_debug_uart_init(void)
 {
-#ifdef CONFIG_TPL_BUILD
 	struct rk3328_grf_regs * const grf = (void *)GRF_BASE;
 	struct rk_uart * const uart = (void *)UART2_BASE;
 	enum{
@@ -112,5 +99,4 @@ void board_debug_uart_init(void)
 
 	/* enable FIFO */
 	writel(0x1, &uart->sfe);
-#endif
 }

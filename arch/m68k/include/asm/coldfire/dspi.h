@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * MCF5227x Internal Memory Map
  *
  * Copyright (C) 2004-2007 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __DSPI_H__
@@ -21,14 +20,8 @@ typedef struct dspi {
 	u32 tfr;	/* 0x34 - PUSHR */
 	u16 resv1;	/* 0x38 */
 	u16 rfr;	/* 0x3A - POPR */
-#ifdef CONFIG_MCF547x_8x
-	u32 tfdr[4];	/* 0x3C */
-	u8 resv2[0x30];	/* 0x40 */
-	u32 rfdr[4];	/* 0x7C */
-#else
 	u32 tfdr[16];	/* 0x3C */
 	u32 rfdr[16];	/* 0x7C */
-#endif
 } dspi_t;
 
 /* Module configuration */
@@ -138,5 +131,9 @@ typedef struct dspi {
 
 /* Bit definitions and macros for DRFDR group */
 #define DSPI_RFDR_RXDATA(x)		(((x)&0x0000FFFF))
+
+/* Architecture-related operations */
+void dspi_chip_select(int cs);
+void dspi_chip_unselect(int cs);
 
 #endif				/* __DSPI_H__ */

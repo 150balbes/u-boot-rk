@@ -1,17 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Marvell International Ltd.
  *
  * Copyright (C) 2016 Stefan Roese <sr@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <malloc.h>
 #include <spi.h>
+#include <clk.h>
 #include <wait_bit.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
+#include <dm/device_compat.h>
+#include <linux/bitops.h>
+#include <asm/gpio.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -22,9 +27,9 @@ DECLARE_GLOBAL_DATA_PTR;
 #define MVEBU_SPI_A3700_CLK_POL			BIT(7)
 #define MVEBU_SPI_A3700_FIFO_EN			BIT(17)
 #define MVEBU_SPI_A3700_SPI_EN_0		BIT(16)
-#define MVEBU_SPI_A3700_CLK_PRESCALE_BIT	0
-#define MVEBU_SPI_A3700_CLK_PRESCALE_MASK	\
-	(0x1f << MVEBU_SPI_A3700_CLK_PRESCALE_BIT)
+#define MVEBU_SPI_A3700_CLK_PRESCALE_MASK	0x1f
+
+#define MAX_CS_COUNT	4
 
 /* SPI registers */
 struct spi_reg {
@@ -34,20 +39,26 @@ struct spi_reg {
 	u32 din;	/* 0x1060c */
 };
 
-struct mvebu_spi_platdata {
+struct mvebu_spi_plat {
 	struct spi_reg *spireg;
-	unsigned int frequency;
-	unsigned int clock;
+	struct clk clk;
+	struct gpio_desc cs_gpios[MAX_CS_COUNT];
 };
 
-static void spi_cs_activate(struct spi_reg *reg, int cs)
+static void spi_cs_activate(struct mvebu_spi_plat *plat, int cs)
 {
-	setbits_le32(&reg->ctrl, MVEBU_SPI_A3700_SPI_EN_0 << cs);
+	if (CONFIG_IS_ENABLED(DM_GPIO) && dm_gpio_is_valid(&plat->cs_gpios[cs]))
+		dm_gpio_set_value(&plat->cs_gpios[cs], 1);
+	else
+		setbits_le32(&plat->spireg->ctrl, MVEBU_SPI_A3700_SPI_EN_0 << cs);
 }
 
-static void spi_cs_deactivate(struct spi_reg *reg, int cs)
+static void spi_cs_deactivate(struct mvebu_spi_plat *plat, int cs)
 {
-	clrbits_le32(&reg->ctrl, MVEBU_SPI_A3700_SPI_EN_0 << cs);
+	if (CONFIG_IS_ENABLED(DM_GPIO) && dm_gpio_is_valid(&plat->cs_gpios[cs]))
+		dm_gpio_set_value(&plat->cs_gpios[cs], 0);
+	else
+		clrbits_le32(&plat->spireg->ctrl, MVEBU_SPI_A3700_SPI_EN_0 << cs);
 }
 
 /**
@@ -136,7 +147,7 @@ static int mvebu_spi_xfer(struct udevice *dev, unsigned int bitlen,
 			  const void *dout, void *din, unsigned long flags)
 {
 	struct udevice *bus = dev->parent;
-	struct mvebu_spi_platdata *plat = dev_get_platdata(bus);
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
 	struct spi_reg *reg = plat->spireg;
 	unsigned int bytelen;
 	int ret;
@@ -149,7 +160,7 @@ static int mvebu_spi_xfer(struct udevice *dev, unsigned int bitlen,
 	/* Activate CS */
 	if (flags & SPI_XFER_BEGIN) {
 		debug("SPI: activate cs.\n");
-		spi_cs_activate(reg, spi_chip_select(dev));
+		spi_cs_activate(plat, spi_chip_select(dev));
 	}
 
 	/* Send and/or receive */
@@ -168,7 +179,7 @@ static int mvebu_spi_xfer(struct udevice *dev, unsigned int bitlen,
 			return ret;
 
 		debug("SPI: deactivate cs.\n");
-		spi_cs_deactivate(reg, spi_chip_select(dev));
+		spi_cs_deactivate(plat, spi_chip_select(dev));
 	}
 
 	return 0;
@@ -176,19 +187,19 @@ static int mvebu_spi_xfer(struct udevice *dev, unsigned int bitlen,
 
 static int mvebu_spi_set_speed(struct udevice *bus, uint hz)
 {
-	struct mvebu_spi_platdata *plat = dev_get_platdata(bus);
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
 	struct spi_reg *reg = plat->spireg;
-	u32 data;
+	u32 data, prescale;
 
 	data = readl(&reg->cfg);
 
-	/* Set Prescaler */
-	data &= ~MVEBU_SPI_A3700_CLK_PRESCALE_MASK;
+	prescale = DIV_ROUND_UP(clk_get_rate(&plat->clk), hz);
+	if (prescale > 0xf)
+		prescale = 0x10 + (prescale + 1) / 2;
+	prescale = min(prescale, 0x1fu);
 
-	/* Calculate Prescaler = (spi_input_freq / spi_max_freq) */
-	if (hz > plat->frequency)
-		hz = plat->frequency;
-	data |= plat->clock / hz;
+	data &= ~MVEBU_SPI_A3700_CLK_PRESCALE_MASK;
+	data |= prescale & MVEBU_SPI_A3700_CLK_PRESCALE_MASK;
 
 	writel(data, &reg->cfg);
 
@@ -197,7 +208,7 @@ static int mvebu_spi_set_speed(struct udevice *bus, uint hz)
 
 static int mvebu_spi_set_mode(struct udevice *bus, uint mode)
 {
-	struct mvebu_spi_platdata *plat = dev_get_platdata(bus);
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
 	struct spi_reg *reg = plat->spireg;
 
 	/*
@@ -219,7 +230,7 @@ static int mvebu_spi_set_mode(struct udevice *bus, uint mode)
 
 static int mvebu_spi_probe(struct udevice *bus)
 {
-	struct mvebu_spi_platdata *plat = dev_get_platdata(bus);
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
 	struct spi_reg *reg = plat->spireg;
 	u32 data;
 	int ret;
@@ -246,27 +257,50 @@ static int mvebu_spi_probe(struct udevice *bus)
 
 	writel(data, &reg->cfg);
 
+	/* Set up CS GPIOs in device tree, if any */
+	if (CONFIG_IS_ENABLED(DM_GPIO) && gpio_get_list_count(bus, "cs-gpios") > 0) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(plat->cs_gpios); i++) {
+			ret = gpio_request_by_name(bus, "cs-gpios", i, &plat->cs_gpios[i], 0);
+			if (ret < 0 || !dm_gpio_is_valid(&plat->cs_gpios[i])) {
+				/* Use the native CS function for this line */
+				continue;
+			}
+
+			ret = dm_gpio_set_dir_flags(&plat->cs_gpios[i],
+						    GPIOD_IS_OUT | GPIOD_ACTIVE_LOW);
+			if (ret) {
+				dev_err(bus, "Setting cs %d error\n", i);
+				return ret;
+			}
+		}
+	}
+
 	return 0;
 }
 
-static int mvebu_spi_ofdata_to_platdata(struct udevice *bus)
+static int mvebu_spi_of_to_plat(struct udevice *bus)
 {
-	struct mvebu_spi_platdata *plat = dev_get_platdata(bus);
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
+	int ret;
 
-	plat->spireg = (struct spi_reg *)devfdt_get_addr(bus);
+	plat->spireg = dev_read_addr_ptr(bus);
 
-	/*
-	 * FIXME
-	 * Right now, mvebu does not have a clock infrastructure in U-Boot
-	 * which should be used to query the input clock to the SPI
-	 * controller. Once this clock driver is integrated into U-Boot
-	 * it should be used to read the input clock and the DT property
-	 * can be removed.
-	 */
-	plat->clock = fdtdec_get_int(gd->fdt_blob, dev_of_offset(bus),
-				     "clock-frequency", 160000);
-	plat->frequency = fdtdec_get_int(gd->fdt_blob, dev_of_offset(bus),
-					 "spi-max-frequency", 40000);
+	ret = clk_get_by_index(bus, 0, &plat->clk);
+	if (ret) {
+		dev_err(bus, "cannot get clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int mvebu_spi_remove(struct udevice *bus)
+{
+	struct mvebu_spi_plat *plat = dev_get_plat(bus);
+
+	clk_free(&plat->clk);
 
 	return 0;
 }
@@ -291,7 +325,8 @@ U_BOOT_DRIVER(mvebu_spi) = {
 	.id = UCLASS_SPI,
 	.of_match = mvebu_spi_ids,
 	.ops = &mvebu_spi_ops,
-	.ofdata_to_platdata = mvebu_spi_ofdata_to_platdata,
-	.platdata_auto_alloc_size = sizeof(struct mvebu_spi_platdata),
+	.of_to_plat = mvebu_spi_of_to_plat,
+	.plat_auto	= sizeof(struct mvebu_spi_plat),
 	.probe = mvebu_spi_probe,
+	.remove = mvebu_spi_remove,
 };

@@ -1,21 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <command.h>
 #include <dm.h>
 #include <fdtdec.h>
+#include <mapmem.h>
+#include <os.h>
 #include <spi.h>
 #include <spi_flash.h>
 #include <asm/state.h>
 #include <asm/test.h>
 #include <dm/test.h>
 #include <dm/util.h>
+#include <test/test.h>
 #include <test/ut.h>
 
-/* Test that sandbox SPI flash works correctly */
+/* Simple test of sandbox SPI flash */
 static int dm_test_spi_flash(struct unit_test_state *uts)
 {
 	struct udevice *dev, *emul;
@@ -33,7 +36,7 @@ static int dm_test_spi_flash(struct unit_test_state *uts)
 
 	dst = map_sysmem(0x20000 + full_size, full_size);
 	ut_assertok(spi_flash_read_dm(dev, 0, size, dst));
-	ut_assertok(memcmp(src, dst, size));
+	ut_asserteq_mem(src, dst, size);
 
 	/* Erase */
 	ut_assertok(spi_flash_erase_dm(dev, 0, size));
@@ -46,7 +49,7 @@ static int dm_test_spi_flash(struct unit_test_state *uts)
 		src[i] = i;
 	ut_assertok(spi_flash_write_dm(dev, 0, size, src));
 	ut_assertok(spi_flash_read_dm(dev, 0, size, dst));
-	ut_assertok(memcmp(src, dst, size));
+	ut_asserteq_mem(src, dst, size);
 
 	/* Try the write-protect stuff */
 	ut_assertok(uclass_first_device_err(UCLASS_SPI_EMUL, &emul));
@@ -70,7 +73,7 @@ static int dm_test_spi_flash(struct unit_test_state *uts)
 
 	return 0;
 }
-DM_TEST(dm_test_spi_flash, DM_TESTF_SCAN_PDATA | DM_TESTF_SCAN_FDT);
+DM_TEST(dm_test_spi_flash, UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT);
 
 /* Functional test that sandbox SPI flash works correctly */
 static int dm_test_spi_flash_func(struct unit_test_state *uts)
@@ -87,7 +90,7 @@ static int dm_test_spi_flash_func(struct unit_test_state *uts)
 	 * benefit is worth the extra complexity.
 	 */
 	ut_asserteq(0, run_command_list(
-		"sb save hostfs - 0 spi.bin 200000;"
+		"host save hostfs - 0 spi.bin 200000;"
 		"sf probe;"
 		"sf test 0 10000", -1,  0));
 	/*
@@ -98,4 +101,4 @@ static int dm_test_spi_flash_func(struct unit_test_state *uts)
 
 	return 0;
 }
-DM_TEST(dm_test_spi_flash, DM_TESTF_SCAN_PDATA | DM_TESTF_SCAN_FDT);
+DM_TEST(dm_test_spi_flash_func, UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Copyright (C) 2011
  * Corscience GmbH & Co. KG - Simon Schwarz <schwarz@corscience.de>
  *  - Added prep subcommand support
@@ -8,15 +9,17 @@
  * Marius Groeger <mgroeger@sysgo.de>
  *
  * Copyright (C) 2001  Erik Mouw (J.A.K.Mouw@its.tudelft.nl)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <bootstage.h>
 #include <command.h>
-#include <amp.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <dm/root.h>
+#include <env.h>
 #include <image.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
@@ -28,48 +31,18 @@
 #include <linux/compiler.h>
 #include <bootm.h>
 #include <vxworks.h>
+#include <asm/cache.h>
 
 #ifdef CONFIG_ARMV7_NONSEC
 #include <asm/armv7.h>
 #endif
 #include <asm/setup.h>
-#include <asm/arch/rockchip_smccc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct tag *params;
 
-static ulong get_sp(void)
-{
-	ulong ret;
-
-	asm("mov %0, sp" : "=r"(ret) : );
-	return ret;
-}
-
-void arch_lmb_reserve(struct lmb *lmb)
-{
-	ulong sp;
-
-	/*
-	 * Booting a (Linux) kernel image
-	 *
-	 * Allocate space for command line and board info - the
-	 * address should be as high as possible within the reach of
-	 * the kernel (see CONFIG_SYS_BOOTMAPSZ settings), but in unused
-	 * memory, which means far enough below the current stack
-	 * pointer.
-	 */
-	sp = get_sp();
-	debug("## Current stack ends at 0x%08lx ", sp);
-
-	/* adjust sp by 4K to be safe */
-	sp -= 4096;
-	lmb_reserve(lmb, sp,
-		    gd->ram_top - sp);
-}
-
-__weak void board_quiesce_devices(void *images)
+__weak void board_quiesce_devices(void)
 {
 }
 
@@ -78,15 +51,8 @@ __weak void board_quiesce_devices(void *images)
  *
  * @fake: non-zero to do everything except actually boot
  */
-static void announce_and_cleanup(bootm_headers_t *images, int fake)
+static void announce_and_cleanup(int fake)
 {
-	ulong us;
-
-	us = (get_ticks() - gd->sys_start_tick) / (COUNTER_FREQUENCY / 1000000);
-	printf("Total: %ld.%ld ms\n", us / 1000, us % 1000);
-
-	printf("\nStarting kernel ...%s\n\n", fake ?
-		"(fake run for tracing)" : "");
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
 #ifdef CONFIG_BOOTSTAGE_FDT
 	bootstage_fdt_add_report();
@@ -99,22 +65,24 @@ static void announce_and_cleanup(bootm_headers_t *images, int fake)
 	udc_disconnect();
 #endif
 
-	board_quiesce_devices(images);
+	board_quiesce_devices();
 
-	/* Flush all console data */
-	flushc();
-
+	printf("\nStarting kernel ...%s\n\n", fake ?
+		"(fake run for tracing)" : "");
 	/*
 	 * Call remove function of all devices with a removal flag set.
 	 * This may be useful for last-stage operations, like cancelling
 	 * of DMA operation or releasing device internal buffers.
 	 */
+	dm_remove_devices_flags(DM_REMOVE_ACTIVE_ALL | DM_REMOVE_NON_VITAL);
+
+	/* Remove all active vital devices next */
 	dm_remove_devices_flags(DM_REMOVE_ACTIVE_ALL);
 
 	cleanup_before_linux();
 }
 
-static void setup_start_tag (bd_t *bd)
+static void setup_start_tag (struct bd_info *bd)
 {
 	params = (struct tag *)bd->bi_boot_params;
 
@@ -128,7 +96,7 @@ static void setup_start_tag (bd_t *bd)
 	params = tag_next (params);
 }
 
-static void setup_memory_tags(bd_t *bd)
+static void setup_memory_tags(struct bd_info *bd)
 {
 	int i;
 
@@ -143,7 +111,7 @@ static void setup_memory_tags(bd_t *bd)
 	}
 }
 
-static void setup_commandline_tag(bd_t *bd, char *commandline)
+static void setup_commandline_tag(struct bd_info *bd, char *commandline)
 {
 	char *p;
 
@@ -168,7 +136,8 @@ static void setup_commandline_tag(bd_t *bd, char *commandline)
 	params = tag_next (params);
 }
 
-static void setup_initrd_tag(bd_t *bd, ulong initrd_start, ulong initrd_end)
+static void setup_initrd_tag(struct bd_info *bd, ulong initrd_start,
+			     ulong initrd_end)
 {
 	/* an ATAG_INITRD node tells the kernel where the compressed
 	 * ramdisk can be found. ATAG_RDIMG is a better name, actually.
@@ -207,7 +176,7 @@ static void setup_revision_tag(struct tag **in_params)
 	params = tag_next (params);
 }
 
-static void setup_end_tag(bd_t *bd)
+static void setup_end_tag(struct bd_info *bd)
 {
 	params->hdr.tag = ATAG_NONE;
 	params->hdr.size = 0;
@@ -223,17 +192,18 @@ static void do_nonsec_virt_switch(void)
 }
 #endif
 
+__weak void board_prep_linux(bootm_headers_t *images) { }
+
 /* Subcommand: PREP */
 static void boot_prep_linux(bootm_headers_t *images)
 {
 	char *commandline = env_get("bootargs");
 
-	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len) {
+	if (CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len) {
 #ifdef CONFIG_OF_LIBFDT
 		debug("using: FDT\n");
 		if (image_setup_linux(images)) {
-			printf("FDT creation failed! hanging...");
-			hang();
+			panic("FDT creation failed!");
 		}
 #endif
 	} else if (BOOTM_ENABLE_TAGS) {
@@ -266,9 +236,10 @@ static void boot_prep_linux(bootm_headers_t *images)
 		setup_board_tags(&params);
 		setup_end_tag(gd->bd);
 	} else {
-		printf("FDT and ATAGS support not compiled in - hanging\n");
-		hang();
+		panic("FDT and ATAGS support not compiled in\n");
 	}
+
+	board_prep_linux(images);
 }
 
 __weak bool armv7_boot_nonsec_default(void)
@@ -318,28 +289,6 @@ static void switch_to_el1(void)
 #endif
 #endif
 
-#ifdef CONFIG_ARM64_SWITCH_TO_AARCH32
-int arm64_switch_aarch32(bootm_headers_t *images)
-{
-	int es_flag;
-	int ret = 0;
-
-	images->os.arch = IH_ARCH_ARM;
-
-	/* arm aarch32 SVC */
-	es_flag = PE_STATE(0, 0, 0, 0);
-	ret |= sip_smc_amp_cfg(AMP_PE_STATE, 0x100, es_flag);
-	ret |= sip_smc_amp_cfg(AMP_PE_STATE, 0x200, es_flag);
-	ret |= sip_smc_amp_cfg(AMP_PE_STATE, 0x300, es_flag);
-	if (ret) {
-		printf("ARM64 switch aarch32 SiP call failed, ret=%d\n", ret);
-		return 0;
-	}
-
-	return es_flag;
-}
-#endif
-
 /* Subcommand: GO */
 static void boot_jump_linux(bootm_headers_t *images, int flag)
 {
@@ -347,13 +296,7 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 	void (*kernel_entry)(void *fdt_addr, void *res0, void *res1,
 			void *res2);
 	int fake = (flag & BOOTM_STATE_OS_FAKE_GO);
-	int es_flag = 0;
 
-#if defined(CONFIG_AMP)
-	es_flag = arm64_switch_amp_pe(images);
-#elif defined(CONFIG_ARM64_SWITCH_TO_AARCH32)
-	es_flag = arm64_switch_aarch32(images);
-#endif
 	kernel_entry = (void (*)(void *fdt_addr, void *res0, void *res1,
 				void *res2))images->ep;
 
@@ -361,7 +304,7 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 		(ulong) kernel_entry);
 	bootstage_mark(BOOTSTAGE_ID_RUN_OS);
 
-	announce_and_cleanup(images, fake);
+	announce_and_cleanup(fake);
 
 	if (!fake) {
 #ifdef CONFIG_ARMV8_PSCI
@@ -378,11 +321,11 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 		if ((IH_ARCH_DEFAULT == IH_ARCH_ARM64) &&
 		    (images->os.arch == IH_ARCH_ARM))
 			armv8_switch_to_el2(0, (u64)gd->bd->bi_arch_number,
-					    (u64)images->ft_addr, es_flag,
+					    (u64)images->ft_addr, 0,
 					    (u64)images->ep,
 					    ES_TO_AARCH32);
 		else
-			armv8_switch_to_el2((u64)images->ft_addr, 0, 0, es_flag,
+			armv8_switch_to_el2((u64)images->ft_addr, 0, 0, 0,
 					    images->ep,
 					    ES_TO_AARCH64);
 #endif
@@ -411,9 +354,9 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 	debug("## Transferring control to Linux (at address %08lx)" \
 		"...\n", (ulong) kernel_entry);
 	bootstage_mark(BOOTSTAGE_ID_RUN_OS);
-	announce_and_cleanup(images, fake);
+	announce_and_cleanup(fake);
 
-	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len)
+	if (CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len)
 		r2 = (unsigned long)images->ft_addr;
 	else
 		r2 = gd->bd->bi_boot_params;
@@ -437,7 +380,7 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
  * DIFFERENCE: Instead of calling prep and go at the end
  * they are called if subcommand is equal 0.
  */
-int do_bootm_linux(int flag, int argc, char * const argv[],
+int do_bootm_linux(int flag, int argc, char *const argv[],
 		   bootm_headers_t *images)
 {
 	/* No need for those on ARM */
@@ -467,7 +410,7 @@ void boot_prep_vxworks(bootm_headers_t *images)
 
 	if (images->ft_addr) {
 		off = fdt_path_offset(images->ft_addr, "/memory");
-		if (off < 0) {
+		if (off > 0) {
 			if (arch_fixup_fdt(images->ft_addr))
 				puts("## WARNING: fixup memory failed!\n");
 		}
@@ -477,6 +420,11 @@ void boot_prep_vxworks(bootm_headers_t *images)
 }
 void boot_jump_vxworks(bootm_headers_t *images)
 {
+#if defined(CONFIG_ARM64) && defined(CONFIG_ARMV8_PSCI)
+	armv8_setup_psci();
+	smp_kick_all_cpus();
+#endif
+
 	/* ARM VxWorks requires device tree physical address to be passed */
 	((void (*)(void *))images->ep)(images->ft_addr);
 }

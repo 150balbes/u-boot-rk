@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/usb/gadget/dwc2_udc_otg_xfer_dma.c
  * Designware DWC2 on-chip full/high speed USB OTG 2.0 device controllers
@@ -14,9 +15,12 @@
  * Ported to u-boot:
  * Marek Szyprowski <m.szyprowski@samsung.com>
  * Lukasz Majewski <l.majewski@samsumg.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
+
+#include <common.h>
+#include <cpu_func.h>
+#include <log.h>
+#include <linux/bug.h>
 
 static u8 clear_feature_num;
 int clear_feature_flag;
@@ -29,7 +33,7 @@ static inline void dwc2_udc_ep0_zlp(struct dwc2_udc *dev)
 {
 	u32 ep_ctrl;
 
-	writel(usb_ctrl_dma_addr, &reg->in_endp[EP0_CON].diepdma);
+	writel(phys_to_bus((unsigned long)usb_ctrl_dma_addr), &reg->in_endp[EP0_CON].diepdma);
 	writel(DIEPT_SIZ_PKT_CNT(1), &reg->in_endp[EP0_CON].dieptsiz);
 
 	ep_ctrl = readl(&reg->in_endp[EP0_CON].diepctl);
@@ -50,7 +54,7 @@ static void dwc2_udc_pre_setup(void)
 
 	writel(DOEPT_SIZ_PKT_CNT(1) | sizeof(struct usb_ctrlrequest),
 	       &reg->out_endp[EP0_CON].doeptsiz);
-	writel(usb_ctrl_dma_addr, &reg->out_endp[EP0_CON].doepdma);
+	writel(phys_to_bus((unsigned long)usb_ctrl_dma_addr), &reg->out_endp[EP0_CON].doepdma);
 
 	ep_ctrl = readl(&reg->out_endp[EP0_CON].doepctl);
 	writel(ep_ctrl|DEPCTL_EPENA, &reg->out_endp[EP0_CON].doepctl);
@@ -76,7 +80,7 @@ static inline void dwc2_ep0_complete_out(void)
 
 	writel(DOEPT_SIZ_PKT_CNT(1) | sizeof(struct usb_ctrlrequest),
 	       &reg->out_endp[EP0_CON].doeptsiz);
-	writel(usb_ctrl_dma_addr, &reg->out_endp[EP0_CON].doepdma);
+	writel(phys_to_bus((unsigned long)usb_ctrl_dma_addr), &reg->out_endp[EP0_CON].doepdma);
 
 	ep_ctrl = readl(&reg->out_endp[EP0_CON].doepctl);
 	writel(ep_ctrl|DEPCTL_EPENA|DEPCTL_CNAK,
@@ -98,7 +102,7 @@ static int setdma_rx(struct dwc2_ep *ep, struct dwc2_request *req)
 
 	buf = req->req.buf + req->req.actual;
 	length = min_t(u32, req->req.length - req->req.actual,
-		       ep_num ? DOEPT_SIZ_XFER_SIZE_MAX_EP : ep->ep.maxpacket);
+		       ep_num ? DMA_BUFFER_SIZE : ep->ep.maxpacket);
 
 	ep->len = length;
 	ep->dma_buf = buf;
@@ -114,7 +118,7 @@ static int setdma_rx(struct dwc2_ep *ep, struct dwc2_request *req)
 				(unsigned long) ep->dma_buf +
 				ROUND(ep->len, CONFIG_SYS_CACHELINE_SIZE));
 
-	writel((unsigned long) ep->dma_buf, &reg->out_endp[ep_num].doepdma);
+	writel(phys_to_bus((unsigned long)ep->dma_buf), &reg->out_endp[ep_num].doepdma);
 	writel(DOEPT_SIZ_PKT_CNT(pktcnt) | DOEPT_SIZ_XFER_SIZE(length),
 	       &reg->out_endp[ep_num].doeptsiz);
 	writel(DEPCTL_EPENA|DEPCTL_CNAK|ctrl, &reg->out_endp[ep_num].doepctl);
@@ -162,7 +166,7 @@ static int setdma_tx(struct dwc2_ep *ep, struct dwc2_request *req)
 	while (readl(&reg->grstctl) & TX_FIFO_FLUSH)
 		;
 
-	writel((unsigned long) ep->dma_buf, &reg->in_endp[ep_num].diepdma);
+	writel(phys_to_bus((unsigned long)ep->dma_buf), &reg->in_endp[ep_num].diepdma);
 	writel(DIEPT_SIZ_PKT_CNT(pktcnt) | DIEPT_SIZ_XFER_SIZE(length),
 	       &reg->in_endp[ep_num].dieptsiz);
 
@@ -417,6 +421,9 @@ static void process_ep_out_intr(struct dwc2_udc *dev)
 {
 	u32 ep_intr, ep_intr_status;
 	u8 ep_num = 0;
+	u32 ep_tsr = 0, xfer_size = 0;
+	u32 epsiz_reg = reg->out_endp[ep_num].doeptsiz;
+	u32 req_size = sizeof(struct usb_ctrlrequest);
 
 	ep_intr = readl(&reg->daint);
 	debug_cond(DEBUG_OUT_EP != 0,
@@ -437,10 +444,17 @@ static void process_ep_out_intr(struct dwc2_udc *dev)
 
 			if (ep_num == 0) {
 				if (ep_intr_status & TRANSFER_DONE) {
-					if (dev->ep0state !=
-					    WAIT_FOR_OUT_COMPLETE)
+					ep_tsr = readl(&epsiz_reg);
+					xfer_size = ep_tsr &
+						   DOEPT_SIZ_XFER_SIZE_MAX_EP0;
+
+					if (xfer_size == req_size &&
+					    dev->ep0state == WAIT_FOR_SETUP) {
+						dwc2_udc_pre_setup();
+					} else if (dev->ep0state !=
+						   WAIT_FOR_OUT_COMPLETE) {
 						complete_rx(dev, ep_num);
-					else {
+					} else {
 						dev->ep0state = WAIT_FOR_SETUP;
 						dwc2_udc_pre_setup();
 					}
@@ -555,9 +569,6 @@ static int dwc2_udc_irq(int irq, void *_dev)
 	}
 
 	if (intr_status & INT_RESET) {
-		u32 temp;
-		u32 connected = dev->connected;
-
 		usb_status = readl(&reg->gotgctl);
 		debug_cond(DEBUG_ISR,
 			"\tReset interrupt - (GOTGCTL):0x%x\n", usb_status);
@@ -568,15 +579,7 @@ static int dwc2_udc_irq(int irq, void *_dev)
 				debug_cond(DEBUG_ISR,
 					"\t\tOTG core got reset (%d)!!\n",
 					reset_available);
-				/* Reset device address to zero */
-				temp = readl(&reg->dcfg);
-				temp &= ~DCFG_DEVADDR_MASK;
-				writel(temp, &reg->dcfg);
-
-				/* Soft reset the core if connected */
-				if (connected)
-					reconfig_usbd(dev);
-
+				reconfig_usbd(dev);
 				dev->ep0state = WAIT_FOR_SETUP;
 				reset_available = 0;
 				dwc2_udc_pre_setup();
@@ -933,7 +936,7 @@ static int dwc2_udc_get_status(struct dwc2_udc *dev,
 			   (unsigned long) usb_ctrl +
 			   ROUND(sizeof(g_status), CONFIG_SYS_CACHELINE_SIZE));
 
-	writel(usb_ctrl_dma_addr, &reg->in_endp[EP0_CON].diepdma);
+	writel(phys_to_bus(usb_ctrl_dma_addr), &reg->in_endp[EP0_CON].diepdma);
 	writel(DIEPT_SIZ_PKT_CNT(1) | DIEPT_SIZ_XFER_SIZE(2),
 	       &reg->in_endp[EP0_CON].dieptsiz);
 
@@ -1370,7 +1373,7 @@ static void dwc2_ep0_setup(struct dwc2_udc *dev)
 			if (usb_ctrl->bRequestType
 				!= (USB_TYPE_STANDARD | USB_RECIP_DEVICE))
 				break;
-			dev->connected = 1;
+
 			udc_set_address(dev, usb_ctrl->wValue);
 			return;
 

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /**
  * Copyright 2014 Freescale Semiconductor
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Freescale T1024RDB board-specific CPLD controlling supports.
  *
@@ -73,7 +72,7 @@ static void cpld_dump_regs(void)
 	putc('\n');
 }
 
-int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_cpld(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int rc = 0;
 

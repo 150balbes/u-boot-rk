@@ -1,17 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 
 #ifdef CONFIG_ROM_UNIFIED_SECTIONS
 #define ROM_API_TABLE_BASE_ADDR_LEGACY		0x180
-#define ROM_VERSION_OFFSET               	0x80
+#define ROM_VERSION_OFFSET			0x80
 #else
 #define ROM_API_TABLE_BASE_ADDR_LEGACY		0xC0
-#define ROM_VERSION_OFFSET               	0x48
+#define ROM_VERSION_OFFSET			0x48
 #endif
 #define ROM_API_TABLE_BASE_ADDR_MX6DQ_TO15	0xC4
 #define ROM_API_TABLE_BASE_ADDR_MX6DL_TO12	0xC4

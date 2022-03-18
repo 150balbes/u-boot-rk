@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * [origin: Linux kernel include/asm-arm/arch-at91/at91sam9260.h]
  *
@@ -11,17 +12,10 @@
  * Note that those SoCs are mostly software and pin compatible,
  * therefore this file applies to all of them. Differences between
  * those SoCs are concentrated at the end of this file.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef AT91SAM9260_H
 #define AT91SAM9260_H
-
-/*
- * defines to be used in other places
- */
-#define CONFIG_AT91FAMILY	/* it's a member of AT91 */
 
 /*
  * Peripheral identifiers/interrupts.
@@ -139,7 +133,7 @@
 /*
  * Other misc defines
  */
-#ifndef CONFIG_DM_GPIO
+#if !CONFIG_IS_ENABLED(DM_GPIO)
 #define ATMEL_PIO_PORTS		3		/* these SoCs have 3 PIO */
 #define ATMEL_BASE_PIO		ATMEL_BASE_PIOA
 #endif

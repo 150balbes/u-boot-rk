@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <api_public.h>
 #include <lcd.h>
+#include <log.h>
 #include <video_font.h> /* Get font width and height */
 
 /* lcd.h needs BMP_LOGO_HEIGHT to calculate CONSOLE_ROWS */

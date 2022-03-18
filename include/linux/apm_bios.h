@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 #ifndef _LINUX_APM_H
 #define _LINUX_APM_H
 
 /*
  * Include file for the interface to an APM BIOS
  * Copyright 1994-2001 Stephen Rothwell (sfr@canb.auug.org.au)
- *
-  * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <linux/types.h>
@@ -35,7 +34,7 @@ struct apm_bios_info {
 #define APM_16_BIT_SUPPORT	0x0001
 #define APM_32_BIT_SUPPORT	0x0002
 #define APM_IDLE_SLOWS_CLOCK	0x0004
-#define APM_BIOS_DISABLED      	0x0008
+#define APM_BIOS_DISABLED	0x0008
 #define APM_BIOS_DISENGAGED     0x0010
 
 /*

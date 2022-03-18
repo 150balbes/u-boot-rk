@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Sun8i platform dram controller init.
  *
  * (C) Copyright 2014 Hans de Goede <hdegoede@redhat.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -22,10 +21,12 @@
 
 #include <common.h>
 #include <errno.h>
+#include <init.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/dram.h>
 #include <asm/arch/prcm.h>
+#include <linux/delay.h>
 
 static const struct dram_para dram_para = {
 	.clock = CONFIG_DRAM_CLK,

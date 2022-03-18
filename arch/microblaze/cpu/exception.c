@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007 Michal Simek
  *
  * Michal  SIMEK <monstr@monstr.eu>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <hang.h>
 #include <asm/asm.h>
 
 void _hw_exception_handler (void)
@@ -55,7 +55,7 @@ void _hw_exception_handler (void)
 	hang();
 }
 
-#ifdef CONFIG_SYS_USR_EXCEP
+#if CONFIG_IS_ENABLED(XILINX_MICROBLAZE0_USR_EXCEP)
 void _exception_handler (void)
 {
 	puts("User vector_exception\n");

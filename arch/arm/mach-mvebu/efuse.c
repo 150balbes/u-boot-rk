@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015-2016 Reinhard Pfau <reinhard.pfau@gdsys.cc>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -11,6 +10,8 @@
 #include <asm/arch/cpu.h>
 #include <asm/arch/efuse.h>
 #include <asm/arch/soc.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/mbus.h>
 
 #if defined(CONFIG_MVEBU_EFUSE_FAKE)

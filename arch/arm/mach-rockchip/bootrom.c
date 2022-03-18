@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /**
  * Copyright (c) 2017 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/arch/bootrom.h>
-#include <asm/arch/boot_mode.h>
+#include <hang.h>
+#include <asm/arch-rockchip/bootrom.h>
+#include <asm/arch-rockchip/boot_mode.h>
+#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/setjmp.h>
 #include <asm/system.h>
@@ -31,31 +32,28 @@ void back_to_bootrom(enum rockchip_bootrom_cmd brom_cmd)
 }
 
 /*
- * We back to bootrom download mode if get a
+ * we back to bootrom download mode if get a
  * BOOT_BROM_DOWNLOAD flag in boot mode register
  *
- * The bootrom never check this register, so we need
+ * note: the boot mode register is configured by
+ * application(next stage bootloader, kernel, etc),
+ * and the bootrom never check this register, so we need
  * to check it and back to bootrom at very early bootstage(before
  * some basic configurations(such as interrupts) been
  * changed by TPL/SPL, as the bootrom download operation
- * relys on many default settings(such as interrupts) by
- * it's self.
- * Note: the boot mode register is configured by
- * application(next stage bootloader, kernel, etc) via command or PC Tool,
- * cleared by USB download(bootrom mode) or loader(other mode) after the
- * tag has work.
+ * relies on many default settings(such as interrupts) by
+ * itself.
  */
 static bool check_back_to_brom_dnl_flag(void)
 {
-	u32 boot_mode, boot_id;
+	u32 boot_mode;
 
-	if (CONFIG_ROCKCHIP_BOOT_MODE_REG && BROM_BOOTSOURCE_ID_ADDR) {
+	if (CONFIG_ROCKCHIP_BOOT_MODE_REG) {
 		boot_mode = readl(CONFIG_ROCKCHIP_BOOT_MODE_REG);
-		boot_id = readl(BROM_BOOTSOURCE_ID_ADDR);
-		if (boot_id == BROM_BOOTSOURCE_USB)
+		if (boot_mode == BOOT_BROM_DOWNLOAD) {
 			writel(0, CONFIG_ROCKCHIP_BOOT_MODE_REG);
-		else if (boot_mode == BOOT_BROM_DOWNLOAD)
 			return true;
+		}
 	}
 
 	return false;

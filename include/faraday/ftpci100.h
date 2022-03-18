@@ -1,17 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Faraday FTPCI100 PCI Bridge Controller Device Driver Implementation
  *
  * Copyright (C) 2010 Andes Technology Corporation
  * Gavin Guo, Andes Technology Corporation <gavinguo@andestech.com>
  * Macpaul Lin, Andes Technology Corporation <macpaul@andestech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FTPCI100_H
 #define __FTPCI100_H
 
 /* AHB Control Registers */
+#include <linux/bitops.h>
 struct ftpci100_ahbc {
 	unsigned int iosize;		/* 0x00 - I/O Space Size Signal */
 	unsigned int prot;		/* 0x04 - AHB Protection */

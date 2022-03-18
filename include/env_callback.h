@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2012
  * Joe Hershberger, National Instruments, joe.hershberger@ni.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ENV_CALLBACK_H__
@@ -33,10 +32,8 @@
 
 #ifdef CONFIG_REGEX
 #define ENV_DOT_ESCAPE "\\"
-#define ETHADDR_WILDCARD "\\d?"
 #else
 #define ENV_DOT_ESCAPE
-#define ETHADDR_WILDCARD
 #endif
 
 #ifdef CONFIG_CMD_DNS
@@ -75,29 +72,12 @@
 	"serial#:serialno," \
 	CONFIG_ENV_CALLBACK_LIST_STATIC
 
-struct env_clbk_tbl {
-	const char *name;		/* Callback name */
-	int (*callback)(const char *name, const char *value, enum env_op op,
-		int flags);
-};
-
-void env_callback_init(ENTRY *var_entry);
-
-/*
- * Define a callback that can be associated with variables.
- * when associated through the ".callbacks" environment variable, the callback
- * will be executed any time the variable is inserted, overwritten, or deleted.
- */
-#ifdef CONFIG_SPL_BUILD
-#define U_BOOT_ENV_CALLBACK(name, callback) \
-	static inline __maybe_unused void _u_boot_env_noop_##name(void) \
-	{ \
-		(void)callback; \
-	}
+#ifndef CONFIG_SPL_BUILD
+void env_callback_init(struct env_entry *var_entry);
 #else
-#define U_BOOT_ENV_CALLBACK(name, callback) \
-	ll_entry_declare(struct env_clbk_tbl, name, env_clbk) = \
-	{#name, callback}
+static inline void env_callback_init(struct env_entry *var_entry)
+{
+}
 #endif
 
 #endif /* __ENV_CALLBACK_H__ */

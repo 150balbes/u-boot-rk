@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Freescale non-CPM SPI Controller
  *
  * Copyright 2008 Qstreams Networks, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _ASM_MPC8XXX_SPI_H_
@@ -11,11 +10,11 @@
 
 #include <asm/types.h>
 
-#if defined(CONFIG_MPC8308) || \
-	defined(CONFIG_MPC8313) || \
-	defined(CONFIG_MPC8315) || \
-	defined(CONFIG_MPC834x) || \
-	defined(CONFIG_MPC837x)
+#if defined(CONFIG_ARCH_MPC8308) || \
+	defined(CONFIG_ARCH_MPC8309) || \
+	defined(CONFIG_ARCH_MPC8313) || \
+	defined(CONFIG_ARCH_MPC834X) || \
+	defined(CONFIG_ARCH_MPC837X)
 
 typedef struct spi8xxx {
 	u8 res0[0x20];	/* 0x0-0x01f reserved */

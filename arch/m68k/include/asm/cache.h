@@ -1,17 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * ColdFire cache
  *
  * Copyright 2004-2012 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CACHE_H
 #define __CACHE_H
 
 #if defined(CONFIG_MCF520x) || defined(CONFIG_MCF523x) || \
-    defined(CONFIG_MCF52x2) || defined(CONFIG_MCF5227x)
+    defined(CONFIG_MCF52x2)
 #define CONFIG_CF_V2
 #endif
 
@@ -20,9 +19,7 @@
 #define CONFIG_CF_V3
 #endif
 
-#if defined(CONFIG_MCF547x_8x) || defined(CONFIG_MCF5445x)
-#define CONFIG_CF_V4
-#elif defined(CONFIG_MCF5441x)
+#if defined(CONFIG_MCF5441x)
 #define CONFIG_CF_V4E		/* Four Extra ACRn */
 #endif
 

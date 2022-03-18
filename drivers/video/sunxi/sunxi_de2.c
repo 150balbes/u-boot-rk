@@ -1,22 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Allwinner DE2 display driver
  *
  * (C) Copyright 2017 Jernej Skrabec <jernej.skrabec@siol.net>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <display.h>
 #include <dm.h>
 #include <edid.h>
+#include <efi_loader.h>
+#include <fdtdec.h>
+#include <fdt_support.h>
+#include <log.h>
+#include <part.h>
 #include <video.h>
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/display2.h>
-#include <dm/device-internal.h>
-#include <dm/uclass-internal.h>
+#include <linux/bitops.h>
+#include "simplefb_common.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -183,7 +187,7 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 	struct display_plat *disp_uc_plat;
 	int ret;
 
-	disp_uc_plat = dev_get_uclass_platdata(disp);
+	disp_uc_plat = dev_get_uclass_plat(disp);
 	debug("Using device '%s', disp_uc_priv=%p\n", disp->name, disp_uc_plat);
 	if (display_in_use(disp)) {
 		debug("   - device in use\n");
@@ -191,13 +195,6 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 	}
 
 	disp_uc_plat->source_id = mux;
-
-	ret = device_probe(disp);
-	if (ret) {
-		debug("%s: device '%s' display won't probe (ret=%d)\n",
-		      __func__, dev->name, ret);
-		return ret;
-	}
 
 	ret = display_read_timing(disp, &timing);
 	if (ret) {
@@ -219,12 +216,19 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 	uc_priv->bpix = l2bpp;
 	debug("fb=%lx, size=%d %d\n", fbbase, uc_priv->xsize, uc_priv->ysize);
 
+#ifdef CONFIG_EFI_LOADER
+	efi_add_memory_map(fbbase,
+			   timing.hactive.typ * timing.vactive.typ *
+			   (1 << l2bpp) / 8,
+			   EFI_RESERVED_MEMORY_TYPE);
+#endif
+
 	return 0;
 }
 
 static int sunxi_de2_probe(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 	struct udevice *disp;
 	int ret;
 
@@ -232,8 +236,25 @@ static int sunxi_de2_probe(struct udevice *dev)
 	if (!(gd->flags & GD_FLG_RELOC))
 		return 0;
 
-	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
-					 "sunxi_dw_hdmi", &disp);
+	ret = uclass_get_device_by_driver(UCLASS_DISPLAY,
+					  DM_DRIVER_GET(sunxi_lcd), &disp);
+	if (!ret) {
+		int mux;
+
+		mux = 0;
+
+		ret = sunxi_de2_init(dev, plat->base, VIDEO_BPP32, disp, mux,
+				     false);
+		if (!ret) {
+			video_set_flush_dcache(dev, 1);
+			return 0;
+		}
+	}
+
+	debug("%s: lcd display not found (ret=%d)\n", __func__, ret);
+
+	ret = uclass_get_device_by_driver(UCLASS_DISPLAY,
+					  DM_DRIVER_GET(sunxi_dw_hdmi), &disp);
 	if (!ret) {
 		int mux;
 		if (IS_ENABLED(CONFIG_MACH_SUNXI_H3_H5))
@@ -251,25 +272,12 @@ static int sunxi_de2_probe(struct udevice *dev)
 
 	debug("%s: hdmi display not found (ret=%d)\n", __func__, ret);
 
-	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
-					"sunxi_tve", &disp);
-	if (ret) {
-		debug("%s: tv not found (ret=%d)\n", __func__, ret);
-		return ret;
-	}
-
-	ret = sunxi_de2_init(dev, plat->base, VIDEO_BPP32, disp, 1, true);
-	if (ret)
-		return ret;
-
-	video_set_flush_dcache(dev, 1);
-
-	return 0;
+	return -ENODEV;
 }
 
 static int sunxi_de2_bind(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 
 	plat->size = LCD_MAX_WIDTH * LCD_MAX_HEIGHT *
 		(1 << LCD_MAX_LOG2_BPP) / 8;
@@ -289,6 +297,93 @@ U_BOOT_DRIVER(sunxi_de2) = {
 	.flags	= DM_FLAG_PRE_RELOC,
 };
 
-U_BOOT_DEVICE(sunxi_de2) = {
+U_BOOT_DRVINFO(sunxi_de2) = {
 	.name = "sunxi_de2"
 };
+
+/*
+ * Simplefb support.
+ */
+#if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_VIDEO_DT_SIMPLEFB)
+int sunxi_simplefb_setup(void *blob)
+{
+	struct udevice *de2, *hdmi, *lcd;
+	struct video_priv *de2_priv;
+	struct video_uc_plat *de2_plat;
+	int mux;
+	int offset, ret;
+	u64 start, size;
+	const char *pipeline = NULL;
+
+	debug("Setting up simplefb\n");
+
+	if (IS_ENABLED(CONFIG_MACH_SUNXI_H3_H5))
+		mux = 0;
+	else
+		mux = 1;
+
+	/* Skip simplefb setting if DE2 / HDMI is not present */
+	ret = uclass_get_device_by_driver(UCLASS_VIDEO,
+					  DM_DRIVER_GET(sunxi_de2), &de2);
+	if (ret) {
+		debug("DE2 not present\n");
+		return 0;
+	} else if (!device_active(de2)) {
+		debug("DE2 present but not probed\n");
+		return 0;
+	}
+
+	ret = uclass_get_device_by_driver(UCLASS_DISPLAY,
+					  DM_DRIVER_GET(sunxi_dw_hdmi), &hdmi);
+	if (ret) {
+		debug("HDMI not present\n");
+	} else if (device_active(hdmi)) {
+		if (mux == 0)
+			pipeline = "mixer0-lcd0-hdmi";
+		else
+			pipeline = "mixer1-lcd1-hdmi";
+	} else {
+		debug("HDMI present but not probed\n");
+	}
+
+	ret = uclass_get_device_by_driver(UCLASS_DISPLAY,
+					  DM_DRIVER_GET(sunxi_lcd), &lcd);
+	if (ret)
+		debug("LCD not present\n");
+	else if (device_active(lcd))
+		pipeline = "mixer0-lcd0";
+	else
+		debug("LCD present but not probed\n");
+
+	if (!pipeline) {
+		debug("No active display present\n");
+		return 0;
+	}
+
+	de2_priv = dev_get_uclass_priv(de2);
+	de2_plat = dev_get_uclass_plat(de2);
+
+	offset = sunxi_simplefb_fdt_match(blob, pipeline);
+	if (offset < 0) {
+		eprintf("Cannot setup simplefb: node not found\n");
+		return 0; /* Keep older kernels working */
+	}
+
+	start = gd->bd->bi_dram[0].start;
+	size = de2_plat->base - start;
+	ret = fdt_fixup_memory_banks(blob, &start, &size, 1);
+	if (ret) {
+		eprintf("Cannot setup simplefb: Error reserving memory\n");
+		return ret;
+	}
+
+	ret = fdt_setup_simplefb_node(blob, offset, de2_plat->base,
+			de2_priv->xsize, de2_priv->ysize,
+			VNBYTES(de2_priv->bpix) * de2_priv->xsize,
+			"x8r8g8b8");
+	if (ret)
+		eprintf("Cannot setup simplefb: Error setting properties\n");
+
+	return ret;
+}
+#endif /* CONFIG_OF_BOARD_SETUP && CONFIG_VIDEO_DT_SIMPLEFB */

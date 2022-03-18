@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 1999-2002 Vojtech Pavlik
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _LINUX_INPUT_H
@@ -149,6 +148,5 @@
 #define KEY_RIGHTMETA		126
 #define KEY_COMPOSE		127
 #define KEY_FN			0x1d0
-#define KEY_REPLY               232     /* AC Reply */
 
 #endif

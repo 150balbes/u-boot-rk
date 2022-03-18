@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2009 Benjamin Herrenschmidt, IBM Corp
  * benh@kernel.crashing.org
@@ -5,18 +6,15 @@
  * Based on parts of drivers/of/fdt.c from Linux v4.9
  * Modifications for U-Boot
  * Copyright (c) 2017 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
 #include <linux/libfdt.h>
 #include <of_live.h>
 #include <malloc.h>
 #include <dm/of_access.h>
 #include <linux/err.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 static void *unflatten_dt_alloc(void **mem, unsigned long size,
 				unsigned long align)
@@ -259,7 +257,7 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
  * can be used.
  * @blob: The blob to expand
  * @mynodes: The device_node tree created by the call
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 static int unflatten_device_tree(const void *blob,
 				 struct device_node **mynodes)

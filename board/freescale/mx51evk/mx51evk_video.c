@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  * Fabio Estevam <fabio.estevam@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <env.h>
 #include <linux/list.h>
 #include <asm/gpio.h>
 #include <asm/arch/iomux-mx51.h>

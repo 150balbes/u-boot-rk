@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
  *
  * Adapted from coreboot src/arch/x86/boot/mpspec.c
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -11,7 +10,9 @@
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
+#include <log.h>
 #include <asm/cpu.h>
+#include <asm/global_data.h>
 #include <asm/irq.h>
 #include <asm/ioapic.h>
 #include <asm/lapic.h>
@@ -81,7 +82,7 @@ void mp_write_processor(struct mp_config_table *mc)
 	for (uclass_find_first_device(UCLASS_CPU, &dev);
 	     dev;
 	     uclass_find_next_device(&dev)) {
-		struct cpu_platdata *plat = dev_get_parent_platdata(dev);
+		struct cpu_plat *plat = dev_get_parent_plat(dev);
 		u8 cpuflag = MPC_CPU_EN;
 
 		if (!device_active(dev))

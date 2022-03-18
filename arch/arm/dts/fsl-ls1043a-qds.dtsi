@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+ OR X11
 /*
  * Device Tree Include file for Freescale Layerscape-1043A family SoC.
  *
  * Copyright (C) 2015, Freescale Semiconductor
  *
  * Mingkai Hu <Mingkai.hu@freescale.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /include/ "fsl-ls1043a.dtsi"
@@ -27,7 +24,7 @@
 	dflash0: n25q128a {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <1000000>; /* input clock */
 		spi-cpol;
 		spi-cpha;
@@ -37,7 +34,7 @@
 	dflash1: sst25wf040b {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <3500000>;
 		spi-cpol;
 		spi-cpha;
@@ -47,7 +44,7 @@
 	dflash2: en25s64 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <3500000>;
 		spi-cpol;
 		spi-cpha;
@@ -56,14 +53,13 @@
 };
 
 &qspi {
-	bus-num = <0>;
 	status = "okay";
 
-	qflash0: s25fl128s@0 {
+	s25fl128s0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
-		spi-max-frequency = <20000000>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
 };
@@ -175,5 +171,9 @@
 };
 
 &lpuart0 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };

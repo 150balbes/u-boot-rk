@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2009 Wind River Systems, Inc.
  * Tom Rix <Tom.Rix@windriver.com>
@@ -20,11 +21,10 @@
  * Author: Atin Malaviya (atin.malaviya@gmail.com)
  *
  * ------------------------------------------------------------------------
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <twl4030.h>
+#include <linux/delay.h>
 
 /* Defines for bits in registers */
 #define OPMODE_MASK		(3 << 3)

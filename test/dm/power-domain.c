@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
+#include <malloc.h>
 #include <dm/test.h>
 #include <asm/power-domain.h>
+#include <test/test.h>
 #include <test/ut.h>
 
 /* This must match the specifier for power-domains in the DT node */
@@ -27,6 +28,8 @@ static int dm_test_power_domain(struct unit_test_state *uts)
 
 	ut_assertok(uclass_get_device_by_name(UCLASS_MISC, "power-domain-test",
 					      &dev_test));
+	ut_asserteq(1, sandbox_power_domain_query(dev_power_domain,
+						  TEST_POWER_DOMAIN));
 	ut_assertok(sandbox_power_domain_test_get(dev_test));
 
 	ut_assertok(sandbox_power_domain_test_on(dev_test));
@@ -43,4 +46,4 @@ static int dm_test_power_domain(struct unit_test_state *uts)
 
 	return 0;
 }
-DM_TEST(dm_test_power_domain, DM_TESTF_SCAN_FDT);
+DM_TEST(dm_test_power_domain, UT_TESTF_SCAN_FDT);

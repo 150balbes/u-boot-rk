@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Copyright 2014 Freescale Semiconductor, Inc.
  *
  * Shengzhou Liu <Shengzhou.Liu@freescale.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -64,7 +63,7 @@ phy_interface_t fman_port_enet_if(enum fm_port port)
 			return PHY_INTERFACE_MODE_SGMII;
 		else if (is_serdes_configured(SGMII_2500_FM1_DTSEC1
 			 + port - FM1_DTSEC1))
-			return PHY_INTERFACE_MODE_SGMII_2500;
+			return PHY_INTERFACE_MODE_2500BASEX;
 		break;
 	default:
 		break;

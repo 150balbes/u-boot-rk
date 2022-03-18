@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Aaron <leafy.myeh@allwinnertech.com>
  *
  * MMC register definition for allwinner sunxi platform.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SUNXI_MMC_H
@@ -46,8 +45,10 @@ struct sunxi_mmc {
 	u32 chda;		/* 0x90 */
 	u32 cbda;		/* 0x94 */
 	u32 res2[26];
-#ifdef CONFIG_SUNXI_GEN_SUN6I
-	u32 res3[64];
+#if defined(CONFIG_SUNXI_GEN_SUN6I) || defined(CONFIG_SUN50I_GEN_H6)
+	u32 res3[17];
+	u32 samp_dl;
+	u32 res4[46];
 #endif
 	u32 fifo;		/* 0x100 / 0x200 FIFO access address */
 };
@@ -118,6 +119,7 @@ struct sunxi_mmc {
 #define SUNXI_MMC_STATUS_CARD_PRESENT		(0x1 << 8)
 #define SUNXI_MMC_STATUS_CARD_DATA_BUSY		(0x1 << 9)
 #define SUNXI_MMC_STATUS_DATA_FSM_BUSY		(0x1 << 10)
+#define SUNXI_MMC_STATUS_FIFO_LEVEL(reg)	(((reg) >> 17) & 0x3fff)
 
 #define SUNXI_MMC_NTSR_MODE_SEL_NEW		(0x1 << 31)
 
@@ -130,6 +132,8 @@ struct sunxi_mmc {
 
 #define SUNXI_MMC_COMMON_CLK_GATE		(1 << 16)
 #define SUNXI_MMC_COMMON_RESET			(1 << 18)
+
+#define SUNXI_MMC_CAL_DL_SW_EN		(0x1 << 7)
 
 struct mmc *sunxi_mmc_init(int sdc_no);
 #endif /* _SUNXI_MMC_H */

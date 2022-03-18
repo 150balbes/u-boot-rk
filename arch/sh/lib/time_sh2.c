@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2007,2008 Nobobuhiro Iwamatsu <iwamatsu@nigauri.org>
  * Copyright (C) 2008 Renesas Solutions Corp.
  *
  * (C) Copyright 2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
+#include <time.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <linux/delay.h>
 
 #define CMT_CMCSR_INIT	0x0001	/* PCLK/32 */
 #define CMT_CMCSR_CALIB 0x0000

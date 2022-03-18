@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2010-2012, NVIDIA CORPORATION.  All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/tegra.h>
 #include <asm/arch-tegra/pmc.h>
+#include <linux/delay.h>
 #include "../cpu.h"
 
 static void enable_cpu_power_rail(void)

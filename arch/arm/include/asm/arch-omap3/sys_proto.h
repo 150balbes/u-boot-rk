@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2004-2008
  * Texas Instruments, <www.ti.com>
  * Richard Woodruff <r-woodruff2@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _SYS_PROTO_H_
 #define _SYS_PROTO_H_
@@ -60,8 +59,6 @@ u32 is_running_in_sdram(void);
 u32 is_running_in_sram(void);
 u32 is_running_in_flash(void);
 u32 get_device_type(void);
-void secureworld_exit(void);
-void try_unlock_memory(void);
 u32 get_boot_type(void);
 void invalidate_dcache(u32);
 u32 wait_on_value(u32, u32, void *, u32);

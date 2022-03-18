@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * (C) Copyright 2004, Psyent Corporation <www.psyent.com>
  * Scott McNutt <smcnutt@psyent.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
+#include <irq_func.h>
 #include <asm/nios2.h>
 #include <asm/types.h>
 #include <asm/io.h>
@@ -24,7 +24,7 @@ struct	irq_action {
 
 static struct irq_action vecs[32];
 
-int disable_interrupts (void)
+int disable_interrupts(void)
 {
 	int val = rdctl (CTL_STATUS);
 	wrctl (CTL_STATUS, val & ~STATUS_IE);
@@ -37,7 +37,7 @@ void enable_interrupts( void )
 	wrctl (CTL_STATUS, val | STATUS_IE);
 }
 
-void external_interrupt (struct pt_regs *regs)
+void external_interrupt(struct pt_regs *regs)
 {
 	unsigned irqs;
 	struct irq_action *act;
@@ -74,7 +74,7 @@ static void def_hdlr (void *arg)
 }
 
 /*************************************************************************/
-void irq_install_handler (int irq, interrupt_handler_t *hdlr, void *arg)
+void irq_install_handler(int irq, interrupt_handler_t *hdlr, void *arg)
 {
 
 	int flag;
@@ -85,7 +85,7 @@ void irq_install_handler (int irq, interrupt_handler_t *hdlr, void *arg)
 		return;
 	act = &vecs[irq];
 
-	flag = disable_interrupts ();
+	flag = disable_interrupts();
 	if (hdlr) {
 		act->handler = hdlr;
 		act->arg = arg;
@@ -96,11 +96,11 @@ void irq_install_handler (int irq, interrupt_handler_t *hdlr, void *arg)
 		ena &= ~(1 << irq);		/* disable */
 	}
 	wrctl (CTL_IENABLE, ena);
-	if (flag) enable_interrupts ();
+	if (flag) enable_interrupts();
 }
 
 
-int interrupt_init (void)
+int interrupt_init(void)
 {
 	int i;
 
@@ -111,14 +111,14 @@ int interrupt_init (void)
 		vecs[i].count = 0;
 	}
 
-	enable_interrupts ();
+	enable_interrupts();
 	return (0);
 }
 
 
 /*************************************************************************/
 #if defined(CONFIG_CMD_IRQ)
-int do_irqinfo (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_irqinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int i;
 	struct irq_action *act = vecs;

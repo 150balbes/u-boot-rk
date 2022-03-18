@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013 Siemens Schweiz AG
  * (C) Heiko Schocher, DENX Software Engineering, hs@denx.de.
@@ -6,8 +7,6 @@
  * U-Boot file:/include/configs/am335x_evm.h
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_ETAMIN_H
@@ -15,21 +14,10 @@
 
 #include "siemens-am33x-common.h"
 /* NAND specific changes for etamin due to different page size */
-#undef CONFIG_SYS_NAND_PAGE_SIZE
-#undef CONFIG_SYS_NAND_OOBSIZE
-#undef CONFIG_SYS_NAND_BLOCK_SIZE
 #undef CONFIG_SYS_NAND_ECCPOS
-#undef CONFIG_SYS_NAND_U_BOOT_OFFS
 #undef CONFIG_SYS_ENV_SECT_SIZE
-#undef CONFIG_ENV_OFFSET
-#undef CONFIG_NAND_OMAP_ECCSCHEME
-#define CONFIG_NAND_OMAP_ECCSCHEME	OMAP_ECC_BCH16_CODE_HW
 
-#define CONFIG_ENV_OFFSET       0x980000
 #define CONFIG_SYS_ENV_SECT_SIZE       (512 << 10)     /* 512 KiB */
-#define CONFIG_SYS_NAND_PAGE_SIZE       4096
-#define CONFIG_SYS_NAND_OOBSIZE         224
-#define CONFIG_SYS_NAND_BLOCK_SIZE      (128 * CONFIG_SYS_NAND_PAGE_SIZE)
 #define CONFIG_SYS_NAND_ECCPOS	{ 2, 3, 4, 5, 6, 7, 8, 9, \
 				10, 11, 12, 13, 14, 15, 16, 17, 18, 19, \
 				20, 21, 22, 23, 24, 25, 26, 27, 28, 29, \
@@ -58,19 +46,13 @@
 #define CONFIG_SYS_NAND_ECCSIZE 512
 #define CONFIG_SYS_NAND_ECCBYTES 26
 
-#define CONFIG_SYS_NAND_U_BOOT_OFFS     0x200000
-
-#define CONFIG_SYS_NAND_MAX_CHIPS       1
-
 #undef CONFIG_SYS_MAX_NAND_DEVICE
 #define CONFIG_SYS_MAX_NAND_DEVICE      3
 #define CONFIG_SYS_NAND_BASE2           (0x18000000)    /* physical address */
 #define CONFIG_SYS_NAND_BASE_LIST       {CONFIG_SYS_NAND_BASE, \
 					CONFIG_SYS_NAND_BASE2}
 
-#define CONFIG_SYS_NAND_ONFI_DETECTION
 #define DDR_PLL_FREQ	303
-#undef CONFIG_SPL_AM33XX_ENABLE_RTC32K_OSC
 
 /* FWD Button = 27
  * SRV Button = 87 */
@@ -90,15 +72,8 @@
 /* Physical Memory Map */
 #define CONFIG_MAX_RAM_BANK_SIZE       (1024 << 20)    /* 1GB */
 
-/* I2C Configuration */
-#define CONFIG_SYS_I2C_SPEED		100000
-
-#define CONFIG_SYS_I2C_EEPROM_ADDR              0x50
 #define EEPROM_ADDR_DDR3 0x90
 #define EEPROM_ADDR_CHIP 0x120
-
-#undef CONFIG_MII
-#define CONFIG_PHY_SMSC
 
 #define CONFIG_FACTORYSET
 
@@ -109,18 +84,11 @@
 */
 
 /* nedded by compliance test in read mode */
-#if defined(CONFIG_SPL_CMT)
-#define CONFIG_SYS_DCACHE_OFF
-#endif
 
 /* Define own nand partitions */
-#define CONFIG_ENV_OFFSET_REDUND	0xB80000
-#define CONFIG_ENV_SIZE_REDUND		CONFIG_ENV_SIZE
 #define CONFIG_ENV_RANGE		(4 * CONFIG_SYS_ENV_SECT_SIZE)
 
 
-
-#define CONFIG_DFU_MTD
 #undef COMMON_ENV_DFU_ARGS
 #define COMMON_ENV_DFU_ARGS	"dfu_args=run bootargs_defaults;" \
 				"setenv bootargs ${bootargs};" \
@@ -139,26 +107,6 @@
 	"u-boot.env0 mtddev;" \
 	"u-boot.env1 mtddev;" \
 	"rootfs mtddevubi" \
-
-#undef MTDIDS_NAME_STR
-#define MTDIDS_NAME_STR		"omap2-nand_concat"
-#undef MTDIDS_DEFAULT
-#define MTDIDS_DEFAULT		"nand2=" MTDIDS_NAME_STR
-
-#undef MTDPARTS_DEFAULT_V2
-#define MTDPARTS_DEFAULT_V2     "mtdparts=" MTDIDS_NAME_STR ":" \
-				"512k(spl)," \
-				"512k(spl.backup1)," \
-				"512k(spl.backup2)," \
-				"512k(spl.backup3)," \
-				"7680k(u-boot)," \
-				"2048k(u-boot.env0)," \
-				"2048k(u-boot.env1)," \
-				"2048k(mtdoops)," \
-				"-(rootfs)"
-
-#undef MTDPARTS_DEFAULT
-#define MTDPARTS_DEFAULT	MTDPARTS_DEFAULT_V2
 
 #undef CONFIG_ENV_SETTINGS_NAND_V2
 #define CONFIG_ENV_SETTINGS_NAND_V2 \
@@ -215,26 +163,5 @@
 	CONFIG_ENV_SETTINGS_BUTTONS_AND_LEDS \
 	CONFIG_ENV_SETTINGS_V2 \
 	CONFIG_ENV_SETTINGS_NAND_V2
-
-#ifndef CONFIG_RESTORE_FLASH
-
-#define CONFIG_BOOTCOMMAND \
-"if dfubutton; then " \
-	"run dfu_start; " \
-	"reset; " \
-"fi;" \
-"run nand_boot;" \
-"run nand_boot_backup;" \
-"reset;"
-
-
-#else
-#define CONFIG_BOOTCOMMAND			\
-	"setenv autoload no; "			\
-	"dhcp; "				\
-	"if tftp 80000000 debrick.scr; then "	\
-		"source 80000000; "		\
-	"fi"
-#endif
 #endif	/* CONFIG_SPL_BUILD */
 #endif	/* ! __CONFIG_ETAMIN_H */

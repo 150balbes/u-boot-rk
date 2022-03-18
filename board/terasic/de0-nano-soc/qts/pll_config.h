@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Altera SoCFPGA Clock and PLL configuration
- *
- * SPDX-License-Identifier:    BSD-3-Clause
  */
 
 #ifndef _PRELOADER_PLL_CONFIG_H_
@@ -82,4 +81,3 @@
 #define CONFIG_HPS_ALTERAGRP_DBGATCLK 4
 
 #endif /* _PRELOADER_PLL_CONFIG_H_ */
-

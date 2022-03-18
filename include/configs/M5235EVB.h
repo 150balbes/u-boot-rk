@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuation settings for the Freescale MCF5329 FireEngine board.
  *
  * Copyright (C) 2004-2007 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -19,31 +18,20 @@
  * (easy to change)
  */
 
-#define CONFIG_MCFUART
 #define CONFIG_SYS_UART_PORT		(0)
 
-#undef CONFIG_WATCHDOG
 #define CONFIG_WATCHDOG_TIMEOUT	5000	/* timeout in milliseconds, max timeout is 6.71sec */
 
 /*
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
 
-#define CONFIG_MCFFEC
 #ifdef CONFIG_MCFFEC
-#	define CONFIG_MII		1
 #	define CONFIG_MII_INIT		1
 #	define CONFIG_SYS_DISCOVER_PHY
 #	define CONFIG_SYS_RX_ETH_BUFFER	8
 #	define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-
-#	define CONFIG_SYS_FEC0_PINMUX		0
-#	define CONFIG_SYS_FEC0_MIIBASE		CONFIG_SYS_FEC0_IOBASE
-#	define MCFFEC_TOUT_LOOP		50000
 /* If CONFIG_SYS_DISCOVER_PHY is not defined - hardcoded */
 #	ifndef CONFIG_SYS_DISCOVER_PHY
 #		define FECDUPLEX	FULL
@@ -57,20 +45,13 @@
 
 /* Timer */
 #define CONFIG_MCFTMR
-#undef CONFIG_MCFPIT
 
 /* I2C */
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_i2C_FSL
-#define CONFIG_SYS_FSL_I2C_SPEED	80000
-#define CONFIG_SYS_FSL_I2C_SLAVE	0x7F
-#define CONFIG_SYS_FSL_I2C_OFFSET	0x00000300
-#define CONFIG_SYS_IMMR		CONFIG_SYS_MBAR
 #define CONFIG_SYS_I2C_PINMUX_REG	(gpio->par_qspi)
 #define CONFIG_SYS_I2C_PINMUX_CLR	~(GPIO_PAR_FECI2C_SCL_MASK | GPIO_PAR_FECI2C_SDA_MASK)
 #define CONFIG_SYS_I2C_PINMUX_SET	(GPIO_PAR_FECI2C_SCL_I2CSCL | GPIO_PAR_FECI2C_SDA_I2CSDA)
 
-/* this must be included AFTER the definition of CONFIG_COMMANDS (if any) */
+/* this must be included AFTER the definition of CONFIG COMMANDS (if any) */
 #define CONFIG_BOOTFILE		"u-boot.bin"
 #ifdef CONFIG_MCFFEC
 #	define CONFIG_IPADDR	192.162.1.2
@@ -79,7 +60,7 @@
 #	define CONFIG_GATEWAYIP	192.162.1.1
 #endif				/* FEC_ENET */
 
-#define CONFIG_HOSTNAME		M5235EVB
+#define CONFIG_HOSTNAME		"M5235EVB"
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	"netdev=eth0\0"				\
 	"loadaddr=10000\0"			\
@@ -93,9 +74,6 @@
 	""
 
 #define CONFIG_PRAM		512	/* 512 KB */
-#define CONFIG_SYS_LONGHELP		/* undef to save memory */
-
-#define CONFIG_SYS_LOAD_ADDR		(CONFIG_SYS_SDRAM_BASE+0x20000)
 
 #define CONFIG_SYS_CLK			75000000
 #define CONFIG_SYS_CPU_CLK		CONFIG_SYS_CLK * 2
@@ -124,14 +102,10 @@
 #define CONFIG_SYS_SDRAM_BASE		0x00000000
 #define CONFIG_SYS_SDRAM_SIZE		16	/* SDRAM size in MB */
 
-#define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE + 0x400
-#define CONFIG_SYS_MEMTEST_END		((CONFIG_SYS_SDRAM_SIZE - 3) << 20)
-
 #define CONFIG_SYS_MONITOR_BASE	(CONFIG_SYS_FLASH_BASE + 0x400)
 #define CONFIG_SYS_MONITOR_LEN		(256 << 10)	/* Reserve 256 kB for Monitor */
 
 #define CONFIG_SYS_BOOTPARAMS_LEN	64*1024
-#define CONFIG_SYS_MALLOC_LEN		(128 << 10)	/* Reserve 128 kB for malloc() */
 
 /*
  * For booting Linux, the board info and command line data
@@ -145,18 +119,14 @@
 /*-----------------------------------------------------------------------
  * FLASH organization
  */
-#define CONFIG_SYS_FLASH_CFI
 #ifdef CONFIG_SYS_FLASH_CFI
-#	define CONFIG_FLASH_CFI_DRIVER	1
 #	define CONFIG_SYS_FLASH_SIZE		0x800000	/* Max size that the board might have */
 #ifdef NORFLASH_PS32BIT
 #	define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_32BIT
 #else
 #	define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #endif
-#	define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
 #	define CONFIG_SYS_MAX_FLASH_SECT	137	/* max number of sectors on one chip */
-#	define CONFIG_SYS_FLASH_PROTECTION	/* "Real" (hardware) sectors protection */
 #endif
 
 #define CONFIG_SYS_FLASH_BASE		(CONFIG_SYS_CS0_BASE)
@@ -169,20 +139,9 @@
 	. = DEFINED(env_offset) ? env_offset : .; \
 	env/embedded.o(.text);
 
-#ifdef NORFLASH_PS32BIT
-#	define CONFIG_ENV_OFFSET		(0x8000)
-#	define CONFIG_ENV_SIZE		0x4000
-#	define CONFIG_ENV_SECT_SIZE	0x4000
-#else
-#	define CONFIG_ENV_OFFSET		(0x4000)
-#	define CONFIG_ENV_SIZE		0x2000
-#	define CONFIG_ENV_SECT_SIZE	0x2000
-#endif
-
 /*-----------------------------------------------------------------------
  * Cache Configuration
  */
-#define CONFIG_SYS_CACHELINE_SIZE	16
 
 #define ICACHE_STATUS			(CONFIG_SYS_INIT_RAM_ADDR + \
 					 CONFIG_SYS_INIT_RAM_SIZE - 8)

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2008
  * Graeme Russ, graeme.russ@gmail.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/ibmpc.h>
@@ -15,30 +14,13 @@
  * High Level Configuration Options
  * (easy to change)
  */
-#define CONFIG_SHOW_BOOT_PROGRESS
-#define CONFIG_PHYSMEM
-#define CONFIG_DISPLAY_BOARDINFO_LATE
-#define CONFIG_LAST_STAGE_INIT
-#define CONFIG_NR_DRAM_BANKS		8
-
-#define CONFIG_LMB
-
-#undef CONFIG_ZLIB
-#undef CONFIG_GZIP
 #define CONFIG_SYS_BOOTM_LEN		(16 << 20)
 
 /* SATA AHCI storage */
-
-#define CONFIG_SCSI_AHCI
 #ifdef CONFIG_SCSI_AHCI
-#define CONFIG_LIBATA
 #define CONFIG_LBA48
 #define CONFIG_SYS_64BIT_LBA
 
-#define CONFIG_SYS_SCSI_MAX_SCSI_ID	2
-#define CONFIG_SYS_SCSI_MAX_LUN		1
-#define CONFIG_SYS_SCSI_MAX_DEVICE	(CONFIG_SYS_SCSI_MAX_SCSI_ID * \
-					 CONFIG_SYS_SCSI_MAX_LUN)
 #endif
 
 /* Generic TPM interfaced through LPC bus */
@@ -47,42 +29,18 @@
 /*-----------------------------------------------------------------------
  * Real Time Clock Configuration
  */
-#define CONFIG_RTC_MC146818
 #define CONFIG_SYS_ISA_IO_BASE_ADDRESS	0
 #define CONFIG_SYS_ISA_IO      CONFIG_SYS_ISA_IO_BASE_ADDRESS
 
 /*-----------------------------------------------------------------------
  * Serial Configuration
  */
-#define CONFIG_SYS_BAUDRATE_TABLE	{300, 600, 1200, 2400, 4800, \
-					 9600, 19200, 38400, 115200}
 #define CONFIG_SYS_NS16550_PORT_MAPPED
-
-#define CONFIG_CMDLINE_EDITING
-#define CONFIG_AUTO_COMPLETE
-
-#define CONFIG_SUPPORT_VFAT
-
-/*-----------------------------------------------------------------------
- * Command line configuration.
- */
-
-#define CONFIG_BOOTCOMMAND	\
-	"ext2load scsi 0:3 01000000 /boot/vmlinuz; zboot 01000000"
-
-#if defined(CONFIG_CMD_KGDB)
-#define CONFIG_KGDB_BAUDRATE			115200
-#endif
 
 /*
  * Miscellaneous configurable options
  */
-#define CONFIG_SYS_LONGHELP
 #define CONFIG_SYS_CBSIZE			512
-
-#define CONFIG_SYS_MEMTEST_START		0x00100000
-#define CONFIG_SYS_MEMTEST_END			0x01000000
-#define CONFIG_SYS_LOAD_ADDR			0x20000000
 
 /*-----------------------------------------------------------------------
  * CPU Features
@@ -90,15 +48,10 @@
 
 #define CONFIG_SYS_STACK_SIZE			(32 * 1024)
 #define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
-#define CONFIG_SYS_MALLOC_LEN			0x200000
-
-/* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
 
 /*-----------------------------------------------------------------------
  * Environment configuration
  */
-#define CONFIG_ENV_SIZE			0x01000
 
 /*-----------------------------------------------------------------------
  * PCI configuration
@@ -109,48 +62,41 @@
  * USB configuration
  */
 
-#define CONFIG_TFTP_TSIZE
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
 
 /* Default environment */
 #define CONFIG_ROOTPATH		"/opt/nfsroot"
-#define CONFIG_HOSTNAME		x86
+#define CONFIG_HOSTNAME		"x86"
 #define CONFIG_BOOTFILE		"bzImage"
-#define CONFIG_LOADADDR		0x1000000
 #define CONFIG_RAMDISK_ADDR	0x4000000
-#ifdef CONFIG_GENERATE_ACPI_TABLE
+#if defined(CONFIG_GENERATE_ACPI_TABLE) || defined(CONFIG_EFI_STUB)
 #define CONFIG_OTHBOOTARGS	"othbootargs=\0"
 #else
 #define CONFIG_OTHBOOTARGS	"othbootargs=acpi=off\0"
 #endif
 
+#if defined(CONFIG_DISTRO_DEFAULTS)
+#define DISTRO_BOOTENV		BOOTENV
+#else
+#define DISTRO_BOOTENV
+#endif
+
+#ifndef SPLASH_SETTINGS
+#define SPLASH_SETTINGS
+#endif
+
 #define CONFIG_EXTRA_ENV_SETTINGS			\
+	DISTRO_BOOTENV					\
 	CONFIG_STD_DEVICES_SETTINGS			\
+	SPLASH_SETTINGS					\
 	"pciconfighost=1\0"				\
 	"netdev=eth0\0"					\
 	"consoledev=ttyS0\0"				\
 	CONFIG_OTHBOOTARGS				\
-	"ramdiskaddr=0x4000000\0"			\
+	"scriptaddr=0x7000000\0"			\
+	"kernel_addr_r=0x1000000\0"			\
+	"ramdisk_addr_r=0x4000000\0"			\
 	"ramdiskfile=initramfs.gz\0"
-
-#define CONFIG_RAMBOOTCOMMAND				\
-	"setenv bootargs root=/dev/ram rw "		\
-	"ip=$ipaddr:$serverip:$gatewayip:$netmask:$hostname:$netdev:off " \
-	"console=$consoledev,$baudrate $othbootargs;"	\
-	"tftpboot $loadaddr $bootfile;"			\
-	"tftpboot $ramdiskaddr $ramdiskfile;"		\
-	"zboot $loadaddr 0 $ramdiskaddr $filesize"
-
-#define CONFIG_NFSBOOTCOMMAND				\
-	"setenv bootargs root=/dev/nfs rw "		\
-	"nfsroot=$serverip:$rootpath "			\
-	"ip=$ipaddr:$serverip:$gatewayip:$netmask:$hostname:$netdev:off " \
-	"console=$consoledev,$baudrate $othbootargs;"	\
-	"tftpboot $loadaddr $bootfile;"			\
-	"zboot $loadaddr"
 
 
 #endif	/* __CONFIG_H */

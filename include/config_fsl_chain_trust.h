@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_FSL_CHAIN_TRUST_H
 #define __CONFIG_FSL_CHAIN_TRUST_H
+
+#include <linux/stringify.h>
 
 #ifdef CONFIG_CHAIN_OF_TRUST
 

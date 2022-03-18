@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _CLK_UCLASS_H
@@ -54,14 +53,22 @@ struct clk_ops {
 	 */
 	int (*request)(struct clk *clock);
 	/**
-	 * free - Free a previously requested clock.
+	 * rfree - Free a previously requested clock.
 	 *
 	 * This is the implementation of the client clk_free() API.
 	 *
 	 * @clock:	The clock to free.
 	 * @return 0 if OK, or a negative error code.
 	 */
-	int (*free)(struct clk *clock);
+	int (*rfree)(struct clk *clock);
+	/**
+	 * round_rate() - Adjust a rate to the exact rate a clock can provide.
+	 *
+	 * @clk:	The clock to manipulate.
+	 * @rate:	Desidered clock rate in Hz.
+	 * @return rounded rate in Hz, or -ve error code.
+	 */
+	ulong (*round_rate)(struct clk *clk, ulong rate);
 	/**
 	 * get_rate() - Get current clock rate.
 	 *
@@ -77,23 +84,6 @@ struct clk_ops {
 	 * @return new rate, or -ve error code.
 	 */
 	ulong (*set_rate)(struct clk *clk, ulong rate);
-	/**
-	 * clk_get_phase() - Get the phase shift of a clock signal.
-	 *
-	 * @clk:	The clock to manipulate.
-	 * @return the phase shift of a clock node in degrees,
-	 *		otherwise returns -ve error code.
-	 */
-	int (*get_phase)(struct clk *clk);
-
-	/**
-	 * clk_set_rate() - Adjust the phase shift of a clock signal.
-	 *
-	 * @clk:	The clock to manipulate.
-	 * @degrees:	Numberof degrees the signal is shifted.
-	 * @return 0 on success, or -ve error code.
-	 */
-	int (*set_phase)(struct clk *clk, int degrees);
 	/**
 	 * set_parent() - Set current clock parent
 	 *

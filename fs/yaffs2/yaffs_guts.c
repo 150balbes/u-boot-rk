@@ -13,6 +13,7 @@
 
 #include "yportenv.h"
 #include "yaffs_trace.h"
+#include <dm/devres.h>
 
 #include "yaffs_guts.h"
 #include "yaffs_getblockinfo.h"
@@ -1870,13 +1871,12 @@ static int yaffs_new_obj_id(struct yaffs_dev *dev)
 	while (!found) {
 		found = 1;
 		n += YAFFS_NOBJECT_BUCKETS;
-		if (1 || dev->obj_bucket[bucket].count > 0) {
-			list_for_each(i, &dev->obj_bucket[bucket].list) {
-				/* If there is already one in the list */
-				if (i && list_entry(i, struct yaffs_obj,
-						    hash_link)->obj_id == n) {
-					found = 0;
-				}
+		list_for_each(i, &dev->obj_bucket[bucket].list) {
+			/* If there is already one in the list */
+			if (list_entry(i, struct yaffs_obj,
+				       hash_link)->obj_id == n) {
+				found = 0;
+				break;
 			}
 		}
 	}

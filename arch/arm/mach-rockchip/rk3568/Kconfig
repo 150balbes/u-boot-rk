@@ -1,17 +1,42 @@
 if ROCKCHIP_RK3568
 
+choice
+	prompt "RK3568/RK3566 board select"
+
 config TARGET_EVB_RK3568
-	bool "EVB_RK3568"
-	select BOARD_LATE_INIT
+	bool "RK3568 evaluation board"
 	help
 	  RK3568 EVB is a evaluation board for Rockchp RK3568.
 
+config TARGET_QUARTZ64_A_RK3566
+	bool "Quartz64 Model A RK3566 development board"
+	help
+	  Quartz64 Model B RK3566 is a development board from Pine64.
+
+config TARGET_PINENOTE_RK3566
+	bool "Pinenote RK3566 E-Ink Linux Tablet"
+	help
+	  Pinenote RK3566 is a E-Ink tablet from Pine64.
+
+config TARGET_QUARTZ64_B_RK3566
+	bool "Quartz64 Model B RK3566 development board"
+	help
+	  Quartz64 Model B RK3566 is a development board from Pine64.
+
+endchoice
+
+config ROCKCHIP_BOOT_MODE_REG
+	default 0xfdc20200
+
 config SYS_SOC
-	default "rockchip"
+	default "rk3568"
 
 config SYS_MALLOC_F_LEN
-	default 0x400
+	default 0x2000
 
-source board/rockchip/evb_rk3568/Kconfig
+source "board/rockchip/evb_rk3568/Kconfig"
+source "board/pine64/quartz64-a-rk3566/Kconfig"
+source "board/pine64/quartz64-b-rk3566/Kconfig"
+source "board/pine64/pinenote-rk3566/Kconfig"
 
 endif

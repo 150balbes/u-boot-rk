@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * UBIFS u-boot wrapper functions header
  *
@@ -6,8 +7,6 @@
  * (C) Copyright 2008-2009
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
  */
@@ -15,13 +14,16 @@
 #ifndef __UBIFS_UBOOT_H__
 #define __UBIFS_UBOOT_H__
 
+struct blk_desc;
+struct disk_partition;
+
 int ubifs_init(void);
 int uboot_ubifs_mount(char *vol_name);
 void uboot_ubifs_umount(void);
 int ubifs_is_mounted(void);
 int ubifs_load(char *filename, u32 addr, u32 size);
 
-int ubifs_set_blk_dev(struct blk_desc *rbdd, disk_partition_t *info);
+int ubifs_set_blk_dev(struct blk_desc *rbdd, struct disk_partition *info);
 int ubifs_ls(const char *dir_name);
 int ubifs_exists(const char *filename);
 int ubifs_size(const char *filename, loff_t *size);

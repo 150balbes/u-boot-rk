@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+ BSD-2-Clause
  *
  * 64-bit and little-endian target only until we need to support a different
  * arch that needs this.
@@ -64,7 +63,7 @@ int main(int argc, char **argv)
 {
 	FILE *f;
 	int i, num;
-	uint64_t rela_start, rela_end, text_base;
+	uint64_t rela_start, rela_end, text_base, file_size;
 
 	if (argc != 5) {
 		fprintf(stderr, "Statically apply ELF rela relocations\n");
@@ -88,14 +87,28 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	if (rela_start > rela_end || rela_start < text_base ||
-	    (rela_end - rela_start) % sizeof(Elf64_Rela)) {
+	if (rela_start > rela_end || rela_start < text_base) {
 		fprintf(stderr, "%s: bad rela bounds\n", argv[0]);
 		return 3;
 	}
 
 	rela_start -= text_base;
 	rela_end -= text_base;
+
+	fseek(f, 0, SEEK_END);
+	file_size = ftell(f);
+	rewind(f);
+
+	if (rela_end > file_size) {
+		// Most likely compiler inserted some section that didn't get
+		// objcopy-ed into the final binary
+		rela_end = file_size;
+	}
+
+	if ((rela_end - rela_start) % sizeof(Elf64_Rela)) {
+		fprintf(stderr, "%s: rela size isn't a multiple of Elf64_Rela\n", argv[0]);
+		return 3;
+	}
 
 	num = (rela_end - rela_start) / sizeof(Elf64_Rela);
 

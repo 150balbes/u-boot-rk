@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
  *
@@ -5,8 +6,6 @@
  *
  * (C) Copyright 2001
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -15,8 +14,8 @@
 #include <common.h>
 #include <command.h>
 
-static int do_gettime(cmd_tbl_t *cmdtp, int flag, int argc,
-		      char * const argv[])
+static int do_gettime(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	unsigned long int val = get_timer(0);
 

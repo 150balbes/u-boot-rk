@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2009 Samsung Electronics
  * Heungjun Kim <riverful.kim@samsung.com>
  * Inki Dae <inki.dae@samsung.com>
  * Minkyu Kang <mk7.kang@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <div64.h>
+#include <init.h>
+#include <time.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/pwm.h>
 #include <asm/arch/clk.h>
+#include <linux/delay.h>
 
 /* Use the old PWM interface for now */
 #undef CONFIG_DM_PWM
@@ -20,6 +23,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 unsigned long get_current_tick(void);
+static void reset_timer_masked(void);
 
 /* macro to read the 16 bit timer */
 static inline struct s5p_timer *s5p_get_base_timer(void)
@@ -33,7 +37,7 @@ static inline struct s5p_timer *s5p_get_base_timer(void)
  * This operates at 1MHz and counts downwards. It will wrap about every
  * hour (2^32 microseconds).
  *
- * @return current value of timer
+ * Return: current value of timer
  */
 static unsigned long timer_get_us_down(void)
 {
@@ -107,7 +111,7 @@ void __udelay(unsigned long usec)
 		;
 }
 
-void reset_timer_masked(void)
+static void reset_timer_masked(void)
 {
 	struct s5p_timer *const timer = s5p_get_base_timer();
 

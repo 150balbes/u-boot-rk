@@ -20,10 +20,6 @@
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
 
-#define CONFIG_ENV_SIZE			(96 << 10)	/*  96 KiB */
-
-#define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
-
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	DEFAULT_LINUX_BOOT_ENV \
@@ -59,8 +55,8 @@
 				"bootz ${loadaddr} - ${fdtaddr};" \
 			"fi;" \
 		"fi;\0" \
-	"mtdids=" MTDIDS_DEFAULT "\0" \
-	"mtdparts=" MTDPARTS_DEFAULT "\0" \
+	"mtdids=" CONFIG_MTDIDS_DEFAULT "\0" \
+	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0" \
 	"nandroot=ubi0:rootfs rw ubi.mtd=1\0" \
 	"nandrootfstype=ubifs rootwait\0" \
 	"nandload=ubi part UBI; " \
@@ -95,51 +91,14 @@
 			"echo WARNING: Could not determine device tree to use; fi; \0"
 #endif
 
-#define CONFIG_BOOTCOMMAND \
-	"run findfdt;" \
-	"run mmcboot;" \
-	"run nandboot;" \
-	"run netboot;"
-
 /* NS16550 Configuration */
 #define CONFIG_SYS_NS16550_COM1		0x44e09000	/* UART0 */
-#define CONFIG_CONS_INDEX		1
 
 /* Ethernet support */
-#define CONFIG_PHY_SMSC
 
 /* NAND support */
-#define CONFIG_SYS_NAND_ONFI_DETECTION	1
-
-/* SPL */
-
-/* UBI configuration */
-#define CONFIG_SPL_UBI			1
-#define CONFIG_SPL_UBI_MAX_VOL_LEBS	256
-#define CONFIG_SPL_UBI_MAX_PEB_SIZE	(256*1024)
-#define CONFIG_SPL_UBI_MAX_PEBS		4096
-#define CONFIG_SPL_UBI_VOL_IDS		8
-#define CONFIG_SPL_UBI_LOAD_MONITOR_ID	0
-#define CONFIG_SPL_UBI_LOAD_KERNEL_ID	3
-#define CONFIG_SPL_UBI_LOAD_ARGS_ID	4
-#define CONFIG_SPL_UBI_PEB_OFFSET	4
-#define CONFIG_SPL_UBI_VID_OFFSET	512
-#define CONFIG_SPL_UBI_LEB_START	2048
-#define CONFIG_SPL_UBI_INFO_ADDR	0x88080000
-
-/* environment organization */
-#define CONFIG_ENV_UBI_PART		"UBI"
-#define CONFIG_ENV_UBI_VOLUME		"config"
-#define CONFIG_ENV_UBI_VOLUME_REDUND	"config_r"
 
 /* NAND config */
-#define CONFIG_SYS_NAND_5_ADDR_CYCLE
-#define CONFIG_SYS_NAND_PAGE_COUNT	(CONFIG_SYS_NAND_BLOCK_SIZE / \
-					 CONFIG_SYS_NAND_PAGE_SIZE)
-#define CONFIG_SYS_NAND_PAGE_SIZE	2048
-#define CONFIG_SYS_NAND_OOBSIZE		64
-#define CONFIG_SYS_NAND_BLOCK_SIZE	(128*1024)
-#define CONFIG_SYS_NAND_BAD_BLOCK_POS	NAND_LARGE_BADBLOCK_POS
 #define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
 					 10, 11, 12, 13, 14, 15, 16, 17, \
 					 18, 19, 20, 21, 22, 23, 24, 25, \
@@ -150,6 +109,5 @@
 
 #define CONFIG_SYS_NAND_ECCSIZE		512
 #define CONFIG_SYS_NAND_ECCBYTES	14
-#define CONFIG_NAND_OMAP_ECCSCHEME	OMAP_ECC_BCH8_CODE_HW
 
 #endif	/* ! __CONFIG_IGEP003X_H */

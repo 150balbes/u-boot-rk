@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  *
@@ -8,8 +9,6 @@
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Alex Zuepke <azu@sysgo.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _U_BOOT_SANDBOX_H_
@@ -27,6 +26,8 @@ int cleanup_before_linux(void);
 /* drivers/video/sandbox_sdl.c */
 int sandbox_lcd_sdl_early_init(void);
 
+struct udevice;
+
 /**
  * pci_map_physmem() - map a PCI device into memory
  *
@@ -43,7 +44,7 @@ int sandbox_lcd_sdl_early_init(void);
  * @devp:	Returns the device which mapped into this space
  * @ptrp:	Returns a pointer to the mapped address. The device's space
  *		can be accessed as @lenp bytes starting here
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int pci_map_physmem(phys_addr_t paddr, unsigned long *lenp,
 		    struct udevice **devp, void **ptrp);
@@ -56,7 +57,7 @@ int pci_map_physmem(phys_addr_t paddr, unsigned long *lenp,
  * @paddr:	Physical memory address, as passed to pci_map_physmem()
  * @len:	Size of area mapped, as returned by pci_map_physmem()
  * @dev:	Device to unmap, as returned by pci_map_physmem()
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int pci_unmap_physmem(const void *addr, unsigned long len,
 		      struct udevice *dev);
@@ -76,12 +77,14 @@ int pci_unmap_physmem(const void *addr, unsigned long len,
 void sandbox_set_enable_pci_map(int enable);
 
 /**
- * sandbox_read_fdt_from_file() - Read a device tree from a file
+ * sandbox_reset() - reset sandbox
  *
- * Read a device tree file from a host file and set it up for use as the
- * control FDT.
+ * This functions implements the cold reboot of the sandbox. It relaunches the
+ * U-Boot binary with the same command line parameters as the original call.
+ * The PID of the process stays the same. All file descriptors that have not
+ * been opened with O_CLOEXEC stay open including stdin, stdout, stderr.
  */
-int sandbox_read_fdt_from_file(void);
+void sandbox_reset(void);
 
 /* Exit sandbox (quit U-Boot) */
 void sandbox_exit(void);

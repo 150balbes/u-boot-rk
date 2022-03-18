@@ -5,17 +5,16 @@
 #include <linux/compiler.h>
 
 /* stdin */
-int getc(void);
+int getchar(void);
 int tstc(void);
 
 /* stdout */
 #if !defined(CONFIG_SPL_BUILD) || \
-	(defined(CONFIG_TPL_BUILD) && defined(CONFIG_TPL_SERIAL_SUPPORT)) || \
+	(defined(CONFIG_TPL_BUILD) && defined(CONFIG_TPL_SERIAL)) || \
 	(defined(CONFIG_SPL_BUILD) && !defined(CONFIG_TPL_BUILD) && \
-		defined(CONFIG_SPL_SERIAL_SUPPORT))
+		defined(CONFIG_SPL_SERIAL))
 void putc(const char c);
 void puts(const char *s);
-void flushc(void);
 int __printf(1, 2) printf(const char *fmt, ...);
 int vprintf(const char *fmt, va_list args);
 #else
@@ -24,10 +23,6 @@ static inline void putc(const char c)
 }
 
 static inline void puts(const char *s)
-{
-}
-
-static inline void flushc(void)
 {
 }
 

@@ -1,14 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
  *
  * Aneesh V <aneesh@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _CLOCKS_OMAP4_H_
 #define _CLOCKS_OMAP4_H_
-#include <common.h>
 #include <asm/omap_common.h>
 
 /*

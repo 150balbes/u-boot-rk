@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -13,16 +14,17 @@
  * (C) Copyright 2003 - 2004
  * Sysgo Real-Time Solutions, AG <www.elinos.com>
  * Pavel Bartusek <pba@sysgo.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
  * Ext2fs support
  */
+#include <common.h>
+#include <command.h>
 #include <fs.h>
 
-static int do_ext2ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_ext2ls(struct cmd_tbl *cmdtp, int flag, int argc,
+		     char *const argv[])
 {
 	return do_ls(cmdtp, flag, argc, argv, FS_TYPE_EXT);
 }
@@ -30,7 +32,7 @@ static int do_ext2ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 /******************************************************************************
  * Ext2fs boot command intepreter. Derived from diskboot
  */
-int do_ext2load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	return do_load(cmdtp, flag, argc, argv, FS_TYPE_EXT);
 }

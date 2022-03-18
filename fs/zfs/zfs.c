@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * ZFS filesystem ported to u-boot by
@@ -7,11 +8,10 @@
  *	Copyright (C) 1999,2000,2001,2002,2003,2004
  *	Free Software Foundation, Inc.
  *	Copyright 2004	Sun Microsystems, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
 #include <malloc.h>
 #include <linux/stat.h>
 #include <linux/time.h>

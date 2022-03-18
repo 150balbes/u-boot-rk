@@ -1,23 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __USB_ETHER_H__
 #define __USB_ETHER_H__
 
 #include <net.h>
-
-/*
- *	IEEE 802.3 Ethernet magic constants.  The frame sizes omit the preamble
- *	and FCS/CRC (frame check sequence).
- */
-#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
-#define ETH_HLEN	14		/* Total octets in header.	 */
-#define ETH_ZLEN	60		/* Min. octets in frame sans FCS */
-#define ETH_DATA_LEN	1500		/* Max. octets in payload	 */
-#define ETH_FRAME_LEN	PKTSIZE_ALIGN	/* Max. octets in frame sans FCS */
 
 /* TODO(sjg@chromium.org): Remove @pusb_dev when all boards use CONFIG_DM_ETH */
 struct ueth_data {
@@ -54,7 +43,7 @@ struct ueth_data {
  * @dev:	USB device
  * @ss:		Place to put USB ethernet data
  * @rxsize:	Maximum size to allocate for the receive buffer
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int usb_ether_register(struct udevice *dev, struct ueth_data *ueth, int rxsize);
 
@@ -62,7 +51,7 @@ int usb_ether_register(struct udevice *dev, struct ueth_data *ueth, int rxsize);
  * usb_ether_deregister() - deregister a USB ethernet device
  *
  * @ueth:	USB Ethernet device
- * @return 0
+ * Return: 0
  */
 int usb_ether_deregister(struct ueth_data *ueth);
 
@@ -73,7 +62,7 @@ int usb_ether_deregister(struct ueth_data *ueth);
  *
  * @ueth:	USB Ethernet device
  * @rxsize:	Maximum size to receive
- * @return 0 if a packet was received, -EAGAIN if not, -ENOSPC if @rxsize is
+ * Return: 0 if a packet was received, -EAGAIN if not, -ENOSPC if @rxsize is
  * larger than the size passed ot usb_ether_register(), other -ve on error
  */
 int usb_ether_receive(struct ueth_data *ueth, int rxsize);
@@ -88,7 +77,7 @@ int usb_ether_receive(struct ueth_data *ueth, int rxsize);
  * @ueth:	USB Ethernet device
  * @ptrp:	Returns a pointer to the start of the next packet if there is
  *		one available
- * @return number of bytes available, or 0 if none
+ * Return: number of bytes available, or 0 if none
  */
 int usb_ether_get_rx_bytes(struct ueth_data *ueth, uint8_t **ptrp);
 
