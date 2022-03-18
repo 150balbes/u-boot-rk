@@ -162,9 +162,7 @@ dtb-$(CONFIG_ROCKCHIP_RK3399) += \
 
 dtb-$(CONFIG_ROCKCHIP_RK3568) += \
 	rk3568-evb.dtb \
-	rk3566-pinenote.dtb \
-	rk3566-quartz64-a.dtb \
-	rk3566-quartz64-b.dtb
+	rk3566-quartz64-a.dtb
 
 dtb-$(CONFIG_ROCKCHIP_RV1108) += \
 	rv1108-elgin-r1.dtb \
