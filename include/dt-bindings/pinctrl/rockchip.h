@@ -4,7 +4,15 @@
  * Copyright (c) 2013 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
- * SPDX-License-Identifier:    GPL-2.0+
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #ifndef __DT_BINDINGS_ROCKCHIP_PINCTRL_H__
@@ -67,5 +75,23 @@
 #define RK_FUNC_13	13
 #define RK_FUNC_14	14
 #define RK_FUNC_15	15
+
+//PCA953X
+#define PCA_IO0_0          0
+#define PCA_IO0_1          1
+#define PCA_IO0_2          2
+#define PCA_IO0_3          3
+#define PCA_IO0_4          4
+#define PCA_IO0_5          5
+#define PCA_IO0_6          6
+#define PCA_IO0_7          7
+#define PCA_IO1_0          8
+#define PCA_IO1_1          9
+#define PCA_IO1_2          10
+#define PCA_IO1_3          11
+#define PCA_IO1_4          12
+#define PCA_IO1_5          13
+#define PCA_IO1_6          14
+#define PCA_IO1_7          15
 
 #endif
