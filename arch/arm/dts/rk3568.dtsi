@@ -267,6 +267,7 @@
 			reg = <0x0 0xfcc00000 0x0 0x400000>;
 			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
+			maximum-speed = "high-speed";
 			phys = <&u2phy0_otg>;
 			phy-names = "usb2-phy";
 			phy_type = "utmi_wide";
@@ -299,6 +300,7 @@
 			reg = <0x0 0xfd000000 0x0 0x400000>;
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
+			maximum-speed = "high-speed";
 			phys = <&u2phy0_host>;
 			phy-names = "usb2-phy";
 			phy_type = "utmi_wide";

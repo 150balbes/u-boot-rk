@@ -153,6 +153,9 @@ static int get_bootdev_type(void)
 	} else if (!strcmp(devtype, "scsi")) {
 		type = IF_TYPE_SCSI;
 		boot_media = "scsi";
+	} else if (!strcmp(devtype, "usb")) {
+		type = IF_TYPE_USB;
+		boot_media = "usb";
 	} else {
 		/* Add new to support */
 	}
