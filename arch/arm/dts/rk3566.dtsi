@@ -23,14 +23,14 @@
 	};
 };
 
-&vop {
-	compatible = "rockchip,rk3566-vop";
-};
-
-&usbdrd_dwc3 {
+&usbdrd30 {
 	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
 	extcon = <&u2phy0>;
 	maximum-speed = "high-speed";
 	snps,dis_u2_susphy_quirk;
+};
+
+&vop {
+	compatible = "rockchip,rk3566-vop";
 };
