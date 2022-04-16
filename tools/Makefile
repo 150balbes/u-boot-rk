@@ -196,6 +196,9 @@ hostprogs-$(CONFIG_EXYNOS5250) += mkexynosspl
 hostprogs-$(CONFIG_EXYNOS5420) += mkexynosspl
 HOSTCFLAGS_mkexynosspl.o := -pedantic
 
+HOSTCFLAGS_kwboot.o += -pthread
+HOSTLDLIBS_kwboot += -pthread -ltinfo
+
 ifdtool-objs := $(LIBFDT_OBJS) ifdtool.o
 hostprogs-$(CONFIG_X86) += ifdtool
 
@@ -238,8 +241,8 @@ hostprogs-$(CONFIG_MIPS) += mips-relocs
 hostprogs-$(CONFIG_ASN1_COMPILER)	+= asn1_compiler
 HOSTCFLAGS_asn1_compiler.o = -idirafter $(srctree)/include
 
-mkeficapsule-objs	:= mkeficapsule.o $(LIBFDT_OBJS)
-hostprogs-$(CONFIG_EFI_HAVE_CAPSULE_SUPPORT) += mkeficapsule
+HOSTLDLIBS_mkeficapsule += -lgnutls -luuid
+hostprogs-$(CONFIG_TOOLS_MKEFICAPSULE) += mkeficapsule
 
 # We build some files with extra pedantic flags to try to minimize things
 # that won't build on some weird host compiler -- though there are lots of

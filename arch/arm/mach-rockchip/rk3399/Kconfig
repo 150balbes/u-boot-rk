@@ -14,6 +14,17 @@ config TARGET_CHROMEBOOK_BOB
 	  display. It includes a Chrome OS EC (Cortex-M3) to provide access to
 	  the keyboard and battery functions.
 
+config TARGET_CHROMEBOOK_KEVIN
+	bool "Samsung Chromebook Plus (RK3399)"
+	select HAS_ROM
+	select ROCKCHIP_SPI_IMAGE
+	help
+	  Kevin is a RK3399-based convertible chromebook. It has two USB 3.0
+	  Type-C ports, 4GB of SDRAM, WiFi and a 12.3" 2400x1600 display. It
+	  uses its USB ports for both power and external display. It includes
+	  a Chromium OS EC (Cortex-M3) to provide access to the keyboard and
+	  battery functions.
+
 config TARGET_EVB_RK3399
 	bool "RK3399 evaluation board"
 	help
@@ -34,6 +45,22 @@ config TARGET_PINEPHONE_PRO_RK3399
 	  PinePhone Pro is a phone based on the Rockchip rk3399 SoC
 	  with 4Gb RAM, onboard eMMC, USB-C, a headphone jack,
 	  720x1440 screen and an external Quectel USB modem.
+
+config TARGET_HELIOS64
+	bool "Kobol Innovations Helios64"
+	select BOARD_LATE_INIT
+	help
+	  Helios64 is a Network Attached Storage board based on Rockchip RK3399.
+
+	  Key features of the Helios64 include:
+	   * on-board PCIe to 5 Ports SATA Controller JMB585
+	   * on-board USB 3.0 hub (3x USB 3.0 host)
+	   * USB Type-C (Support DisplayPort Alt Mode)
+	   * on-board 1 Gigabit Ethernet
+	   * on-board 2.5 Gigabit Ethernet (Realtek RTL8156)
+	   * on-board eMMC
+	   * on-board LPDDR4
+	   * SPI, I2C, UART, GPIO
 
 config TARGET_PUMA_RK3399
 	bool "Theobroma Systems RK3399-Q7 (Puma)"
@@ -96,7 +123,12 @@ config TARGET_ROCKPRO64_RK3399
 	   * USB Type C power and data
 	   * GPIO expansion ports
 	   * DC 12V/2A
-
+	   
+config TARGET_TINKER-2_RK3399
+	bool "Asus Tinker Board 2"
+	help
+	  Tinker Board 2
+	   
 config TARGET_ROC_PC_RK3399
 	bool "Firefly ROC-RK3399-PC board"
 	help
@@ -160,11 +192,13 @@ endif # BOOTCOUNT_LIMIT
 
 source "board/firefly/roc-pc-rk3399/Kconfig"
 source "board/google/gru/Kconfig"
+source "board/kobol/helios64/Kconfig"
 source "board/pine64/pinebook-pro-rk3399/Kconfig"
 source "board/pine64/pinephone-pro-rk3399/Kconfig"
 source "board/pine64/rockpro64_rk3399/Kconfig"
 source "board/rockchip/evb_rk3399/Kconfig"
 source "board/theobroma-systems/puma_rk3399/Kconfig"
 source "board/vamrs/rock960_rk3399/Kconfig"
+source "board/rockchip/tinker-2_rk3399/Kconfig"
 
 endif

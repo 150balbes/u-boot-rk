@@ -74,11 +74,11 @@ class TestFdt(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        tools.PrepareOutputDir(None)
+        tools.prepare_output_dir(None)
 
     @classmethod
     def tearDownClass(cls):
-        tools.FinaliseOutputDir()
+        tools.finalise_output_dir()
 
     def setUp(self):
         self.dtb = fdt.FdtScan(find_dtb_file('dtoc_test_simple.dts'))
@@ -152,11 +152,11 @@ class TestNode(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        tools.PrepareOutputDir(None)
+        tools.prepare_output_dir(None)
 
     @classmethod
     def tearDownClass(cls):
-        tools.FinaliseOutputDir()
+        tools.finalise_output_dir()
 
     def setUp(self):
         self.dtb = fdt.FdtScan(find_dtb_file('dtoc_test_simple.dts'))
@@ -272,6 +272,17 @@ class TestNode(unittest.TestCase):
 
         self.dtb.Sync(auto_resize=True)
 
+    def testAddOneNode(self):
+        """Testing deleting and adding a subnode before syncing"""
+        subnode = self.node.AddSubnode('subnode')
+        self.node.AddSubnode('subnode2')
+        self.dtb.Sync(auto_resize=True)
+
+        # Delete a node and add a new one
+        subnode.Delete()
+        self.node.AddSubnode('subnode3')
+        self.dtb.Sync()
+
     def testRefreshNameMismatch(self):
         """Test name mismatch when syncing nodes and properties"""
         prop = self.node.AddInt('integer-a', 12)
@@ -294,11 +305,11 @@ class TestProp(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        tools.PrepareOutputDir(None)
+        tools.prepare_output_dir(None)
 
     @classmethod
     def tearDownClass(cls):
-        tools.FinaliseOutputDir()
+        tools.finalise_output_dir()
 
     def setUp(self):
         self.dtb = fdt.FdtScan(find_dtb_file('dtoc_test_simple.dts'))
@@ -370,7 +381,7 @@ class TestProp(unittest.TestCase):
         """Tests the GetEmpty() function for the various supported types"""
         self.assertEqual(True, fdt.Prop.GetEmpty(Type.BOOL))
         self.assertEqual(chr(0), fdt.Prop.GetEmpty(Type.BYTE))
-        self.assertEqual(tools.GetBytes(0, 4), fdt.Prop.GetEmpty(Type.INT))
+        self.assertEqual(tools.get_bytes(0, 4), fdt.Prop.GetEmpty(Type.INT))
         self.assertEqual('', fdt.Prop.GetEmpty(Type.STRING))
 
     def testGetOffset(self):
@@ -501,7 +512,7 @@ class TestProp(unittest.TestCase):
         self.node.AddString('string', val)
         self.dtb.Sync(auto_resize=True)
         data = self.fdt.getprop(self.node.Offset(), 'string')
-        self.assertEqual(tools.ToBytes(val) + b'\0', data)
+        self.assertEqual(tools.to_bytes(val) + b'\0', data)
 
         self.fdt.pack()
         self.node.SetString('string', val + 'x')
@@ -511,25 +522,42 @@ class TestProp(unittest.TestCase):
         self.node.SetString('string', val[:-1])
 
         prop = self.node.props['string']
-        prop.SetData(tools.ToBytes(val))
+        prop.SetData(tools.to_bytes(val))
         self.dtb.Sync(auto_resize=False)
         data = self.fdt.getprop(self.node.Offset(), 'string')
-        self.assertEqual(tools.ToBytes(val), data)
+        self.assertEqual(tools.to_bytes(val), data)
 
         self.node.AddEmptyProp('empty', 5)
         self.dtb.Sync(auto_resize=True)
         prop = self.node.props['empty']
-        prop.SetData(tools.ToBytes(val))
+        prop.SetData(tools.to_bytes(val))
         self.dtb.Sync(auto_resize=False)
         data = self.fdt.getprop(self.node.Offset(), 'empty')
-        self.assertEqual(tools.ToBytes(val), data)
+        self.assertEqual(tools.to_bytes(val), data)
 
         self.node.SetData('empty', b'123')
         self.assertEqual(b'123', prop.bytes)
 
         # Trying adding a lot of data at once
-        self.node.AddData('data', tools.GetBytes(65, 20000))
+        self.node.AddData('data', tools.get_bytes(65, 20000))
         self.dtb.Sync(auto_resize=True)
+
+    def test_string_list(self):
+        """Test adding string-list property to a node"""
+        val = ['123', '456']
+        self.node.AddStringList('stringlist', val)
+        self.dtb.Sync(auto_resize=True)
+        data = self.fdt.getprop(self.node.Offset(), 'stringlist')
+        self.assertEqual(b'123\x00456\0', data)
+
+    def test_delete_node(self):
+        """Test deleting a node"""
+        old_offset = self.fdt.path_offset('/spl-test')
+        self.assertGreater(old_offset, 0)
+        self.node.Delete()
+        self.dtb.Sync()
+        new_offset = self.fdt.path_offset('/spl-test', libfdt.QUIET_NOTFOUND)
+        self.assertEqual(-libfdt.NOTFOUND, new_offset)
 
     def testFromData(self):
         dtb2 = fdt.Fdt.FromData(self.dtb.GetContents())
@@ -562,7 +590,7 @@ class TestProp(unittest.TestCase):
 
     def testGetFilename(self):
         """Test the dtb filename can be provided"""
-        self.assertEqual(tools.GetOutputFilename('source.dtb'),
+        self.assertEqual(tools.get_output_filename('source.dtb'),
                          self.dtb.GetFilename())
 
 
@@ -575,11 +603,11 @@ class TestFdtUtil(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        tools.PrepareOutputDir(None)
+        tools.prepare_output_dir(None)
 
     @classmethod
     def tearDownClass(cls):
-        tools.FinaliseOutputDir()
+        tools.finalise_output_dir()
 
     def setUp(self):
         self.dtb = fdt.FdtScan(find_dtb_file('dtoc_test_simple.dts'))
@@ -623,6 +651,21 @@ class TestFdtUtil(unittest.TestCase):
             fdt_util.GetStringList(self.node, 'stringarray'))
         self.assertEqual(['test'],
                          fdt_util.GetStringList(self.node, 'missing', ['test']))
+
+    def testGetArgs(self):
+        node = self.dtb.GetNode('/orig-node')
+        self.assertEqual(['message'], fdt_util.GetArgs(self.node, 'stringval'))
+        self.assertEqual(
+            ['multi-word', 'message'],
+            fdt_util.GetArgs(self.node, 'stringarray'))
+        self.assertEqual([], fdt_util.GetArgs(self.node, 'boolval'))
+        self.assertEqual(['-n', 'first', 'second', '-p', '123,456', '-x'],
+                         fdt_util.GetArgs(node, 'args'))
+        with self.assertRaises(ValueError) as exc:
+            fdt_util.GetArgs(self.node, 'missing')
+        self.assertIn(
+            "Node '/spl-test': Expected property 'missing'",
+            str(exc.exception))
 
     def testGetBool(self):
         self.assertEqual(True, fdt_util.GetBool(self.node, 'boolval'))
@@ -715,7 +758,7 @@ class TestFdtUtil(unittest.TestCase):
 
 def RunTestCoverage():
     """Run the tests and check that we get 100% coverage"""
-    test_util.RunTestCoverage('tools/dtoc/test_fdt.py', None,
+    test_util.run_test_coverage('tools/dtoc/test_fdt.py', None,
             ['tools/patman/*.py', '*test_fdt.py'], options.build_dir)
 
 

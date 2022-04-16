@@ -336,9 +336,8 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_SYS_FSL_ESDHC_USE_PIO))
-		esdhc_setup_watermark_level(priv, data);
-	else
+	esdhc_setup_watermark_level(priv, data);
+	if (!IS_ENABLED(CONFIG_SYS_FSL_ESDHC_USE_PIO))
 		esdhc_setup_dma(priv, data);
 
 	/* Calculate the timeout period for data transactions */
@@ -453,7 +452,7 @@ static int esdhc_send_cmd_common(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 
 	/* Send the command */
 	esdhc_write32(&regs->cmdarg, cmd->cmdarg);
-	if IS_ENABLED(CONFIG_FSL_USDHC) {
+	if (IS_ENABLED(CONFIG_FSL_USDHC)) {
 		u32 mixctrl = esdhc_read32(&regs->mixctrl);
 
 		esdhc_write32(&regs->mixctrl,
@@ -596,22 +595,20 @@ static void set_sysctl(struct fsl_esdhc_priv *priv, struct mmc *mmc, uint clock)
 	int sdhc_clk = priv->sdhc_clk;
 	uint clk;
 
-	if (IS_ENABLED(ARCH_MXC)) {
 #if IS_ENABLED(CONFIG_MX53)
-		/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
-		pre_div = (regs == (struct fsl_esdhc *)MMC_SDHC3_BASE_ADDR) ? 2 : 1;
+	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
+	pre_div = (regs == (struct fsl_esdhc *)MMC_SDHC3_BASE_ADDR) ? 2 : 1;
 #else
-		pre_div = 1;
+	pre_div = 1;
 #endif
-	} else {
-		pre_div = 2;
-	}
 
 	while (sdhc_clk / (16 * pre_div * ddr_pre_div) > clock && pre_div < 256)
 		pre_div *= 2;
 
 	while (sdhc_clk / (div * pre_div * ddr_pre_div) > clock && div < 16)
 		div++;
+
+	mmc->clock = sdhc_clk / pre_div / div / ddr_pre_div;
 
 	pre_div >>= 1;
 	div -= 1;
@@ -634,7 +631,6 @@ static void set_sysctl(struct fsl_esdhc_priv *priv, struct mmc *mmc, uint clock)
 	else
 		esdhc_setbits32(&regs->sysctl, SYSCTL_PEREN | SYSCTL_CKEN);
 
-	mmc->clock = sdhc_clk / pre_div / div;
 	priv->clock = clock;
 }
 
@@ -831,12 +827,15 @@ static int fsl_esdhc_execute_tuning(struct udevice *dev, uint32_t opcode)
 	struct mmc *mmc = &plat->mmc;
 	u32 irqstaten = esdhc_read32(&regs->irqstaten);
 	u32 irqsigen = esdhc_read32(&regs->irqsigen);
-	int i, ret = -ETIMEDOUT;
-	u32 val, mixctrl;
+	int i, err, ret = -ETIMEDOUT;
+	u32 val, mixctrl, tmp;
 
 	/* clock tuning is not needed for upto 52MHz */
 	if (mmc->clock <= 52000000)
 		return 0;
+
+	/* make sure the card clock keep on */
+	esdhc_setbits32(&regs->vendorspec, VENDORSPEC_FRC_SDCLK_ON);
 
 	/* This is readw/writew SDHCI_HOST_CONTROL2 when tuning */
 	if (priv->flags & ESDHC_FLAG_STD_TUNING) {
@@ -896,6 +895,12 @@ static int fsl_esdhc_execute_tuning(struct udevice *dev, uint32_t opcode)
 	esdhc_write32(&regs->irqsigen, irqsigen);
 
 	esdhc_stop_tuning(mmc);
+
+	/* change to default setting, let host control the card clock */
+	esdhc_clrbits32(&regs->vendorspec, VENDORSPEC_FRC_SDCLK_ON);
+	err = readx_poll_timeout(esdhc_read32, &regs->prsstat, tmp, tmp & PRSSTAT_SDOFF, 100);
+	if (err)
+		dev_warn(dev, "card clock not gate off as expect.\n");
 
 	return ret;
 }
@@ -1007,11 +1012,6 @@ static int esdhc_init_common(struct fsl_esdhc_priv *priv, struct mmc *mmc)
 		/* Disable DLL_CTRL delay line */
 		esdhc_write32(&regs->dllctrl, 0x0);
 	}
-
-#ifndef ARCH_MXC
-	/* Enable cache snooping */
-	esdhc_write32(&regs->scr, 0x00000040);
-#endif
 
 	if (IS_ENABLED(CONFIG_FSL_USDHC))
 		esdhc_setbits32(&regs->vendorspec,
@@ -1225,8 +1225,29 @@ static int fsl_esdhc_init(struct fsl_esdhc_priv *priv,
 			val |= ESDHC_TUNING_CMD_CRC_CHECK_DISABLE;
 			esdhc_write32(&regs->tuning_ctrl, val);
 		}
-	}
 
+		/*
+		 * UHS doesn't have explicit ESDHC flags, so if it's
+		 * not supported, disable it in config.
+		 */
+		if (CONFIG_IS_ENABLED(MMC_UHS_SUPPORT))
+			cfg->host_caps |= UHS_CAPS;
+
+		if (CONFIG_IS_ENABLED(MMC_HS200_SUPPORT)) {
+			if (priv->flags & ESDHC_FLAG_HS200)
+				cfg->host_caps |= MMC_CAP(MMC_HS_200);
+		}
+
+		if (CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)) {
+			if (priv->flags & ESDHC_FLAG_HS400)
+				cfg->host_caps |= MMC_CAP(MMC_HS_400);
+		}
+
+		if (CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)) {
+			if (priv->flags & ESDHC_FLAG_HS400_ES)
+				cfg->host_caps |= MMC_CAP(MMC_HS_400_ES);
+		}
+	}
 	return 0;
 }
 
@@ -1555,14 +1576,24 @@ static int __maybe_unused fsl_esdhc_set_enhanced_strobe(struct udevice *dev)
 static int fsl_esdhc_wait_dat0(struct udevice *dev, int state,
 				int timeout_us)
 {
-	int ret;
+	int ret, err;
 	u32 tmp;
 	struct fsl_esdhc_priv *priv = dev_get_priv(dev);
 	struct fsl_esdhc *regs = priv->esdhc_regs;
 
+	/* make sure the card clock keep on */
+	esdhc_setbits32(&regs->vendorspec, VENDORSPEC_FRC_SDCLK_ON);
+
 	ret = readx_poll_timeout(esdhc_read32, &regs->prsstat, tmp,
 				!!(tmp & PRSSTAT_DAT0) == !!state,
 				timeout_us);
+
+	/* change to default setting, let host control the card clock */
+	esdhc_clrbits32(&regs->vendorspec, VENDORSPEC_FRC_SDCLK_ON);
+	err = readx_poll_timeout(esdhc_read32, &regs->prsstat, tmp, tmp & PRSSTAT_SDOFF, 100);
+	if (err)
+		dev_warn(dev, "card clock not gate off as expect.\n");
+
 	return ret;
 }
 

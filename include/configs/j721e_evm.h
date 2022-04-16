@@ -66,6 +66,10 @@
 	"default_device_tree=" CONFIG_DEFAULT_DEVICE_TREE ".dtb\0"	\
 	"findfdt="							\
 		"setenv name_fdt ${default_device_tree};"		\
+		"if test $board_name = j721e; then "			\
+			"setenv name_fdt k3-j721e-common-proc-board.dtb; fi;" \
+		"if test $board_name = j721e-eaik || test $board_name = j721e-sk; then "		\
+			"setenv name_fdt k3-j721e-sk.dtb; fi;"	\
 		"setenv fdtfile ${name_fdt}\0"				\
 	"name_kern=Image\0"						\
 	"console=ttyS2,115200n8\0"					\
@@ -119,6 +123,16 @@
 
 /* Set the default list of remote processors to boot */
 #if defined(CONFIG_TARGET_J721E_A72_EVM) || defined(CONFIG_TARGET_J7200_A72_EVM)
+#define EXTRA_ENV_CONFIG_MAIN_CPSW0_QSGMII_PHY				\
+	"dorprocboot=1\0"						\
+	"do_main_cpsw0_qsgmii_phyinit=1\0"				\
+	"init_main_cpsw0_qsgmii_phy=gpio set gpio@22_17;"		\
+		 "gpio clear gpio@22_16\0"				\
+	"main_cpsw0_qsgmii_phyinit="					\
+	"if test ${do_main_cpsw0_qsgmii_phyinit} -eq 1 && test ${dorprocboot} -eq 1 && " \
+			"test ${boot} = mmc; then "			\
+		"run init_main_cpsw0_qsgmii_phy;"			\
+	"fi;\0"
 #ifdef DEFAULT_RPROCS
 #undef DEFAULT_RPROCS
 #endif
@@ -136,15 +150,6 @@
 #endif /* CONFIG_TARGET_J721E_A72_EVM */
 
 #ifdef CONFIG_TARGET_J7200_A72_EVM
-#define EXTRA_ENV_CONFIG_MAIN_CPSW0_QSGMII_PHY				\
-	"do_main_cpsw0_qsgmii_phyinit=1\0"				\
-	"init_main_cpsw0_qsgmii_phy=gpio set gpio@22_17;"		\
-		 "gpio clear gpio@22_16\0"				\
-	"main_cpsw0_qsgmii_phyinit="					\
-	"if test ${do_main_cpsw0_qsgmii_phyinit} -eq 1 && test ${dorprocboot} -eq 1 && " \
-			"test ${boot} = mmc; then "			\
-		"run init_main_cpsw0_qsgmii_phy;"			\
-	"fi;\0"
 #define DEFAULT_RPROCS ""						\
 		"2 /lib/firmware/j7200-main-r5f0_0-fw "			\
 		"3 /lib/firmware/j7200-main-r5f0_1-fw "
