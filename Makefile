@@ -1033,9 +1033,6 @@ quiet_cmd_mkimage = MKIMAGE $@
 cmd_mkimage = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) -d $< $@ \
 	>$(MKIMAGEOUTPUT) $(if $(KBUILD_VERBOSE:0=), && cat $(MKIMAGEOUTPUT))
 
-cmd_mkimage_combined = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) -d $(COMBINED_FILE):$< $@ \
-	>$(MKIMAGEOUTPUT) $(if $(KBUILD_VERBOSE:0=), && cat $(MKIMAGEOUTPUT))
-
 quiet_cmd_mkfitimage = MKIMAGE $@
 cmd_mkfitimage = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) \
 	-f $(U_BOOT_ITS) -p $(CONFIG_FIT_EXTERNAL_OFFSET) $@ \
@@ -1477,7 +1474,6 @@ u-boot-with-spl.bin: $(SPL_IMAGE) $(SPL_PAYLOAD) FORCE
 ifeq ($(CONFIG_ARCH_ROCKCHIP),y)
 
 # TPL + SPL
-ifneq ($(CONFIG_SYS_SOC),$(filter $(CONFIG_SYS_SOC),"rk3568" "rk3566"))
 ifeq ($(CONFIG_SPL)$(CONFIG_TPL),yy)
 MKIMAGEFLAGS_u-boot-tpl-rockchip.bin = -n $(CONFIG_SYS_SOC) -T rksd
 tpl/u-boot-tpl-rockchip.bin: tpl/u-boot-tpl.bin FORCE
@@ -1488,12 +1484,6 @@ else
 MKIMAGEFLAGS_idbloader.img = -n $(CONFIG_SYS_SOC) -T rksd
 idbloader.img: spl/u-boot-spl.bin FORCE
 	$(call if_changed,mkimage)
-endif
-else
-MKIMAGEFLAGS_idbloader.img = -n $(CONFIG_SYS_SOC) -T rksd
-COMBINED_FILE = ram_init.bin
-idbloader.img: spl/u-boot-spl.bin FORCE
-	$(call if_changed,mkimage_combined)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
