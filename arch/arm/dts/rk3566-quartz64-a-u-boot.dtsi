@@ -8,7 +8,7 @@
 / {
 	chosen {
 		stdout-path = &uart2;
-//		u-boot,spl-boot-order = "same-as-spl", &sdmmc0, &sdhci;
+		u-boot,spl-boot-order = "same-as-spl", &sdmmc0, &sdhci;
 	};
 };
 
@@ -49,6 +49,10 @@
 
 &usb_host1_ohci {
 	vbus-supply = <&vcc5v0_usb20_host>;
+};
+
+&sdmmc0 {
+	status = "okay";
 };
 
 &uart2 {
