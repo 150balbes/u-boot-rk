@@ -858,10 +858,11 @@
 
 &sdhci {
 	bus-width = <8>;
-	mmc-hs200-1_8v;
+	max-frequency = <200000000>;
+//	mmc-hs200-1_8v;
 	non-removable;
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_1v8>;
+//	vmmc-supply = <&vcc_3v3>;
+//	vqmmc-supply = <&vcc_1v8>;
 	status = "okay";
 };
 
@@ -875,6 +876,7 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vccio_sd>;
+	max-frequency = <52000000>;
 	status = "okay";
 };
 
