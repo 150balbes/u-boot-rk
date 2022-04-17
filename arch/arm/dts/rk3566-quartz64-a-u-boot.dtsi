@@ -25,9 +25,9 @@
 	/delete-property/ clock-names;
 };
 
-//&saradc {
-//	vdd-supply = <&vcc_1v8>;
-//};
+/&saradc {
+	vdd-supply = <&vcc_1v8>;
+};
 
 &sfc {
 	flash@0 {
