@@ -13,8 +13,8 @@
 
 	aliases {
 		ethernet0 = &gmac1;
-		mmc0 = &sdmmc0;
-		mmc1 = &sdhci;
+//		mmc0 = &sdmmc0;
+//		mmc1 = &sdhci;
 	};
 
 	chosen: chosen {
@@ -838,10 +838,10 @@
 	vccio7-supply = <&vcc_3v3>;
 };
 
-&saradc {
-	vref-supply = <&vcc_1v8>;
-	status = "okay";
-};
+//&saradc {
+//	vref-supply = <&vcc_1v8>;
+//	status = "okay";
+//};
 
 /* sata1 is muxed with the usb3 port */
 &sata1 {
