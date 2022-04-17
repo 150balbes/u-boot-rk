@@ -25,9 +25,9 @@
 	/delete-property/ clock-names;
 };
 
-&saradc {
-	vdd-supply = <&vcc_1v8>;
-};
+//&saradc {
+//	vdd-supply = <&vcc_1v8>;
+//};
 
 &sfc {
 	flash@0 {
@@ -49,6 +49,10 @@
 
 &usb_host1_ohci {
 	vbus-supply = <&vcc5v0_usb20_host>;
+};
+
+&sdmmc0 {
+	status = "okay";
 };
 
 &uart2 {
