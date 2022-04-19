@@ -8,7 +8,7 @@
 / {
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = "same-as-spl",  &sdhci, &sdmmc0;
+		u-boot,spl-boot-order = "same-as-spl", &sdhci, &sdmmc0;
 	};
 };
 
@@ -35,62 +35,20 @@
 	};
 };
 
-&u2phy0 {
-	status = "okay";
-};
-
-&u2phy0_host {
-	phy-supply = <&vcc5v0_usb20_host>;
-	status = "okay";
-};
-
-&u2phy0_otg {
-	phy-supply = <&vcc5v0_usb20_otg>;
-	status = "okay";
-};
-
-&u2phy1 {
-	status = "okay";
-};
-
-&u2phy1_host {
-	phy-supply = <&vcc5v0_usb20_host>;
-	status = "okay";
-};
-
-&u2phy1_otg {
-	phy-supply = <&vcc5v0_usb20_host>;
-	status = "okay";
-};
-
-&usbdrd30 {
-	status = "okay";
-};
-
-/* usb3 controller is muxed with sata1 */
-&usbhost30 {
-//	status = "disabled";
-	status = "okay";
-};
-
 &usb_host0_ehci {
-	status = "okay";
+	vbus-supply = <&vcc5v0_usb20_host>;
 };
 
 &usb_host0_ohci {
-	status = "okay";
+	vbus-supply = <&vcc5v0_usb20_host>;
 };
 
 &usb_host1_ehci {
-	status = "okay";
+	vbus-supply = <&vcc5v0_usb20_host>;
 };
 
 &usb_host1_ohci {
-	status = "okay";
-};
-
-&sdmmc0 {
-	status = "okay";
+	vbus-supply = <&vcc5v0_usb20_host>;
 };
 
 &uart2 {
