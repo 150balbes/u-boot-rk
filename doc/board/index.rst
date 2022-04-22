@@ -14,6 +14,7 @@ Board-specific doc
    apple/index
    armltd/index
    atmel/index
+   broadcom/index
    congatec/index
    coreboot/index
    emulation/index
@@ -37,5 +38,6 @@ Board-specific doc
    tbs/index
    ti/index
    toradex/index
+   variscite/index
    xen/index
    xilinx/index

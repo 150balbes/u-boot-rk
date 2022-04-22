@@ -452,9 +452,6 @@ config ENABLE_ARM_SOC_BOOT0_HOOK
 	  values, then choose this option, and create a file included as
 	  <asm/arch/boot0.h> which contains the required assembler code.
 
-config ARM_CORTEX_CPU_IS_UP
-	bool
-
 config USE_ARCH_MEMCPY
 	bool "Use an assembly optimized implementation of memcpy"
 	default y if !ARM64
@@ -934,7 +931,10 @@ config ARCH_APPLE
 	select DM
 	select DM_GPIO
 	select DM_KEYBOARD
+	select DM_MAILBOX
+	select DM_RESET
 	select DM_SERIAL
+	select DM_SPI
 	select DM_USB
 	select DM_VIDEO
 	select IOMMU
@@ -944,6 +944,7 @@ config ARCH_APPLE
 	select POSITION_INDEPENDENT
 	select POWER_DOMAIN
 	select REGMAP
+	select SPI
 	select SYSCON
 	select SYSRESET
 	select SYSRESET_WATCHDOG
@@ -1061,6 +1062,8 @@ config ARCH_SUNXI
 	select DM_ETH
 	select DM_GPIO
 	select DM_I2C if I2C
+	select DM_SPI if SPI
+	select DM_SPI_FLASH if SPI
 	select DM_KEYBOARD
 	select DM_MMC if MMC
 	select DM_SCSI if SCSI
@@ -1138,7 +1141,6 @@ config ARCH_VERSAL
 	select DM_MMC if MMC
 	select DM_SERIAL
 	select GICV3
-	select GPIO_EXTRA_HEADER
 	select OF_CONTROL
 	select SOC_DEVICE
 	imply BOARD_LATE_INIT
@@ -1158,13 +1160,13 @@ config ARCH_ZYNQ
 	select CLK
 	select CLK_ZYNQ
 	select CPU_V7A
+	select DEBUG_UART_BOARD_INIT if SPL && DEBUG_UART
 	select DM
 	select DM_ETH if NET
 	select DM_MMC if MMC
 	select DM_SERIAL
 	select DM_SPI
 	select DM_SPI_FLASH
-	select GPIO_EXTRA_HEADER
 	select OF_CONTROL
 	select SPI
 	select SPL_BOARD_INIT if SPL
@@ -1191,7 +1193,6 @@ config ARCH_ZYNQMP_R5
 	select DM_ETH if NET
 	select DM_MMC if MMC
 	select DM_SERIAL
-	select GPIO_EXTRA_HEADER
 	select OF_CONTROL
 	imply CMD_DM
 	imply DM_USB_GADGET
@@ -1201,6 +1202,7 @@ config ARCH_ZYNQMP
 	select ARM64
 	select CLK
 	select DM
+	select DEBUG_UART_BOARD_INIT if SPL && DEBUG_UART
 	select DM_ETH if NET
 	select DM_MAILBOX
 	select DM_MMC if MMC
@@ -1209,7 +1211,6 @@ config ARCH_ZYNQMP
 	select DM_SPI_FLASH if DM_SPI
 	imply FIRMWARE
 	select GICV2
-	select GPIO_EXTRA_HEADER
 	select OF_CONTROL
 	select SPL_BOARD_INIT if SPL
 	select SPL_CLK if SPL
@@ -1776,6 +1777,21 @@ config TARGET_SL28
 	help
 	  Support for Kontron SMARC-sAL28 board.
 
+config TARGET_TEN64
+	bool "Support ten64"
+	select ARCH_LS1088A
+	select ARCH_MISC_INIT
+	select ARM64
+	select ARMV8_MULTIENTRY
+	select ARCH_SUPPORT_TFABOOT
+	select BOARD_LATE_INIT
+	select SUPPORT_SPL
+	select FSL_DDR_INTERACTIVE if !SD_BOOT
+	select GPIO_EXTRA_HEADER
+	help
+	  Support for Traverse Technologies Ten64 board, based
+	  on NXP LS1088A.
+
 config TARGET_COLIBRI_PXA270
 	bool "Support colibri_pxa270"
 	select CPU_PXA27X
@@ -1910,6 +1926,8 @@ config ARCH_ROCKCHIP
 	imply SYS_NS16550
 	imply TPL_SYSRESET
 	imply USB_FUNCTION_FASTBOOT
+	select OF_LIBFDT
+	select OF_LIBFDT_OVERLAY
 
 config ARCH_OCTEONTX
 	bool "Support OcteonTX SoCs"
@@ -2225,6 +2243,7 @@ source "board/socionext/developerbox/Kconfig"
 source "board/st/stv0991/Kconfig"
 source "board/tcl/sl50/Kconfig"
 source "board/toradex/colibri_pxa270/Kconfig"
+source "board/traverse/ten64/Kconfig"
 source "board/variscite/dart_6ul/Kconfig"
 source "board/vscom/baltos/Kconfig"
 source "board/phytium/durian/Kconfig"

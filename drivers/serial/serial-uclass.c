@@ -66,7 +66,8 @@ static int serial_check_stdout(const void *blob, struct udevice **devp)
 	 */
 	if (node > 0 && !lists_bind_fdt(gd->dm_root, offset_to_ofnode(node),
 					devp, NULL, false)) {
-		if (!device_probe(*devp))
+		if (device_get_uclass_id(*devp) == UCLASS_SERIAL &&
+		    !device_probe(*devp))
 			return 0;
 	}
 
@@ -357,7 +358,6 @@ static void serial_stub_putc(struct stdio_dev *sdev, const char ch)
 {
 	_serial_putc(sdev->priv, ch);
 }
-#endif
 
 static void serial_stub_puts(struct stdio_dev *sdev, const char *str)
 {
@@ -373,6 +373,7 @@ static int serial_stub_tstc(struct stdio_dev *sdev)
 {
 	return _serial_tstc(sdev->priv);
 }
+#endif
 #endif
 
 /**

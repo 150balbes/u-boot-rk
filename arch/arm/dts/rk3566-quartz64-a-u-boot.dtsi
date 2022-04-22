@@ -8,7 +8,7 @@
 / {
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = "same-as-spl", &sdmmc0, &sdhci;
+		u-boot,spl-boot-order = "same-as-spl", &sdhci, &sdmmc0;
 	};
 };
 

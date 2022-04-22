@@ -10,7 +10,6 @@
 #include <asm/arch/config.h>
 #include <asm/arch/soc.h>
 
-#define CONFIG_REMAKE_ELF
 #define CONFIG_FSL_MEMAC
 
 #define CONFIG_SYS_INIT_SP_ADDR		CONFIG_SYS_TEXT_BASE
@@ -110,13 +109,8 @@
 /* SATA */
 
 #ifdef CONFIG_SCSI
-#define CONFIG_SCSI_AHCI_PLAT
 #define CONFIG_SYS_SATA1		AHCI_BASE_ADDR1
 #define CONFIG_SYS_SATA2		AHCI_BASE_ADDR2
-#define CONFIG_SYS_SCSI_MAX_SCSI_ID	1
-#define CONFIG_SYS_SCSI_MAX_LUN		1
-#define CONFIG_SYS_SCSI_MAX_DEVICE	(CONFIG_SYS_SCSI_MAX_SCSI_ID * \
-					CONFIG_SYS_SCSI_MAX_LUN)
 #endif
 
 /* USB */
@@ -250,12 +244,36 @@
 		"run distro_bootcmd;run sd2_bootcmd;"		\
 		"env exists secureboot && esbc_halt;"
 
+#ifdef CONFIG_CMD_USB
+#define BOOT_TARGET_DEVICES_USB(func) func(USB, usb, 0)
+#else
+#define BOOT_TARGET_DEVICES_USB(func)
+#endif
+
+#ifdef CONFIG_MMC
+#define BOOT_TARGET_DEVICES_MMC(func, instance) func(MMC, mmc, instance)
+#else
+#define BOOT_TARGET_DEVICES_MMC(func)
+#endif
+
+#ifdef CONFIG_SCSI
+#define BOOT_TARGET_DEVICES_SCSI(func) func(SCSI, scsi, 0)
+#else
+#define BOOT_TARGET_DEVICES_SCSI(func)
+#endif
+
+#ifdef CONFIG_CMD_DHCP
+#define BOOT_TARGET_DEVICES_DHCP(func) func(DHCP, dhcp, na)
+#else
+#define BOOT_TARGET_DEVICES_DHCP(func)
+#endif
+
 #define BOOT_TARGET_DEVICES(func) \
-	func(USB, usb, 0) \
-	func(MMC, mmc, 0) \
-	func(MMC, mmc, 1) \
-	func(SCSI, scsi, 0) \
-	func(DHCP, dhcp, na)
+	BOOT_TARGET_DEVICES_USB(func) \
+	BOOT_TARGET_DEVICES_MMC(func, 0) \
+	BOOT_TARGET_DEVICES_MMC(func, 1) \
+	BOOT_TARGET_DEVICES_SCSI(func) \
+	BOOT_TARGET_DEVICES_DHCP(func)
 #include <config_distro_bootcmd.h>
 
 #endif /* __LX2_COMMON_H */

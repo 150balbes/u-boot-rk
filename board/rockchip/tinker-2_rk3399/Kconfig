@@ -1,0 +1,15 @@
+if TARGET_TINKER-2_RK3399
+
+config SYS_BOARD
+	default "tinker-2_rk3399"
+
+config SYS_VENDOR
+	default "rockchip"
+
+config SYS_CONFIG_NAME
+	default "tinker-2_rk3399"
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+
+endif

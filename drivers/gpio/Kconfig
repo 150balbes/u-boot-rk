@@ -131,6 +131,13 @@ config DA8XX_GPIO
 	help
 	  This driver supports the DA8xx GPIO controller
 
+config FXL6408_GPIO
+	bool "FXL6408 I2C GPIO expander driver"
+	depends on DM_GPIO && DM_I2C
+	help
+	  This driver supports the Fairchild FXL6408 device. FXL6408 is a
+	  fully configurable 8-bit I2C-controlled GPIO expander.
+
 config INTEL_BROADWELL_GPIO
 	bool "Intel Broadwell GPIO driver"
 	depends on DM
@@ -549,5 +556,11 @@ config ZYNQMP_GPIO_MODEPIN
 	  driver will set and get the status of PS_MODE pins. These modepins
 	  are accessed using xilinx firmware. In modepin register, [3:0] bits
 	  set direction, [7:4] bits read IO, [11:8] bits set/clear IO.
+
+config SL28CPLD_GPIO
+	bool "Kontron sl28cpld GPIO driver"
+	depends on DM_GPIO && SL28CPLD
+	help
+	  Support GPIO access on Kontron sl28cpld board management controllers.
 
 endif

@@ -3,7 +3,7 @@
 VERSION = 2022
 PATCHLEVEL = 04
 SUBLEVEL =
-EXTRAVERSION = -rc1
+EXTRAVERSION =
 NAME =
 
 # *DOCUMENTATION*
@@ -1033,9 +1033,6 @@ quiet_cmd_mkimage = MKIMAGE $@
 cmd_mkimage = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) -d $< $@ \
 	>$(MKIMAGEOUTPUT) $(if $(KBUILD_VERBOSE:0=), && cat $(MKIMAGEOUTPUT))
 
-cmd_mkimage_combined = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) -d $(COMBINED_FILE):$< $@ \
-	>$(MKIMAGEOUTPUT) $(if $(KBUILD_VERBOSE:0=), && cat $(MKIMAGEOUTPUT))
-
 quiet_cmd_mkfitimage = MKIMAGE $@
 cmd_mkfitimage = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) \
 	-f $(U_BOOT_ITS) -p $(CONFIG_FIT_EXTERNAL_OFFSET) $@ \
@@ -1083,7 +1080,7 @@ define deprecated
 		echo >&2 "for $(2)). Please update the board to use"; \
 		echo >&2 "$(firstword $(1)) before the $(3) release. Failure to"; \
 		echo >&2 "update by the deadline may result in board removal."; \
-		echo >&2 "See doc/driver-model/migration.rst for more info."; \
+		echo >&2 "See doc/develop/driver-model/migration.rst for more info."; \
 		echo >&2 "===================================================="; \
 	fi; fi
 
@@ -1124,7 +1121,7 @@ ifneq ($(CONFIG_DM),y)
 	@echo >&2 "This board does not use CONFIG_DM. CONFIG_DM will be"
 	@echo >&2 "compulsory starting with the v2020.01 release."
 	@echo >&2 "Failure to update may result in board removal."
-	@echo >&2 "See doc/driver-model/migration.rst for more info."
+	@echo >&2 "See doc/develop/driver-model/migration.rst for more info."
 	@echo >&2 "===================================================="
 endif
 	$(call deprecated,CONFIG_WDT,DM watchdog,v2019.10,\
@@ -1137,6 +1134,7 @@ endif
 	@# is enable to tell 'deprecated' that one of these symbols exists
 	$(call deprecated,CONFIG_TIMER,Timer drivers,v2023.01,$(if $(strip $(CONFIG_SYS_TIMER_RATE)$(CONFIG_SYS_TIMER_COUNTER)),x))
 	$(call deprecated,CONFIG_DM_SERIAL,Serial drivers,v2023.04,$(CONFIG_SERIAL))
+	$(call deprecated,CONFIG_DM_SCSI,SCSI drivers,v2023.04,$(CONFIG_SCSI))
 	@# Check that this build does not use CONFIG options that we do not
 	@# know about unless they are in Kconfig. All the existing CONFIG
 	@# options are whitelisted, so new ones should not be added.
@@ -1329,6 +1327,7 @@ cmd_binman = $(srctree)/tools/binman/binman $(if $(BINMAN_DEBUG),-D) \
 		-I arch/$(ARCH)/dts -a of-list=$(CONFIG_OF_LIST) \
 		$(foreach f,$(BINMAN_INDIRS),-I $(f)) \
 		-a atf-bl31-path=${BL31} \
+		-a tee-os-path=${TEE} \
 		-a opensbi-path=${OPENSBI} \
 		-a default-dt=$(default_dt) \
 		-a scp-path=$(SCP) \
@@ -1412,7 +1411,7 @@ MKIMAGEFLAGS_u-boot-spl.kwb = -n $(KWD_CONFIG_FILE) \
 	$(if $(KEYDIR),-k $(KEYDIR))
 
 MKIMAGEFLAGS_u-boot.pbl = -n $(srctree)/$(CONFIG_SYS_FSL_PBL_RCW:"%"=%) \
-		-R $(srctree)/$(CONFIG_SYS_FSL_PBL_PBI:"%"=%) -T pblimage
+		-R $(srctree)/$(CONFIG_SYS_FSL_PBL_PBI:"%"=%) -A $(ARCH) -T pblimage
 
 ifeq ($(CONFIG_MPC85xx)$(CONFIG_OF_SEPARATE),yy)
 UBOOT_BIN := u-boot-with-dtb.bin
@@ -1477,7 +1476,6 @@ u-boot-with-spl.bin: $(SPL_IMAGE) $(SPL_PAYLOAD) FORCE
 ifeq ($(CONFIG_ARCH_ROCKCHIP),y)
 
 # TPL + SPL
-ifneq ($(CONFIG_SYS_SOC),$(filter $(CONFIG_SYS_SOC),"rk3568" "rk3566"))
 ifeq ($(CONFIG_SPL)$(CONFIG_TPL),yy)
 MKIMAGEFLAGS_u-boot-tpl-rockchip.bin = -n $(CONFIG_SYS_SOC) -T rksd
 tpl/u-boot-tpl-rockchip.bin: tpl/u-boot-tpl.bin FORCE
@@ -1488,12 +1486,6 @@ else
 MKIMAGEFLAGS_idbloader.img = -n $(CONFIG_SYS_SOC) -T rksd
 idbloader.img: spl/u-boot-spl.bin FORCE
 	$(call if_changed,mkimage)
-endif
-else
-MKIMAGEFLAGS_idbloader.img = -n $(CONFIG_SYS_SOC) -T rksd
-COMBINED_FILE = ram_init.bin
-idbloader.img: spl/u-boot-spl.bin FORCE
-	$(call if_changed,mkimage_combined)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
@@ -1545,7 +1537,6 @@ else
 ifeq ($(CONFIG_BINMAN),y)
 flash.bin: spl/u-boot-spl.bin $(INPUTS-y) FORCE
 	$(call if_changed,binman)
-	$(Q)$(MAKE) $(build)=arch/arm/mach-imx $@
 else
 flash.bin: spl/u-boot-spl.bin u-boot.itb FORCE
 	$(Q)$(MAKE) $(build)=arch/arm/mach-imx $@
@@ -1842,7 +1833,9 @@ ENV_FILE := $(if $(ENV_SOURCE_FILE),$(ENV_FILE_CFG),$(wildcard $(ENV_FILE_BOARD)
 
 # Run the environment text file through the preprocessor, but only if it is
 # non-empty, to save time and possible build errors if something is wonky with
-# the board
+# the board.
+# If there is no ENV_FILE, produce an empty output file, to prevent a previous
+# build's file being used in the case of in-tree builds.
 quiet_cmd_gen_envp = ENVP    $@
       cmd_gen_envp = \
 	if [ -s "$(ENV_FILE)" ]; then \
@@ -1853,7 +1846,8 @@ quiet_cmd_gen_envp = ENVP    $@
 			-I$(srctree)/arch/$(ARCH)/include \
 			$< -o $@; \
 	else \
-		echo -n >$@ ; \
+		rm -f $@; \
+		touch $@ ; \
 	fi
 include/generated/env.in: include/generated/env.txt FORCE
 	$(call cmd,gen_envp)
@@ -1870,7 +1864,7 @@ quiet_cmd_envc = ENVC    $@
 	elif [ -n "$(ENV_SOURCE_FILE)" ]; then \
 		echo "Missing file $(ENV_FILE_CFG)"; \
 	else \
-		echo -n >$@ ; \
+		touch $@ ; \
 	fi
 
 include/generated/env.txt: $(wildcard $(ENV_FILE)) FORCE
@@ -2195,8 +2189,9 @@ CLEAN_DIRS  += $(MODVERDIR) \
 	       $(foreach d, spl tpl, $(patsubst %,$d/%, \
 			$(filter-out include, $(shell ls -1 $d 2>/dev/null))))
 
-CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h tools/version.h \
-	       u-boot* MLO* SPL System.map fit-dtb.blob* \
+CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h \
+	       include/generated/env.in drivers/video/u_boot_logo.S \
+	       tools/version.h u-boot* MLO* SPL System.map fit-dtb.blob* \
 	       u-boot-ivt.img.log u-boot-dtb.imx.log SPL.log u-boot.imx.log \
 	       lpc32xx-* bl31.c bl31.elf bl31_*.bin image.map tispl.bin* \
 	       idbloader.img flash.bin flash.log defconfig keep-syms-lto.c \
@@ -2236,7 +2231,8 @@ clean: $(clean-dirs)
 		-o -name '*.asn1.[ch]' \
 		-o -name '*.symtypes' -o -name 'modules.order' \
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
-		-o -name 'dsdt.aml' -o -name 'dsdt.asl.tmp' -o -name 'dsdt.c' \
+		-o -name 'dsdt_generated.aml' -o -name 'dsdt_generated.asl.tmp' \
+		-o -name 'dsdt_generated.c' \
 		-o -name '*.efi' -o -name '*.gcno' -o -name '*.so' \) \
 		-type f -print | xargs rm -f
 
