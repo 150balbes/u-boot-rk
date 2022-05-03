@@ -135,7 +135,9 @@
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 	};
+};
 
+&pinctrl {
 	usb {
 		vcc_hub_power_en: vcc-hub-power-en {
 			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
