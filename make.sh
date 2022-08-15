@@ -553,9 +553,9 @@ function pack_uboot_itb_image()
 		TOS=`filt_val "TOS" ${INI}`
 		TOSTA=`filt_val "TOSTA" ${INI}`
 		if [ ! -z "${TOSTA}" ]; then
-			cp ${RKBIN}/${TOSTA} tee.bin
+			cp ${RKBIN}/${TOSTA} tee.bi
 		elif [ ! -z "${TOS}" ]; then
-			cp ${RKBIN}/${TOS}   tee.bin
+			cp ${RKBIN}/${TOS}   tee.bi
 		else
 			echo "WARN: No tee bin"
 		fi
