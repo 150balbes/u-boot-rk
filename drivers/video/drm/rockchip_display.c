@@ -35,6 +35,9 @@
 #include <dm/of_access.h>
 #include <dm/ofnode.h>
 #include <asm/io.h>
+#include "logo.h"
+#include <boot_rkimg.h>
+#include <fs.h>
 
 #define DRIVER_VERSION	"v1.0.1"
 
@@ -169,7 +172,7 @@ struct base2_disp_info *rockchip_get_disp_info(int type, int id)
 	disp_info = base_parameter_addr + offset;
 	if (disp_info->screen_info[0].type != type ||
 	    disp_info->screen_info[0].id != id) {
-		printf("connector type or id is error, type:%d, id:%d\n",
+		printf("base2_disp_info couldn't be found, screen_info type[%d] or id[%d] mismatched\n",
 		       disp_info->screen_info[0].type,
 		       disp_info->screen_info[0].id);
 		return NULL;
@@ -311,7 +314,7 @@ static unsigned long get_cubic_memory_size(void)
 
 bool can_direct_logo(int bpp)
 {
-	return bpp == 24 || bpp == 32;
+	return bpp == 16 || bpp == 32;
 }
 
 static int connector_phy_init(struct display_state *state,
@@ -500,24 +503,28 @@ static int display_get_timing_from_dts(struct panel_state *panel_state,
 				       struct drm_display_mode *mode)
 {
 	struct rockchip_panel *panel = panel_state->panel;
-	int phandle;
-	ofnode timing, native_mode;
+	struct ofnode_phandle_args args;
+	ofnode dt, timing;
+	int ret;
 
-	timing = dev_read_subnode(panel->dev, "display-timings");
-	if (!ofnode_valid(timing))
-		return -ENODEV;
+	dt = dev_read_subnode(panel->dev, "display-timings");
+	if (ofnode_valid(dt)) {
+		ret = ofnode_parse_phandle_with_args(dt, "native-mode", NULL,
+						     0, 0, &args);
+		if (ret)
+			return ret;
 
-	native_mode = ofnode_find_subnode(timing, "timing");
-	if (!ofnode_valid(native_mode)) {
-		phandle = ofnode_read_u32_default(timing, "native-mode", -1);
-		native_mode = np_to_ofnode(of_find_node_by_phandle(phandle));
-		if (!ofnode_valid(native_mode)) {
-			printf("failed to get display timings from DT\n");
-			return -ENXIO;
-		}
+		timing = args.node;
+	} else {
+		timing = dev_read_subnode(panel->dev, "panel-timing");
 	}
 
-	display_get_detail_timing(native_mode, mode);
+	if (!ofnode_valid(timing)) {
+		printf("failed to get display timings from DT\n");
+		return -ENXIO;
+	}
+
+	display_get_detail_timing(timing, mode);
 
 	return 0;
 }
@@ -741,7 +748,7 @@ static int display_get_edid_mode(struct display_state *state)
 	struct drm_display_mode *mode = &conn_state->mode;
 	int bpc;
 
-	ret = edid_get_drm_mode(conn_state->edid, ret, mode, &bpc);
+	ret = edid_get_drm_mode(conn_state->edid, sizeof(conn_state->edid), mode, &bpc);
 	if (!ret) {
 		conn_state->bpc = bpc;
 		edid_print_info((void *)&conn_state->edid);
@@ -1083,36 +1090,36 @@ static int display_logo(struct display_state *state)
 	}
 	hdisplay = conn_state->mode.hdisplay;
 	vdisplay = conn_state->mode.vdisplay;
-	crtc_state->src_w = logo->width;
-	crtc_state->src_h = logo->height;
-	crtc_state->src_x = 0;
-	crtc_state->src_y = 0;
+	crtc_state->src_rect.w = logo->width;
+	crtc_state->src_rect.h = logo->height;
+	crtc_state->src_rect.x = 0;
+	crtc_state->src_rect.y = 0;
 	crtc_state->ymirror = logo->ymirror;
 	crtc_state->rb_swap = 0;
 
 	crtc_state->dma_addr = (u32)(unsigned long)logo->mem + logo->offset;
-	crtc_state->xvir = ALIGN(crtc_state->src_w * logo->bpp, 32) >> 5;
+	crtc_state->xvir = ALIGN(crtc_state->src_rect.w * logo->bpp, 32) >> 5;
 
 	if (logo->mode == ROCKCHIP_DISPLAY_FULLSCREEN) {
-		crtc_state->crtc_x = 0;
-		crtc_state->crtc_y = 0;
-		crtc_state->crtc_w = hdisplay;
-		crtc_state->crtc_h = vdisplay;
+		crtc_state->crtc_rect.x = 0;
+		crtc_state->crtc_rect.y = 0;
+		crtc_state->crtc_rect.w = hdisplay;
+		crtc_state->crtc_rect.h = vdisplay;
 	} else {
-		if (crtc_state->src_w >= hdisplay) {
-			crtc_state->crtc_x = 0;
-			crtc_state->crtc_w = hdisplay;
+		if (crtc_state->src_rect.w >= hdisplay) {
+			crtc_state->crtc_rect.x = 0;
+			crtc_state->crtc_rect.w = hdisplay;
 		} else {
-			crtc_state->crtc_x = (hdisplay - crtc_state->src_w) / 2;
-			crtc_state->crtc_w = crtc_state->src_w;
+			crtc_state->crtc_rect.x = (hdisplay - crtc_state->src_rect.w) / 2;
+			crtc_state->crtc_rect.w = crtc_state->src_rect.w;
 		}
 
-		if (crtc_state->src_h >= vdisplay) {
-			crtc_state->crtc_y = 0;
-			crtc_state->crtc_h = vdisplay;
+		if (crtc_state->src_rect.h >= vdisplay) {
+			crtc_state->crtc_rect.y = 0;
+			crtc_state->crtc_rect.h = vdisplay;
 		} else {
-			crtc_state->crtc_y = (vdisplay - crtc_state->src_h) / 2;
-			crtc_state->crtc_h = crtc_state->src_h;
+			crtc_state->crtc_rect.y = (vdisplay - crtc_state->src_rect.h) / 2;
+			crtc_state->crtc_rect.h = crtc_state->src_rect.h;
 		}
 	}
 
@@ -1122,19 +1129,34 @@ static int display_logo(struct display_state *state)
 	return 0;
 }
 
-static int get_crtc_id(ofnode connect)
+static int get_crtc_id(ofnode connect, bool is_ports_node)
 {
-	int phandle;
+	struct device_node *port_node;
 	struct device_node *remote;
+	int phandle;
 	int val;
 
-	phandle = ofnode_read_u32_default(connect, "remote-endpoint", -1);
-	if (phandle < 0)
-		goto err;
-	remote = of_find_node_by_phandle(phandle);
-	val = ofnode_read_u32_default(np_to_ofnode(remote), "reg", -1);
-	if (val < 0)
-		goto err;
+	if (is_ports_node) {
+		port_node = of_get_parent(connect.np);
+		if (!port_node)
+			goto err;
+
+		val = ofnode_read_u32_default(np_to_ofnode(port_node), "reg", -1);
+		if (val < 0)
+			goto err;
+	} else {
+		phandle = ofnode_read_u32_default(connect, "remote-endpoint", -1);
+		if (phandle < 0)
+			goto err;
+
+		remote = of_find_node_by_phandle(phandle);
+		if (!remote)
+			goto err;
+
+		val = ofnode_read_u32_default(np_to_ofnode(remote), "reg", -1);
+		if (val < 0)
+			goto err;
+	}
 
 	return val;
 err:
@@ -1236,9 +1258,56 @@ static int load_kernel_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	return 0;
 }
 
+static int rockchip_read_distro_logo(void *logo_addr, const char *bmp_name, int size)
+{
+	const char *cmd = "part list ${devtype} ${devnum} -bootable devplist";
+	char *devnum, *devtype, *devplist;
+	char devnum_part[12];
+	char logo_hex_str[19];
+	char header_size_str[10];
+	char *fs_argv[6];
+
+	if (!rockchip_get_bootdev() || !logo_addr)
+		return -ENODEV;
+
+	if (run_command_list(cmd, -1, 0)) {
+		printf("Failed to find -bootable\n");
+		return -EINVAL;
+	}
+
+	devplist = env_get("devplist");
+	if (!devplist)
+		return -ENODEV;
+
+	devtype = env_get("devtype");
+	devnum = env_get("devnum");
+	sprintf(devnum_part, "%s:%s", devnum, devplist);
+	sprintf(logo_hex_str, "0x%lx", (ulong)logo_addr);
+	sprintf(header_size_str, "0x%x", size);
+
+	fs_argv[0] = "load";
+	fs_argv[1] = devtype,
+	fs_argv[2] = devnum_part;
+	fs_argv[3] = logo_hex_str;
+	fs_argv[4] = (char *)bmp_name;
+	fs_argv[5] = header_size_str;
+
+	if (do_load(NULL, 0, 6, fs_argv, FS_TYPE_ANY))
+		return -EIO;
+
+	printf("logo(Distro): %s\n", bmp_name);
+
+	return 0;
+}
+
+enum LOGO_SOURCE {
+    FROM_RESOURCE,
+    FROM_DISTRO,
+    FROM_INTERNEL
+};
+
 static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 {
-#ifdef CONFIG_ROCKCHIP_RESOURCE_IMAGE
 	struct rockchip_logo_cache *logo_cache;
 	struct bmp_header *header;
 	void *dst = NULL, *pdst;
@@ -1246,6 +1315,7 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	int ret = 0;
 	int reserved = 0;
 	int dst_size;
+	enum LOGO_SOURCE logo_source;
 
 	if (!logo || !bmp_name)
 		return -EINVAL;
@@ -1262,11 +1332,20 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	if (!header)
 		return -ENOMEM;
 
+#ifdef CONFIG_ROCKCHIP_RESOURCE_IMAGE
 	len = rockchip_read_resource_file(header, bmp_name, 0, RK_BLK_SIZE);
-	if (len != RK_BLK_SIZE) {
-		ret = -EINVAL;
-		goto free_header;
-	}
+	if (len == RK_BLK_SIZE) {
+        logo_source = FROM_RESOURCE;
+    }
+    else
+#endif
+    if (!rockchip_read_distro_logo(header, bmp_name, RK_BLK_SIZE)) {
+        logo_source = FROM_DISTRO;
+    } else {
+        free(header);
+        header = (struct bmp_header *)logo_bmp;
+        logo_source = FROM_INTERNEL;
+    }
 
 	logo->bpp = get_unaligned_le16(&header->bit_count);
 	logo->width = get_unaligned_le32(&header->width);
@@ -1283,18 +1362,31 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 			goto free_header;
 		}
 		pdst = get_display_buffer(size);
-	} else if(logo->rotation) {
-		pdst = get_display_buffer(size);
+
 	} else {
 		pdst = get_display_buffer(size);
 		dst = pdst;
 	}
 
-	len = rockchip_read_resource_file(pdst, bmp_name, 0, size);
-	if (len != size) {
-		printf("failed to load bmp %s\n", bmp_name);
-		ret = -ENOENT;
-		goto free_header;
+#ifdef CONFIG_ROCKCHIP_RESOURCE_IMAGE
+	if (logo_source == FROM_RESOURCE) {
+		len = rockchip_read_resource_file(pdst, bmp_name, 0, size);
+		if (len != size) {
+			printf("failed to load bmp %s\n", bmp_name);
+			ret = -ENOENT;
+			goto free_header;
+		}
+	} else
+#endif
+	if (logo_source == FROM_DISTRO) {
+		ret = rockchip_read_distro_logo(pdst, bmp_name, size);
+		if (ret) {
+			printf("failed to load logo.bmp\n");
+			ret = -ENOENT;
+			goto free_header;
+		}
+	} else {
+		pdst = (void*)logo_bmp;
 	}
 
 	if (!can_direct_logo(logo->bpp)) {
@@ -1323,56 +1415,6 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 		else
 			logo->ymirror = 1;
 	}
-
-	if (logo->rotation) {
-		void *dst_temp = NULL;
-		int height = logo->height;
-		int width = logo->width;
-		int byte = logo->bpp >> 3;
-		int newW = height & 0x3 ? (height & ~0x3) + 4 : height;
-		int newH = width;
-		int beforebmp_size =  height * width * byte;
-		int newbmp_size = newH * newW * byte;
-		int rotation = 0;
-
-		if (can_direct_logo(logo->bpp)) {
-			dst = get_display_buffer(beforebmp_size);
-			if (!dst) {
-				ret = -ENOMEM;
-				goto free_header;
-			}
-			if (bmpdecoder(pdst, dst, logo->bpp)) {
-				printf("failed to decode bmp %s\n", bmp_name);
-				ret = -EINVAL;
-				goto free_header;
-			}
-		}
-
-		dst_temp = dst;
-		dst = get_display_buffer(newbmp_size);
-		if (!dst) {
-			ret = -ENOMEM;
-			goto free_header;
-		}
-		memset(dst, 0, newbmp_size);
-
-		if((logo->rotation == ROCKCHIP_DISPLAY_ROTATION_90) || (logo->rotation == ROCKCHIP_DISPLAY_ROTATION_270)) {
-			logo->width = newW;
-			logo->height = newH;
-		}
-		rotation = bmprotation(dst, dst_temp, width, height, byte, logo->rotation);
-		if(rotation < 0) {
-			printf("failed to rotate logo\n");
-		}
-
-		flush_dcache_range((ulong)dst,
-					ALIGN((ulong)dst + newbmp_size,
-						CONFIG_SYS_CACHELINE_SIZE));
-
-		logo->offset = 0;
-		logo->ymirror = 0;
-	}
-
 	logo->mem = dst;
 
 	memcpy(&logo_cache->logo, logo, sizeof(*logo));
@@ -1381,12 +1423,11 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 
 free_header:
 
-	free(header);
+	if (logo_source != FROM_INTERNEL) {
+		free(header);
+	}
 
 	return ret;
-#else
-	return -EINVAL;
-#endif
 }
 
 void rockchip_show_fbbase(ulong fbbase)
@@ -1433,7 +1474,6 @@ int rockchip_show_logo(void)
 
 	list_for_each_entry(s, &rockchip_display_list, head) {
 		s->logo.mode = s->logo_mode;
-		s->logo.rotation = s->logo_rotation;
 		if (load_bmp_logo(&s->logo, s->ulogo_name))
 			printf("failed to display uboot logo\n");
 		else
@@ -1831,22 +1871,6 @@ static int rockchip_display_probe(struct udevice *dev)
 		else
 			s->charge_logo_mode = ROCKCHIP_DISPLAY_CENTER;
 
-		int rotation = ofnode_read_u32_default(node, "logo,rotation", 0);
-		switch (rotation) {
-			case 90:
-				s->logo_rotation = ROCKCHIP_DISPLAY_ROTATION_90;
-				break;
-			case 180:
-				s->logo_rotation = ROCKCHIP_DISPLAY_ROTATION_180;
-				break;
-			case 270:
-				s->logo_rotation = ROCKCHIP_DISPLAY_ROTATION_270;
-				break;
-			default:
-				s->logo_rotation = ROCKCHIP_DISPLAY_ROTATION_0;
-				break;
-		}
-
 		s->force_output = ofnode_read_bool(node, "force-output");
 
 		if (s->force_output) {
@@ -1870,7 +1894,7 @@ static int rockchip_display_probe(struct udevice *dev)
 		s->crtc_state.node = np_to_ofnode(vop_node);
 		s->crtc_state.dev = crtc_dev;
 		s->crtc_state.crtc = crtc;
-		s->crtc_state.crtc_id = get_crtc_id(np_to_ofnode(ep_node));
+		s->crtc_state.crtc_id = get_crtc_id(np_to_ofnode(ep_node), is_ports_node);
 		s->node = node;
 
 		if (is_ports_node) { /* only vop2 will get into here */
