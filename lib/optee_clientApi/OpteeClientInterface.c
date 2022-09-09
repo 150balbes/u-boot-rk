@@ -555,6 +555,12 @@ uint32_t trusty_write_ta_encryption_key(uint32_t *buf, uint32_t length)
 						  true, buf, length);
 }
 
+uint32_t trusty_write_oem_huk(uint32_t *buf, uint32_t length)
+{
+	return trusty_base_efuse_or_otp_operation(STORAGE_CMD_WRITE_OEM_HUK,
+						  true, buf, length);
+}
+
 uint32_t trusty_attest_dh(uint8_t *dh, uint32_t *dh_size)
 {
 	TEEC_Result TeecResult;
