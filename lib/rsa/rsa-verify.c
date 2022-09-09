@@ -589,8 +589,7 @@ int rsa_verify(struct image_sign_info *info,
 }
 
 #if !defined(USE_HOSTCC)
-#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_FIT_HW_CRYPTO) && \
-    defined(CONFIG_SPL_ROCKCHIP_SECURE_OTP)
+#ifdef CONFIG_SPL_FIT_HW_CRYPTO
 int rsa_burn_key_hash(struct image_sign_info *info)
 {
 	char *rsa_key;

@@ -16,4 +16,5 @@
 #define range(x, min, max) ((x) < (min)) ? (min) : (((x) > (max)) ? (max) : (x))
 
 int bmpdecoder(void *bmp_addr, void *dst, int dst_bpp);
+int bmprotation(void *newbmp, void *beforebmp, int width, int height, int byte, int rotation);
 #endif /* _BMP_HELPER_H_ */

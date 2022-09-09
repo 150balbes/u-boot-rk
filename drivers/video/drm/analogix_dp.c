@@ -13,7 +13,6 @@
 #include <dm/device.h>
 #include <dm/of_access.h>
 #include <dm/read.h>
-#include <linux/bitfield.h>
 #include <linux/list.h>
 #include <syscon.h>
 #include <asm/arch-rockchip/clock.h>
@@ -23,10 +22,6 @@
 #include "rockchip_crtc.h"
 #include "rockchip_connector.h"
 #include "analogix_dp.h"
-
-#define RK3588_GRF_VO1_CON0	0x0000
-#define EDP_MODE		BIT(0)
-#define RK3588_GRF_VO1_CON1	0x0004
 
 /**
  * struct rockchip_dp_chip_data - splite the grf setting of kind of chips
@@ -42,9 +37,6 @@ struct rockchip_dp_chip_data {
 	u32	lcdsel_lit;
 	u32	chip_type;
 	bool    ssc;
-
-	u32 max_link_rate;
-	u32 max_lane_count;
 };
 
 static void
@@ -242,27 +234,13 @@ static void analogix_dp_get_adjust_training_lane(struct analogix_dp_device *dp,
 	}
 }
 
-static bool analogix_dp_tps3_supported(struct analogix_dp_device *dp)
-{
-	bool source_tps3_supported, sink_tps3_supported;
-	u8 dpcd = 0;
-
-	source_tps3_supported =
-		dp->video_info.max_link_rate == DP_LINK_BW_5_4;
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &dpcd);
-	sink_tps3_supported = dpcd & DP_TPS3_SUPPORTED;
-
-	return source_tps3_supported && sink_tps3_supported;
-}
-
 static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 {
 	int lane, lane_count, retval;
 	u8 voltage_swing, pre_emphasis, training_lane;
 	u8 link_status[2], adjust_request[2];
-	u8 training_pattern = TRAINING_PTN2;
 
-	drm_dp_link_train_clock_recovery_delay(dp->dpcd);
+	udelay(101);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -271,30 +249,25 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	if (retval)
 		return retval;
 
-	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
-		if (analogix_dp_tps3_supported(dp))
-			training_pattern = TRAINING_PTN3;
+	retval =  analogix_dp_read_bytes_from_dpcd(dp,
+			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
+	if (retval)
+		return retval;
 
-		/* set training pattern for EQ */
-		analogix_dp_set_training_pattern(dp, training_pattern);
+	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
+		/* set training pattern 2 for EQ */
+		analogix_dp_set_training_pattern(dp, TRAINING_PTN2);
 
 		retval = analogix_dp_write_byte_to_dpcd(dp,
 				DP_TRAINING_PATTERN_SET,
-				(training_pattern == TRAINING_PTN3 ?
-				 DP_TRAINING_PATTERN_3 : DP_TRAINING_PATTERN_2));
+				DP_LINK_SCRAMBLING_DISABLE |
+				DP_TRAINING_PATTERN_2);
 		if (retval)
 			return retval;
 
 		dev_info(dp->dev, "Link Training Clock Recovery success\n");
 		dp->link_train.lt_state = EQUALIZER_TRAINING;
-
-		return 0;
 	} else {
-		retval = analogix_dp_read_bytes_from_dpcd(dp,
-				DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-		if (retval)
-			return retval;
-
 		for (lane = 0; lane < lane_count; lane++) {
 			training_lane = analogix_dp_get_lane_link_training(
 							dp, lane);
@@ -339,7 +312,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 	u32 reg;
 	u8 link_align, link_status[2], adjust_request[2];
 
-	drm_dp_link_train_channel_eq_delay(dp->dpcd);
+	udelay(401);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -353,10 +326,17 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
+	retval = analogix_dp_read_bytes_from_dpcd(dp,
+			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
+	if (retval)
+		return retval;
+
 	retval = analogix_dp_read_byte_from_dpcd(dp,
 			DP_LANE_ALIGN_STATUS_UPDATED, &link_align);
 	if (retval)
 		return retval;
+
+	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 
 	if (!analogix_dp_channel_eq_ok(link_status, link_align, lane_count)) {
 		/* traing pattern Set to Normal */
@@ -388,12 +368,6 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	retval = analogix_dp_read_bytes_from_dpcd(dp,
-			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-	if (retval)
-		return retval;
-
-	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
 
 	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
@@ -511,21 +485,21 @@ static int analogix_dp_sw_link_training(struct analogix_dp_device *dp)
 static int analogix_dp_set_link_train(struct analogix_dp_device *dp,
 				      u32 count, u32 bwtype)
 {
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < 5; i++) {
-		ret = analogix_dp_init_training(dp, count, bwtype);
-		if (ret < 0) {
-			dev_err(dp->dev, "failed to init training\n");
-			return ret;
-		}
-
-		ret = analogix_dp_sw_link_training(dp);
-		if (!ret)
-			break;
+	ret = analogix_dp_init_training(dp, count, bwtype);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to init training\n");
+		return ret;
 	}
 
-	return ret;
+	ret = analogix_dp_sw_link_training(dp);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to do sw link training\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int analogix_dp_config_video(struct analogix_dp_device *dp)
@@ -771,7 +745,7 @@ static int analogix_dp_connector_init(struct display_state *state)
 	struct connector_state *conn_state = &state->conn_state;
 	struct analogix_dp_device *dp = dev_get_priv(conn_state->dev);
 
-	conn_state->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
+	conn_state->output_if |= VOP_OUTPUT_IF_eDP0;
 	conn_state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	conn_state->color_space = V4L2_COLORSPACE_DEFAULT;
 
@@ -780,7 +754,6 @@ static int analogix_dp_connector_init(struct display_state *state)
 	reset_deassert_bulk(&dp->resets);
 
 	conn_state->disp_info  = rockchip_get_disp_info(conn_state->type, dp->id);
-	generic_phy_set_mode(&dp->phy, PHY_MODE_DP);
 	generic_phy_power_on(&dp->phy);
 	analogix_dp_init_dp(dp);
 
@@ -804,52 +777,6 @@ static int analogix_dp_connector_get_edid(struct display_state *state)
 	return 0;
 }
 
-static int analogix_dp_link_power_up(struct analogix_dp_device *dp)
-{
-	u8 value;
-	int ret;
-
-	if (dp->dpcd[DP_DPCD_REV] < 0x11)
-		return 0;
-
-	ret = analogix_dp_read_byte_from_dpcd(dp, DP_SET_POWER, &value);
-	if (ret < 0)
-		return ret;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D0;
-
-	ret = analogix_dp_write_byte_to_dpcd(dp, DP_SET_POWER, value);
-	if (ret < 0)
-		return ret;
-
-	mdelay(1);
-
-	return 0;
-}
-
-static int analogix_dp_link_power_down(struct analogix_dp_device *dp)
-{
-	u8 value;
-	int ret;
-
-	if (dp->dpcd[DP_DPCD_REV] < 0x11)
-		return 0;
-
-	ret = analogix_dp_read_byte_from_dpcd(dp, DP_SET_POWER, &value);
-	if (ret < 0)
-		return ret;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D3;
-
-	ret = analogix_dp_write_byte_to_dpcd(dp, DP_SET_POWER, value);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int analogix_dp_connector_enable(struct display_state *state)
 {
 	struct connector_state *conn_state = &state->conn_state;
@@ -867,12 +794,8 @@ static int analogix_dp_connector_enable(struct display_state *state)
 		else
 			val = pdata->lcdsel_big;
 
-		regmap_write(dp->grf, pdata->lcdsel_grf_reg, val);
+		writel(val, syscon_get_first_range(ROCKCHIP_SYSCON_GRF) + pdata->lcdsel_grf_reg);
 	}
-
-	if (pdata->chip_type == RK3588_EDP)
-		regmap_write(dp->grf, dp->id ? RK3588_GRF_VO1_CON1 : RK3588_GRF_VO1_CON0,
-			     EDP_MODE << 16 | FIELD_PREP(EDP_MODE, 1));
 
 	switch (conn_state->bpc) {
 	case 12:
@@ -888,19 +811,6 @@ static int analogix_dp_connector_enable(struct display_state *state)
 	default:
 		video->color_depth = COLOR_8;
 		break;
-	}
-
-	ret = analogix_dp_read_bytes_from_dpcd(dp, DP_DPCD_REV,
-					       DP_RECEIVER_CAP_SIZE, dp->dpcd);
-	if (ret) {
-		dev_err(dp->dev, "failed to read dpcd caps: %d\n", ret);
-		return ret;
-	}
-
-	ret = analogix_dp_link_power_up(dp);
-	if (ret) {
-		dev_err(dp->dev, "failed to power up link: %d\n", ret);
-		return ret;
 	}
 
 	ret = analogix_dp_set_link_train(dp, dp->video_info.max_lane_count,
@@ -926,17 +836,7 @@ static int analogix_dp_connector_enable(struct display_state *state)
 
 static int analogix_dp_connector_disable(struct display_state *state)
 {
-	struct connector_state *conn_state = &state->conn_state;
-	const struct rockchip_connector *connector = conn_state->connector;
-	const struct rockchip_dp_chip_data *pdata = connector->data;
-	struct analogix_dp_device *dp = dev_get_priv(conn_state->dev);
-
-	if (!analogix_dp_get_plug_in_status(dp))
-		analogix_dp_link_power_down(dp);
-
-	if (pdata->chip_type == RK3588_EDP)
-		regmap_write(dp->grf, dp->id ? RK3588_GRF_VO1_CON1 : RK3588_GRF_VO1_CON0,
-			     EDP_MODE << 16 | FIELD_PREP(EDP_MODE, 0));
+	/* TODO */
 
 	return 0;
 }
@@ -964,7 +864,6 @@ static int analogix_dp_probe(struct udevice *dev)
 	const struct rockchip_connector *connector =
 		(const struct rockchip_connector *)dev_get_driver_data(dev);
 	const struct rockchip_dp_chip_data *pdata = connector->data;
-	struct udevice *syscon;
 	int ret;
 
 	dp->reg_base = dev_read_addr_ptr(dev);
@@ -972,15 +871,6 @@ static int analogix_dp_probe(struct udevice *dev)
 	dp->id = of_alias_get_id(ofnode_to_np(dev->node), "edp");
 	if (dp->id < 0)
 		dp->id = 0;
-
-	ret = uclass_get_device_by_phandle(UCLASS_SYSCON, dev, "rockchip,grf",
-					   &syscon);
-	if (!ret) {
-		dp->grf = syscon_get_regmap(syscon);
-		if (!dp->grf)
-			return -ENODEV;
-	}
-
 	ret = reset_get_bulk(dev, &dp->resets);
 	if (ret) {
 		dev_err(dev, "failed to get reset control: %d\n", ret);
@@ -1001,9 +891,12 @@ static int analogix_dp_probe(struct udevice *dev)
 	dp->plat_data.dev_type = ROCKCHIP_DP;
 	dp->plat_data.subdev_type = pdata->chip_type;
 	dp->plat_data.ssc = pdata->ssc;
-
-	dp->video_info.max_link_rate = pdata->max_link_rate;
-	dp->video_info.max_lane_count = pdata->max_lane_count;
+	/*
+	 * Like Rockchip DisplayPort TRM indicate that "Main link
+	 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".
+	 */
+	dp->video_info.max_link_rate = 0x0A;
+	dp->video_info.max_lane_count = 0x04;
 
 	dp->dev = dev;
 
@@ -1015,9 +908,6 @@ static const struct rockchip_dp_chip_data rk3288_edp_platform_data = {
 	.lcdsel_big = 0 | BIT(21),
 	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3288_DP,
-
-	.max_link_rate = DP_LINK_BW_2_7,
-	.max_lane_count = 4,
 };
 
 static const struct rockchip_connector rk3288_edp_driver_data = {
@@ -1027,9 +917,6 @@ static const struct rockchip_connector rk3288_edp_driver_data = {
 
 static const struct rockchip_dp_chip_data rk3368_edp_platform_data = {
 	.chip_type = RK3368_EDP,
-
-	.max_link_rate = DP_LINK_BW_2_7,
-	.max_lane_count = 4,
 };
 
 static const struct rockchip_connector rk3368_edp_driver_data = {
@@ -1042,9 +929,6 @@ static const struct rockchip_dp_chip_data rk3399_edp_platform_data = {
 	.lcdsel_big = 0 | BIT(21),
 	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3399_EDP,
-
-	.max_link_rate = DP_LINK_BW_2_7,
-	.max_lane_count = 4,
 };
 
 static const struct rockchip_connector rk3399_edp_driver_data = {
@@ -1055,27 +939,11 @@ static const struct rockchip_connector rk3399_edp_driver_data = {
 static const struct rockchip_dp_chip_data rk3568_edp_platform_data = {
 	.chip_type = RK3568_EDP,
 	.ssc = true,
-
-	.max_link_rate = DP_LINK_BW_2_7,
-	.max_lane_count = 4,
 };
 
 static const struct rockchip_connector rk3568_edp_driver_data = {
 	 .funcs = &analogix_dp_connector_funcs,
 	 .data = &rk3568_edp_platform_data,
-};
-
-static const struct rockchip_dp_chip_data rk3588_edp_platform_data = {
-	.chip_type = RK3588_EDP,
-	.ssc = true,
-
-	.max_link_rate = DP_LINK_BW_5_4,
-	.max_lane_count = 4,
-};
-
-static const struct rockchip_connector rk3588_edp_driver_data = {
-	 .funcs = &analogix_dp_connector_funcs,
-	 .data = &rk3588_edp_platform_data,
 };
 
 static const struct udevice_id analogix_dp_ids[] = {
@@ -1091,9 +959,6 @@ static const struct udevice_id analogix_dp_ids[] = {
 	}, {
 		.compatible = "rockchip,rk3568-edp",
 		.data = (ulong)&rk3568_edp_driver_data,
-	}, {
-		.compatible = "rockchip,rk3588-edp",
-		.data = (ulong)&rk3588_edp_driver_data,
 	},
 	{}
 };

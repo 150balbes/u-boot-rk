@@ -140,7 +140,7 @@
 	nand@0 {
 		u-boot,dm-spl;
 		reg = <0>;
-		nand-ecc-mode = "hw";
+		nand-ecc-mode = "hw_syndrome";
 		nand-ecc-strength = <16>;
 		nand-ecc-step-size = <1024>;
 	};
@@ -189,11 +189,6 @@
 };
 
 &pinctrl {
-	u-boot,dm-spl;
-	status = "okay";
-};
-
-&gpio0 {
 	u-boot,dm-spl;
 	status = "okay";
 };

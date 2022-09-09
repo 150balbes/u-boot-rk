@@ -161,13 +161,8 @@ if test ! "$srctree" -ef .; then
 	res="$res$(collect_files "$srctree"/localversion*)"
 fi
 
-LINUX_COMMIT=$(git log --pretty=format:%h -1)
-
-XML_PATH=$(readlink -f ../.repo/manifest.xml)
-XML_NAME=$(basename $XML_PATH .xml)
-
 # CONFIG_LOCALVERSION and LOCALVERSION (if set)
-res="${res}${CONFIG_LOCALVERSION}\(u-boot commit id: ${LINUX_COMMIT}\)\(sdk version: ${XML_NAME}\)${LOCALVERSION}"
+res="${res}${CONFIG_LOCALVERSION}${LOCALVERSION}"
 
 # scm version string if not at a tagged commit
 if test "$CONFIG_LOCALVERSION_AUTO" = "y"; then

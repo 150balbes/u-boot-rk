@@ -6,19 +6,18 @@
 
 #include <common.h>
 #include <command.h>
-#include <console.h>
 
 static int do_download(cmd_tbl_t *cmdtp, int flag,
 		       int argc, char * const argv[])
 {
-	disable_ctrlc(1);
 #ifdef CONFIG_CMD_ROCKUSB
 	run_command("rockusb 0 $devtype $devnum", 0);
 #endif
+#ifdef CONFIG_CMD_GO
 	printf("Enter rockusb failed, fallback to bootrom...\n");
 	flushc();
 	run_command("rbrom", 0);
-
+#endif
 	return 0;
 }
 

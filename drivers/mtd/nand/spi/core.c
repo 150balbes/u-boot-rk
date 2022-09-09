@@ -446,11 +446,10 @@ out:
 	return status & STATUS_BUSY ? -ETIMEDOUT : 0;
 }
 
-static int spinand_read_id_op(struct spinand_device *spinand, u8 naddr,
-			      u8 ndummy, u8 *buf)
+static int spinand_read_id_op(struct spinand_device *spinand, u8 *buf)
 {
-	struct spi_mem_op op = SPINAND_READID_OP(
-		naddr, ndummy, spinand->scratchbuf, SPINAND_MAX_ID_LEN);
+	struct spi_mem_op op = SPINAND_READID_OP(0, spinand->scratchbuf,
+						 SPINAND_MAX_ID_LEN);
 	int ret;
 
 	ret = spi_mem_exec_op(spinand->slave, &op);
@@ -866,60 +865,22 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 #endif
 };
 
-static int spinand_manufacturer_match(struct spinand_device *spinand,
-				      enum spinand_readid_method rdid_method)
+static int spinand_manufacturer_detect(struct spinand_device *spinand)
 {
-	u8 *id = spinand->id.data;
 	unsigned int i;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(spinand_manufacturers); i++) {
-		const struct spinand_manufacturer *manufacturer =
-			spinand_manufacturers[i];
-
-		if (id[0] != manufacturer->id)
-			continue;
-
-		ret = spinand_match_and_init(spinand,
-					     manufacturer->chips,
-					     manufacturer->nchips,
-					     rdid_method);
-		if (ret < 0)
-			continue;
-
-		spinand->manufacturer = manufacturer;
-		return 0;
+		ret = spinand_manufacturers[i]->ops->detect(spinand);
+		if (ret > 0) {
+			spinand->manufacturer = spinand_manufacturers[i];
+			return 0;
+		} else if (ret < 0) {
+			return ret;
+		}
 	}
+
 	return -ENOTSUPP;
-}
-
-static int spinand_id_detect(struct spinand_device *spinand)
-{
-	u8 *id = spinand->id.data;
-	int ret;
-
-	ret = spinand_read_id_op(spinand, 0, 0, id);
-	if (ret)
-		return ret;
-	ret = spinand_manufacturer_match(spinand, SPINAND_READID_METHOD_OPCODE);
-	if (!ret)
-		return 0;
-
-	ret = spinand_read_id_op(spinand, 1, 0, id);
-	if (ret)
-		return ret;
-	ret = spinand_manufacturer_match(spinand,
-					 SPINAND_READID_METHOD_OPCODE_ADDR);
-	if (!ret)
-		return 0;
-
-	ret = spinand_read_id_op(spinand, 0, 1, id);
-	if (ret)
-		return ret;
-	ret = spinand_manufacturer_match(spinand,
-					 SPINAND_READID_METHOD_OPCODE_DUMMY);
-
-	return ret;
 }
 
 static int spinand_manufacturer_init(struct spinand_device *spinand)
@@ -977,9 +938,9 @@ spinand_select_op_variant(struct spinand_device *spinand,
  * @spinand: SPI NAND object
  * @table: SPI NAND device description table
  * @table_size: size of the device description table
- * @rdid_method: read id method to match
  *
- * Match between a device ID retrieved through the READ_ID command and an
+ * Should be used by SPI NAND manufacturer drivers when they want to find a
+ * match between a device ID retrieved through the READ_ID command and an
  * entry in the SPI NAND description table. If a match is found, the spinand
  * object will be initialized with information provided by the matching
  * spinand_info entry.
@@ -988,10 +949,8 @@ spinand_select_op_variant(struct spinand_device *spinand,
  */
 int spinand_match_and_init(struct spinand_device *spinand,
 			   const struct spinand_info *table,
-			   unsigned int table_size,
-			   enum spinand_readid_method rdid_method)
+			   unsigned int table_size, u8 devid)
 {
-	u8 *id = spinand->id.data;
 	struct nand_device *nand = spinand_to_nand(spinand);
 	unsigned int i;
 
@@ -999,17 +958,13 @@ int spinand_match_and_init(struct spinand_device *spinand,
 		const struct spinand_info *info = &table[i];
 		const struct spi_mem_op *op;
 
-		if (rdid_method != info->devid.method)
-			continue;
-
-		if (memcmp(id + 1, info->devid.id, info->devid.len))
+		if (devid != info->devid)
 			continue;
 
 		nand->memorg = table[i].memorg;
 		nand->eccreq = table[i].eccreq;
 		spinand->eccinfo = table[i].eccinfo;
 		spinand->flags = table[i].flags;
-		spinand->id.len = 1 + table[i].devid.len;
 		spinand->select_target = table[i].select_target;
 
 		op = spinand_select_op_variant(spinand,
@@ -1045,7 +1000,13 @@ static int spinand_detect(struct spinand_device *spinand)
 	if (ret)
 		return ret;
 
-	ret = spinand_id_detect(spinand);
+	ret = spinand_read_id_op(spinand, spinand->id.data);
+	if (ret)
+		return ret;
+
+	spinand->id.len = SPINAND_MAX_ID_LEN;
+
+	ret = spinand_manufacturer_detect(spinand);
 	if (ret) {
 		dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
 			spinand->id.data);

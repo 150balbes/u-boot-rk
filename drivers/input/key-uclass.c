@@ -7,10 +7,9 @@
 #include <common.h>
 #include <adc.h>
 #include <dm.h>
-#include <irq-generic.h>
 #include <key.h>
 #include <dm/lists.h>
-#include <dm/uclass-internal.h>
+#include <irq-generic.h>
 
 #define KEY_WARN(fmt, args...)	printf("Key Warn: "fmt, ##args)
 #define KEY_ERR(fmt, args...)	printf("Key Error: "fmt, ##args)
@@ -163,23 +162,6 @@ try_again:
 	return event;
 }
 
-int key_exist(int code)
-{
-	struct dm_key_uclass_platdata *uc_key;
-	struct udevice *dev;
-
-	for (uclass_find_first_device(UCLASS_KEY, &dev);
-	     dev;
-	     uclass_find_next_device(&dev)) {
-		uc_key = dev_get_uclass_platdata(dev);
-
-		if (uc_key->code == code)
-			return 1;
-	}
-
-	return 0;
-}
-
 #if CONFIG_IS_ENABLED(IRQ)
 #if defined(CONFIG_PWRKEY_DNL_TRIGGER_NUM) && \
 		(CONFIG_PWRKEY_DNL_TRIGGER_NUM > 0)
@@ -273,12 +255,9 @@ int key_bind_children(struct udevice *dev, const char *drv_name)
 static int key_post_probe(struct udevice *dev)
 {
 	struct dm_key_uclass_platdata *uc_key;
-	int ret;
-#ifdef CONFIG_SARADC_ROCKCHIP_V2
-	int margin = 120;
-#else
 	int margin = 30;
-#endif
+	int ret;
+
 	uc_key = dev_get_uclass_platdata(dev);
 	if (!uc_key)
 		return -ENXIO;

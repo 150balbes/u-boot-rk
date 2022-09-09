@@ -9,6 +9,7 @@
 #include <malloc.h>
 #include <asm/unaligned.h>
 #include <bmp_layout.h>
+#include "rockchip_display.h"
 
 #define BMP_RLE8_ESCAPE		0
 #define BMP_RLE8_EOL		0
@@ -236,4 +237,53 @@ int bmpdecoder(void *bmp_addr, void *pdst, int dst_bpp)
 	}
 
 	return 0;
+}
+
+int bmprotation(void *newbmp, void *beforebmp, int width, int height, int byte, int rotation)
+{
+	unsigned char *dst, *imgdata;
+	int padded_width = height & 0x3 ? (height & ~0x3) + 4 : height;
+	int beforebmp_size = height * width * byte;
+	int ret = rotation;
+
+	dst = newbmp;
+	imgdata = (unsigned char *)malloc(beforebmp_size);
+	if (imgdata == NULL) {
+		printf("request memory failed\n");
+		ret = -1;
+		goto free_bmp;
+	}
+	memcpy(imgdata, beforebmp, beforebmp_size);
+
+	switch (rotation) {
+		case ROCKCHIP_DISPLAY_ROTATION_90:
+			for (int i = 0; i < height; i++) {
+				for (int j = 0; j < width; j++) {
+					memcpy(dst + ( j * padded_width * byte) + (height - i - 1) * byte, imgdata + i * width * byte + j * byte, byte);
+				}
+			}
+			break;
+		case ROCKCHIP_DISPLAY_ROTATION_180:
+			for (int i = 0; i < height; i++) {
+				for (int j = 0; j < width; j++) {
+					memcpy(dst + (height - i - 1) * width * byte + (width - j - 1) * byte, imgdata + i * width * byte + j * byte, byte);
+				}
+			}
+			break;
+		case ROCKCHIP_DISPLAY_ROTATION_270:
+			for (int i = 0; i < height; i++) {
+				for (int j = 0; j < width; j++) {
+					memcpy(dst+ (width - j - 1) * padded_width * byte + i * byte, imgdata + i * width * byte + j * byte, byte);
+				}
+			}
+			break;
+		default:
+			return 0;
+	}
+
+free_bmp:
+	free(imgdata);
+	imgdata = NULL;
+
+	return ret;
 }

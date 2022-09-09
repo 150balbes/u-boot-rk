@@ -35,8 +35,7 @@ static struct sysreset_ops psci_sysreset_ops = {
 	.request = psci_sysreset_request,
 };
 
-/* Add an 'a_' prefix so it comes the first sysreset path. */
-U_BOOT_DRIVER(a_psci_sysreset) = {
+U_BOOT_DRIVER(psci_sysreset) = {
 	.name = "psci-sysreset",
 	.id = UCLASS_SYSRESET,
 	.ops = &psci_sysreset_ops,

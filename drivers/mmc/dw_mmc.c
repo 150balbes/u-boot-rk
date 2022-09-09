@@ -27,7 +27,7 @@
  * to augment the groups of {ldm, stm}.
  */
 #define MAX_STRIDE 64
-#if (CONFIG_ARM && CONFIG_CPU_V7 && !defined(CONFIG_MMC_SIMPLE))
+#if CONFIG_ARM && CONFIG_CPU_V7
 void noinline dwmci_memcpy_fromio(void *buffer, void *fifo_addr)
 {
 	__asm__ __volatile__ (
@@ -81,7 +81,6 @@ void noinline dwmci_memcpy_toio(void *buffer, void *fifo_addr)
 void dwmci_memcpy_fromio(void *buffer, void *fifo_addr) {};
 void dwmci_memcpy_toio(void *buffer, void *fifo_addr) {};
 #endif
-
 static int dwmci_wait_reset(struct dwmci_host *host, u32 value)
 {
 	unsigned long timeout = 1000;
@@ -353,20 +352,14 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 			dwmci_wait_reset(host, DWMCI_CTRL_FIFO_RESET);
 		} else {
 			if (data->flags == MMC_DATA_READ) {
-				ret = bounce_buffer_start(&bbstate,
-						(void*)data->dest,
+				bounce_buffer_start(&bbstate, (void*)data->dest,
 						data->blocksize *
 						data->blocks, GEN_BB_WRITE);
 			} else {
-				ret = bounce_buffer_start(&bbstate,
-						(void*)data->src,
+				bounce_buffer_start(&bbstate, (void*)data->src,
 						data->blocksize *
 						data->blocks, GEN_BB_READ);
 			}
-
-			if (ret)
-				return ret;
-
 			dwmci_prepare_data(host, data, cur_idmac,
 					   bbstate.bounce_buffer);
 		}
@@ -795,8 +788,8 @@ static int dwmci_init(struct mmc *mmc)
 static int dwmci_get_cd(struct udevice *dev)
 {
 	int ret = -1;
-
-#if defined(CONFIG_DM_GPIO) && (defined(CONFIG_SPL_GPIO_SUPPORT) || !defined(CONFIG_SPL_BUILD))
+#ifndef CONFIG_SPL_BUILD
+#ifdef CONFIG_DM_GPIO
 	struct gpio_desc detect;
 
 	ret = gpio_request_by_name(dev, "cd-gpios", 0, &detect, GPIOD_IS_IN);
@@ -805,7 +798,7 @@ static int dwmci_get_cd(struct udevice *dev)
 	}
 
 	ret = !dm_gpio_get_value(&detect);
-	dm_gpio_free(dev, &detect);
+#endif
 #endif
 	return ret;
 }
