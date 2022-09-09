@@ -437,11 +437,9 @@ static int fit_config_get_hash_list(void *fit, int conf_noffset,
 		int noffset;
 		int image_noffset;
 		int hash_count;
-		int i, max_index;
+		int i;
 
-		max_index = fdt_stringlist_count(fit, conf_noffset, iname);
-
-		for (i = 0; i < max_index; i++) {
+		for (i = 0; i < 5; i++) {
 			image_noffset =
 				fit_conf_get_prop_node_index(fit, conf_noffset,
 							     iname, i);

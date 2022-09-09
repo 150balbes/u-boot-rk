@@ -52,7 +52,6 @@ static int timer_interrupt_test(void)
 	irq_install_handler(TIMER_IRQ, timer_irq_handler, NULL);
 	irq_handler_enable(TIMER_IRQ);
 
-	irq_exit = 0;
 	seconds = get_timer(0);
 	while (!irq_exit)
 		;
