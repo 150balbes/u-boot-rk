@@ -7,6 +7,7 @@
  */
 #include <common.h>
 #include <command.h>
+#include <display_options.h>
 #include <efi_loader.h>
 #include <env.h>
 #include <image.h>
@@ -17,9 +18,6 @@
 #include <asm/global_data.h>
 #include <net/tftp.h>
 #include "bootp.h"
-#ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
-#include <flash.h>
-#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -27,12 +25,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define WELL_KNOWN_PORT	69
 /* Millisecs to timeout for lost pkt */
 #define TIMEOUT		5000UL
-#ifndef	CONFIG_NET_RETRY_COUNT
-/* # of timeouts before giving up */
-# define TIMEOUT_COUNT	10
-#else
-# define TIMEOUT_COUNT  (CONFIG_NET_RETRY_COUNT * 2)
-#endif
 /* Number of "loading" hashes per line (for checking the image size) */
 #define HASHES_PER_LINE	65
 
@@ -47,7 +39,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TFTP_OACK	6
 
 static ulong timeout_ms = TIMEOUT;
-static int timeout_count_max = TIMEOUT_COUNT;
+static int timeout_count_max = (CONFIG_NET_RETRY_COUNT * 2);
 static ulong time_start;   /* Record time we started tftp */
 
 /*
@@ -60,7 +52,7 @@ static ulong time_start;   /* Record time we started tftp */
  * non-standard timeout behavior when initiating a TFTP transfer.
  */
 ulong tftp_timeout_ms = TIMEOUT;
-int tftp_timeout_count_max = TIMEOUT_COUNT;
+int tftp_timeout_count_max = (CONFIG_NET_RETRY_COUNT * 2);
 
 enum {
 	TFTP_ERR_UNDEFINED           = 0,
@@ -164,47 +156,24 @@ static inline int store_block(int block, uchar *src, unsigned int len)
 			tftp_block_size;
 	ulong newsize = offset + len;
 	ulong store_addr = tftp_load_addr + offset;
-#ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
-	int i, rc = 0;
-
-	for (i = 0; i < CONFIG_SYS_MAX_FLASH_BANKS; i++) {
-		/* start address in flash? */
-		if (flash_info[i].flash_id == FLASH_UNKNOWN)
-			continue;
-		if (store_addr >= flash_info[i].start[0]) {
-			rc = 1;
-			break;
-		}
-	}
-
-	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write((char *)src, store_addr, len);
-		if (rc) {
-			flash_perror(rc);
-			return rc;
-		}
-	} else
-#endif /* CONFIG_SYS_DIRECT_FLASH_TFTP */
-	{
-		void *ptr;
+	void *ptr;
 
 #ifdef CONFIG_LMB
-		ulong end_addr = tftp_load_addr + tftp_load_size;
+	ulong end_addr = tftp_load_addr + tftp_load_size;
 
-		if (!end_addr)
-			end_addr = ULONG_MAX;
+	if (!end_addr)
+		end_addr = ULONG_MAX;
 
-		if (store_addr < tftp_load_addr ||
-		    store_addr + len > end_addr) {
-			puts("\nTFTP error: ");
-			puts("trying to overwrite reserved memory...\n");
-			return -1;
-		}
-#endif
-		ptr = map_sysmem(store_addr, len);
-		memcpy(ptr, src, len);
-		unmap_sysmem(ptr);
+	if (store_addr < tftp_load_addr ||
+	    store_addr + len > end_addr) {
+		puts("\nTFTP error: ");
+		puts("trying to overwrite reserved memory...\n");
+		return -1;
 	}
+#endif
+	ptr = map_sysmem(store_addr, len);
+	memcpy(ptr, src, len);
+	unmap_sysmem(ptr);
 
 	if (net_boot_file_size < newsize)
 		net_boot_file_size = newsize;
@@ -912,6 +881,8 @@ void tftp_start_server(void)
 	tftp_block_size = TFTP_BLOCK_SIZE;
 	tftp_cur_block = 0;
 	tftp_our_port = WELL_KNOWN_PORT;
+	tftp_windowsize = 1;
+	tftp_next_ack = tftp_windowsize;
 
 #ifdef CONFIG_TFTP_TSIZE
 	tftp_tsize = 0;

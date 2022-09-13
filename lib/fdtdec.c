@@ -6,6 +6,7 @@
 #ifndef USE_HOSTCC
 #include <common.h>
 #include <boot_fit.h>
+#include <display_options.h>
 #include <dm.h>
 #include <hang.h>
 #include <init.h>
@@ -251,14 +252,7 @@ int fdtdec_get_pci_bar32(const struct udevice *dev, struct fdt_pci_addr *addr,
 
 	barnum = (barnum - PCI_BASE_ADDRESS_0) / 4;
 
-	/*
-	 * There is a strange toolchain bug with nds32 which complains about
-	 * an undefined reference here, even if fdtdec_get_pci_bar32() is never
-	 * called. An #ifdef seems to be the only fix!
-	 */
-#if !IS_ENABLED(CONFIG_NDS32)
 	*bar = dm_pci_read_bar32(dev, barnum);
-#endif
 
 	return 0;
 }
@@ -523,11 +517,8 @@ int fdtdec_get_alias_seq(const void *blob, const char *base, int offset,
 		 * Adding an extra check to distinguish DT nodes with
 		 * same name
 		 */
-		if (IS_ENABLED(CONFIG_PHANDLE_CHECK_SEQ)) {
-			if (fdt_get_phandle(blob, offset) !=
-			    fdt_get_phandle(blob, fdt_path_offset(blob, prop)))
-				continue;
-		}
+		if (offset != fdt_path_offset(blob, prop))
+			continue;
 
 		val = trailing_strtol(name);
 		if (val != -1) {
@@ -1224,6 +1215,9 @@ static int uncompress_blob(const void *src, ulong sz_src, void **dstp)
 static void *fdt_find_separate(void)
 {
 	void *fdt_blob = NULL;
+
+	if (IS_ENABLED(CONFIG_SANDBOX))
+		return NULL;
 
 #ifdef CONFIG_SPL_BUILD
 	/* FDT is at end of BSS unless it is in a different memory region */

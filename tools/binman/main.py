@@ -9,12 +9,10 @@
 
 """See README for more information"""
 
-from distutils.sysconfig import get_python_lib
 import os
 import site
 import sys
 import traceback
-import unittest
 
 # Get the absolute path to this file at run-time
 our_path = os.path.dirname(os.path.realpath(__file__))
@@ -41,13 +39,8 @@ from patman import test_util
 # Bring in the libfdt module
 sys.path.insert(2, 'scripts/dtc/pylibfdt')
 sys.path.insert(2, os.path.join(srctree, 'scripts/dtc/pylibfdt'))
+sys.path.insert(2, os.path.join(srctree, 'build-sandbox/scripts/dtc/pylibfdt'))
 sys.path.insert(2, os.path.join(srctree, 'build-sandbox_spl/scripts/dtc/pylibfdt'))
-
-# When running under python-coverage on Ubuntu 16.04, the dist-packages
-# directories are dropped from the python path. Add them in so that we can find
-# the elffile module. We could use site.getsitepackages() here but unfortunately
-# that is not available in a virtualenv.
-sys.path.append(get_python_lib())
 
 from binman import cmdline
 from binman import control
@@ -79,19 +72,18 @@ def RunTests(debug, verbosity, processes, test_preserve_dirs, args, toolpath):
     from binman import image_test
     import doctest
 
-    result = unittest.TestResult()
     test_name = args and args[0] or None
 
     # Run the entry tests first ,since these need to be the first to import the
     # 'entry' module.
-    test_util.run_test_suites(
-        result, debug, verbosity, test_preserve_dirs, processes, test_name,
+    result = test_util.run_test_suites(
+        'binman', debug, verbosity, test_preserve_dirs, processes, test_name,
         toolpath,
         [bintool_test.TestBintool, entry_test.TestEntry, ftest.TestFunctional,
          fdt_test.TestFdt, elf_test.TestElf, image_test.TestImage,
          cbfs_util_test.TestCbfs, fip_util_test.TestFip])
 
-    return test_util.report_result('binman', test_name, result)
+    return (0 if result.wasSuccessful() else 1)
 
 def RunTestCoverage(toolpath):
     """Run the tests and check that we get 100% coverage"""

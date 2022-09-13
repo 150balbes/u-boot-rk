@@ -10,28 +10,13 @@
 #include <linux/stringify.h>
 #include <asm/arch/imx-regs.h>
 
-#define CONFIG_SYS_BOOTM_LEN		(64 * SZ_1M)
-
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_MAX_SIZE				(124 * 1024)
 #define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 
-#define CONFIG_SPL_STACK		0x013E000
-#define CONFIG_SPL_BSS_START_ADDR	0x00128000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
-#define CONFIG_SYS_SPL_MALLOC_START	0x00120000
-#define CONFIG_SYS_SPL_MALLOC_SIZE	0x3000	/* 12 KB */
 #define CONFIG_SERIAL_LPUART_BASE	0x5a060000
 #define CONFIG_MALLOC_F_ADDR		0x00120000
 
-#define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
-
-#define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 #endif
-
-#define CONFIG_SYS_FSL_ESDHC_ADDR       0
-#define USDHC1_BASE_ADDR                0x5B010000
-#define USDHC2_BASE_ADDR                0x5B020000
 
 #ifdef CONFIG_AHAB_BOOT
 #define AHAB_ENV "sec_boot=yes\0"
@@ -54,7 +39,7 @@
 	"initrd_high=0xffffffffffffffff\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=1\0" \
-	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
+	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
 	"mmcautodetect=yes\0" \
 	"mmcargs=setenv bootargs console=${console} root=${mmcroot}\0 " \
 	"loadbootscript=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
@@ -116,24 +101,14 @@
 
 /* Link Definitions */
 
-#define CONFIG_SYS_INIT_SP_ADDR         0x80200000
-
 /* Default environment is in SD */
 
 /* On LPDDR4 board, USDHC1 is for eMMC, USDHC2 is for SD on CPU board */
-#define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
-#define CONFIG_SYS_FSL_USDHC_NUM	2
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
 #define PHYS_SDRAM_1_SIZE		0x80000000	/* 2 GB */
 #define PHYS_SDRAM_2_SIZE		0x100000000	/* 4 GB */
-
-/* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		8000000	/* 8MHz */
-
-/* Networking */
-#define CONFIG_FEC_XCV_TYPE		RGMII
 
 #endif /* __IMX8QM_MEK_H */

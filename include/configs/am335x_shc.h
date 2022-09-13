@@ -16,23 +16,11 @@
 
 /* settings we don;t want on this board */
 
-#define CONFIG_SYS_BOOTM_LEN		(16 << 20)
-
 /* Clock Defines */
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
 
 #define CONFIG_HSMMC2_8BIT
-
-#ifndef CONFIG_SHC_ICT
-/*
- * In builds other than ICT, reset to retry after timeout
- * Define a timeout after which a stopped bootloader continues autoboot
- * (only works with CONFIG_RESET_TO_RETRY)
- */
-# define CONFIG_BOOT_RETRY_TIME 30
-# define CONFIG_RESET_TO_RETRY
-#endif
 
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -155,19 +143,4 @@
 #define CONFIG_SYS_NS16550_COM5		0x481a8000	/* UART4 */
 #define CONFIG_SYS_NS16550_COM6		0x481aa000	/* UART5 */
 
-/* PMIC support */
-#define CONFIG_POWER_TPS65217
-
-/* SPL */
-
-/*
- * Disable MMC DM for SPL build and can be re-enabled after adding
- * DM support in SPL
- */
-#ifdef CONFIG_SPL_BUILD
-#undef CONFIG_DM_MMC
-#undef CONFIG_TIMER
-#endif
-
-#define CONFIG_NET_RETRY_COUNT         10
 #endif	/* ! __CONFIG_AM335X_SHC_H */

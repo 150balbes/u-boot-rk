@@ -30,10 +30,6 @@
  /* Physical Memory Map */
 #define CONFIG_MAX_RAM_BANK_SIZE	(512 << 20)	/* 1GB */
 
-#define CONFIG_FACTORYSET
-
-#ifndef CONFIG_SPL_BUILD
-
 /* Use common default */
 
 /* Default env settings */
@@ -68,18 +64,5 @@
 		"run mmc_load_uimage; " \
 		"bootm ${kloadaddr}\0" \
 	""
-
-#ifndef CONFIG_RESTORE_FLASH
-/* set to negative value for no autoboot */
-#endif
-#endif	/* CONFIG_SPL_BUILD */
-
-#if defined(CONFIG_VIDEO)
-#define CONFIG_VIDEO_DA8XX
-#define CONFIG_VIDEO_BMP_LOGO
-#define DA8XX_LCD_CNTL_BASE	LCD_CNTL_BASE
-#define PWM_TICKS	0x1388
-#define PWM_DUTY	0x200
-#endif
 
 #endif	/* ! __CONFIG_PXM2_H */

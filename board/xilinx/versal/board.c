@@ -9,6 +9,7 @@
 #include <env.h>
 #include <fdtdec.h>
 #include <init.h>
+#include <image.h>
 #include <env_internal.h>
 #include <log.h>
 #include <malloc.h>
@@ -26,7 +27,10 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined(CONFIG_FPGA_VERSALPL)
-static xilinx_desc versalpl = XILINX_VERSAL_DESC;
+static xilinx_desc versalpl = {
+	xilinx_versal, csu_dma, 1, &versal_op, 0, &versal_op, NULL,
+	FPGA_LEGACY
+};
 #endif
 
 int board_init(void)
@@ -73,7 +77,7 @@ int board_early_init_r(void)
 	 * Program freq register in System counter and
 	 * enable system counter.
 	 */
-	writel(COUNTER_FREQUENCY,
+	writel(CONFIG_COUNTER_FREQUENCY,
 	       &iou_scntr_secure->base_frequency_id_register);
 
 	debug("counter val 0x%x\n",
@@ -88,6 +92,23 @@ int board_early_init_r(void)
 	debug("timer 0x%llx\n", get_ticks());
 
 	return 0;
+}
+
+unsigned long do_go_exec(ulong (*entry)(int, char * const []), int argc,
+			 char *const argv[])
+{
+	int ret = 0;
+
+	if (current_el() > 1) {
+		smp_kick_all_cpus();
+		dcache_disable();
+		armv8_switch_to_el1(0x0, 0, 0, 0, (unsigned long)entry,
+				    ES_TO_AARCH64);
+	} else {
+		printf("FAIL: current EL is not above EL1\n");
+		ret = EINVAL;
+	}
+	return ret;
 }
 
 static u8 versal_get_bootmode(void)
@@ -247,6 +268,28 @@ int dram_init(void)
 		return -EINVAL;
 
 	return 0;
+}
+
+ulong board_get_usable_ram_top(ulong total_size)
+{
+	phys_size_t size;
+	phys_addr_t reg;
+	struct lmb lmb;
+
+	if (!total_size)
+		return gd->ram_top;
+
+	/* found enough not-reserved memory to relocated U-Boot */
+	lmb_init(&lmb);
+	lmb_add(&lmb, gd->ram_base, gd->ram_size);
+	boot_fdt_add_mem_rsv_regions(&lmb, (void *)gd->fdt_blob);
+	size = ALIGN(CONFIG_SYS_MALLOC_LEN + total_size, MMU_SECTION_SIZE);
+	reg = lmb_alloc(&lmb, size, MMU_SECTION_SIZE);
+
+	if (!reg)
+		reg = gd->ram_top - size;
+
+	return reg + size;
 }
 
 void reset_cpu(void)

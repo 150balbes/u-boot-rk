@@ -107,54 +107,6 @@ void i2c_init_board(void)
 #endif
 #endif
 
-#ifdef CONFIG_I2C2_ENABLE
-#if defined(CONFIG_MACH_SUN4I) || \
-    defined(CONFIG_MACH_SUN7I) || \
-    defined(CONFIG_MACH_SUN8I_R40)
-	sunxi_gpio_set_cfgpin(SUNXI_GPB(20), SUN4I_GPB_TWI2);
-	sunxi_gpio_set_cfgpin(SUNXI_GPB(21), SUN4I_GPB_TWI2);
-	clock_twi_onoff(2, 1);
-#elif defined(CONFIG_MACH_SUN5I)
-	sunxi_gpio_set_cfgpin(SUNXI_GPB(17), SUN5I_GPB_TWI2);
-	sunxi_gpio_set_cfgpin(SUNXI_GPB(18), SUN5I_GPB_TWI2);
-	clock_twi_onoff(2, 1);
-#elif defined(CONFIG_MACH_SUN6I)
-	sunxi_gpio_set_cfgpin(SUNXI_GPH(18), SUN6I_GPH_TWI2);
-	sunxi_gpio_set_cfgpin(SUNXI_GPH(19), SUN6I_GPH_TWI2);
-	clock_twi_onoff(2, 1);
-#elif defined(CONFIG_MACH_SUN8I)
-	sunxi_gpio_set_cfgpin(SUNXI_GPE(12), SUN8I_GPE_TWI2);
-	sunxi_gpio_set_cfgpin(SUNXI_GPE(13), SUN8I_GPE_TWI2);
-	clock_twi_onoff(2, 1);
-#elif defined(CONFIG_MACH_SUN50I)
-	sunxi_gpio_set_cfgpin(SUNXI_GPE(14), SUN50I_GPE_TWI2);
-	sunxi_gpio_set_cfgpin(SUNXI_GPE(15), SUN50I_GPE_TWI2);
-	clock_twi_onoff(2, 1);
-#endif
-#endif
-
-#ifdef CONFIG_I2C3_ENABLE
-#if defined(CONFIG_MACH_SUN6I)
-	sunxi_gpio_set_cfgpin(SUNXI_GPG(10), SUN6I_GPG_TWI3);
-	sunxi_gpio_set_cfgpin(SUNXI_GPG(11), SUN6I_GPG_TWI3);
-	clock_twi_onoff(3, 1);
-#elif defined(CONFIG_MACH_SUN7I) || \
-      defined(CONFIG_MACH_SUN8I_R40)
-	sunxi_gpio_set_cfgpin(SUNXI_GPI(0), SUN7I_GPI_TWI3);
-	sunxi_gpio_set_cfgpin(SUNXI_GPI(1), SUN7I_GPI_TWI3);
-	clock_twi_onoff(3, 1);
-#endif
-#endif
-
-#ifdef CONFIG_I2C4_ENABLE
-#if defined(CONFIG_MACH_SUN7I) || \
-    defined(CONFIG_MACH_SUN8I_R40)
-	sunxi_gpio_set_cfgpin(SUNXI_GPI(2), SUN7I_GPI_TWI4);
-	sunxi_gpio_set_cfgpin(SUNXI_GPI(3), SUN7I_GPI_TWI4);
-	clock_twi_onoff(4, 1);
-#endif
-#endif
-
 #ifdef CONFIG_R_I2C_ENABLE
 #ifdef CONFIG_MACH_SUN50I
 	clock_twi_onoff(5, 1);
@@ -176,26 +128,37 @@ void i2c_init_board(void)
  * Try to use the environment from the boot source first.
  * For MMC, this means a FAT partition on the boot device (SD or eMMC).
  * If the raw MMC environment is also enabled, this is tried next.
+ * When booting from NAND we try UBI first, then NAND directly.
  * SPI flash falls back to FAT (on SD card).
  */
 enum env_location env_get_location(enum env_operation op, int prio)
 {
-	enum env_location boot_loc = ENVL_FAT;
+	if (prio > 1)
+		return ENVL_UNKNOWN;
 
-	gd->env_load_prio = prio;
+	/* NOWHERE is exclusive, no other option can be defined. */
+	if (IS_ENABLED(CONFIG_ENV_IS_NOWHERE))
+		return ENVL_NOWHERE;
 
 	switch (sunxi_get_boot_device()) {
 	case BOOT_DEVICE_MMC1:
 	case BOOT_DEVICE_MMC2:
-		boot_loc = ENVL_FAT;
+		if (prio == 0 && IS_ENABLED(CONFIG_ENV_IS_IN_FAT))
+			return ENVL_FAT;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_MMC))
+			return ENVL_MMC;
 		break;
 	case BOOT_DEVICE_NAND:
+		if (prio == 0 && IS_ENABLED(CONFIG_ENV_IS_IN_UBI))
+			return ENVL_UBI;
 		if (IS_ENABLED(CONFIG_ENV_IS_IN_NAND))
-			boot_loc = ENVL_NAND;
+			return ENVL_NAND;
 		break;
 	case BOOT_DEVICE_SPI:
-		if (IS_ENABLED(CONFIG_ENV_IS_IN_SPI_FLASH))
-			boot_loc = ENVL_SPI_FLASH;
+		if (prio == 0 && IS_ENABLED(CONFIG_ENV_IS_IN_SPI_FLASH))
+			return ENVL_SPI_FLASH;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_FAT))
+			return ENVL_FAT;
 		break;
 	case BOOT_DEVICE_BOARD:
 		break;
@@ -203,21 +166,19 @@ enum env_location env_get_location(enum env_operation op, int prio)
 		break;
 	}
 
-	/* Always try to access the environment on the boot device first. */
-	if (prio == 0)
-		return boot_loc;
-
-	if (prio == 1) {
-		switch (boot_loc) {
-		case ENVL_SPI_FLASH:
+	/*
+	 * If we come here for the first time, we *must* return a valid
+	 * environment location other than ENVL_UNKNOWN, or the setup sequence
+	 * in board_f() will silently hang. This is arguably a bug in
+	 * env_init(), but for now pick one environment for which we know for
+	 * sure to have a driver for. For all defconfigs this is either FAT
+	 * or UBI, or NOWHERE, which is already handled above.
+	 */
+	if (prio == 0) {
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_FAT))
 			return ENVL_FAT;
-		case ENVL_FAT:
-			if (IS_ENABLED(CONFIG_ENV_IS_IN_MMC))
-				return ENVL_MMC;
-			break;
-		default:
-			break;
-		}
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_UBI))
+			return ENVL_UBI;
 	}
 
 	return ENVL_UNKNOWN;
@@ -250,14 +211,14 @@ int board_init(void)
 		 * we avoid the risk of writing to it.
 		 */
 		asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r"(freq));
-		if (freq != COUNTER_FREQUENCY) {
+		if (freq != CONFIG_COUNTER_FREQUENCY) {
 			debug("arch timer frequency is %d Hz, should be %d, fixing ...\n",
-			      freq, COUNTER_FREQUENCY);
+			      freq, CONFIG_COUNTER_FREQUENCY);
 #ifdef CONFIG_NON_SECURE
 			printf("arch timer frequency is wrong, but cannot adjust it\n");
 #else
 			asm volatile("mcr p15, 0, %0, c14, c0, 0"
-				     : : "r"(COUNTER_FREQUENCY));
+				     : : "r"(CONFIG_COUNTER_FREQUENCY));
 #endif
 		}
 	}
@@ -297,17 +258,6 @@ int board_init(void)
 	 */
 	i2c_init_board();
 #endif
-
-#ifdef CONFIG_DM_MMC
-	/*
-	 * Temporary workaround for enabling MMC clocks until a sunxi DM
-	 * pinctrl driver lands.
-	 */
-	mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT);
-#if CONFIG_MMC_SUNXI_SLOT_EXTRA != -1
-	mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT_EXTRA);
-#endif
-#endif	/* CONFIG_DM_MMC */
 
 	eth_init_board();
 
@@ -575,19 +525,17 @@ static void mmc_pinmux_setup(int sdc)
 
 int board_mmc_init(struct bd_info *bis)
 {
-	__maybe_unused struct mmc *mmc0, *mmc1;
+	if (!IS_ENABLED(CONFIG_UART0_PORT_F)) {
+		mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT);
+		if (!sunxi_mmc_init(CONFIG_MMC_SUNXI_SLOT))
+			return -1;
+	}
 
-	mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT);
-	mmc0 = sunxi_mmc_init(CONFIG_MMC_SUNXI_SLOT);
-	if (!mmc0)
-		return -1;
-
-#if CONFIG_MMC_SUNXI_SLOT_EXTRA != -1
-	mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT_EXTRA);
-	mmc1 = sunxi_mmc_init(CONFIG_MMC_SUNXI_SLOT_EXTRA);
-	if (!mmc1)
-		return -1;
-#endif
+	if (CONFIG_MMC_SUNXI_SLOT_EXTRA != -1) {
+		mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT_EXTRA);
+		if (!sunxi_mmc_init(CONFIG_MMC_SUNXI_SLOT_EXTRA))
+			return -1;
+	}
 
 	return 0;
 }

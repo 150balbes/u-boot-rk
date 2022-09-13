@@ -9,6 +9,7 @@
 #include <asm-offsets.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <system-constants.h>
 
 /*
  * This file handles the target-independent stages of the U-Boot
@@ -90,6 +91,11 @@ clbss_l:cmp	r0, r1			/* while not at end of BSS */
 
 ENTRY(_main)
 
+/* Call arch_very_early_init before initializing C runtime environment. */
+#if CONFIG_IS_ENABLED(ARCH_VERY_EARLY_INIT)
+	bl	arch_very_early_init
+#endif
+
 /*
  * Set up initial C runtime environment and call board_init_f(0).
  */
@@ -99,7 +105,7 @@ ENTRY(_main)
 #elif defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
 	ldr	r0, =(CONFIG_SPL_STACK)
 #else
-	ldr	r0, =(CONFIG_SYS_INIT_SP_ADDR)
+	ldr	r0, =(SYS_INIT_SP_ADDR)
 #endif
 	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
 	mov	sp, r0

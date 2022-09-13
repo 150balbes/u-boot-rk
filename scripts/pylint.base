@@ -6,6 +6,7 @@ test_tests_test_android_test_ab.py 6.50
 test_tests_test_android_test_abootimg.py 6.09
 test_tests_test_android_test_avb.py 5.52
 test_tests_test_bind.py -2.99
+test_tests_test_bootmenu.py 10.00
 test_tests_test_button.py 3.33
 test_tests_test_dfu.py 5.45
 test_tests_test_dm.py 9.52
@@ -166,7 +167,7 @@ tools_binman_etype_x86_reset16_tpl -15.71
 tools_binman_etype_x86_start16 -15.71
 tools_binman_etype_x86_start16_spl -15.71
 tools_binman_etype_x86_start16_tpl -15.71
-tools_binman_fdt_test 3.23
+tools_binman_fdt_test 10.00
 tools_binman_fip_util 9.85
 tools_binman_fip_util_test 10.00
 tools_binman_fmap_util 6.88
@@ -200,7 +201,6 @@ tools_dtoc_test_fdt 6.88
 tools_dtoc_test_src_scan 9.43
 tools_efivar 6.71
 tools_endian-swap 9.29
-tools_genboardscfg 7.95
 tools_microcode-tool 7.25
 tools_moveconfig 8.34
 tools_patman___init__ 0.00

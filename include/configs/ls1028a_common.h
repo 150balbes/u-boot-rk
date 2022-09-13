@@ -11,22 +11,17 @@
 #include <asm/arch/soc.h>
 
 /* Link Definitions */
-#define CONFIG_SYS_INIT_SP_ADDR		CONFIG_SYS_TEXT_BASE
 
 #define CONFIG_VERY_BIG_RAM
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x80000000UL
 #define CONFIG_SYS_FSL_DDR_SDRAM_BASE_PHY	0
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 #define CONFIG_SYS_DDR_BLOCK2_BASE	0x2080000000ULL
-#define CONFIG_SYS_FSL_DDR_MAIN_NUM_CTRLS	1
 
 /*
  * SMP Definitinos
  */
 #define CPU_RELEASE_ADDR		secondary_boot_addr
-
-/* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		25000000	/* 25MHz */
 
 /* GPIO */
 
@@ -40,7 +35,6 @@
 /* Miscellaneous configurable options */
 
 /* Physical Memory Map */
-#define CONFIG_CHIP_SELECTS_PER_CTRL	4
 
 #define CONFIG_HWCONFIG
 #define HWCONFIG_BUFFER_SIZE		128
@@ -62,20 +56,8 @@
 	"run emmc_hdploadcmd; run distro_bootcmd;run emmc_bootcmd; " \
 	"env exists secureboot && esbc_halt;"
 
-/* Monitor Command Prompt */
-#define CONFIG_SYS_CBSIZE		512	/* Console I/O Buffer Size */
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE /* Boot args buffer */
-
-#define CONFIG_SYS_MAXARGS		64	/* max command args */
-
-#define CONFIG_SYS_BOOTM_LEN   (64 << 20)      /* Increase max gunzip size */
-
 #define OCRAM_NONSECURE_SIZE		0x00010000
 #define CONFIG_SYS_FSL_QSPI_BASE	0x20000000
-
-#define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_TEXT_BASE
 
 /* I2C bus multiplexer */
 #define I2C_MUX_PCA_ADDR_PRI            0x77 /* Primary Mux*/
@@ -91,9 +73,5 @@
 #ifdef CONFIG_NXP_ESBC
 #include <asm/fsl_secure_boot.h>
 #endif
-
-/* Ethernet */
-/* smallest ENETC BD ring has 8 entries */
-#define CONFIG_SYS_RX_ETH_BUFFER		8
 
 #endif /* __L1028A_COMMON_H */

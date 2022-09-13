@@ -9,10 +9,10 @@ Synopsis
 
 ::
 
-    bootefi [image_addr] [fdt_addr]
-    bootefi bootmgr [fdt_addr]
-    bootefi hello [fdt_addr]
-    bootefi selftest [fdt_addr]
+    bootefi <image_addr>[:<image_size>] [<fdt_addr>]
+    bootefi bootmgr [<fdt_addr>]
+    bootefi hello [<fdt_addr>]
+    bootefi selftest [<fdt_addr>]
 
 Description
 -----------
@@ -24,7 +24,7 @@ The *bootefi* command is used to launch a UEFI binary which can be either of
 * UEFI run-time services driver
 
 An operating system requires a hardware description which can either be
-presented as ACPI table (CONFIG\_GENERATE\_ACPI\_TABLE=y) or as device-tree
+presented as ACPI table (CONFIG\_GENERATE\_ACPI\_TABLE=y) or as device-tree.
 The load address of the device-tree may be provided as parameter *fdt\_addr*. If
 this address is not specified, the bootefi command will try to fall back in
 sequence to:
@@ -41,12 +41,27 @@ command sequence to run a UEFI application might look like
     load mmc 0:1 $kernel_addr_r /EFI/grub/grubaa64.efi
     bootefi $kernel_addr_r $fdt_addr_r
 
-The last file loaded defines the image file path in the loaded image protocol.
-Hence the executable should always be loaded last.
+The last UEFI binary loaded defines the image file path in the loaded image
+protocol.
 
 The value of the environment variable *bootargs* is converted from UTF-8 to
 UTF-16 and passed as load options in the loaded image protocol to the UEFI
 binary.
+
+image_addr
+    Address of the UEFI binary.
+
+fdt_addr
+    Address of the device-tree or '-'. If no address is specifiy, the
+    environment variable $fdt_addr is used as first fallback, the address of
+    U-Boot's internal device-tree $fdtcontroladdr as second fallback.
+    When using ACPI no device-tree shall be specified.
+
+image_size
+    Size of the UEFI binary file. This argument is only needed if *image_addr*
+    does not match the address of the last loaded UEFI binary. In this case
+    a memory device path will be used as image file path in the loaded image
+    protocol.
 
 Note
     UEFI binaries that are contained in FIT images are launched via the
@@ -123,6 +138,7 @@ Configuration
 -------------
 
 To use the *bootefi* command you must specify CONFIG\_CMD\_BOOTEFI=y.
+The *bootefi bootmgr* sub-command requries CMD\_BOOTEFI\_BOOTMGR=y.
 The *bootefi hello* sub-command requries CMD\_BOOTEFI\_HELLO=y.
 The *bootefi selftest* sub-command depends on CMD\_BOOTEFI\_SELFTEST=y.
 
@@ -130,6 +146,6 @@ See also
 --------
 
 * *bootm* for launching UEFI binaries packed in FIT images
-* *booti*, *bootm*, *bootz* for launching a Linux kernel without using the
-  UEFI sub-system
-* *efidebug* for setting UEFI boot variables
+* :doc:`booti<booti>`, *bootm*, *bootz* for launching a Linux kernel without
+  using the UEFI sub-system
+* *efidebug* for setting UEFI boot variables and boot options

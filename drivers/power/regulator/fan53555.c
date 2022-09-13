@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <dm.h>
 #include <fdtdec.h>
-#include <i2c.h>
 #include <log.h>
 #include <asm/gpio.h>
 #include <linux/bitops.h>
@@ -55,8 +54,6 @@ static const struct {
 	{ FAN53555_VENDOR_FAIRCHILD, 0x8, 0x1, true,  600000, 10000 },
 	/* Option 08 */
 	{ FAN53555_VENDOR_FAIRCHILD, 0x8, 0xf, true,  600000, 10000 },
-	/* FAN53200 */
-	{ FAN53200_VENDOR_FAIRCHILD, 0x0, 0x0, false,  600000, 12500 },
 	/* Option 09 */
 	{ FAN53555_VENDOR_FAIRCHILD, 0xc, 0xf, true,  603000, 12826 },
 	/* SYL82X */

@@ -25,7 +25,6 @@
 #include "keymile-common.h"
 
 /* Increase max size of compressed kernel */
-#define CONFIG_SYS_BOOTM_LEN		(32 << 20)
 
 #include "asm/arch/config.h"
 
@@ -97,9 +96,6 @@ extern void __set_direction(unsigned pin, int high);
 
 #define I2C_DELAY	udelay(1)
 #define I2C_SOFT_DECLARATIONS
-
-/* EEprom support 24C128, 24C256 valid for environment eeprom */
-#define CONFIG_SYS_EEPROM_PAGE_WRITE_ENABLE
 
 /*
  *  Environment variables configurations

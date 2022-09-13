@@ -23,17 +23,13 @@
 /*
  * Hardware drivers
  */
-/*
- * BOOTP options
- */
-#define CONFIG_BOOTP_BOOTFILESIZE
 
 /* SDRAM */
 #define CONFIG_SYS_SDRAM_BASE		ATMEL_BASE_CS1
 #define CONFIG_SYS_SDRAM_SIZE		0x04000000
 
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(ATMEL_BASE_SRAM1 + 16 * 1024 - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_RAM_SIZE	(16 * 1024)
+#define CONFIG_SYS_INIT_RAM_ADDR	ATMEL_BASE_SRAM1
 
 /* NAND flash */
 #ifdef CONFIG_CMD_NAND
@@ -47,23 +43,7 @@
 #define CONFIG_SYS_NAND_READY_PIN		GPIO_PIN_PA(22)
 #endif
 
-/* Ethernet */
-#define CONFIG_RMII
-#define CONFIG_NET_RETRY_COUNT			20
-#define CONFIG_AT91_WANTS_COMMON_PHY
-
-/* USB */
-#ifdef CONFIG_CMD_USB
-#define CONFIG_USB_ATMEL
-#define CONFIG_USB_OHCI_NEW
-#define CONFIG_SYS_USB_OHCI_CPU_INIT
-#define CONFIG_SYS_USB_OHCI_REGS_BASE		0x00a00000
-#define CONFIG_SYS_USB_OHCI_SLOT_NAME		"at91sam9263"
-#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS	2
-#endif
-
 /* bootstrap + u-boot + env + linux in dataflash on CS0 */
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0" \
 
 #endif

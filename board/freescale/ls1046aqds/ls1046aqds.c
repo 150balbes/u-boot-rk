@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021 NXP
  */
 
 #include <common.h>
@@ -28,7 +28,6 @@
 #include <fsl_csu.h>
 #include <fsl_esdhc.h>
 #include <fsl_ifc.h>
-#include <fsl_sec.h>
 #include <spl.h>
 #include "../common/i2c_mux.h"
 
@@ -421,10 +420,6 @@ int board_init(void)
 	out_le32(SMMU_NSCR0, val);
 #endif
 
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
-#endif
-
 	return 0;
 }
 
@@ -444,10 +439,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	fdt_fixup_memory_banks(blob, base, size, 2);
 	ft_cpu_setup(blob, bd);
 
-#ifdef CONFIG_SYS_DPAA_FMAN
-#ifndef CONFIG_DM_ETH
-	fdt_fixup_fman_ethernet(blob);
-#endif
+#ifdef CONFIG_FMAN_ENET
 	fdt_fixup_board_enet(blob);
 #endif
 

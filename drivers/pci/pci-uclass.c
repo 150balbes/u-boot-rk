@@ -286,6 +286,8 @@ int pci_bus_write_config(struct udevice *bus, pci_dev_t bdf, int offset,
 	ops = pci_get_ops(bus);
 	if (!ops->write_config)
 		return -ENOSYS;
+	if (offset < 0 || offset >= 4096)
+		return -EINVAL;
 	return ops->write_config(bus, bdf, offset, value, size);
 }
 
@@ -364,8 +366,14 @@ int pci_bus_read_config(const struct udevice *bus, pci_dev_t bdf, int offset,
 	struct dm_pci_ops *ops;
 
 	ops = pci_get_ops(bus);
-	if (!ops->read_config)
+	if (!ops->read_config) {
+		*valuep = pci_conv_32_to_size(~0, offset, size);
 		return -ENOSYS;
+	}
+	if (offset < 0 || offset >= 4096) {
+		*valuep = pci_conv_32_to_size(0, offset, size);
+		return -EINVAL;
+	}
 	return ops->read_config(bus, bdf, offset, valuep, size);
 }
 
@@ -645,7 +653,11 @@ int dm_pci_hose_probe_bus(struct udevice *bus)
 		return log_msg_ret("probe", -EINVAL);
 	}
 
-	ea_pos = dm_pci_find_capability(bus, PCI_CAP_ID_EA);
+	if (IS_ENABLED(CONFIG_PCI_ENHANCED_ALLOCATION))
+		ea_pos = dm_pci_find_capability(bus, PCI_CAP_ID_EA);
+	else
+		ea_pos = 0;
+
 	if (ea_pos) {
 		dm_pci_read_config8(bus, ea_pos + sizeof(u32) + sizeof(u8),
 				    &reg);
@@ -950,7 +962,7 @@ int pci_bind_bus_devices(struct udevice *bus)
 	return 0;
 }
 
-static void decode_regions(struct pci_controller *hose, ofnode parent_node,
+static int decode_regions(struct pci_controller *hose, ofnode parent_node,
 			   ofnode node)
 {
 	int pci_addr_cells, addr_cells, size_cells;
@@ -964,7 +976,7 @@ static void decode_regions(struct pci_controller *hose, ofnode parent_node,
 	prop = ofnode_get_property(node, "ranges", &len);
 	if (!prop) {
 		debug("%s: Cannot decode regions\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	pci_addr_cells = ofnode_read_simple_addr_cells(node);
@@ -982,6 +994,8 @@ static void decode_regions(struct pci_controller *hose, ofnode parent_node,
 	max_regions = len / cells_per_record + CONFIG_NR_DRAM_BANKS;
 	hose->regions = (struct pci_region *)
 		calloc(1, max_regions * sizeof(struct pci_region));
+	if (!hose->regions)
+		return -ENOMEM;
 
 	for (i = 0; i < max_regions; i++, len -= cells_per_record) {
 		u64 pci_addr, addr, size;
@@ -1013,7 +1027,22 @@ static void decode_regions(struct pci_controller *hose, ofnode parent_node,
 
 		if (!IS_ENABLED(CONFIG_SYS_PCI_64BIT) &&
 		    type == PCI_REGION_MEM && upper_32_bits(pci_addr)) {
-			debug(" - beyond the 32-bit boundary, ignoring\n");
+			debug(" - pci_addr beyond the 32-bit boundary, ignoring\n");
+			continue;
+		}
+
+		if (!IS_ENABLED(CONFIG_PHYS_64BIT) && upper_32_bits(addr)) {
+			debug(" - addr beyond the 32-bit boundary, ignoring\n");
+			continue;
+		}
+
+		if (~((pci_addr_t)0) - pci_addr < size) {
+			debug(" - PCI range exceeds max address, ignoring\n");
+			continue;
+		}
+
+		if (~((phys_addr_t)0) - addr < size) {
+			debug(" - phys range exceeds max address, ignoring\n");
 			continue;
 		}
 
@@ -1034,7 +1063,7 @@ static void decode_regions(struct pci_controller *hose, ofnode parent_node,
 	/* Add a region for our local memory */
 	bd = gd->bd;
 	if (!bd)
-		return;
+		return 0;
 
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; ++i) {
 		if (bd->bi_dram[i].size) {
@@ -1049,7 +1078,7 @@ static void decode_regions(struct pci_controller *hose, ofnode parent_node,
 		}
 	}
 
-	return;
+	return 0;
 }
 
 static int pci_uclass_pre_probe(struct udevice *bus)
@@ -1078,7 +1107,10 @@ static int pci_uclass_pre_probe(struct udevice *bus)
 	/* For bridges, use the top-level PCI controller */
 	if (!device_is_on_pci_bus(bus)) {
 		hose->ctlr = bus;
-		decode_regions(hose, dev_ofnode(bus->parent), dev_ofnode(bus));
+		ret = decode_regions(hose, dev_ofnode(bus->parent),
+				     dev_ofnode(bus));
+		if (ret)
+			return ret;
 	} else {
 		struct pci_controller *parent_hose;
 
@@ -1375,131 +1407,84 @@ void dm_pci_write_bar32(struct udevice *dev, int barnum, u32 addr)
 	dm_pci_write_config32(dev, bar, addr);
 }
 
-static int _dm_pci_bus_to_phys(struct udevice *ctlr,
-			       pci_addr_t bus_addr, unsigned long flags,
-			       unsigned long skip_mask, phys_addr_t *pa)
-{
-	struct pci_controller *hose = dev_get_uclass_priv(ctlr);
-	struct pci_region *res;
-	int i;
-
-	if (hose->region_count == 0) {
-		*pa = bus_addr;
-		return 0;
-	}
-
-	for (i = 0; i < hose->region_count; i++) {
-		res = &hose->regions[i];
-
-		if (((res->flags ^ flags) & PCI_REGION_TYPE) != 0)
-			continue;
-
-		if (res->flags & skip_mask)
-			continue;
-
-		if (bus_addr >= res->bus_start &&
-		    (bus_addr - res->bus_start) < res->size) {
-			*pa = (bus_addr - res->bus_start + res->phys_start);
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
 phys_addr_t dm_pci_bus_to_phys(struct udevice *dev, pci_addr_t bus_addr,
+			       size_t len, unsigned long mask,
 			       unsigned long flags)
 {
-	phys_addr_t phys_addr = 0;
 	struct udevice *ctlr;
-	int ret;
-
-	/* The root controller has the region information */
-	ctlr = pci_get_controller(dev);
-
-	/*
-	 * if PCI_REGION_MEM is set we do a two pass search with preference
-	 * on matches that don't have PCI_REGION_SYS_MEMORY set
-	 */
-	if ((flags & PCI_REGION_TYPE) == PCI_REGION_MEM) {
-		ret = _dm_pci_bus_to_phys(ctlr, bus_addr,
-					  flags, PCI_REGION_SYS_MEMORY,
-					  &phys_addr);
-		if (!ret)
-			return phys_addr;
-	}
-
-	ret = _dm_pci_bus_to_phys(ctlr, bus_addr, flags, 0, &phys_addr);
-
-	if (ret)
-		puts("pci_hose_bus_to_phys: invalid physical address\n");
-
-	return phys_addr;
-}
-
-static int _dm_pci_phys_to_bus(struct udevice *dev, phys_addr_t phys_addr,
-			       unsigned long flags, unsigned long skip_mask,
-			       pci_addr_t *ba)
-{
-	struct pci_region *res;
-	struct udevice *ctlr;
-	pci_addr_t bus_addr;
-	int i;
 	struct pci_controller *hose;
+	struct pci_region *res;
+	pci_addr_t offset;
+	int i;
 
 	/* The root controller has the region information */
 	ctlr = pci_get_controller(dev);
 	hose = dev_get_uclass_priv(ctlr);
 
-	if (hose->region_count == 0) {
-		*ba = phys_addr;
-		return 0;
-	}
+	if (hose->region_count == 0)
+		return bus_addr;
 
 	for (i = 0; i < hose->region_count; i++) {
 		res = &hose->regions[i];
 
-		if (((res->flags ^ flags) & PCI_REGION_TYPE) != 0)
+		if ((res->flags & mask) != flags)
 			continue;
 
-		if (res->flags & skip_mask)
+		if (bus_addr < res->bus_start)
 			continue;
 
-		bus_addr = phys_addr - res->phys_start + res->bus_start;
+		offset = bus_addr - res->bus_start;
+		if (offset >= res->size)
+			continue;
 
-		if (bus_addr >= res->bus_start &&
-		    (bus_addr - res->bus_start) < res->size) {
-			*ba = bus_addr;
-			return 0;
-		}
+		if (len > res->size - offset)
+			continue;
+
+		return res->phys_start + offset;
 	}
 
-	return 1;
+	puts("pci_hose_bus_to_phys: invalid physical address\n");
+	return 0;
 }
 
 pci_addr_t dm_pci_phys_to_bus(struct udevice *dev, phys_addr_t phys_addr,
+			      size_t len, unsigned long mask,
 			      unsigned long flags)
 {
-	pci_addr_t bus_addr = 0;
-	int ret;
+	struct udevice *ctlr;
+	struct pci_controller *hose;
+	struct pci_region *res;
+	phys_addr_t offset;
+	int i;
 
-	/*
-	 * if PCI_REGION_MEM is set we do a two pass search with preference
-	 * on matches that don't have PCI_REGION_SYS_MEMORY set
-	 */
-	if ((flags & PCI_REGION_TYPE) == PCI_REGION_MEM) {
-		ret = _dm_pci_phys_to_bus(dev, phys_addr, flags,
-					  PCI_REGION_SYS_MEMORY, &bus_addr);
-		if (!ret)
-			return bus_addr;
+	/* The root controller has the region information */
+	ctlr = pci_get_controller(dev);
+	hose = dev_get_uclass_priv(ctlr);
+
+	if (hose->region_count == 0)
+		return phys_addr;
+
+	for (i = 0; i < hose->region_count; i++) {
+		res = &hose->regions[i];
+
+		if ((res->flags & mask) != flags)
+			continue;
+
+		if (phys_addr < res->phys_start)
+			continue;
+
+		offset = phys_addr - res->phys_start;
+		if (offset >= res->size)
+			continue;
+
+		if (len > res->size - offset)
+			continue;
+
+		return res->bus_start + offset;
 	}
 
-	ret = _dm_pci_phys_to_bus(dev, phys_addr, flags, 0, &bus_addr);
-
-	if (ret)
-		puts("pci_hose_phys_to_bus: invalid physical address\n");
-
-	return bus_addr;
+	puts("pci_hose_phys_to_bus: invalid physical address\n");
+	return 0;
 }
 
 static phys_addr_t dm_pci_map_ea_virt(struct udevice *dev, int ea_off,
@@ -1533,8 +1518,9 @@ static phys_addr_t dm_pci_map_ea_virt(struct udevice *dev, int ea_off,
 	return addr;
 }
 
-static void *dm_pci_map_ea_bar(struct udevice *dev, int bar, int flags,
-			       int ea_off, struct pci_child_plat *pdata)
+static void *dm_pci_map_ea_bar(struct udevice *dev, int bar, size_t offset,
+			       size_t len, int ea_off,
+			       struct pci_child_plat *pdata)
 {
 	int ea_cnt, i, entry_size;
 	int bar_id = (bar - PCI_BASE_ADDRESS_0) >> 2;
@@ -1576,14 +1562,18 @@ static void *dm_pci_map_ea_bar(struct udevice *dev, int bar, int flags,
 		if (IS_ENABLED(CONFIG_PCI_SRIOV))
 			addr += dm_pci_map_ea_virt(dev, ea_off, pdata);
 
+		if (~((phys_addr_t)0) - addr < offset)
+			return NULL;
+
 		/* size ignored for now */
-		return map_physmem(addr, 0, flags);
+		return map_physmem(addr + offset, len, MAP_NOCACHE);
 	}
 
 	return 0;
 }
 
-void *dm_pci_map_bar(struct udevice *dev, int bar, int flags)
+void *dm_pci_map_bar(struct udevice *dev, int bar, size_t offset, size_t len,
+		     unsigned long mask, unsigned long flags)
 {
 	struct pci_child_plat *pdata = dev_get_parent_plat(dev);
 	struct udevice *udev = dev;
@@ -1606,21 +1596,29 @@ void *dm_pci_map_bar(struct udevice *dev, int bar, int flags)
 	 * Incase of virtual functions, pdata will help read VF BEI
 	 * and EA entry size.
 	 */
-	ea_off = dm_pci_find_capability(udev, PCI_CAP_ID_EA);
+	if (IS_ENABLED(CONFIG_PCI_ENHANCED_ALLOCATION))
+		ea_off = dm_pci_find_capability(udev, PCI_CAP_ID_EA);
+	else
+		ea_off = 0;
+
 	if (ea_off)
-		return dm_pci_map_ea_bar(udev, bar, flags, ea_off, pdata);
+		return dm_pci_map_ea_bar(udev, bar, offset, len, ea_off, pdata);
 
 	/* read BAR address */
 	dm_pci_read_config32(udev, bar, &bar_response);
 	pci_bus_addr = (pci_addr_t)(bar_response & ~0xf);
 
+	if (~((pci_addr_t)0) - pci_bus_addr < offset)
+		return NULL;
+
 	/*
-	 * Pass "0" as the length argument to pci_bus_to_virt.  The arg
-	 * isn't actually used on any platform because U-Boot assumes a static
-	 * linear mapping.  In the future, this could read the BAR size
-	 * and pass that as the size if needed.
+	 * Forward the length argument to dm_pci_bus_to_virt. The length will
+	 * be used to check that the entire address range has been declared as
+	 * a PCI range, but a better check would be to probe for the size of
+	 * the bar and prevent overflow more locally.
 	 */
-	return dm_pci_bus_to_virt(udev, pci_bus_addr, flags, 0, MAP_NOCACHE);
+	return dm_pci_bus_to_virt(udev, pci_bus_addr + offset, len, mask, flags,
+				  MAP_NOCACHE);
 }
 
 static int _dm_pci_find_next_capability(struct udevice *dev, u8 pos, int cap)

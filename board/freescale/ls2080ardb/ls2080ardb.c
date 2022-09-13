@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015 Freescale Semiconductor
- * Copyright 2017 NXP
+ * Copyright 2017, 2021 NXP
  */
 #include <common.h>
 #include <clock_legacy.h>
+#include <display_options.h>
 #include <env.h>
 #include <init.h>
 #include <malloc.h>
@@ -24,7 +25,6 @@
 #include <asm/arch/mmu.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/ppa.h>
-#include <fsl_sec.h>
 #include <asm/arch-fsl-layerscape/fsl_icid.h>
 #include "../common/i2c_mux.h"
 
@@ -288,9 +288,6 @@ int board_init(void)
 	QIXIS_WRITE(rst_ctl, QIXIS_RST_CTL_RESET_EN);
 #endif
 
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
-#endif
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif
@@ -298,9 +295,6 @@ int board_init(void)
 #ifdef CONFIG_FSL_MC_ENET
 	/* invert AQR405 IRQ pins polarity */
 	out_le32(irq_ccsr + IRQCR_OFFSET / 4, AQR405_IRQ_MASK);
-#endif
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
 #endif
 
 #if !defined(CONFIG_SYS_EARLY_PCI_INIT) && defined(CONFIG_DM_ETH)

@@ -26,7 +26,7 @@
 struct zynqmp_power {
 	struct mbox_chan tx_chan;
 	struct mbox_chan rx_chan;
-} zynqmp_power;
+} zynqmp_power = {};
 
 #define NODE_ID_LOCATION	5
 
@@ -70,13 +70,36 @@ int zynqmp_pmufw_config_close(void)
 
 int zynqmp_pmufw_node(u32 id)
 {
+	static bool skip_config;
+	int ret;
+
+	if (skip_config)
+		return 0;
+
 	/* Record power domain id */
 	xpm_configobject[NODE_ID_LOCATION] = id;
 
-	zynqmp_pmufw_load_config_object(xpm_configobject,
-					sizeof(xpm_configobject));
+	ret = zynqmp_pmufw_load_config_object(xpm_configobject,
+					      sizeof(xpm_configobject));
+
+	if (ret && id == NODE_APU_0)
+		skip_config = true;
 
 	return 0;
+}
+
+static int do_pm_probe(void)
+{
+	struct udevice *dev;
+	int ret;
+
+	ret = uclass_get_device_by_driver(UCLASS_FIRMWARE,
+					  DM_DRIVER_GET(zynqmp_power),
+					  &dev);
+	if (ret)
+		debug("%s: Probing device failed: %d\n", __func__, ret);
+
+	return ret;
 }
 
 static int ipi_req(const u32 *req, size_t req_len, u32 *res, size_t res_maxlen)
@@ -92,8 +115,11 @@ static int ipi_req(const u32 *req, size_t req_len, u32 *res, size_t res_maxlen)
 	    res_maxlen > PMUFW_PAYLOAD_ARG_CNT)
 		return -EINVAL;
 
-	if (!(zynqmp_power.tx_chan.dev) || !(&zynqmp_power.rx_chan.dev))
-		return -EINVAL;
+	if (!(zynqmp_power.tx_chan.dev) || !(zynqmp_power.rx_chan.dev)) {
+		ret = do_pm_probe();
+		if (ret)
+			return ret;
+	}
 
 	debug("%s, Sending IPI message with ID: 0x%0x\n", __func__, req[0]);
 	msg.buf = (u32 *)req;
@@ -140,13 +166,77 @@ unsigned int zynqmp_firmware_version(void)
 	return pm_api_version;
 };
 
+int zynqmp_pm_set_gem_config(u32 node, enum pm_gem_config_type config, u32 value)
+{
+	int ret;
+
+	ret = xilinx_pm_request(PM_IOCTL, node, IOCTL_SET_GEM_CONFIG,
+				config, value, NULL);
+	if (ret)
+		printf("%s: node %d: set_gem_config %d failed\n",
+		       __func__, node, config);
+
+	return ret;
+}
+
+int zynqmp_pm_set_sd_config(u32 node, enum pm_sd_config_type config, u32 value)
+{
+	int ret;
+
+	ret = xilinx_pm_request(PM_IOCTL, node, IOCTL_SET_SD_CONFIG,
+				config, value, NULL);
+	if (ret)
+		printf("%s: node %d: set_sd_config %d failed\n",
+		       __func__, node, config);
+
+	return ret;
+}
+
+int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id)
+{
+	int ret;
+	u32 *bit_mask;
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+
+	/* Input arguments validation */
+	if (id >= 64 || (api_id != PM_IOCTL && api_id != PM_QUERY_DATA))
+		return -EINVAL;
+
+	/* Check feature check API version */
+	ret = xilinx_pm_request(PM_FEATURE_CHECK, PM_FEATURE_CHECK, 0, 0, 0,
+				ret_payload);
+	if (ret)
+		return ret;
+
+	/* Check if feature check version 2 is supported or not */
+	if ((ret_payload[1] & FIRMWARE_VERSION_MASK) == PM_API_VERSION_2) {
+		/*
+		 * Call feature check for IOCTL/QUERY API to get IOCTL ID or
+		 * QUERY ID feature status.
+		 */
+
+		ret = xilinx_pm_request(PM_FEATURE_CHECK, api_id, 0, 0, 0,
+					ret_payload);
+		if (ret)
+			return ret;
+
+		bit_mask = &ret_payload[2];
+		if ((bit_mask[(id / 32)] & BIT((id % 32))) == 0)
+			return -EOPNOTSUPP;
+	} else {
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
 /**
  * Send a configuration object to the PMU firmware.
  *
  * @cfg_obj: Pointer to the configuration object
  * @size:    Size of @cfg_obj in bytes
  */
-void zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size)
+int zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size)
 {
 	int err;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -160,12 +250,12 @@ void zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size)
 				0, ret_payload);
 	if (err == XST_PM_NO_ACCESS) {
 		printf("PMUFW no permission to change config object\n");
-		return;
+		return -EACCES;
 	}
 
 	if (err == XST_PM_ALREADY_CONFIGURED) {
 		debug("PMUFW Node is already configured\n");
-		return;
+		return -ENODEV;
 	}
 
 	if (err)
@@ -176,6 +266,8 @@ void zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size)
 
 	if ((err || ret_payload[0]) && IS_ENABLED(CONFIG_SPL_BUILD))
 		panic("PMUFW config object loading failed in EL3\n");
+
+	return 0;
 }
 
 static int zynqmp_power_probe(struct udevice *dev)
@@ -200,6 +292,9 @@ static int zynqmp_power_probe(struct udevice *dev)
 	printf("PMUFW:\tv%d.%d\n",
 	       ret >> ZYNQMP_PM_VERSION_MAJOR_SHIFT,
 	       ret & ZYNQMP_PM_VERSION_MINOR_MASK);
+
+	if (IS_ENABLED(CONFIG_ARCH_ZYNQMP))
+		zynqmp_pmufw_node(NODE_APU_0);
 
 	return 0;
 };
@@ -283,7 +378,11 @@ static int zynqmp_firmware_bind(struct udevice *dev)
 	int ret;
 	struct udevice *child;
 
-	if (IS_ENABLED(CONFIG_ZYNQMP_POWER_DOMAIN)) {
+	if ((IS_ENABLED(CONFIG_SPL_BUILD) &&
+	     IS_ENABLED(CONFIG_SPL_POWER_DOMAIN) &&
+	     IS_ENABLED(CONFIG_ZYNQMP_POWER_DOMAIN)) ||
+	     (!IS_ENABLED(CONFIG_SPL_BUILD) &&
+	      IS_ENABLED(CONFIG_ZYNQMP_POWER_DOMAIN))) {
 		ret = device_bind_driver_to_node(dev, "zynqmp_power_domain",
 						 "zynqmp_power_domain",
 						 dev_ofnode(dev), &child);

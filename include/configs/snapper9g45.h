@@ -23,8 +23,8 @@
 /* SDRAM */
 #define CONFIG_SYS_SDRAM_BASE		ATMEL_BASE_CS6
 #define CONFIG_SYS_SDRAM_SIZE		(128 * 1024 * 1024) /* 64MB */
-#define CONFIG_SYS_INIT_SP_ADDR		(ATMEL_BASE_SRAM + 0x1000 - \
-					 GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_RAM_SIZE	0x1000
+#define CONFIG_SYS_INIT_RAM_ADDR	ATMEL_BASE_SRAM
 
 /* Mem test settings */
 
@@ -38,26 +38,9 @@
 #define CONFIG_SYS_NAND_ENABLE_PIN	AT91_PIN_PC14
 #define CONFIG_SYS_NAND_READY_PIN	AT91_PIN_PC8
 
-/* Ethernet */
-#define CONFIG_RMII
-#define CONFIG_NET_RETRY_COUNT		20
-#define CONFIG_RESET_PHY_R
-#define CONFIG_AT91_WANTS_COMMON_PHY
-#define CONFIG_TFTP_PORT
-
-/* LCD */
-#define CONFIG_ATMEL_LCD
-#define CONFIG_GURNARD_SPLASH
-
-/* GPIOs and IO expander */
-#define CONFIG_ATMEL_LEGACY
-#define CONFIG_AT91_GPIO_PULLUP		1
-
 /* UARTs/Serial console */
 
 /* Boot options */
-
-#define CONFIG_BOOTP_BOOTFILESIZE
 
 /* Environment settings */
 

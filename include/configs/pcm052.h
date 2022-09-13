@@ -16,9 +16,6 @@
 
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 
-/* We boot from the gfxRAM area of the OCRAM. */
-#define CONFIG_BOARD_SIZE_LIMIT		520192
-
 /* if no target-specific extra environment settings were defined by the
    target, define an empty one */
 #ifndef PCM052_EXTRA_ENV_SETTINGS
@@ -36,7 +33,6 @@
 /* Extra env settings (including the target-defined ones if any) */
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	PCM052_EXTRA_ENV_SETTINGS \
-	"autoload=no\0" \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
 	"blimg_file=u-boot.vyb\0" \
@@ -53,7 +49,6 @@
 	"nfs_root=/path/to/nfs/root\0" \
 	"tftptimeout=1000\0" \
 	"tftptimeoutcountmax=1000000\0" \
-	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0" \
 	"bootargs_base=setenv bootargs rw " \
 		" mem=" __stringify(CONFIG_PCM052_DDR_SIZE) "M " \
 		"console=ttyLP1,115200n8\0" \
@@ -128,11 +123,6 @@
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
 #define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
 #define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
-
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
 

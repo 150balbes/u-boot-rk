@@ -7,6 +7,7 @@
  */
 
 #include <common.h>
+#include <display_options.h>
 #include <init.h>
 #include <asm/bitops.h>
 #include <asm/global_data.h>
@@ -44,7 +45,7 @@ __weak void init_tlbs(void)
 }
 
 #if !defined(CONFIG_NAND_SPL) && \
-	(!defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SPL_INIT_MINIMAL))
+	(!defined(CONFIG_SPL_BUILD) || !CONFIG_IS_ENABLED(INIT_MINIMAL))
 void read_tlbcam_entry(int idx, u32 *valid, u32 *tsize, unsigned long *epn,
 		       phys_addr_t *rpn)
 {

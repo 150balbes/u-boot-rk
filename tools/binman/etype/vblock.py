@@ -73,7 +73,7 @@ class Entry_vblock(Entry_collection):
             vblock=output_fname,
             keyblock=prefix + self.keyblock,
             signprivate=prefix + self.signprivate,
-            version=f'{self.version,}',
+            version=f'{self.version:d}',
             firmware=input_fname,
             kernelkey=prefix + self.kernelkey,
             flags=f'{self.preamble_flags}')
@@ -97,5 +97,6 @@ class Entry_vblock(Entry_collection):
         data = self.GetVblock(True)
         return self.ProcessContentsUpdate(data)
 
-    def AddBintools(self, tools):
-        self.futility = self.AddBintool(tools, 'futility')
+    def AddBintools(self, btools):
+        super().AddBintools(btools)
+        self.futility = self.AddBintool(btools, 'futility')

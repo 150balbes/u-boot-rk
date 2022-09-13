@@ -12,7 +12,6 @@ import re
 import shutil
 import sys
 import traceback
-import unittest
 
 if __name__ == "__main__":
     # Allow 'from patman import xxx to work'
@@ -82,6 +81,12 @@ send.add_argument('--no-binary', action='store_true', dest='ignore_binary',
 send.add_argument('--no-check', action='store_false', dest='check_patch',
                   default=True,
                   help="Don't check for patch compliance")
+send.add_argument('--tree', dest='check_patch_use_tree', default=False,
+                  action='store_true',
+                  help=("Set `tree` to True. If `tree` is False then we'll "
+                  "pass '--no-tree' to checkpatch (default: tree=%(default)s)"))
+send.add_argument('--no-tree', dest='check_patch_use_tree',
+                  action='store_false', help="Set `tree` to False")
 send.add_argument('--no-tags', action='store_false', dest='process_tags',
                   default=True, help="Don't process subject tags as aliases")
 send.add_argument('--no-signoff', action='store_false', dest='add_signoff',
@@ -134,13 +139,12 @@ if args.cmd == 'test':
     import doctest
     from patman import func_test
 
-    result = unittest.TestResult()
-    test_util.run_test_suites(
-        result, False, False, False, None, None, None,
+    result = test_util.run_test_suites(
+        'patman', False, False, False, None, None, None,
         [test_checkpatch.TestPatch, func_test.TestFunctional,
          'gitutil', 'settings', 'terminal'])
 
-    sys.exit(test_util.report_result('patman', args.testname, result))
+    sys.exit(0 if result.wasSuccessful() else 1)
 
 # Process commits, produce patches files, check them, email them
 elif args.cmd == 'send':
@@ -160,7 +164,8 @@ elif args.cmd == 'send':
 
     elif args.full_help:
         tools.print_full_help(
-            os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'README')
+            os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
+                         'README.rst')
         )
 
     else:

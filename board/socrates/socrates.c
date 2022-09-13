@@ -26,12 +26,9 @@
 #include <fdt_support.h>
 #include <asm/io.h>
 #include <i2c.h>
-#include <video_fb.h>
 #include "upm_table.h"
 
 DECLARE_GLOBAL_DATA_PTR;
-
-extern flash_info_t flash_info[];	/* FLASH chips info */
 
 void local_bus_init (void);
 ulong flash_get_size (ulong base, int banknum);
@@ -60,7 +57,8 @@ int checkboard (void)
 		f = get_board_sys_clk();
 	} else {
 		src = "PCI_CLK";
-		f = CONFIG_PCI_CLK_FREQ;
+		/* PCI is clocked by the external source at 33 MHz */
+		f = 33000000;
 	}
 	printf ("PCI1:  32 bit, %d MHz (%s)\n",	f/1000000, src);
 #else

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2019 NXP
+ * Copyright 2019, 2021 NXP
  */
 
 #include "imx8mm-u-boot.dtsi"
@@ -68,6 +68,22 @@
 	u-boot,dm-spl;
 };
 
+&crypto {
+	u-boot,dm-spl;
+};
+
+&sec_jr0 {
+	u-boot,dm-spl;
+};
+
+&sec_jr1 {
+	u-boot,dm-spl;
+};
+
+&sec_jr2 {
+	u-boot,dm-spl;
+};
+
 &usdhc1 {
 	u-boot,dm-spl;
 };
@@ -89,11 +105,11 @@
 	u-boot,dm-spl;
 };
 
-&{/soc@0/bus@30800000/i2c@30a20000/pca9450@25} {
+&{/soc@0/bus@30800000/i2c@30a20000/pmic@4b} {
 	u-boot,dm-spl;
 };
 
-&{/soc@0/bus@30800000/i2c@30a20000/pca9450@25/regulators} {
+&{/soc@0/bus@30800000/i2c@30a20000/pmic@4b/regulators} {
 	u-boot,dm-spl;
 };
 
@@ -102,6 +118,10 @@
 };
 
 &pinctrl_pmic {
+	u-boot,dm-spl;
+};
+
+&pinctrl_wdog {
 	u-boot,dm-spl;
 };
 

@@ -96,7 +96,7 @@ struct kwbimage_main_hdr_v1 {
 } __packed;
 
 #ifdef CONFIG_SPL_MMC
-u32 spl_mmc_boot_mode(const u32 boot_device)
+u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 {
 	return MMCSD_MODE_RAW;
 }
@@ -271,6 +271,13 @@ u32 spl_boot_device(void)
 	}
 }
 
+void board_boot_order(u32 *spl_boot_list)
+{
+	spl_boot_list[0] = spl_boot_device();
+	if (spl_boot_list[0] != BOOT_DEVICE_BOOTROM)
+		spl_boot_list[1] = BOOT_DEVICE_BOOTROM;
+}
+
 #else
 
 u32 spl_boot_device(void)
@@ -283,7 +290,7 @@ u32 spl_boot_device(void)
 int board_return_to_bootrom(struct spl_image_info *spl_image,
 			    struct spl_boot_device *bootdev)
 {
-	u32 *regs = *(u32 **)CONFIG_SPL_BOOTROM_SAVE;
+	u32 *regs = *(u32 **)(CONFIG_SPL_STACK + 4);
 
 	printf("Returning to BootROM (return address 0x%08x)...\n", regs[13]);
 	return_to_bootrom();
@@ -291,6 +298,19 @@ int board_return_to_bootrom(struct spl_image_info *spl_image,
 	/* NOTREACHED - return_to_bootrom() does not return */
 	hang();
 }
+
+/*
+ * SPI0 CS0 Flash is mapped to address range 0xD4000000 - 0xD7FFFFFF by BootROM.
+ * Proper U-Boot removes this direct mapping. So it is available only in SPL.
+ */
+#if defined(CONFIG_SPL_ENV_IS_IN_SPI_FLASH) && \
+    CONFIG_ENV_SPI_BUS == 0 && CONFIG_ENV_SPI_CS == 0 && \
+    CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE <= 64*1024*1024
+void *env_sf_get_env_addr(void)
+{
+	return (void *)0xD4000000 + CONFIG_ENV_OFFSET;
+}
+#endif
 
 void board_init_f(ulong dummy)
 {

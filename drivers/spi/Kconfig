@@ -128,6 +128,22 @@ config CADENCE_QSPI
 	  used to access the SPI NOR flash on platforms embedding this
 	  Cadence IP core.
 
+config HAS_CQSPI_REF_CLK
+	bool "Cadence QSPI static reference clock"
+	depends on CADENCE_QSPI
+
+config CQSPI_REF_CLK
+	int "Cadence QSPI reference clock value in Hz"
+	depends on HAS_CQSPI_REF_CLK
+
+config CADENCE_OSPI_VERSAL
+	bool "Configure Versal OSPI"
+	depends on ARCH_VERSAL && CADENCE_QSPI
+	imply DM_GPIO
+	help
+	  This option is used to enable Versal OSPI DMA operations which
+	  are used for ospi flash read using cadence qspi controller.
+
 config CF_SPI
         bool "ColdFire SPI driver"
         help
@@ -177,6 +193,12 @@ config FSL_QSPI_AHB_FULL_MAP
 	help
 	  Enable the Freescale QSPI driver to use full AHB memory map space for
 	  flash access.
+
+config GXP_SPI
+	bool "SPI driver for GXP"
+	imply SPI_FLASH_BAR
+	help
+	  Enable support for SPI on GXP.
 
 config ICH_SPI
 	bool "Intel ICH SPI driver"
@@ -232,7 +254,7 @@ config MT7620_SPI
 
 config MT7621_SPI
 	bool "MediaTek MT7621 SPI driver"
-	depends on SOC_MT7628
+	depends on SOC_MT7621 || SOC_MT7628
 	help
 	  Enable the MT7621 SPI driver. This driver can be used to access
 	  the SPI NOR flash on platforms embedding this Ralink / MediaTek
@@ -274,6 +296,12 @@ config SPI_MXIC
 	  Enable the Macronix MX25F0A SPI controller driver. This driver
 	  can be used to access the SPI flash on platforms embedding
 	  this Macronix IP core.
+
+config NPCM_FIU_SPI
+	bool "FIU driver for Nuvoton NPCM SoC"
+	help
+	  This enables support for the Flash Interface Unit SPI controller
+	  in master mode.
 
 config NXP_FSPI
 	bool "NXP FlexSPI driver"

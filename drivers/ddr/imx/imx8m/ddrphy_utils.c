@@ -117,6 +117,10 @@ void ddrphy_init_set_dfi_clk(unsigned int drate)
 		dram_pll_init(MHZ(1000));
 		dram_disable_bypass();
 		break;
+	case 3732:
+		dram_pll_init(MHZ(933));
+		dram_disable_bypass();
+		break;
 	case 3200:
 		dram_pll_init(MHZ(800));
 		dram_disable_bypass();
@@ -194,9 +198,14 @@ unsigned int lpddr4_mr_read(unsigned int mr_rank, unsigned int mr_addr)
 		tmp = reg32_read(DRC_PERF_MON_MRR0_DAT(0));
 	} while ((tmp & 0x8) == 0);
 	tmp = reg32_read(DRC_PERF_MON_MRR1_DAT(0));
-	tmp = tmp & 0xff;
 	reg32_write(DRC_PERF_MON_MRR0_DAT(0), 0x4);
-
+	while (tmp) { //try to find a significant byte in the word
+		if (tmp & 0xff) {
+			tmp &= 0xff;
+			break;
+		}
+		tmp >>= 8;
+	}
 	return tmp;
 }
 

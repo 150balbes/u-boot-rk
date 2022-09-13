@@ -24,9 +24,7 @@
 #include <mmc.h>
 #include <remoteproc.h>
 
-#ifdef CONFIG_SPL_BUILD
 #ifdef CONFIG_K3_LOAD_SYSFW
-#ifdef CONFIG_TI_SECURE_DEVICE
 struct fwl_data cbass_hc_cfg0_fwls[] = {
 	{ "PCIE0_CFG", 2560, 8 },
 	{ "PCIE1_CFG", 2561, 8 },
@@ -63,7 +61,6 @@ struct fwl_data cbass_hc_cfg0_fwls[] = {
 }, wkup_cbass0_fwls[] = {
 	{ "WKUP_CTRL_MMR0", 131, 16 },
 };
-#endif
 #endif
 
 static void ctrl_mmr_unlock(void)
@@ -255,7 +252,6 @@ void board_init_f(ulong dummy)
 	preloader_console_init();
 
 	/* Disable ROM configured firewalls right after loading sysfw */
-#ifdef CONFIG_TI_SECURE_DEVICE
 	remove_fwl_configs(cbass_hc_cfg0_fwls, ARRAY_SIZE(cbass_hc_cfg0_fwls));
 	remove_fwl_configs(cbass_hc0_fwls, ARRAY_SIZE(cbass_hc0_fwls));
 	remove_fwl_configs(cbass_rc_cfg0_fwls, ARRAY_SIZE(cbass_rc_cfg0_fwls));
@@ -263,7 +259,6 @@ void board_init_f(ulong dummy)
 	remove_fwl_configs(infra_cbass0_fwls, ARRAY_SIZE(infra_cbass0_fwls));
 	remove_fwl_configs(mcu_cbass0_fwls, ARRAY_SIZE(mcu_cbass0_fwls));
 	remove_fwl_configs(wkup_cbass0_fwls, ARRAY_SIZE(wkup_cbass0_fwls));
-#endif
 #else
 	/* Prepare console output */
 	preloader_console_init();
@@ -291,7 +286,7 @@ void board_init_f(ulong dummy)
 	spl_enable_dcache();
 }
 
-u32 spl_mmc_boot_mode(const u32 boot_device)
+u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 {
 	switch (boot_device) {
 	case BOOT_DEVICE_MMC1:
@@ -355,6 +350,17 @@ static u32 __get_primary_bootmedia(u32 main_devstat, u32 wkup_devstat)
 	return bootmode;
 }
 
+u32 spl_spi_boot_bus(void)
+{
+	u32 wkup_devstat = readl(CTRLMMR_WKUP_DEVSTAT);
+	u32 main_devstat = readl(CTRLMMR_MAIN_DEVSTAT);
+	u32 bootmode = ((wkup_devstat & WKUP_DEVSTAT_PRIMARY_BOOTMODE_MASK) >>
+			WKUP_DEVSTAT_PRIMARY_BOOTMODE_SHIFT) |
+			((main_devstat & MAIN_DEVSTAT_BOOT_MODE_B_MASK) << BOOT_MODE_B_SHIFT);
+
+	return (bootmode == BOOT_DEVICE_QSPI) ? 1 : 0;
+}
+
 u32 spl_boot_device(void)
 {
 	u32 wkup_devstat = readl(CTRLMMR_WKUP_DEVSTAT);
@@ -373,7 +379,6 @@ u32 spl_boot_device(void)
 	else
 		return __get_backup_bootmedia(main_devstat);
 }
-#endif
 
 #ifdef CONFIG_SYS_K3_SPL_ATF
 

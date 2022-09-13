@@ -22,10 +22,6 @@
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x80000000UL
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	4
-
-#define CONFIG_SYS_SPD_BUS_NUM		0
 #define SPD_EEPROM_ADDRESS		0x54
 
 /* POST memory regions test */
@@ -65,17 +61,10 @@
 					FTIM2_NOR_TWP(0xb))
 #define CONFIG_SYS_NOR_FTIM3		0
 
-#define CONFIG_SYS_FLASH_QUIET_TEST
 #define CONFIG_FLASH_SHOW_PROGRESS	45	/* count down from 45/5: 9..1 */
 
-#define CONFIG_SYS_MAX_FLASH_SECT	512	/* sectors per device */
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BASE_PHYS }
 
-#define CONFIG_CFI_FLASH_USE_WEAK_ACCESSORS
 #define CONFIG_SYS_WRITE_SWAPPED_DATA
 
 #define CONFIG_SYS_CSPR0_EXT		CONFIG_SYS_NOR0_CSPR_EXT
@@ -178,16 +167,7 @@
 					{1, {I2C_NULL_HOP}                 }, \
 				}
 
-/*
- * eTSEC
- */
-#ifdef CONFIG_TSEC_ENET
-#define CONFIG_ETHPRIME			"ethernet@2d90000"
-#endif
-
-#define CONFIG_LAYERSCAPE_NS_ACCESS
 #define CONFIG_SMP_PEN_ADDR		0x01ee0200
-#define COUNTER_FREQUENCY		8333333
 
 #define CONFIG_HWCONFIG
 #define HWCONFIG_BUFFER_SIZE		256
@@ -199,15 +179,7 @@
 
 #define CONFIG_LS102XA_STREAM_ID
 
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
-
-#define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_TEXT_BASE /* start of monitor */
 #define CONFIG_SYS_MONITOR_LEN		0x100000     /* 1Mbyte */
-
-#define CONFIG_SYS_BOOTCOUNT_BE
 
 /*
  * Environment
@@ -271,9 +243,6 @@
 	"ethrotate=no\0"						\
 	""
 
-#define CONFIG_SYS_BOOTM_LEN	(64 << 20) /* Increase max gunzip size */
 #define CONFIG_SYS_BOOTMAPSZ	(256 << 20) /* Increase map for Linux */
-
-#define CONFIG_MISC_INIT_F
 
 #endif

@@ -532,7 +532,7 @@ static int fsl_pcie_fixup_classcode(struct fsl_pcie *pcie)
 
 	fsl_pcie_hose_read_config_dword(pcie, classcode_reg, &val);
 	val &= 0xff;
-	val |= PCI_CLASS_BRIDGE_PCI << 16;
+	val |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
 	fsl_pcie_hose_write_config_dword(pcie, classcode_reg, val);
 
 	if (pcie->block_rev >= PEX_IP_BLK_REV_3_0)
@@ -646,7 +646,7 @@ static struct fsl_pcie_data t2080_data = {
 };
 
 static const struct udevice_id fsl_pcie_ids[] = {
-	{ .compatible = "fsl,pcie-mpc8548", .data = (ulong)&p1_p2_data },
+	{ .compatible = "fsl,mpc8548-pcie", .data = (ulong)&p1_p2_data },
 	{ .compatible = "fsl,pcie-p1_p2", .data = (ulong)&p1_p2_data },
 	{ .compatible = "fsl,pcie-p2041", .data = (ulong)&p2041_data },
 	{ .compatible = "fsl,pcie-p3041", .data = (ulong)&p2041_data },

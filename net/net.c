@@ -907,6 +907,9 @@ static struct ip_udp_hdr *__net_defragment(struct ip_udp_hdr *ip, int *lenp)
 	int offset8, start, len, done = 0;
 	u16 ip_off = ntohs(ip->ip_off);
 
+	if (ip->ip_len < IP_MIN_FRAG_DATAGRAM_SIZE)
+		return NULL;
+
 	/* payload starts after IP header, this fragment is in there */
 	payload = (struct hole *)(pkt_buff + IP_HDR_SIZE);
 	offset8 =  (ip_off & IP_OFFS);
@@ -1538,14 +1541,19 @@ int is_serverip_in_cmd(void)
 int net_parse_bootfile(struct in_addr *ipaddr, char *filename, int max_len)
 {
 	char *colon;
+	struct in_addr ip;
+	ip.s_addr = 0;
 
 	if (net_boot_file_name[0] == '\0')
 		return 0;
 
 	colon = strchr(net_boot_file_name, ':');
 	if (colon) {
-		if (ipaddr)
-			*ipaddr = string_to_ip(net_boot_file_name);
+		ip = string_to_ip(net_boot_file_name);
+		if (ipaddr && ip.s_addr)
+			*ipaddr = ip;
+	}
+	if (ip.s_addr) {
 		strncpy(filename, colon + 1, max_len);
 	} else {
 		strncpy(filename, net_boot_file_name, max_len);

@@ -455,7 +455,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	int part;
 	struct disk_partition tmpinfo;
 
-#ifdef CONFIG_SANDBOX
+#if IS_ENABLED(CONFIG_SANDBOX) || IS_ENABLED(CONFIG_SEMIHOSTING)
 	/*
 	 * Special-case a pseudo block device "hostfs", to allow access to the
 	 * host's own filesystem.
@@ -467,7 +467,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		info->blksz = 0;
 		info->bootable = 0;
 		strcpy((char *)info->type, BOOT_PART_TYPE);
-		strcpy((char *)info->name, "Sandbox host");
+		strcpy((char *)info->name, "Host filesystem");
 #if CONFIG_IS_ENABLED(PARTITION_UUIDS)
 		info->uuid[0] = 0;
 #endif
@@ -479,7 +479,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	}
 #endif
 
-#ifdef CONFIG_CMD_UBIFS
+#if IS_ENABLED(CONFIG_CMD_UBIFS) && !IS_ENABLED(CONFIG_SPL_BUILD)
 	/*
 	 * Special-case ubi, ubi goes through a mtd, rather than through
 	 * a regular block device.
@@ -527,6 +527,8 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	/* Look up the device */
 	dev = blk_get_device_by_str(ifname, dev_str, dev_desc);
 	if (dev < 0) {
+		printf("** Bad device specification %s %s **\n",
+		       ifname, dev_str);
 		ret = dev;
 		goto cleanup;
 	}

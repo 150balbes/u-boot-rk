@@ -83,6 +83,12 @@ struct cpld_data {
 #define CPLD_FXS_LED	0x0F
 #define CPLD_SYS_RST	0x00
 
+void board_reset(void)
+{
+	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
+	out_8(&cpld_data->system_rst, 1);
+}
+
 void board_cpld_init(void)
 {
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
@@ -147,12 +153,16 @@ int board_early_init_f(void)
 {
 	ccsr_gur_t *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
 
-	setbits_be32(&gur->pmuxcr,
-			(MPC85xx_PMUXCR_SDHC_CD | MPC85xx_PMUXCR_SDHC_WP));
+	setbits_be32(&gur->pmuxcr, MPC85xx_PMUXCR_SDHC_CD);
+#ifndef SDHC_WP_IS_GPIO
+	setbits_be32(&gur->pmuxcr, MPC85xx_PMUXCR_SDHC_WP);
+#endif
 	clrbits_be32(&gur->sdhcdcr, SDHCDCR_CD_INV);
 
 	clrbits_be32(&gur->pmuxcr, MPC85xx_PMUXCR_SD_DATA);
+#if defined(CONFIG_TARGET_P1020RDB_PD) || defined(CONFIG_TARGET_P1020RDB_PC)
 	setbits_be32(&gur->pmuxcr, MPC85xx_PMUXCR_TDM_ENA);
+#endif
 
 	board_gpio_init();
 	board_cpld_init();
@@ -160,14 +170,27 @@ int board_early_init_f(void)
 	return 0;
 }
 
+#if defined(CONFIG_TARGET_P1020RDB_PC)
+#define BOARD_NAME "P1020RDB-PC"
+#elif defined(CONFIG_TARGET_P1020RDB_PD)
+#define BOARD_NAME "P1020RDB-PD"
+#elif defined(CONFIG_TARGET_P2020RDB)
+#define BOARD_NAME "P2020RDB-PC"
+#endif
+
 int checkboard(void)
 {
 	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
 	ccsr_gur_t *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
-	u8 in, out, io_config, val;
+	u8 in, out, invert, io_config, val;
 	int bus_num = CONFIG_SYS_SPD_BUS_NUM;
 
-	printf("Board: %s CPLD: V%d.%d PCBA: V%d.0\n", CONFIG_BOARDNAME,
+	/* FIXME: This should just use the model from the device tree or similar */
+#ifdef BOARD_NAME
+	printf("Board: %s ", BOARD_NAME);
+#endif
+
+	printf("CPLD: V%d.%d PCBA: V%d.0\n",
 		in_8(&cpld_data->cpld_rev_major) & 0x0F,
 		in_8(&cpld_data->cpld_rev_minor) & 0x0F,
 		in_8(&cpld_data->pcba_rev) & 0x0F);
@@ -182,11 +205,12 @@ int checkboard(void)
 	if (ret) {
 		printf("%s: Cannot find udev for a bus %d\n", __func__,
 		       bus_num);
-		return -ENXIO;
+		return 0; /* Don't want to hang() on this error */
 	}
 
 	if (dm_i2c_read(dev, 0, &in, 1) < 0 ||
 	    dm_i2c_read(dev, 1, &out, 1) < 0 ||
+	    dm_i2c_read(dev, 2, &invert, 1) < 0 ||
 	    dm_i2c_read(dev, 3, &io_config, 1) < 0) {
 		printf("Error reading i2c boot information!\n");
 		return 0; /* Don't want to hang() on this error */
@@ -196,17 +220,25 @@ int checkboard(void)
 
 	if (i2c_read(CONFIG_SYS_I2C_PCA9557_ADDR, 0, 1, &in, 1) < 0 ||
 	    i2c_read(CONFIG_SYS_I2C_PCA9557_ADDR, 1, 1, &out, 1) < 0 ||
+	    i2c_read(CONFIG_SYS_I2C_PCA9557_ADDR, 2, 1, &invert, 1) < 0 ||
 	    i2c_read(CONFIG_SYS_I2C_PCA9557_ADDR, 3, 1, &io_config, 1) < 0) {
 		printf("Error reading i2c boot information!\n");
 		return 0; /* Don't want to hang() on this error */
 	}
 	#endif
 
-	val = (in & io_config) | (out & (~io_config));
+	val = ((in ^ invert) & io_config) | (out & (~io_config));
 
 	puts("rom_loc: ");
-	if ((val & (~__SW_BOOT_MASK)) == __SW_BOOT_SD) {
+	if (0) {
+#ifdef __SW_BOOT_SD
+	} else if ((val & (~__SW_BOOT_MASK)) == __SW_BOOT_SD) {
 		puts("sd");
+#endif
+#ifdef __SW_BOOT_SD2
+	} else if ((val & (~__SW_BOOT_MASK)) == __SW_BOOT_SD2) {
+		puts("sd");
+#endif
 #ifdef __SW_BOOT_SPI
 	} else if ((val & (~__SW_BOOT_MASK)) == __SW_BOOT_SPI) {
 		puts("spi");
@@ -344,9 +376,9 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 #if defined(CONFIG_TARGET_P1020RDB_PD) || defined(CONFIG_TARGET_P1020RDB_PC)
 	const char *soc_usb_compat = "fsl-usb2-dr";
 	int usb_err, usb1_off, usb2_off;
-#endif
 #if defined(CONFIG_SDCARD) || defined(CONFIG_SPIFLASH)
 	int err;
+#endif
 #endif
 
 	ft_cpu_setup(blob, bd);
@@ -365,6 +397,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	fsl_fdt_fixup_dr_usb(blob, bd);
 #endif
 
+#if defined(CONFIG_TARGET_P1020RDB_PD) || defined(CONFIG_TARGET_P1020RDB_PC)
 #if defined(CONFIG_SDCARD) || defined(CONFIG_SPIFLASH)
 	/* Delete eLBC node as it is muxed with USB2 controller */
 	if (hwconfig("usb2")) {
@@ -386,7 +419,6 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	}
 #endif
 
-#if defined(CONFIG_TARGET_P1020RDB_PD) || defined(CONFIG_TARGET_P1020RDB_PC)
 /* Delete USB2 node as it is muxed with eLBC */
 	usb1_off = fdt_node_offset_by_compatible(blob, -1,
 		soc_usb_compat);

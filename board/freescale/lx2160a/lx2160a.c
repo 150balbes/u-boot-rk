@@ -5,6 +5,7 @@
 
 #include <common.h>
 #include <clock_legacy.h>
+#include <display_options.h>
 #include <dm.h>
 #include <init.h>
 #include <asm/global_data.h>
@@ -14,7 +15,6 @@
 #include <errno.h>
 #include <netdev.h>
 #include <fsl_ddr.h>
-#include <fsl_sec.h>
 #include <asm/io.h>
 #include <fdt_support.h>
 #include <linux/bitops.h>
@@ -357,27 +357,6 @@ int checkboard(void)
 }
 
 #if defined(CONFIG_TARGET_LX2160AQDS) || defined(CONFIG_TARGET_LX2162AQDS)
-/*
- * implementation of CONFIG_ESDHC_DETECT_QUIRK Macro.
- */
-u8 qixis_esdhc_detect_quirk(void)
-{
-	/*
-	 * SDHC1 Card ID:
-	 * Specifies the type of card installed in the SDHC1 adapter slot.
-	 * 000= (reserved)
-	 * 001= eMMC V4.5 adapter is installed.
-	 * 010= SD/MMC 3.3V adapter is installed.
-	 * 011= eMMC V4.4 adapter is installed.
-	 * 100= eMMC V5.0 adapter is installed.
-	 * 101= MMC card/Legacy (3.3V) adapter is installed.
-	 * 110= SDCard V2/V3 adapter installed.
-	 * 111= no adapter is installed.
-	 */
-	return ((QIXIS_READ(sdhc1) & QIXIS_SDID_MASK) !=
-		 QIXIS_ESDHC_NO_ADAPTER);
-}
-
 static void esdhc_adapter_card_ident(void)
 {
 	u8 card_id, val;
@@ -591,10 +570,6 @@ int board_init(void)
 #if defined(CONFIG_FSL_MC_ENET) && defined(CONFIG_TARGET_LX2160ARDB)
 	/* invert AQR107 IRQ pins polarity */
 	out_le32(irq_ccsr + IRQCR_OFFSET / 4, AQR107_IRQ_MASK);
-#endif
-
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
 #endif
 
 #if !defined(CONFIG_SYS_EARLY_PCI_INIT) && defined(CONFIG_DM_ETH)

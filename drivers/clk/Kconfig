@@ -30,6 +30,32 @@ config TPL_CLK
 	  setting up clocks within TPL, and allows the same drivers to be
 	  used as U-Boot proper.
 
+config VPL_CLK
+	bool "Enable clock support in VPL"
+	depends on CLK && VPL_DM
+	help
+	  The clock subsystem adds a small amount of overhead to the image.
+	  If this is acceptable and you have a need to use clock drivers in
+	  SPL, enable this option. It might provide a cleaner interface to
+	  setting up clocks within TPL, and allows the same drivers to be
+	  used as U-Boot proper.
+
+config CLK_BCM6345
+	bool "Clock controller driver for BCM6345"
+	depends on CLK && ARCH_BMIPS
+	default y
+	help
+	  This clock driver adds support for enabling and disabling peripheral
+	  clocks on BCM6345 SoCs. HW has no rate changing capabilities.
+
+config CLK_BOSTON
+	def_bool y if TARGET_BOSTON
+	depends on CLK
+	select REGMAP
+	select SYSCON
+	help
+	  Enable this to support the clocks
+
 config SPL_CLK_CCF
 	bool "SPL Common Clock Framework [CCF] support "
 	depends on SPL
@@ -140,22 +166,6 @@ config CLK_SCMI
 	  by a SCMI agent based on SCMI clock protocol communication
 	  with a SCMI server.
 
-config CLK_STM32F
-	bool "Enable clock driver support for STM32F family"
-	depends on CLK && (STM32F7 || STM32F4)
-	default y
-	help
-	  This clock driver adds support for RCC clock management
-	  for STM32F4 and STM32F7 SoCs.
-
-config CLK_STM32MP1
-	bool "Enable RCC clock driver for STM32MP1"
-	depends on ARCH_STM32MP && CLK
-	default y
-	help
-	  Enable the STM32 clock (RCC) driver. Enable support for
-	  manipulating STM32MP1's on-SoC clocks.
-
 config CLK_HSDK
 	bool "Enable cgu clock driver for HSDK boards"
 	depends on CLK && TARGET_HSDK
@@ -225,6 +235,7 @@ source "drivers/clk/owl/Kconfig"
 source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/sunxi/Kconfig"
 source "drivers/clk/sifive/Kconfig"
+source "drivers/clk/stm32/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"

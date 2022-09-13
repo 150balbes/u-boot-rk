@@ -18,13 +18,10 @@
 /*-----------------------------------------------------------------------
  *  System memory Configuration
  */
-#define CONFIG_SYS_INIT_SP_ADDR		CONFIG_SYS_TEXT_BASE
-#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
-#define CONFIG_SYS_MEM_SIZE		0x40000000
 #define CONFIG_SYS_SDRAM_BASE		0x71000000
 
 /*
- * "(CONFIG_SYS_MEM_SIZE - CONFIG_SYS_RESERVE_MEM_SIZE)" has been used in
+ * "(0x40000000 - CONFIG_SYS_RESERVE_MEM_SIZE)" has been used in
  * u-boot nanopi2-v2016.01.
  * This is not working anymore because boot_fdt_add_mem_rsv_regions() in
  * common/image-fdt.c has been extended:
@@ -77,22 +74,6 @@
  *  System initialize options (board_init_f)
  */
 /* board_init_f->init_sequence, call arch_cpu_init */
-
-/* Console I/O Buffer Size */
-#define CONFIG_SYS_CBSIZE		1024
-/* Print Buffer Size */
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE +             \
-					 sizeof(CONFIG_SYS_PROMPT) + 16)
-/* max number of command args */
-#define CONFIG_SYS_MAXARGS		16
-/* Boot Argument Buffer Size */
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
-
-/*-----------------------------------------------------------------------
- * Etc Command definition
- */
-#undef CONFIG_BOOTM_NETBSD
-#undef CONFIG_BOOTM_RTEMS
 
 /*-----------------------------------------------------------------------
  * serial console configuration

@@ -699,9 +699,11 @@ static int sil_pci_probe(struct udevice *dev)
 
 	/* Read out all BARs */
 	sata_info.iobase[0] = (ulong)dm_pci_map_bar(dev,
-			PCI_BASE_ADDRESS_0, PCI_REGION_MEM);
+			PCI_BASE_ADDRESS_0, 0, 0, PCI_REGION_TYPE,
+			PCI_REGION_MEM);
 	sata_info.iobase[1] = (ulong)dm_pci_map_bar(dev,
-			PCI_BASE_ADDRESS_2, PCI_REGION_MEM);
+			PCI_BASE_ADDRESS_2, 0, 0, PCI_REGION_TYPE,
+			PCI_REGION_MEM);
 
 	/* mask out the unused bits */
 	sata_info.iobase[0] &= 0xffffff80;
@@ -747,6 +749,18 @@ static int sil_pci_probe(struct udevice *dev)
 		ret = scan_sata(blk, i);
 		if (ret) {
 			ret = sil_unbind_device(blk);
+			if (ret)
+				return ret;
+
+			failed_number++;
+			continue;
+		}
+
+		ret = device_probe(dev);
+		if (ret < 0) {
+			debug("Probing %s failed (%d)\n", dev->name, ret);
+			ret = sil_unbind_device(blk);
+			device_unbind(dev);
 			if (ret)
 				return ret;
 

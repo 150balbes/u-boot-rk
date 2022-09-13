@@ -97,6 +97,13 @@ config SPI_FLASH_SMART_HWCAPS
 	 can support a type of operation in a much more refined way compared
 	 to using flags like SPI_RX_DUAL, SPI_TX_QUAD, etc.
 
+config SPI_NOR_BOOT_SOFT_RESET_EXT_INVERT
+	bool "Command extension type is INVERT for Software Reset on boot"
+	default n
+	help
+	 Because of SFDP information can not be get before boot.
+	 So define command extension type is INVERT when Software Reset on boot only.
+
 config SPI_FLASH_SOFT_RESET
 	bool "Software Reset support for SPI NOR flashes"
 	help
@@ -202,12 +209,6 @@ config SPI_FLASH_XTX
 	  Add support for various XTX (XTX Technology Limited)
 	  SPI flash chips (XT25xxx).
 
-config SPI_FLASH_XTX
-	bool "XTX SPI flash support"
-	help
-	  Add support for various XTX (Shenzhen Xin Tian Xia Tech)
-	  SPI flash chips (XM25xxx)
-
 endif
 
 config SPI_FLASH_USE_4K_SECTORS
@@ -254,7 +255,7 @@ config SPI_FLASH_MTD
 
 config SPL_SPI_FLASH_MTD
 	bool "SPI flash MTD support for SPL"
-	depends on SPI_FLASH
+	depends on SPI_FLASH && SPL
 	help
           Enable the MTD support for the SPI flash layer in SPL.
 

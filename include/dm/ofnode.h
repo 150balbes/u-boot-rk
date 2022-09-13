@@ -12,77 +12,19 @@
 #include <dm/of.h>
 #include <dm/of_access.h>
 #include <log.h>
+#include <phy_interface.h>
 
 /* Enable checks to protect against invalid calls */
 #undef OF_CHECKS
 
 struct resource;
 
-/**
- * typedef union ofnode_union ofnode - reference to a device tree node
- *
- * This union can hold either a straightforward pointer to a struct device_node
- * in the live device tree, or an offset within the flat device tree. In the
- * latter case, the pointer value is just the integer offset within the flat DT.
- *
- * Thus we can reference nodes in both the live tree (once available) and the
- * flat tree (until then). Functions are available to translate between an
- * ofnode and either an offset or a `struct device_node *`.
- *
- * The reference can also hold a null offset, in which case the pointer value
- * here is NULL. This corresponds to a struct device_node * value of
- * NULL, or an offset of -1.
- *
- * There is no ambiguity as to whether ofnode holds an offset or a node
- * pointer: when the live tree is active it holds a node pointer, otherwise it
- * holds an offset. The value itself does not need to be unique and in theory
- * the same value could point to a valid device node or a valid offset. We
- * could arrange for a unique value to be used (e.g. by making the pointer
- * point to an offset within the flat device tree in the case of an offset) but
- * this increases code size slightly due to the subtraction. Since it offers no
- * real benefit, the approach described here seems best.
- *
- * For now these points use constant types, since we don't allow writing
- * the DT.
- *
- * @np: Pointer to device node, used for live tree
- * @of_offset: Pointer into flat device tree, used for flat tree. Note that this
- *	is not a really a pointer to a node: it is an offset value. See above.
- */
-typedef union ofnode_union {
-	const struct device_node *np;
-	long of_offset;
-} ofnode;
+#include <dm/ofnode_decl.h>
 
 struct ofnode_phandle_args {
 	ofnode node;
 	int args_count;
 	uint32_t args[OF_MAX_PHANDLE_ARGS];
-};
-
-/**
- * struct ofprop - reference to a property of a device tree node
- *
- * This struct hold the reference on one property of one node,
- * using struct ofnode and an offset within the flat device tree or either
- * a pointer to a struct property in the live device tree.
- *
- * Thus we can reference arguments in both the live tree and the flat tree.
- *
- * The property reference can also hold a null reference. This corresponds to
- * a struct property NULL pointer or an offset of -1.
- *
- * @node: Pointer to device node
- * @offset: Pointer into flat device tree, used for flat tree.
- * @prop: Pointer to property, used for live treee.
- */
-
-struct ofprop {
-	ofnode node;
-	union {
-		int offset;
-		const struct property *prop;
-	};
 };
 
 /**
@@ -100,6 +42,24 @@ static inline const struct device_node *ofnode_to_np(ofnode node)
 		return NULL;
 #endif
 	return node.np;
+}
+
+/**
+ * ofnode_to_npw() - convert an ofnode to a writeable live DT node pointer
+ *
+ * This cannot be called if the reference contains an offset.
+ *
+ * @node: Reference containing struct device_node * (possibly invalid)
+ * Return: pointer to device node (can be NULL)
+ */
+static inline struct device_node *ofnode_to_npw(ofnode node)
+{
+#ifdef OF_CHECKS
+	if (!of_live_active())
+		return NULL;
+#endif
+	/* Drop constant */
+	return (struct device_node *)node.np;
 }
 
 /**
@@ -232,6 +192,23 @@ static inline ofnode ofnode_root(void)
 		node.of_offset = 0;
 
 	return node;
+}
+
+/**
+ * oftree_default() - Returns the default device tree (U-Boot's control FDT)
+ *
+ * Returns: reference to the control FDT
+ */
+static inline oftree oftree_default(void)
+{
+	oftree tree;
+
+	if (of_live_active())
+		tree.np = gd_of_root();
+	else
+		tree.fdt = (void *)gd->fdt_blob;
+
+	return tree;
 }
 
 /**
@@ -698,10 +675,21 @@ int ofnode_count_phandle_with_args(ofnode node, const char *list_name,
 /**
  * ofnode_path() - find a node by full path
  *
+ * This uses the control FDT.
+ *
  * @path: Full path to node, e.g. "/bus/spi@1"
  * Return: reference to the node found. Use ofnode_valid() to check if it exists
  */
 ofnode ofnode_path(const char *path);
+
+/**
+ * ofnode_path_root() - find a node by full path from a root node
+ *
+ * @tree: Device tree to use
+ * @path: Full path to node, e.g. "/bus/spi@1"
+ * Return: reference to the node found. Use ofnode_valid() to check if it exists
+ */
+ofnode ofnode_path_root(oftree tree, const char *path);
 
 /**
  * ofnode_read_chosen_prop() - get the value of a chosen property
@@ -893,6 +881,19 @@ int ofnode_read_pci_addr(ofnode node, enum fdt_pci_space type,
  * Return: 0 if ok, negative on error
  */
 int ofnode_read_pci_vendev(ofnode node, u16 *vendor, u16 *device);
+
+/**
+ * ofnode_read_eth_phy_id() - look up eth phy vendor and device id
+ *
+ * Look at the compatible property of a device node that represents a eth phy
+ * device and extract phy vendor id and device id from it.
+ *
+ * @node:	node to examine
+ * @vendor:	vendor id of the eth phy device
+ * @device:	device id of the eth phy device
+ * Return:	 0 if ok, negative on error
+ */
+int ofnode_read_eth_phy_id(ofnode node, u16 *vendor, u16 *device);
 
 /**
  * ofnode_read_addr_cells() - Get the number of address cells for a node
@@ -1126,17 +1127,18 @@ int ofnode_device_is_compatible(ofnode node, const char *compat);
  * ofnode_write_prop() - Set a property of a ofnode
  *
  * Note that the value passed to the function is *not* allocated by the
- * function itself, but must be allocated by the caller if necessary.
+ * function itself, but must be allocated by the caller if necessary. However
+ * it does allocate memory for the property struct and name.
  *
  * @node:	The node for whose property should be set
  * @propname:	The name of the property to set
- * @len:	The length of the new value of the property
  * @value:	The new value of the property (must be valid prior to calling
  *		the function)
+ * @len:	The length of the new value of the property
  * Return: 0 if successful, -ve on error
  */
-int ofnode_write_prop(ofnode node, const char *propname, int len,
-		      const void *value);
+int ofnode_write_prop(ofnode node, const char *propname, const void *value,
+		      int len);
 
 /**
  * ofnode_write_string() - Set a string property of a ofnode
@@ -1153,6 +1155,16 @@ int ofnode_write_prop(ofnode node, const char *propname, int len,
 int ofnode_write_string(ofnode node, const char *propname, const char *value);
 
 /**
+ * ofnode_write_u32() - Set an integer property of an ofnode
+ *
+ * @node:	The node for whose string property should be set
+ * @propname:	The name of the string property to set
+ * @value:	The new value of the 32-bit integer property
+ * Return: 0 if successful, -ve on error
+ */
+int ofnode_write_u32(ofnode node, const char *propname, u32 value);
+
+/**
  * ofnode_set_enabled() - Enable or disable a device tree node given by its
  *			  ofnode
  *
@@ -1167,6 +1179,33 @@ int ofnode_write_string(ofnode node, const char *propname, const char *value);
  */
 int ofnode_set_enabled(ofnode node, bool value);
 
+/**
+ * ofnode_get_phy_node() - Get PHY node for a MAC (if not fixed-link)
+ *
+ * This function parses PHY handle from the Ethernet controller's ofnode
+ * (trying all possible PHY handle property names), and returns the PHY ofnode.
+ *
+ * Before this is used, ofnode_phy_is_fixed_link() should be checked first, and
+ * if the result to that is true, this function should not be called.
+ *
+ * @eth_node:	ofnode belonging to the Ethernet controller
+ * Return: ofnode of the PHY, if it exists, otherwise an invalid ofnode
+ */
+ofnode ofnode_get_phy_node(ofnode eth_node);
+
+/**
+ * ofnode_read_phy_mode() - Read PHY connection type from a MAC node
+ *
+ * This function parses the "phy-mode" / "phy-connection-type" property and
+ * returns the corresponding PHY interface type.
+ *
+ * @mac_node:	ofnode containing the property
+ * Return: one of PHY_INTERFACE_MODE_* constants, PHY_INTERFACE_MODE_NA on
+ *	   error
+ */
+phy_interface_t ofnode_read_phy_mode(ofnode mac_node);
+
+#if CONFIG_IS_ENABLED(DM)
 /**
  * ofnode_conf_read_bool() - Read a boolean value from the U-Boot config
  *
@@ -1203,5 +1242,22 @@ int ofnode_conf_read_int(const char *prop_name, int default_val);
  * Return: string value, if found, or NULL if not
  */
 const char *ofnode_conf_read_str(const char *prop_name);
+
+#else /* CONFIG_DM */
+static inline bool ofnode_conf_read_bool(const char *prop_name)
+{
+	return false;
+}
+
+static inline int ofnode_conf_read_int(const char *prop_name, int default_val)
+{
+	return default_val;
+}
+
+static inline const char *ofnode_conf_read_str(const char *prop_name)
+{
+	return NULL;
+}
+#endif /* CONFIG_DM */
 
 #endif

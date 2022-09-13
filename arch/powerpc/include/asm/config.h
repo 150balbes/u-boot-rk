@@ -14,8 +14,6 @@
   #define HWCONFIG_BUFFER_SIZE 256
 #endif
 
-#define CONFIG_SYS_BOOT_RAMDISK_HIGH
-
 #ifndef CONFIG_MAX_MEM_MAPPED
 #if	defined(CONFIG_E500)		|| \
 	defined(CONFIG_MPC86xx)		|| \
@@ -31,9 +29,7 @@
  * Freescale's default e500 reset page.
  */
 #if (defined(CONFIG_E500) && defined(CONFIG_MP))
-#ifndef CONFIG_BPTR_VIRT_ADDR
-#define CONFIG_BPTR_VIRT_ADDR	0xfffff000
-#endif
+#define BPTR_VIRT_ADDR	0xfffff000
 #endif
 
 /* Since so many PPC SOCs have a semi-common LBC, define this here */

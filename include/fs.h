@@ -17,6 +17,8 @@ struct cmd_tbl;
 #define FS_TYPE_UBIFS	4
 #define FS_TYPE_BTRFS	5
 #define FS_TYPE_SQUASHFS 6
+#define FS_TYPE_EROFS   7
+#define FS_TYPE_SEMIHOSTING 8
 
 struct blk_desc;
 
@@ -44,7 +46,7 @@ int do_fat_fsload(struct cmd_tbl *cmdtp, int flag, int argc,
 int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
 
 /*
- * Tell the fs layer which block device an partition to use for future
+ * Tell the fs layer which block device and partition to use for future
  * commands. This also internally identifies the filesystem that is present
  * within the partition. The identification process may be limited to a
  * specific filesystem type by passing FS_* in the fstype parameter.
@@ -54,6 +56,17 @@ int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
  * no known filesystem type could be recognized on it.
  */
 int fs_set_blk_dev(const char *ifname, const char *dev_part_str, int fstype);
+
+/**
+ * fs_set_type() - Tell fs layer which filesystem type is used
+ *
+ * This is needed when reading from a non-block device such as sandbox. It does
+ * a similar job to fs_set_blk_dev() but just sets the filesystem type instead
+ * of detecting it and loading it on the block device
+ *
+ * @type: Filesystem type to use (FS_TYPE...)
+ */
+void fs_set_type(int type);
 
 /*
  * fs_set_blk_dev_with_part - Set current block device + partition
@@ -161,6 +174,8 @@ int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 #define FS_DT_REG  8         /* regular file */
 #define FS_DT_LNK  10        /* symbolic link */
 
+#define FS_DIRENT_NAME_LEN 256
+
 /**
  * struct fs_dirent - directory entry
  *
@@ -181,7 +196,7 @@ struct fs_dirent {
 	/** change_time:	time of last modification */
 	struct rtc_time change_time;
 	/** name:		file name */
-	char name[256];
+	char name[FS_DIRENT_NAME_LEN];
 };
 
 /* Note: fs_dir_stream should be treated as opaque to the user of fs layer */

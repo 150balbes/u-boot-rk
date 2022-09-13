@@ -22,37 +22,12 @@
 
 #define CONFIG_WATCHDOG_TIMEOUT	5000	/* timeout in milliseconds, max timeout is 6.71sec */
 
-/*
- * BOOTP options
- */
-#define CONFIG_BOOTP_BOOTFILESIZE
-
-#ifdef CONFIG_MCFFEC
-#	define CONFIG_MII_INIT		1
-#	define CONFIG_SYS_DISCOVER_PHY
-#	define CONFIG_SYS_RX_ETH_BUFFER	8
-#	define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-/* If CONFIG_SYS_DISCOVER_PHY is not defined - hardcoded */
-#	ifndef CONFIG_SYS_DISCOVER_PHY
-#		define FECDUPLEX	FULL
-#		define FECSPEED		_100BASET
-#	else
-#		ifndef CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-#			define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-#		endif
-#	endif			/* CONFIG_SYS_DISCOVER_PHY */
-#endif
-
-/* Timer */
-#define CONFIG_MCFTMR
-
 /* I2C */
 #define CONFIG_SYS_I2C_PINMUX_REG	(gpio->par_qspi)
 #define CONFIG_SYS_I2C_PINMUX_CLR	~(GPIO_PAR_FECI2C_SCL_MASK | GPIO_PAR_FECI2C_SDA_MASK)
 #define CONFIG_SYS_I2C_PINMUX_SET	(GPIO_PAR_FECI2C_SCL_I2CSCL | GPIO_PAR_FECI2C_SDA_I2CSDA)
 
 /* this must be included AFTER the definition of CONFIG COMMANDS (if any) */
-#define CONFIG_BOOTFILE		"u-boot.bin"
 #ifdef CONFIG_MCFFEC
 #	define CONFIG_IPADDR	192.162.1.2
 #	define CONFIG_NETMASK	255.255.255.0
@@ -91,8 +66,6 @@
 #define CONFIG_SYS_INIT_RAM_ADDR	0x20000000
 #define CONFIG_SYS_INIT_RAM_SIZE	0x10000	/* Size of used area in internal SRAM */
 #define CONFIG_SYS_INIT_RAM_CTRL	0x21
-#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE - 0x10)
-#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
 
 /*-----------------------------------------------------------------------
  * Start addresses for the final memory configuration
@@ -102,10 +75,7 @@
 #define CONFIG_SYS_SDRAM_BASE		0x00000000
 #define CONFIG_SYS_SDRAM_SIZE		16	/* SDRAM size in MB */
 
-#define CONFIG_SYS_MONITOR_BASE	(CONFIG_SYS_FLASH_BASE + 0x400)
 #define CONFIG_SYS_MONITOR_LEN		(256 << 10)	/* Reserve 256 kB for Monitor */
-
-#define CONFIG_SYS_BOOTPARAMS_LEN	64*1024
 
 /*
  * For booting Linux, the board info and command line data
@@ -114,19 +84,12 @@
  */
 /* Initial Memory map for Linux */
 #define CONFIG_SYS_BOOTMAPSZ		(CONFIG_SYS_SDRAM_BASE + (CONFIG_SYS_SDRAM_SIZE << 20))
-#define CONFIG_SYS_BOOTM_LEN		(CONFIG_SYS_SDRAM_SIZE << 20)
 
 /*-----------------------------------------------------------------------
  * FLASH organization
  */
 #ifdef CONFIG_SYS_FLASH_CFI
 #	define CONFIG_SYS_FLASH_SIZE		0x800000	/* Max size that the board might have */
-#ifdef NORFLASH_PS32BIT
-#	define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_32BIT
-#else
-#	define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
-#endif
-#	define CONFIG_SYS_MAX_FLASH_SECT	137	/* max number of sectors on one chip */
 #endif
 
 #define CONFIG_SYS_FLASH_BASE		(CONFIG_SYS_CS0_BASE)
@@ -168,7 +131,7 @@
  * CS6 - Available
  * CS7 - Available
  */
-#ifdef NORFLASH_PS32BIT
+#ifdef CONFIG_NORFLASH_PS32BIT
 #	define CONFIG_SYS_CS0_BASE	0xFFC00000
 #	define CONFIG_SYS_CS0_MASK	0x003f0001
 #	define CONFIG_SYS_CS0_CTRL	0x00001D00

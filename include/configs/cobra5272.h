@@ -32,9 +32,6 @@
 #define CONFIG_SYS_CLK			66000000
 #define CONFIG_SYS_SDRAM_SIZE		16		/* SDRAM size in MB */
 
-/* Enable Dma Timer */
-#define CONFIG_MCFTMR
-
 /* ---
  * Define baudrate for UART1 (console output, tftp, ...)
  * default value of CONFIG_BAUDRATE for Sentec board: 19200 baud
@@ -87,27 +84,6 @@
 #define LDS_BOARD_TEXT \
 	. = DEFINED(env_offset) ? env_offset : .; \
 	env/embedded.o(.text);
-
-/*
- * BOOTP options
- */
-#define CONFIG_BOOTP_BOOTFILESIZE
-
-#ifdef CONFIG_MCFFEC
-#	define CONFIG_MII_INIT		1
-#	define CONFIG_SYS_DISCOVER_PHY
-#	define CONFIG_SYS_RX_ETH_BUFFER	8
-#	define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-/* If CONFIG_SYS_DISCOVER_PHY is not defined - hardcoded */
-#	ifndef CONFIG_SYS_DISCOVER_PHY
-#		define FECDUPLEX	FULL
-#		define FECSPEED		_100BASET
-#	else
-#		ifndef CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-#			define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-#		endif
-#	endif			/* CONFIG_SYS_DISCOVER_PHY */
-#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -167,21 +143,11 @@ enter a valid image address in flash */
 #define CONFIG_SYS_SCR			0x0003
 #define CONFIG_SYS_SPR			0xffff
 
-/* ---
- * Ethernet settings
- * ---
- */
-
-#define CONFIG_SYS_DISCOVER_PHY
-#define CONFIG_SYS_ENET_BD_BASE	0x780000
-
 /*-----------------------------------------------------------------------
  * Definitions for initial stack pointer and data area (in internal SRAM)
  */
 #define CONFIG_SYS_INIT_RAM_ADDR	0x20000000
 #define CONFIG_SYS_INIT_RAM_SIZE	0x1000	/* Size of used area in internal SRAM	*/
-#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
 
 /*-----------------------------------------------------------------------
  * Start addresses for the final memory configuration
@@ -204,14 +170,7 @@ enter a valid image address in flash */
 
 #define CONFIG_SYS_FLASH_BASE		0xffe00000
 
-#ifdef	CONFIG_MONITOR_IS_IN_RAM
-#define CONFIG_SYS_MONITOR_BASE	0x20000
-#else
-#define CONFIG_SYS_MONITOR_BASE	(CONFIG_SYS_FLASH_BASE + 0x400)
-#endif
-
 #define CONFIG_SYS_MONITOR_LEN		0x20000
-#define CONFIG_SYS_BOOTPARAMS_LEN	64*1024
 
 /*
  * For booting Linux, the board info and command line data
@@ -219,12 +178,6 @@ enter a valid image address in flash */
  * the maximum mapped by the Linux kernel during initialization ??
  */
 #define CONFIG_SYS_BOOTMAPSZ		(8 << 20)	/* Initial Memory map for Linux */
-
-/*-----------------------------------------------------------------------
- * FLASH organization
- */
-#define CONFIG_SYS_MAX_FLASH_SECT	11	/* max number of sectors on one chip	*/
-#define CONFIG_SYS_FLASH_ERASE_TOUT	1000	/* flash timeout */
 
 /*-----------------------------------------------------------------------
  * Cache Configuration

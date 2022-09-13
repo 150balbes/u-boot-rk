@@ -16,10 +16,6 @@
 #define CONFIG_SYS_SRIO
 #define CONFIG_SRIO1			/* SRIO port 1 */
 
-#define CONFIG_PCI1		/* PCI controller 1 */
-#define CONFIG_PCIE1		/* PCIE controller 1 (slot 1) */
-#undef CONFIG_PCI2
-
 #define CONFIG_INTERRUPTS		/* enable pci, srio, ddr interrupts */
 
 #ifndef __ASSEMBLY__
@@ -30,12 +26,10 @@
  * These can be toggled for performance analysis, otherwise use default.
  */
 #define CONFIG_L2_CACHE			/* toggle L2 cache */
-#define CONFIG_BTB			/* toggle branch predition */
 
 /*
  * Only possible on E500 Version 2 or newer cores.
  */
-#define CONFIG_ENABLE_36BIT_PHYS	1
 
 #define CONFIG_SYS_CCSRBAR		0xe0000000
 #define CONFIG_SYS_CCSRBAR_PHYS_LOW	CONFIG_SYS_CCSRBAR
@@ -47,9 +41,6 @@
 
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x00000000	/* DDR is system memory*/
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
-
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	(2 * CONFIG_DIMM_SLOTS_PER_CTLR)
 
 /* I2C addresses of SPD EEPROMs */
 #define SPD_EEPROM_ADDRESS	0x51	/* CTLR 0 DIMM 0 */
@@ -133,14 +124,6 @@
 
 #define CONFIG_SYS_FLASH_BANKS_LIST \
 	{CONFIG_SYS_FLASH_BASE_PHYS + 0x800000, CONFIG_SYS_FLASH_BASE_PHYS}
-#define CONFIG_SYS_MAX_FLASH_SECT	128		/* sectors per device */
-#undef	CONFIG_SYS_FLASH_CHECKSUM
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
-
-#define CONFIG_SYS_MONITOR_BASE	CONFIG_SYS_TEXT_BASE	/* start of monitor */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 
 #define CONFIG_HWCONFIG			/* enable hwconfig */
 
@@ -250,8 +233,7 @@
 #define CONFIG_SYS_INIT_RAM_ADDR	0xe4010000	/* Initial RAM address */
 #define CONFIG_SYS_INIT_RAM_SIZE	0x4000		/* Size of used area in RAM */
 
-#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
+#define CONFIG_SYS_INIT_SP_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 
@@ -271,8 +253,6 @@
  */
 #if !CONFIG_IS_ENABLED(DM_I2C)
 #define CONFIG_SYS_I2C_NOPROBES		{ {0, 0x69} }
-#else
-#define CONFIG_SYS_SPD_BUS_NUM 0
 #endif
 
 /* EEPROM */
@@ -326,18 +306,6 @@
 #endif
 #define CONFIG_SYS_SRIO1_MEM_SIZE	0x20000000	/* 512M */
 
-#ifdef CONFIG_LEGACY
-#define BRIDGE_ID 17
-#define VIA_ID 2
-#else
-#define BRIDGE_ID 28
-#define VIA_ID 4
-#endif
-
-#if defined(CONFIG_PCI)
-#define CONFIG_PCI_SCAN_SHOW		/* show pci devices on startup */
-#endif	/* CONFIG_PCI */
-
 #if defined(CONFIG_TSEC_ENET)
 
 #define CONFIG_TSEC1	1
@@ -363,9 +331,6 @@
 #define TSEC2_FLAGS		TSEC_GIGABIT
 #define TSEC3_FLAGS		(TSEC_GIGABIT | TSEC_REDUCED)
 #define TSEC4_FLAGS		(TSEC_GIGABIT | TSEC_REDUCED)
-
-/* Options are: eTSEC[0-3] */
-#define CONFIG_ETHPRIME		"eTSEC0"
 #endif	/* CONFIG_TSEC_ENET */
 
 /*
@@ -374,11 +339,6 @@
 
 #define CONFIG_LOADS_ECHO	1	/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	1	/* allow baudrate change */
-
-/*
- * BOOTP options
- */
-#define CONFIG_BOOTP_BOOTFILESIZE
 
 /*
  * Miscellaneous configurable options
@@ -390,23 +350,15 @@
  * the maximum mapped by the Linux kernel during initialization.
  */
 #define CONFIG_SYS_BOOTMAPSZ	(64 << 20)	/* Initial Memory map for Linux*/
-#define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/* Increase max gunzip size */
 
 /*
  * Environment Configuration
  */
-#if defined(CONFIG_TSEC_ENET)
-#define CONFIG_HAS_ETH0
-#define CONFIG_HAS_ETH1
-#define CONFIG_HAS_ETH2
-#define CONFIG_HAS_ETH3
-#endif
 
 #define CONFIG_IPADDR	 192.168.1.253
 
 #define CONFIG_HOSTNAME	 "unknown"
 #define CONFIG_ROOTPATH	 "/nfsroot"
-#define CONFIG_BOOTFILE "8548cds/uImage.uboot"
 #define CONFIG_UBOOTPATH	8548cds/u-boot.bin	/* TFTP server */
 
 #define CONFIG_SERVERIP	 192.168.1.1

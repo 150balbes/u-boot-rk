@@ -5,6 +5,7 @@
  */
 #include <common.h>
 #include <command.h>
+#include <display_options.h>
 #include <mapmem.h>
 #include <acpi/acpi_table.h>
 #include <asm/acpi_table.h>
@@ -178,7 +179,7 @@ static int do_acpi_dump(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("Table name '%s' must be four characters\n", name);
 		return CMD_RET_FAILURE;
 	}
-	str_to_upper(name, sig, -1);
+	str_to_upper(name, sig, ACPI_NAME_LEN);
 	ret = dump_table_name(sig);
 	if (ret) {
 		printf("Table '%.*s' not found\n", ACPI_NAME_LEN, sig);

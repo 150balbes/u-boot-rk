@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2014-2015 Freescale Semiconductor
- * Copyright 2019 NXP
+ * Copyright 2019-2022 NXP
  *
  * Extracted from armv8/start.S
  */
@@ -73,15 +73,6 @@ ENDPROC(smp_kick_all_cpus)
 
 ENTRY(lowlevel_init)
 	mov	x29, lr			/* Save LR */
-
-	/* unmask SError and abort */
-	msr daifclr, #4
-
-	/* Set HCR_EL2[AMO] so SError @EL2 is taken */
-	mrs	x0, hcr_el2
-	orr	x0, x0, #0x20			/* AMO */
-	msr	hcr_el2, x0
-	isb
 
 	switch_el x1, 1f, 100f, 100f	/* skip if not in EL3 */
 1:
@@ -209,7 +200,7 @@ ENTRY(lowlevel_init)
 #endif
 
 100:
-	branch_if_master x0, x1, 2f
+	branch_if_master x0, 2f
 
 #if defined(CONFIG_MP) && defined(CONFIG_ARMV8_MULTIENTRY)
 	/*
@@ -353,7 +344,7 @@ ENTRY(fsl_ocram_clear_ecc_err)
 	ldr	x0, =DCSR_DCFG_MBEESR2
 	str	w1, [x0]
 	ret
-ENDPROC(fsl_ocram_init)
+ENDPROC(fsl_ocram_clear_ecc_err)
 #endif
 
 #ifdef CONFIG_FSL_LSCH3

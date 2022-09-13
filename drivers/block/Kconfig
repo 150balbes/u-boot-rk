@@ -39,6 +39,18 @@ config TPL_BLK
 	  be partitioned into several areas, called 'partitions' in U-Boot.
 	  A filesystem can be placed in each partition.
 
+config VPL_BLK
+	bool "Support block devices in VPL"
+	depends on VPL_DM && BLK
+	default y
+	help
+	  Enable support for block devices, such as SCSI, MMC and USB
+	  flash sticks. These provide a block-level interface which permits
+	  reading, writing and (in some cases) erasing blocks. Block
+	  devices often have a partition table which allows the device to
+	  be partitioned into several areas, called 'partitions' in U-Boot.
+	  A filesystem can be placed in each partition.
+
 config BLOCK_CACHE
 	bool "Use block device cache"
 	depends on BLK
@@ -206,3 +218,19 @@ config IDE_RESET
 	  must be defined in a board-specific file.
 
 endif  # IDE
+
+config LBA48
+	bool "Enable LBA support for disks larger than 137GB"
+	depends on HAVE_BLOCK_DEVICE
+	help
+	  Set this to enable support for disks larger than 137GB.
+	  Also look at CONFIG_SYS_64BIT_LBA.  Without both of these, LBA48
+	  support uses 32bit variables and will 'only' support disks up to
+	  2.1TB.
+
+config SYS_64BIT_LBA
+	bool "Enable 64bit number of blocks on a block device"
+	depends on HAVE_BLOCK_DEVICE
+	help
+	  Make the block subsystem use 64bit sector addresses, rather than the
+	  default of 32bit.

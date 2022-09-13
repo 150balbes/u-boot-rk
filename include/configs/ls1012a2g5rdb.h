@@ -9,8 +9,6 @@
 #include "ls1012a_common.h"
 
 /* DDR */
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	1
 #define CONFIG_SYS_SDRAM_SIZE		0x40000000
 
 /* SATA */
@@ -21,7 +19,6 @@
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	"verify=no\0"				\
 	"initrd_high=0xffffffffffffffff\0"	\
-	"fdt_addr=0x00f00000\0"			\
 	"kernel_addr=0x01000000\0"		\
 	"kernelheader_addr=0x800000\0"		\
 	"scriptaddr=0x80000000\0"		\

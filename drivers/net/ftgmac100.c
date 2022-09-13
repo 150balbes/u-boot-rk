@@ -119,7 +119,7 @@ static int ftgmac100_mdio_read(struct mii_dev *bus, int phy_addr, int dev_addr,
 				 FTGMAC100_MDIO_TIMEOUT_USEC);
 	if (ret) {
 		pr_err("%s: mdio read failed (phy:%d reg:%x)\n",
-		       priv->phydev->dev->name, phy_addr, reg_addr);
+		       bus->name, phy_addr, reg_addr);
 		return ret;
 	}
 
@@ -151,7 +151,7 @@ static int ftgmac100_mdio_write(struct mii_dev *bus, int phy_addr, int dev_addr,
 				 FTGMAC100_MDIO_TIMEOUT_USEC);
 	if (ret) {
 		pr_err("%s: mdio write failed (phy:%d reg:%x)\n",
-		       priv->phydev->dev->name, phy_addr, reg_addr);
+		       bus->name, phy_addr, reg_addr);
 	}
 
 	return ret;
@@ -549,17 +549,12 @@ static int ftgmac100_of_to_plat(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct ftgmac100_data *priv = dev_get_priv(dev);
-	const char *phy_mode;
 
 	pdata->iobase = dev_read_addr(dev);
-	pdata->phy_interface = -1;
-	phy_mode = dev_read_string(dev, "phy-mode");
-	if (phy_mode)
-		pdata->phy_interface = phy_get_interface_by_name(phy_mode);
-	if (pdata->phy_interface == -1) {
-		dev_err(dev, "Invalid PHY interface '%s'\n", phy_mode);
+
+	pdata->phy_interface = dev_read_phy_mode(dev);
+	if (pdata->phy_interface == PHY_INTERFACE_MODE_NA)
 		return -EINVAL;
-	}
 
 	pdata->max_speed = dev_read_u32_default(dev, "max-speed", 0);
 

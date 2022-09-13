@@ -8,6 +8,7 @@ config ARM64
 	bool
 	select PHYS_64BIT
 	select SYS_CACHE_SHIFT_6
+	imply SPL_SEPARATE_BSS
 
 config ARM64_CRC32
 	bool "Enable support for CRC32 instruction"
@@ -18,6 +19,23 @@ config ARM64_CRC32
 	  This is faster than software crc32 calculation. This instruction may
 	  not be present on all ARMv8.0, but is always present on ARMv8.1 and
 	  newer.
+
+config COUNTER_FREQUENCY
+	int "Timer clock frequency"
+	depends on ARM64 || CPU_V7A
+	default 8000000 if IMX8 || MX7 || MX6UL || MX6ULL
+	default 24000000 if ARCH_SUNXI || ARCH_EXYNOS || ROCKCHIP_RK3128 || \
+			ROCKCHIP_RK3288 || ROCKCHIP_RK322X || ROCKCHIP_RK3036
+	default 25000000 if ARCH_LX2160A || ARCH_LX2162A || ARCH_LS1088A
+	default 100000000 if ARCH_ZYNQMP
+	default 0
+	help
+	  For platforms with ARMv8-A and ARMv7-A which features a system
+	  counter, those platforms needs software to program the counter
+	  frequency. Setup time clock frequency for certain platform.
+	  0 means no need to configure the system counter frequency.
+	  For platforms needs the frequency set in U-Boot with a
+	  pre-defined value, should have the macro defined as a non-zero value.
 
 config POSITION_INDEPENDENT
 	bool "Generate position-independent pre-relocation code"
@@ -56,6 +74,10 @@ config SYS_INIT_SP_BSS_OFFSET
 	  calculate the stack pointer. This offset should be large enough so
 	  that the early malloc region, global data (gd), and early stack usage
 	  do not overlap any appended DTB.
+
+config SPL_SYS_NO_VECTOR_TABLE
+	depends on SPL
+	bool
 
 config LINUX_KERNEL_IMAGE_HEADER
 	depends on ARM64
@@ -267,6 +289,7 @@ config CPU_ARM926EJS
 	bool
 	select SYS_CACHE_SHIFT_5
 	imply SYS_ARM_MMU
+	imply SPL_SEPARATE_BSS
 
 config CPU_ARM946ES
 	bool
@@ -277,6 +300,7 @@ config CPU_ARM1136
 	bool
 	select SYS_CACHE_SHIFT_5
 	imply SYS_ARM_MMU
+	imply SPL_SEPARATE_BSS
 
 config CPU_ARM1176
 	bool
@@ -306,20 +330,6 @@ config CPU_V7R
 	select SYS_ARM_MPU
 	select SYS_CACHE_SHIFT_6
 
-config CPU_PXA
-	bool
-	select SYS_CACHE_SHIFT_5
-	imply SYS_ARM_MMU
-
-config CPU_PXA27X
-	bool
-	select CPU_PXA
-
-config CPU_SA1100
-	bool
-	select SYS_CACHE_SHIFT_5
-	imply SYS_ARM_MMU
-
 config SYS_CPU
 	default "arm720t" if CPU_ARM720T
 	default "arm920t" if CPU_ARM920T
@@ -330,8 +340,6 @@ config SYS_CPU
 	default "armv7" if CPU_V7A
 	default "armv7" if CPU_V7R
 	default "armv7m" if CPU_V7M
-	default "pxa" if CPU_PXA
-	default "sa1100" if CPU_SA1100
 	default "armv8" if ARM64
 
 config SYS_ARM_ARCH
@@ -345,14 +353,11 @@ config SYS_ARM_ARCH
 	default 7 if CPU_V7A
 	default 7 if CPU_V7M
 	default 7 if CPU_V7R
-	default 5 if CPU_PXA
-	default 4 if CPU_SA1100
 	default 8 if ARM64
 
 choice
 	prompt "Select the ARM data write cache policy"
-	default SYS_ARM_CACHE_WRITETHROUGH if TARGET_BCMCYGNUS || \
-					      CPU_PXA || RZA1
+	default SYS_ARM_CACHE_WRITETHROUGH if TARGET_BCMCYGNUS || RZA1
 	default SYS_ARM_CACHE_WRITEBACK
 
 config SYS_ARM_CACHE_WRITEBACK
@@ -376,6 +381,12 @@ config SYS_ARM_CACHE_WRITEALLOC
 	  There is a linefill to obtain the data for the cache line, before the
 	  write is performed.
 endchoice
+
+config ARCH_VERY_EARLY_INIT
+	bool
+
+config SPL_ARCH_VERY_EARLY_INIT
+	bool
 
 config ARCH_CPU_INIT
 	bool "Enable ARCH_CPU_INIT"
@@ -403,11 +414,50 @@ config ARM_SMCCC
 	  firmware (for example, PSCI) according to SMCCC.
 
 config SEMIHOSTING
-	bool "support boot from semihosting"
+	bool "Support ARM semihosting"
 	help
-	  In emulated environments, semihosting is a way for
-	  the hosted environment to call out to the emulator to
-	  retrieve files from the host machine.
+	  Semihosting is a method for a target to communicate with a host
+	  debugger. It uses special instructions which the debugger will trap
+	  on and interpret. This allows U-Boot to read/write files, print to
+	  the console, and execute arbitrary commands on the host system.
+
+	  Enabling this option will add support for reading and writing files
+	  on the host system. If you don't have a debugger attached then trying
+	  to do this will likely cause U-Boot to hang. Say 'n' if you are unsure.
+
+config SEMIHOSTING_FALLBACK
+	bool "Recover gracefully when semihosting fails"
+	depends on SEMIHOSTING && ARM64
+	default y
+	help
+	  Normally, if U-Boot makes a semihosting call and no debugger is
+	  attached, then it will panic due to a synchronous abort
+	  exception. This config adds an exception handler which will allow
+	  U-Boot to recover. Say 'y' if unsure.
+
+config SPL_SEMIHOSTING
+	bool "Support ARM semihosting in SPL"
+	depends on SPL
+	help
+	  Semihosting is a method for a target to communicate with a host
+	  debugger. It uses special instructions which the debugger will trap
+	  on and interpret. This allows U-Boot to read/write files, print to
+	  the console, and execute arbitrary commands on the host system.
+
+	  Enabling this option will add support for reading and writing files
+	  on the host system. If you don't have a debugger attached then trying
+	  to do this will likely cause U-Boot to hang. Say 'n' if you are unsure.
+
+config SPL_SEMIHOSTING_FALLBACK
+	bool "Recover gracefully when semihosting fails in SPL"
+	depends on SPL_SEMIHOSTING && ARM64
+	select ARMV8_SPL_EXCEPTION_VECTORS
+	default y
+	help
+	  Normally, if U-Boot makes a semihosting call and no debugger is
+	  attached, then it will panic due to a synchronous abort
+	  exception. This config adds an exception handler which will allow
+	  U-Boot to recover. Say 'y' if unsure.
 
 config SYS_THUMB_BUILD
 	bool "Build U-Boot using the Thumb instruction set"
@@ -540,6 +590,9 @@ config ARM64_SUPPORT_AARCH32
 	help
 	  This ARM64 system supports AArch32 execution state.
 
+config S5P
+	def_bool y if ARCH_EXYNOS || ARCH_S5PC1XX
+
 choice
 	prompt "Target select"
 	default TARGET_HIKEY
@@ -585,6 +638,7 @@ config ARCH_ORION5X
 	bool "Marvell Orion"
 	select CPU_ARM926EJS
 	select GPIO_EXTRA_HEADER
+	select SPL_SEPARATE_BSS if SPL
 
 config TARGET_STV0991
 	bool "Support stv0991"
@@ -617,6 +671,13 @@ config ARCH_BCM63158
 	select OF_CONTROL
 	imply CMD_DM
 
+config ARCH_BCM6753
+	bool "Broadcom BCM6753 family"
+	select CPU_V7A
+	select DM
+	select OF_CONTROL
+	imply CMD_DM
+
 config ARCH_BCM68360
 	bool "Broadcom BCM68360 family"
 	select DM
@@ -640,6 +701,11 @@ config ARCH_BCMSTB
 	help
 	  This enables support for Broadcom ARM-based set-top box
 	  chipsets, including the 7445 family of chips.
+
+config ARCH_BCMBCA
+	bool "Broadcom broadband chip family"
+	select DM
+	select OF_CONTROL
 
 config TARGET_VEXPRESS_CA9X4
 	bool "Support vexpress_ca9x4"
@@ -744,7 +810,6 @@ config ARCH_KEYSTONE
 	select CMD_POWEROFF
 	select CPU_V7A
 	select DDR_SPD
-	select GPIO_EXTRA_HEADER
 	select SUPPORT_SPL
 	select SYS_ARCH_TIMER
 	select SYS_THUMB_BUILD
@@ -767,6 +832,8 @@ config ARCH_OMAP2PLUS
 	select SUPPORT_SPL
 	imply TI_SYSC if DM && OF_CONTROL
 	imply FIT
+	imply DM_EVENT
+	imply SPL_SEPARATE_BSS
 
 config ARCH_MESON
 	bool "Amlogic Meson"
@@ -806,24 +873,29 @@ config ARCH_LPC32XX
 config ARCH_IMX8
 	bool "NXP i.MX8 platform"
 	select ARM64
+	select SYS_FSL_HAS_SEC
+	select SYS_FSL_SEC_COMPAT_4
+	select SYS_FSL_SEC_LE
 	select DM
 	select GPIO_EXTRA_HEADER
 	select MACH_IMX
 	select OF_CONTROL
 	select ENABLE_ARM_SOC_BOOT0_HOOK
+	imply DM_EVENT
 
 config ARCH_IMX8M
 	bool "NXP i.MX8M platform"
 	select ARM64
 	select GPIO_EXTRA_HEADER
 	select MACH_IMX
-	select SYS_FSL_HAS_SEC if IMX_HAB
+	select SYS_FSL_HAS_SEC
 	select SYS_FSL_SEC_COMPAT_4
 	select SYS_FSL_SEC_LE
 	select SYS_I2C_MXC
 	select DM
 	select SUPPORT_SPL
 	imply CMD_DM
+	imply DM_EVENT
 
 config ARCH_IMX8ULP
 	bool "NXP i.MX8ULP platform"
@@ -833,7 +905,22 @@ config ARCH_IMX8ULP
 	select OF_CONTROL
 	select SUPPORT_SPL
 	select GPIO_EXTRA_HEADER
+	select MISC
+	select IMX_SENTINEL
 	imply CMD_DM
+	imply DM_EVENT
+
+config ARCH_IMX9
+	bool "NXP i.MX9 platform"
+	select ARM64
+	select DM
+	select MACH_IMX
+	select SUPPORT_SPL
+	select GPIO_EXTRA_HEADER
+	select MISC
+	select IMX_SENTINEL
+	imply CMD_DM
+	imply DM_EVENT
 
 config ARCH_IMXRT
 	bool "NXP i.MXRT platform"
@@ -869,10 +956,11 @@ config ARCH_MX31
 
 config ARCH_MX7ULP
 	bool "NXP MX7ULP"
+	select BOARD_POSTCLK_INIT
 	select CPU_V7A
 	select GPIO_EXTRA_HEADER
 	select MACH_IMX
-	select SYS_FSL_HAS_SEC if IMX_HAB
+	select SYS_FSL_HAS_SEC
 	select SYS_FSL_SEC_COMPAT_4
 	select SYS_FSL_SEC_LE
 	select ROM_UNIFIED_SECTIONS
@@ -885,7 +973,7 @@ config ARCH_MX7
 	select CPU_V7A
 	select GPIO_EXTRA_HEADER
 	select MACH_IMX
-	select SYS_FSL_HAS_SEC if IMX_HAB
+	select SYS_FSL_HAS_SEC
 	select SYS_FSL_SEC_COMPAT_4
 	select SYS_FSL_SEC_LE
 	imply BOARD_EARLY_INIT_F
@@ -894,6 +982,7 @@ config ARCH_MX7
 
 config ARCH_MX6
 	bool "Freescale MX6"
+	select BOARD_POSTCLK_INIT
 	select CPU_V7A
 	select GPIO_EXTRA_HEADER
 	select MACH_IMX
@@ -902,11 +991,7 @@ config ARCH_MX6
 	select SYS_FSL_SEC_LE
 	imply MXC_GPIO
 	imply SYS_THUMB_BUILD
-
-if ARCH_MX6
-config SPL_LDSCRIPT
-	default "arch/arm/mach-omap2/u-boot-spl.lds"
-endif
+	imply SPL_SEPARATE_BSS
 
 config ARCH_MX5
 	bool "Freescale MX5"
@@ -921,6 +1006,12 @@ config ARCH_NEXELL
 	select ENABLE_ARM_SOC_BOOT0_HOOK
 	select DM
 	select GPIO_EXTRA_HEADER
+
+config ARCH_NPCM
+	bool "Support Nuvoton SoCs"
+	select DM
+	select OF_CONTROL
+	imply CMD_DM
 
 config ARCH_APPLE
 	bool "Apple SoCs"
@@ -939,6 +1030,7 @@ config ARCH_APPLE
 	select DM_VIDEO
 	select IOMMU
 	select LINUX_KERNEL_IMAGE_HEADER
+	select OF_BOARD_SETUP
 	select OF_CONTROL
 	select PINCTRL
 	select POSITION_INDEPENDENT
@@ -1021,7 +1113,6 @@ config ARCH_SOCFPGA
 	select SPL_DM_SERIAL
 	select SPL_LIBCOMMON_SUPPORT
 	select SPL_LIBGENERIC_SUPPORT
-	select SPL_NAND_SUPPORT if SPL_NAND_DENALI
 	select SPL_OF_CONTROL
 	select SPL_SEPARATE_BSS if TARGET_SOCFPGA_SOC64
 	select SPL_SERIAL
@@ -1072,6 +1163,7 @@ config ARCH_SUNXI
 	select OF_BOARD_SETUP
 	select OF_CONTROL
 	select OF_SEPARATE
+	select PINCTRL
 	select SPECIFY_CONSOLE_INDEX
 	select SPL_SEPARATE_BSS if SPL
 	select SPL_STACK_R if SPL
@@ -1237,34 +1329,25 @@ config ARCH_TEGRA
 	imply DISTRO_DEFAULTS
 	imply FAT_WRITE
 
-config TARGET_VEXPRESS64_AEMV8A
-	bool "Support vexpress_aemv8a"
+config ARCH_VEXPRESS64
+	bool "Support ARMv8 Arm Ltd. VExpress based boards and models"
 	select ARM64
-	select GPIO_EXTRA_HEADER
-	select PL01X_SERIAL
-
-config TARGET_VEXPRESS64_BASE_FVP
-	bool "Support Versatile Express ARMv8a FVP BASE model"
-	select ARM64
-	select GPIO_EXTRA_HEADER
-	select PL01X_SERIAL
-	select SEMIHOSTING
-
-config TARGET_VEXPRESS64_JUNO
-	bool "Support Versatile Express Juno Development Platform"
-	select ARM64
-	select GPIO_EXTRA_HEADER
-	select PL01X_SERIAL
 	select DM
+	select DM_SERIAL
+	select PL01X_SERIAL
 	select OF_CONTROL
 	select CLK
-	select DM_SERIAL
-	select ARM_PSCI_FW
-	select PSCI_RESET
-	select DM_ETH
 	select BLK
-	select USB
-	imply OF_HAS_PRIOR_STAGE
+	select MTD_NOR_FLASH if MTD
+	select FLASH_CFI_DRIVER if MTD
+	select ENV_IS_IN_FLASH if MTD
+	imply DISTRO_DEFAULTS
+
+config TARGET_CORSTONE1000
+	bool "Support Corstone1000 Platform"
+	select ARM64
+	select PL01X_SERIAL
+	select DM
 
 config TARGET_TOTAL_COMPUTE
 	bool "Support Total Compute Platform"
@@ -1792,11 +1875,6 @@ config TARGET_TEN64
 	  Support for Traverse Technologies Ten64 board, based
 	  on NXP LS1088A.
 
-config TARGET_COLIBRI_PXA270
-	bool "Support colibri_pxa270"
-	select CPU_PXA27X
-	select GPIO_EXTRA_HEADER
-
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoCs"
 	select BOARD_LATE_INIT
@@ -1847,7 +1925,7 @@ config ARCH_STM32
 	imply CMD_DM
 
 config ARCH_STI
-	bool "Support STMicrolectronics SoCs"
+	bool "Support STMicroelectronics SoCs"
 	select BLK
 	select CPU_V7A
 	select DM
@@ -1875,7 +1953,6 @@ config ARCH_STM32MP
 	select OF_SYSTEM_SETUP
 	select PINCTRL
 	select REGMAP
-	select SUPPORT_SPL
 	select SYSCON
 	select SYSRESET
 	select SYS_THUMB_BUILD
@@ -1897,7 +1974,7 @@ config ARCH_STM32MP
 config ARCH_ROCKCHIP
 	bool "Support Rockchip SoCs"
 	select BLK
-	select BINMAN if SPL_OPTEE || (SPL && !ARM64)
+	select BINMAN if SPL_OPTEE || SPL
 	select DM
 	select DM_GPIO
 	select DM_I2C
@@ -1926,8 +2003,6 @@ config ARCH_ROCKCHIP
 	imply SYS_NS16550
 	imply TPL_SYSRESET
 	imply USB_FUNCTION_FASTBOOT
-	select OF_LIBFDT
-	select OF_LIBFDT_OVERLAY
 
 config ARCH_OCTEONTX
 	bool "Support OcteonTX SoCs"
@@ -1977,6 +2052,25 @@ config TARGET_DURIAN
 	  Support for durian platform.
 	  It has 2GB Sdram, uart and pcie.
 
+config TARGET_POMELO
+	bool "Support Phytium Pomelo Platform"
+	select ARM64
+	select DM
+	select AHCI
+	select SCSI_AHCI
+	select AHCI_PCI
+	select BLK
+	select PCI
+	select DM_PCI
+	select SCSI
+	select DM_SCSI
+	select DM_SERIAL
+	select DM_ETH if NET
+	imply CMD_PCI
+	help
+	   Support for pomelo platform.
+	   It has 8GB Sdram, uart and pcie.
+
 config TARGET_PRESIDIO_ASIC
 	bool "Support Cortina Presidio ASIC Platform"
 	select ARM64
@@ -1991,6 +2085,12 @@ config TARGET_XENGUEST_ARM64
 	select XEN_SERIAL
 	select SSCANF
 	imply OF_HAS_PRIOR_STAGE
+
+config ARCH_GXP
+	bool "Support HPE GXP SoCs"
+	select DM
+	select OF_CONTROL
+	imply CMD_DM
 
 endchoice
 
@@ -2026,6 +2126,7 @@ config SERIAL_TAG
 
 config STATIC_MACH_TYPE
 	bool "Statically define the Machine ID number"
+	default y if TARGET_DS109 || TARGET_NOKIA_RX51 || TARGET_DS414 || DEFAULT_DEVICE_TREE = "sun7i-a20-icnova-swac"
 	help
 	  When booting via ATAGs, enable this option if we know the correct
 	  machine ID number to use at compile time.  Some systems will be
@@ -2034,6 +2135,10 @@ config STATIC_MACH_TYPE
 config MACH_TYPE
 	int "Machine ID number"
 	depends on STATIC_MACH_TYPE
+	default 527 if TARGET_DS109
+	default 1955 if TARGET_NOKIA_RX51
+	default 3036 if TARGET_DS414
+	default 4283 if DEFAULT_DEVICE_TREE = "sun7i-a20-icnova-swac"
 	help
 	  When booting via ATAGs, the machine type must be passed as a number.
 	  For the full list see https://www.arm.linux.org.uk/developer/machines
@@ -2063,21 +2168,6 @@ config TI_SECURE_DEVICE
 	  authenticated) and the code. See the doc/README.ti-secure
 	  file for further details.
 
-if AM43XX || AM33XX || OMAP54XX || ARCH_KEYSTONE
-config ISW_ENTRY_ADDR
-	hex "Address in memory or XIP address of bootloader entry point"
-	default 0x402F4000 if AM43XX
-	default 0x402F0400 if AM33XX
-	default 0x40301350 if OMAP54XX
-	help
-	  After any reset, the boot ROM searches the boot media for a valid
-	  boot image. For non-XIP devices, the ROM then copies the image into
-	  internal memory. For all boot modes, after the ROM processes the
-	  boot image it eventually computes the entry point address depending
-	  on the device type (secure/non-secure), boot media (xip/non-xip) and
-	  image headers.
-endif
-
 config SYS_KWD_CONFIG
 	string "kwbimage config file path"
 	depends on ARCH_KIRKWOOD || ARCH_MVEBU
@@ -2094,11 +2184,15 @@ source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcm283x/Kconfig"
 
+source "arch/arm/mach-bcmbca/Kconfig"
+
 source "arch/arm/mach-bcmstb/Kconfig"
 
 source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-exynos/Kconfig"
+
+source "arch/arm/mach-hpe/gxp/Kconfig"
 
 source "arch/arm/mach-highbank/Kconfig"
 
@@ -2137,6 +2231,8 @@ source "arch/arm/mach-imx/imx8/Kconfig"
 source "arch/arm/mach-imx/imx8m/Kconfig"
 
 source "arch/arm/mach-imx/imx8ulp/Kconfig"
+
+source "arch/arm/mach-imx/imx9/Kconfig"
 
 source "arch/arm/mach-imx/imxrt/Kconfig"
 
@@ -2198,8 +2294,10 @@ source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-nexell/Kconfig"
 
-source "board/armltd/total_compute/Kconfig"
+source "arch/arm/mach-npcm/Kconfig"
 
+source "board/armltd/total_compute/Kconfig"
+source "board/armltd/corstone1000/Kconfig"
 source "board/bosch/shc/Kconfig"
 source "board/bosch/guardian/Kconfig"
 source "board/Marvell/octeontx/Kconfig"
@@ -2208,6 +2306,7 @@ source "board/armltd/vexpress/Kconfig"
 source "board/armltd/vexpress64/Kconfig"
 source "board/cortina/presidio-asic/Kconfig"
 source "board/broadcom/bcm963158/Kconfig"
+source "board/broadcom/bcm96753ref/Kconfig"
 source "board/broadcom/bcm968360bg/Kconfig"
 source "board/broadcom/bcm968580xref/Kconfig"
 source "board/broadcom/bcmns3/Kconfig"
@@ -2238,23 +2337,18 @@ source "board/hisilicon/poplar/Kconfig"
 source "board/isee/igep003x/Kconfig"
 source "board/kontron/sl28/Kconfig"
 source "board/myir/mys_6ulx/Kconfig"
+source "board/siemens/common/Kconfig"
 source "board/seeed/npi_imx6ull/Kconfig"
 source "board/socionext/developerbox/Kconfig"
 source "board/st/stv0991/Kconfig"
 source "board/tcl/sl50/Kconfig"
-source "board/toradex/colibri_pxa270/Kconfig"
 source "board/traverse/ten64/Kconfig"
 source "board/variscite/dart_6ul/Kconfig"
 source "board/vscom/baltos/Kconfig"
 source "board/phytium/durian/Kconfig"
+source "board/phytium/pomelo/Kconfig"
 source "board/xen/xenguest_arm64/Kconfig"
-source "board/keymile/Kconfig"
 
 source "arch/arm/Kconfig.debug"
 
 endmenu
-
-config SPL_LDSCRIPT
-	default "arch/arm/cpu/arm926ejs/mxs/u-boot-spl.lds" if (ARCH_MX23 || ARCH_MX28) && !SPL_FRAMEWORK
-	default "arch/arm/cpu/arm1136/u-boot-spl.lds" if CPU_ARM1136
-	default "arch/arm/cpu/armv8/u-boot-spl.lds" if ARM64

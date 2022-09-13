@@ -11,6 +11,7 @@
 #define _DM_DEVICE_H
 
 #include <dm/ofnode.h>
+#include <dm/tag.h>
 #include <dm/uclass-id.h>
 #include <fdtdec.h>
 #include <linker_lists.h>
@@ -79,6 +80,9 @@ struct driver_info;
  * e.g. for clock, which need to be active during the device-removal phase.
  */
 #define DM_FLAG_VITAL			(1 << 14)
+
+/* Device must be probed after it was bound */
+#define DM_FLAG_PROBE_AFTER_BIND	(1 << 15)
 
 /*
  * One or multiple of these flags are passed to device_remove() so that
@@ -184,13 +188,21 @@ struct udevice {
 #if CONFIG_IS_ENABLED(OF_REAL)
 	ofnode node_;
 #endif
-#ifdef CONFIG_DEVRES
+#if CONFIG_IS_ENABLED(DEVRES)
 	struct list_head devres_head;
 #endif
 #if CONFIG_IS_ENABLED(DM_DMA)
 	ulong dma_offset;
 #endif
 };
+
+static inline int dm_udevice_size(void)
+{
+	if (CONFIG_IS_ENABLED(OF_PLATDATA_RT))
+		return ALIGN(sizeof(struct udevice), CONFIG_LINKER_LIST_ALIGN);
+
+	return sizeof(struct udevice);
+}
 
 /**
  * struct udevice_rt - runtime information set up by U-Boot
@@ -536,6 +548,30 @@ void *dev_get_parent_priv(const struct udevice *dev);
 void *dev_get_uclass_priv(const struct udevice *dev);
 
 /**
+ * dev_get_attach_ptr() - Get the value of an attached pointed tag
+ *
+ * The tag is assumed to hold a pointer, if it exists
+ *
+ * @dev: Device to look at
+ * @tag: Tag to access
+ * @return value of tag, or NULL if there is no tag of this type
+ */
+void *dev_get_attach_ptr(const struct udevice *dev, enum dm_tag_t tag);
+
+/**
+ * dev_get_attach_size() - Get the size of an attached tag
+ *
+ * Core tags have an automatic-allocation mechanism where the allocated size is
+ * defined by the device, parent or uclass. This returns the size associated
+ * with a particular tag
+ *
+ * @dev: Device to look at
+ * @tag: Tag to access
+ * @return size of auto-allocated data, 0 if none
+ */
+int dev_get_attach_size(const struct udevice *dev, enum dm_tag_t tag);
+
+/**
  * dev_get_parent() - Get the parent of a device
  *
  * @child:	Child to check
@@ -791,7 +827,7 @@ int device_find_first_child_by_uclass(const struct udevice *parent,
 				      struct udevice **devp);
 
 /**
- * device_find_child_by_name() - Find a child by device name
+ * device_find_child_by_namelen() - Find a child by device name
  *
  * @parent:	Parent device to search
  * @name:	Name to look for

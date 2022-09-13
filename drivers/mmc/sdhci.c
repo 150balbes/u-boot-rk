@@ -70,7 +70,7 @@ static void sdhci_transfer_pio(struct sdhci_host *host, struct mmc_data *data)
 	}
 }
 
-#if (CONFIG_IS_ENABLED(MMC_SDHCI_SDMA) || CONFIG_IS_ENABLED(MMC_SDHCI_ADMA))
+#if (defined(CONFIG_MMC_SDHCI_SDMA) || CONFIG_IS_ENABLED(MMC_SDHCI_ADMA))
 static void sdhci_prepare_dma(struct sdhci_host *host, struct mmc_data *data,
 			      int *is_aligned, int trans_bytes)
 {
@@ -177,7 +177,7 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data)
 		}
 	} while (!(stat & SDHCI_INT_DATA_END));
 
-#if (CONFIG_IS_ENABLED(MMC_SDHCI_SDMA) || CONFIG_IS_ENABLED(MMC_SDHCI_ADMA))
+#if (defined(CONFIG_MMC_SDHCI_SDMA) || CONFIG_IS_ENABLED(MMC_SDHCI_ADMA))
 	dma_unmap_single(host->start_addr, data->blocks * data->blocksize,
 			 mmc_get_dma_dir(data));
 #endif
@@ -513,6 +513,7 @@ void sdhci_set_uhs_timing(struct sdhci_host *host)
 		reg |= SDHCI_CTRL_UHS_SDR104;
 		break;
 	case MMC_HS_400:
+	case MMC_HS_400_ES:
 		reg |= SDHCI_CTRL_HS400;
 		break;
 	default:
@@ -666,6 +667,7 @@ static int sdhci_set_ios(struct mmc *mmc)
 		    mmc->selected_mode == MMC_DDR_52 ||
 		    mmc->selected_mode == MMC_HS_200 ||
 		    mmc->selected_mode == MMC_HS_400 ||
+		    mmc->selected_mode == MMC_HS_400_ES ||
 		    mmc->selected_mode == UHS_SDR25 ||
 		    mmc->selected_mode == UHS_SDR50 ||
 		    mmc->selected_mode == UHS_SDR104 ||
@@ -799,6 +801,19 @@ static int sdhci_wait_dat0(struct udevice *dev, int state,
 	return -ETIMEDOUT;
 }
 
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+static int sdhci_set_enhanced_strobe(struct udevice *dev)
+{
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+
+	if (host->ops && host->ops->set_enhanced_strobe)
+		return host->ops->set_enhanced_strobe(host);
+
+	return -ENOTSUPP;
+}
+#endif
+
 const struct dm_mmc_ops sdhci_ops = {
 	.send_cmd	= sdhci_send_command,
 	.set_ios	= sdhci_set_ios,
@@ -808,6 +823,9 @@ const struct dm_mmc_ops sdhci_ops = {
 	.execute_tuning	= sdhci_execute_tuning,
 #endif
 	.wait_dat0	= sdhci_wait_dat0,
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+	.set_enhanced_strobe = sdhci_set_enhanced_strobe,
+#endif
 };
 #else
 static const struct mmc_ops sdhci_ops = {
@@ -836,7 +854,7 @@ int sdhci_setup_cfg(struct mmc_config *cfg, struct sdhci_host *host,
 #endif
 	debug("%s, caps: 0x%x\n", __func__, caps);
 
-#if CONFIG_IS_ENABLED(MMC_SDHCI_SDMA)
+#ifdef CONFIG_MMC_SDHCI_SDMA
 	if ((caps & SDHCI_CAN_DO_SDMA)) {
 		host->flags |= USE_SDMA;
 	} else {

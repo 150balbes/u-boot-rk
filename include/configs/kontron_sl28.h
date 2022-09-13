@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 
-#ifndef __SL28_H
-#define __SL28_H
+#ifndef __SL28_CONFIG_H
+#define __SL28_CONFIG_H
 
 #include <asm/arch/stream_id_lsch3.h>
 #include <asm/arch/config.h>
@@ -19,22 +19,17 @@
 #define CONFIG_MEM_INIT_VALUE		0xdeadbeef
 
 #define CONFIG_VERY_BIG_RAM
-#define CONFIG_CHIP_SELECTS_PER_CTRL	4
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x80000000
 #define CONFIG_SYS_FSL_DDR_SDRAM_BASE_PHY	0
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 #define CONFIG_SYS_DDR_BLOCK2_BASE	0x2080000000ULL
-#define CONFIG_SYS_FSL_DDR_MAIN_NUM_CTRLS	1
 
 /* early stack pointer */
-#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_FSL_OCRAM_BASE + 0xeff0)
 
 /* SMP */
 #define CPU_RELEASE_ADDR		secondary_boot_addr
 
 /* generic timer */
-#define COUNTER_FREQUENCY		25000000
 
 /* early heap for SPL DM */
 #define CONFIG_MALLOC_F_ADDR		CONFIG_SYS_FSL_OCRAM_BASE
@@ -44,18 +39,14 @@
 
 #define COUNTER_FREQUENCY_REAL		(get_board_sys_clk() / 4)
 
-/* ethernet */
-#define CONFIG_SYS_RX_ETH_BUFFER	8
-
 /* SPL */
-#define CONFIG_SPL_BSS_START_ADDR	0x80100000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x00100000
-#define CONFIG_SPL_MAX_SIZE		0x20000
-#define CONFIG_SPL_STACK		(CONFIG_SYS_FSL_OCRAM_BASE + 0x9ff0)
 
-#define CONFIG_SYS_SPL_MALLOC_SIZE	0x00100000
-#define CONFIG_SYS_SPL_MALLOC_START	0x80200000
 #define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
+
+/* GUID for capsule updatable firmware image */
+#define KONTRON_SL28_FIT_IMAGE_GUID \
+	EFI_GUID(0x86ebd44f, 0xfeb8, 0x466f, 0x8b, 0xb8, \
+		 0x89, 0x06, 0x18, 0x45, 0x6d, 0x8b)
 
 /* environment */
 /* see include/configs/ti_armv7_common.h */
@@ -88,4 +79,4 @@
 	ENV_MEM_LAYOUT_SETTINGS \
 	BOOTENV
 
-#endif /* __SL28_H */
+#endif /* __SL28_CONFIG_H */

@@ -9,6 +9,7 @@
 #define __ASM_TEST_H
 
 #include <video.h>
+#include <pci_ids.h>
 
 /* The sandbox driver always permits an I2C device with this address */
 #define SANDBOX_I2C_TEST_ADDR		0x59
@@ -17,8 +18,8 @@
 #define SANDBOX_PCI_SWAP_CASE_EMUL_ID	0x5678
 #define SANDBOX_PCI_PMC_EMUL_ID		0x5677
 #define SANDBOX_PCI_P2SB_EMUL_ID	0x5676
-#define SANDBOX_PCI_CLASS_CODE		PCI_CLASS_CODE_COMM
-#define SANDBOX_PCI_CLASS_SUB_CODE	PCI_CLASS_SUB_CODE_COMM_SERIAL
+#define SANDBOX_PCI_CLASS_CODE		(PCI_CLASS_COMMUNICATION_SERIAL >> 8)
+#define SANDBOX_PCI_CLASS_SUB_CODE	(PCI_CLASS_COMMUNICATION_SERIAL & 0xff)
 
 #define PCI_CAP_ID_PM_OFFSET		0x50
 #define PCI_CAP_ID_EXP_OFFSET		0x60
@@ -302,5 +303,16 @@ int sandbox_cros_ec_get_pwm_duty(struct udevice *dev, uint index, uint *duty);
  * after the change
  */
 int sandbox_sdl_set_bpp(struct udevice *dev, enum video_log2_bpp l2bpp);
+
+/**
+ * sandbox_set_fake_efi_mgr_dev() - Control EFI bootmgr producing valid bootflow
+ *
+ * This is only used for testing.
+ *
+ * @dev: efi_mgr bootmeth device
+ * @fake_dev: true to produce a valid bootflow when requested, false to produce
+ * an error
+ */
+void sandbox_set_fake_efi_mgr_dev(struct udevice *dev, bool fake_dev);
 
 #endif

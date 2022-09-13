@@ -133,14 +133,10 @@
 #define KM_I2C_DEBLOCK_SDA	21
 
 /* High Level Configuration Options */
-#define CONFIG_SYS_BOOK3E_HV		/* Category E.HV supported */
-#define CONFIG_FSL_CORENET		/* Freescale CoreNet platform */
 
 #define CONFIG_RESET_VECTOR_ADDRESS	0xebfffffc
 
-#define CONFIG_SYS_FSL_CPC		/* Corenet Platform Cache */
 #define CONFIG_SYS_NUM_CPC		CONFIG_SYS_NUM_DDR_CTLRS
-#define CONFIG_PCIE1			/* PCIE controller 1 */
 
 /* Environment in parallel NOR-Flash */
 #define CONFIG_ENV_TOTAL_SIZE		0x040000
@@ -149,12 +145,7 @@
 /*
  * These can be toggled for performance analysis, otherwise use default.
  */
-#define CONFIG_SYS_CACHE_STASHING
-#define CONFIG_BACKSIDE_L2_CACHE
 #define CONFIG_SYS_INIT_L2CSR0		L2CSR0_L2E
-#define CONFIG_BTB			/* toggle branch predition */
-
-#define CONFIG_ENABLE_36BIT_PHYS
 
 /* POST memory regions test */
 #define CONFIG_POST CONFIG_SYS_POST_MEM_REGIONS
@@ -175,10 +166,6 @@
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x00000000
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	(2 * CONFIG_DIMM_SLOTS_PER_CTLR)
-
-#define CONFIG_SYS_SPD_BUS_NUM	0
 #define SPD_EEPROM_ADDRESS	0x54
 #define CONFIG_SYS_SDRAM_SIZE	4096	/* for fixed parameter use */
 
@@ -244,11 +231,7 @@
 #define CONFIG_SYS_CS0_FTIM3	CONFIG_SYS_NOR_FTIM3
 
 /* More NOR Flash params */
-#define CONFIG_SYS_FLASH_QUIET_TEST
 
-#define CONFIG_SYS_MAX_FLASH_SECT	512	/* sectors per device */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{CONFIG_SYS_FLASH_BASE_PHYS}
 
 /* NAND Flash on IFC CS1*/
@@ -344,11 +327,8 @@
 	  CONFIG_SYS_INIT_RAM_ADDR_PHYS_LOW)
 #define CONFIG_SYS_INIT_RAM_SIZE		0x00004000
 
-#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - \
-					GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
+#define CONFIG_SYS_INIT_SP_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 
-#define CONFIG_SYS_MONITOR_BASE	CONFIG_SYS_TEXT_BASE	/* start of monitor */
 #define CONFIG_SYS_MONITOR_LEN		0xc0000         /* 768k */
 
 /*
@@ -405,12 +385,9 @@ int get_scl(void);
 #define CONFIG_SYS_DPAA_FMAN
 #define CONFIG_SYS_DPAA_PME
 
-#define CONFIG_SYS_FDT_PAD		(0x3000 + CONFIG_SYS_QE_FMAN_FW_LENGTH)
-
 /* Qman / Bman */
 /* RGMII (FM1@DTESC5) is local managemant interface */
 #define CONFIG_SYS_RGMII2_PHY_ADDR             0x11
-#define CONFIG_ETHPRIME		"fm1-mac5"
 
 /*
  * Hardware Watchdog
@@ -424,7 +401,6 @@ int get_scl(void);
  * the maximum mapped by the Linux kernel during initialization.
  */
 #define CONFIG_SYS_BOOTMAPSZ	(64 << 20)	/* Initial map for Linux*/
-#define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/* Increase max gunzip size */
 
 /*
  * Environment Configuration

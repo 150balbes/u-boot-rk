@@ -695,15 +695,6 @@ void ide_init(void)
 	unsigned char c;
 	int i, bus;
 
-#ifdef CONFIG_IDE_PREINIT
-	WATCHDOG_RESET();
-
-	if (ide_preinit()) {
-		puts("ide_preinit failed\n");
-		return;
-	}
-#endif /* CONFIG_IDE_PREINIT */
-
 	WATCHDOG_RESET();
 
 	/* ATAPI Drives seems to need a proper IDE Reset */
@@ -1121,6 +1112,10 @@ static int ide_probe(struct udevice *udev)
 			ret = blk_create_devicef(udev, "ide_blk", name,
 						 IF_TYPE_IDE, i,
 						 blksz, size, &blk_dev);
+			if (ret)
+				return ret;
+
+			ret = blk_probe_or_unbind(blk_dev);
 			if (ret)
 				return ret;
 		}

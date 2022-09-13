@@ -8,12 +8,8 @@
 #ifndef __PRESIDIO_ASIC_H
 #define __PRESIDIO_ASIC_H
 
-#define CONFIG_SYS_INIT_SP_ADDR		0x00100000
-#define CONFIG_SYS_BOOTM_LEN		0x00c00000
-
 /* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		25000000
-#define CONFIG_SYS_TIMER_RATE		COUNTER_FREQUENCY
+#define CONFIG_SYS_TIMER_RATE		25000000
 #define CONFIG_SYS_TIMER_COUNTER	0xf4321008
 
 /* note: arch/arm/cpu/armv8/start.S which references GICD_BASE/GICC_BASE
@@ -36,9 +32,6 @@
 #define CONFIG_SYS_SERIAL0		PER_UART0_CFG
 #define CONFIG_SYS_SERIAL1		PER_UART1_CFG
 
-/* BOOTP options */
-#define CONFIG_BOOTP_BOOTFILESIZE
-
 /* SDRAM Bank #1 */
 #define DDR_BASE			0x00000000
 #define PHYS_SDRAM_1			DDR_BASE
@@ -46,10 +39,6 @@
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 
 /* Console I/O Buffer Size */
-#define CONFIG_SYS_CBSIZE		256
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
 
 #define KSEG1_ATU_XLAT(x) (x)
 
@@ -65,7 +54,6 @@
 #define GLOBAL_IO_DRIVE_CONTROL_OFFSET          0x4c
 
 /* max command args */
-#define CONFIG_SYS_MAXARGS		64
 #define CONFIG_EXTRA_ENV_SETTINGS	"silent=y\0"
 
 /* nand driver parameters */

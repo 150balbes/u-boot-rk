@@ -27,15 +27,6 @@
 #define CONFIG_SYS_SDRAM_BASE           0x20000000
 #define CONFIG_SYS_SDRAM_SIZE		0x4000000
 
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_SDRAM_BASE + 4 * 1024 - GENERATED_GBL_DATA_SIZE)
-
-/* SerialFlash */
-
-#ifdef CONFIG_CMD_SF
-#define CONFIG_ATMEL_SPI0
-#endif
-
 /* MMC */
 
 #ifdef CONFIG_CMD_MMC
@@ -49,8 +40,6 @@
 /* USB device */
 
 /* Ethernet Hardware */
-#define CONFIG_RMII
-#define CONFIG_NET_RETRY_COUNT		20
 #define CONFIG_MACB_SEARCH_PHY
 
 #ifdef CONFIG_SPI_BOOT

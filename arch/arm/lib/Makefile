@@ -46,8 +46,13 @@ else
 obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMSET) += memset.o
 obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMCPY) += memcpy.o
 endif
-obj-$(CONFIG_SEMIHOSTING) += semihosting.o
+obj-$(CONFIG_$(SPL_TPL_)SEMIHOSTING) += semihosting.o
 
+ifneq ($(filter y,$(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR) $(CONFIG_SAVE_PREV_BL_FDT_ADDR)),)
+obj-y += save_prev_bl_data.o
+endif
+
+# obj-$(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR) += save_prev_bl_data.o
 obj-y	+= bdinfo.o
 obj-y	+= sections.o
 CFLAGS_REMOVE_sections.o := $(LTO_CFLAGS)

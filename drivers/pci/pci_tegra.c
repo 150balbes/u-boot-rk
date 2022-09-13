@@ -325,8 +325,8 @@ static int pci_tegra_read_config(const struct udevice *bus, pci_dev_t bdf,
 	/* fixup root port class */
 	if (PCI_BUS(bdf) == 0) {
 		if ((offset & ~3) == PCI_CLASS_REVISION) {
-			value &= ~0x00ff0000;
-			value |= PCI_CLASS_BRIDGE_PCI << 16;
+			value &= ~0x00ffff00;
+			value |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
 		}
 	}
 #endif
@@ -455,7 +455,7 @@ static int tegra_pcie_parse_port_info(ofnode node, uint *index, uint *lanes)
 
 	err = ofnode_read_u32_default(node, "nvidia,num-lanes", -1);
 	if (err < 0) {
-		pr_err("failed to parse \"nvidia,num-lanes\" property");
+		pr_err("failed to parse \"nvidia,num-lanes\" property\n");
 		return err;
 	}
 
@@ -463,7 +463,7 @@ static int tegra_pcie_parse_port_info(ofnode node, uint *index, uint *lanes)
 
 	err = ofnode_read_pci_addr(node, 0, "reg", &addr);
 	if (err < 0) {
-		pr_err("failed to parse \"reg\" property");
+		pr_err("failed to parse \"reg\" property\n");
 		return err;
 	}
 
