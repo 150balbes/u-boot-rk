@@ -12,6 +12,6 @@
 			"stderr=serial,vidconsole\0"
 
 #define CONFIG_USB_OHCI_NEW
-#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS     2
+//#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS     2
 
 #endif
