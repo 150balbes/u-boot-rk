@@ -9,6 +9,12 @@ config TARGET_EVB_RK3568
 	help
 	  RK3568 EVB is a evaluation board for Rockchp RK3568.
 
+config TARGET_FIREFLY_M2_RK3566
+	bool "Firefly Station M2 RK3566 development board"
+	help
+	  Station M2 RK3566 is a development board from Firefly.
+
+
 config TARGET_QUARTZ64_A_RK3566
 	bool "Quartz64 Model A RK3566 development board"
 	help
