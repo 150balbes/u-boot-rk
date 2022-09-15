@@ -19,7 +19,6 @@
 		ethernet0 = &gmac1;
 		mmc0 = &sdmmc0;
 		mmc1 = &sdhci;
-		mmc2 = &sdmmc1;
 	};
 
 	chosen: chosen {
@@ -42,37 +41,6 @@
 				remote-endpoint = <&hdmi_out_con>;
 			};
 		};
-	};
-
-    firefly_leds: leds {
-       compatible = "gpio-leds";
-       power_led: power {
-           label = "firefly:blue:power";
-           linux,default-trigger = "ir-power-click";
-           default-state = "on";
-           gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
-           pinctrl-names = "default";
-           pinctrl-0 = <&led_power>;
-       };
-
-       user_led: user {
-           label = "firefly:yellow:user";
-           linux,default-trigger = "ir-user-click";
-           default-state = "off";
-           gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-           pinctrl-names = "default";
-           pinctrl-0 = <&led_user>;
-       };
-   };
-
-	sdio_pwrseq: sdio-pwrseq {
-		status = "okay";
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&rk809 1>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc3v3_sys: vcc3v3-sys {
@@ -137,36 +105,11 @@
 
 &combphy1 {
 	status = "okay";
+	rockchip,enable-ssc;
 };
 
 &combphy2 {
 	status = "okay";
-};
-
-&cpu0 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu1 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu2 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu3 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu_thermal {
-	trips {
-		cpu_hot: cpu_hot {
-			temperature = <55000>;
-			hysteresis = <2000>;
-			type = "active";
-		};
-	};
 };
 
 &gmac1 {
@@ -209,11 +152,6 @@
 	hdmi_out_con: endpoint {
 		remote-endpoint = <&hdmi_con_in>;
 	};
-};
-
-&gpu {
-	mali-supply = <&vdd_gpu>;
-	status = "okay";
 };
 
 &i2c0 {
@@ -448,24 +386,24 @@
 	};
 };
 
+&pmu_io_domains {
+	pmuio1-supply = <&vcc3v3_pmu>;
+	pmuio2-supply = <&vcc3v3_pmu>;
+	vccio1-supply = <&vccio_acodec>;
+	vccio2-supply = <&vcc_1v8>;
+	vccio3-supply = <&vccio_sd>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc_3v3>;
+	vccio6-supply = <&vcc_1v8>;
+	vccio7-supply = <&vcc_3v3>;
+	status = "okay";
+};
+
 &mdio1 {
 	rgmii_phy1: ethernet-phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 	};
-};
-
-&pcie2x1 {
-    reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-    pinctrl-names = "default";
-    pinctrl-0 = <&pcie_reset_gpio>;
-	vpcie3v3-supply = <&pcie30_3v3>;
-    status = "okay";
-};
-
-&pcie30_3v3 {
-	status = "okay";
-	gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 };
 
 &pinctrl {
@@ -485,103 +423,18 @@
 				<0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
-
-	sdio-pwrseq {
-		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	pcie {
-		pcie_reset_gpio: pcie-reset-gpio {
-			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	leds {
-		led_power: led-power {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		led_user: led-user {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-};
-
-&pmu_io_domains {
-	pmuio1-supply = <&vcc3v3_pmu>;
-	pmuio2-supply = <&vcc3v3_pmu>;
-	vccio1-supply = <&vccio_acodec>;
-	vccio2-supply = <&vcc_1v8>;
-	vccio3-supply = <&vccio_sd>;
-	vccio4-supply = <&vcc_1v8>;
-	vccio5-supply = <&vcc_3v3>;
-	vccio6-supply = <&vcc_1v8>;
-	vccio7-supply = <&vcc_3v3>;
-	status = "okay";
-};
-
-&saradc {
-	vref-supply = <&vcca_1v8>;
-	status = "okay";
 };
 
 &sdhci {
 	bus-width = <8>;
-	supports-emmc;
-	non-removable;
 	max-frequency = <200000000>;
+	non-removable;
 	status = "okay";
 };
 
 &sdmmc0 {
-	max-frequency = <150000000>;
-	supports-sd;
-	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	disable-wp;
-	sd-uhs-sdr104;
-	vmmc-supply = <&vcc3v3_sd>;
-	vqmmc-supply = <&vccio_sd>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
 	status = "okay";
-};
-
-&sdmmc1 {
-	bus-width = <4>;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	disable-wp;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
-	vmmc-supply = <&vcc3v3_sys>;
-	vqmmc-supply = <&vcca1v8_pmu>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk &uart9m1_xfer &uart8m1_xfer>;
-	status = "okay";
-};
-
-&sdmmc2 {
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	bus-width = <4>;
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcca1v8_pmu>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
-	sd-uhs-sdr104;
-	status = "okay";
-};
-
-&tsadc {
-	rockchip,hw-tshut-mode = <1>;
-	rockchip,hw-tshut-polarity = <0>;
-	status = "okay";
+	max-frequency = <52000000>;
 };
 
 &uart0 {
