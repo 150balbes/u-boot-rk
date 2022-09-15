@@ -44,6 +44,7 @@ config SYS_MALLOC_F_LEN
 	default 0x2000
 
 source "board/rockchip/evb_rk3568/Kconfig"
+source "board/firefly/roc-pc-rk3566/Kconfig"
 source "board/pine64/quartz64-a-rk3566/Kconfig"
 source "board/pine64/quartz64-b-rk3566/Kconfig"
 source "board/pine64/pinenote-rk3566/Kconfig"
