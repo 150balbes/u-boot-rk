@@ -1,13 +1,13 @@
-if TARGET_FIREFLY_M2_RK3566
+if TARGET_ROC_PC_RK3566
 
 config SYS_BOARD
-	default "firefly-m2-rk3566"
+	default "roc-pc-rk3566"
 
 config SYS_VENDOR
 	default "firefly"
 
 config SYS_CONFIG_NAME
-	default "firefly-m2-rk3566"
+	default "roc-pc-rk3566"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
