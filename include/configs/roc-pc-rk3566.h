@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 
-#ifndef __FIREFLY_M2_RK3566_H
-#define __FIREFLY_M2_RK3566_H
+#ifndef __ROC_PC_RK3566_H
+#define __ROC_PC_RK3566_H
 
 #include <configs/rk3568_common.h>
 
