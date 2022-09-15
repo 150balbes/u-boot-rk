@@ -14,7 +14,6 @@ config TARGET_FIREFLY_M2_RK3566
 	help
 	  Station M2 RK3566 is a development board from Firefly.
 
-
 config TARGET_QUARTZ64_A_RK3566
 	bool "Quartz64 Model A RK3566 development board"
 	help
