@@ -58,8 +58,12 @@
 #include <efi_loader.h>
 #include <sysmem.h>
 #include <bidram.h>
+#ifdef CONFIG_MTD_BLK
+#ifndef CONFIG_USING_KERNEL_DTB
 #include <boot_rkimg.h>
 #include <mtd_blk.h>
+#endif
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -550,10 +554,6 @@ static int initr_env_nowhere(void)
 {
 #ifdef CONFIG_ENV_IS_NOWHERE
 	set_default_env(NULL);
-#if defined(CONFIG_ENVF)
-	/* init envf and partitiont from envf before any partition query action */
-	env_load();
-#endif
 	return 0;
 #else
 	const char env_minimum[] = {
@@ -891,6 +891,9 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_USING_KERNEL_DTB
 	initr_env_nowhere,
 #endif
+#ifndef CONFIG_USING_KERNEL_DTB
+	initr_env,
+#endif
 #if defined(CONFIG_BOARD_EARLY_INIT_R)
 	board_early_init_r,
 #endif
@@ -898,9 +901,11 @@ static init_fnc_t init_sequence_r[] = {
 #if defined(CONFIG_ARM) || defined(CONFIG_NDS32) || defined(CONFIG_RISCV)
 	board_init,	/* Setup chipselects */
 #endif
+
 #if defined(CONFIG_USING_KERNEL_DTB) && !defined(CONFIG_ENV_IS_NOWHERE)
 	initr_env_switch,
 #endif
+
 	/*
 	 * TODO: printing of the clock inforamtion of the board is now
 	 * implemented as part of bdinfo command. Currently only support for
@@ -931,11 +936,6 @@ static init_fnc_t init_sequence_r[] = {
 	initr_post_backlog,
 #endif
 	INIT_FUNC_WATCHDOG_RESET
-
-#ifndef CONFIG_USING_KERNEL_DTB
-	/* init before storage(for: devtype, devnum, ...) */
-	initr_env,
-#endif
 #if defined(CONFIG_PCI) && defined(CONFIG_SYS_EARLY_PCI_INIT)
 	/*
 	 * Do early PCI configuration _before_ the flash gets initialised,
@@ -970,7 +970,6 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_MMC
 	initr_mmc,
 #endif
-
 #ifdef CONFIG_SYS_BOOTPARAMS_LEN
 	initr_malloc_bootparams,
 #endif
