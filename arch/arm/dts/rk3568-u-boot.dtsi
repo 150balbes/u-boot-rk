@@ -188,7 +188,7 @@
 	nand@0 {
 		u-boot,dm-spl;
 		reg = <0>;
-		nand-ecc-mode = "hw";
+		nand-ecc-mode = "hw_syndrome";
 		nand-ecc-strength = <16>;
 		nand-ecc-step-size = <1024>;
 	};
@@ -428,30 +428,21 @@
 	status = "okay";
 };
 
-#if 0
-&i2c0 {
+&sata1 {
 	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
-&i2c0_xfer {
+&combphy1_usq {
 	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
-&i2c1 {
+&pipegrf {
 	u-boot,dm-pre-reloc;
-	status = "okay";
 };
 
-&i2c1_xfer {
+&pipe_phy_grf1{
 	u-boot,dm-pre-reloc;
-	status = "okay";
 };
-
-&pcfg_pull_none_smt {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-#endif
 
