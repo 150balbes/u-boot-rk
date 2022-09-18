@@ -46,9 +46,6 @@
 #define CONFIG_PREBOOT
 #endif
 
-/* Nand */
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
-#define CONFIG_SYS_NAND_ONFI_DETECTION
 #ifndef CONFIG_SPL_BUILD
 
 /* usb mass storage */
