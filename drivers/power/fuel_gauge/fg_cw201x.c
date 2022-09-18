@@ -58,7 +58,6 @@ struct cw201x_info {
 	int support_dc_adp;
 	struct gpio_desc dc_det_gpio;
 	int dc_det_flag;
-	bool dual_cell;
 };
 
 static u8 cw201x_read(struct cw201x_info *cw201x, u8 reg)
@@ -102,12 +101,12 @@ static u16 cw201x_read_half_word(struct cw201x_info *cw201x, int reg)
 	return val;
 }
 
-static int cw201x_parse_config_info(struct cw201x_info *cw201x)
+static int cw201x_ofdata_to_platdata(struct udevice *dev)
 {
+	struct cw201x_info *cw201x = dev_get_priv(dev);
 	int ret;
-	int i, len, size;
-	const u8 *info;
-	struct udevice *dev = cw201x->dev;
+	int len, size;
+	int hw_id0_val, hw_id1_val;
 
 	if (dev_read_prop(dev, "bat_config_info", &len)) {
 		len /= sizeof(u32);
@@ -123,47 +122,8 @@ static int cw201x_parse_config_info(struct cw201x_info *cw201x)
 			debug("fdtdec_get cw_bat_config_info fail\n");
 			return -EINVAL;
 		}
-
-		return 0;
 	}
 
-	if (!dev_read_prop(dev, "cellwise,battery-profile", &len))
-		return -EINVAL;
-
-	size = sizeof(*cw201x->cw_bat_config_info) * len;
-	cw201x->cw_bat_config_info = calloc(size, 1);
-	if (!cw201x->cw_bat_config_info) {
-		debug("calloc cw_bat_config_info fail\n");
-		return -EINVAL;
-	}
-
-	info = dev_read_u8_array_ptr(dev, "cellwise,battery-profile", len);
-	if (!info) {
-		debug("fdtdec_get battery profile fail\n");
-		return -EINVAL;
-	}
-	for (i = 0; i < len; i++) {
-		cw201x->cw_bat_config_info[i] = info[i];
-		debug("%#x ", cw201x->cw_bat_config_info[i]);
-		if ((i+1) % 8 == 0)
-			debug("\n");
-	}
-
-	return 0;
-}
-
-static int cw201x_ofdata_to_platdata(struct udevice *dev)
-{
-	struct cw201x_info *cw201x = dev_get_priv(dev);
-	int ret;
-	int hw_id0_val, hw_id1_val;
-
-	cw201x->dev = dev;
-	ret = cw201x_parse_config_info(cw201x);
-	if (ret)
-		return ret;
-
-	cw201x->dual_cell = dev_read_bool(dev, "cellwise,dual-cell");
 	ret = gpio_request_by_name_nodev(dev_ofnode(dev), "dc_det_gpio",
 					 0, &cw201x->dc_det_gpio, GPIOD_IS_IN);
 	if (!ret) {
@@ -205,9 +165,7 @@ static int cw201x_get_vol(struct cw201x_info *cw201x)
 	u16 value16, value16_1, value16_2, value16_3;
 	int voltage;
 	int res1, res2;
-	int retry = 0;
 
-__retry:
 	value16 = cw201x_read_half_word(cw201x, REG_VCELL);
 	if (value16 < 0)
 		return -1;
@@ -239,11 +197,6 @@ __retry:
 	}
 
 	voltage = value16_1 * 312 / 1024;
-	if (voltage <= 0 && retry < 10) {
-		retry++;
-		mdelay(20);
-		goto __retry;
-	}
 
 	if (cw201x->divider_res1 &&
 	    cw201x->divider_res2) {
@@ -251,9 +204,6 @@ __retry:
 		res2 = cw201x->divider_res2;
 		voltage = voltage * (res1 + res2) / res2;
 	}
-
-	if (cw201x->dual_cell)
-		voltage *= 2;
 
 	debug("the cw201x voltage=%d\n", voltage);
 	return voltage;
@@ -312,18 +262,13 @@ static bool cw201x_check_charge(struct cw201x_info *cw201x)
 
 static int cw201x_get_soc(struct cw201x_info *cw201x)
 {
-	int cap, i = 0;
+	int cap;
 
-	while (i < 10) {
-		cap = cw201x_read(cw201x, REG_SOC);
-		if ((cap < 0) || (cap > 100))
-			cap = cw201x->capacity;
-		i++;
-		if (cap)
-			break;
-	}
+	cap = cw201x_read(cw201x, REG_SOC);
+	if ((cap < 0) || (cap > 100))
+		cap = cw201x->capacity;
+
 	cw201x->capacity = cap;
-
 	return cw201x->capacity;
 }
 
@@ -339,11 +284,6 @@ static int cw201x_update_get_voltage(struct udevice *dev)
 	struct cw201x_info *cw201x = dev_get_priv(dev);
 
 	return cw201x_get_vol(cw201x);
-}
-
-static int cw201x_update_get_current(struct udevice *dev)
-{
-	return 0;
 }
 
 static bool cw201x_update_get_chrg_online(struct udevice *dev)
@@ -362,7 +302,6 @@ static struct dm_fuel_gauge_ops cw201x_fg_ops = {
 	.capability = cw201x_capability,
 	.get_soc = cw201x_update_get_soc,
 	.get_voltage = cw201x_update_get_voltage,
-	.get_current = cw201x_update_get_current,
 	.get_chrg_online = cw201x_update_get_chrg_online,
 };
 
@@ -399,7 +338,6 @@ static int cw201x_fg_probe(struct udevice *dev)
 
 static const struct udevice_id cw201x_ids[] = {
 	{ .compatible = "cw201x" },
-	{ .compatible = "cellwise,cw2015" },
 	{ }
 };
 
