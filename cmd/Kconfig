@@ -1060,6 +1060,11 @@ config CMD_ITEST
 	help
 	  Return true/false on integer compare.
 
+config CMD_SCRIPT_UPDATE
+	bool "sd_update/usb_update/tftp_update"
+	help
+	  Auto run sd_update/usb_update/tftp_update.txt from sd/udisk/tftp.
+
 config CMD_SOURCE
 	bool "source"
 	default y
@@ -1102,6 +1107,12 @@ config CMD_TFTP_FLASH
 	bool "tftp download and flash"
 	help
 	  TFTP flash command, download and flash the Image to partition.
+
+config CMD_TFTP_UPDATE
+	bool "tftp update"
+	help
+	  Update a set of images organized with FIT via network using TFTP protocol
+
 
 config CMD_TFTPSRV
 	bool "tftpsrv"
