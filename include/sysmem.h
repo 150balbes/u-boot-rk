@@ -106,13 +106,14 @@ void *sysmem_fdt_reserve_alloc_base(const char *name,
 				    phys_addr_t base, phys_size_t size);
 
 /**
- * sysmem_alloc_temporary_mem() - Alloc a temporary shared memory buffer
+ * sysmem_can_alloc() - Check if the region can be allocated
  *
+ * @base: region base
  * @size: region size
  *
- * @return 0 on failed, otherwise allocated addr.
+ * @return true on okay.
  */
-ulong sysmem_alloc_temporary_mem(phys_size_t size);
+bool sysmem_can_alloc(phys_size_t base, phys_size_t size);
 
 /**
  * sysmem_free() - Free allocated sysmem region
@@ -155,9 +156,9 @@ static inline void *sysmem_alloc(enum memblk_id id, phys_size_t size)
 	return malloc(size);
 }
 
-static inline ulong sysmem_alloc_temporary_mem(phys_size_t size)
+static inline bool sysmem_can_alloc(phys_size_t base, phys_size_t size)
 {
-	return 0;
+	return true;
 }
 
 static inline void *sysmem_alloc_base(enum memblk_id id,
