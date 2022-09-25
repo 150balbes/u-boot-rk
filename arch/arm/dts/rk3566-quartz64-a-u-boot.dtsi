@@ -44,6 +44,15 @@
 	status = "okay";
 };
 
+&usbdrd30 {
+	status = "okay";
+};
+
+/* usb3 controller is muxed with sata1 */
+&usbhost30 {
+	status = "okay";
+};
+
 &usb_host0_ehci {
 	vbus-supply = <&vcc5v0_usb20_host>;
 };
