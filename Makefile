@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0+
 
 VERSION = 2022
-PATCHLEVEL = 04
+PATCHLEVEL = 10
 SUBLEVEL =
-EXTRAVERSION =
+EXTRAVERSION = -rc4
 NAME =
 
 # *DOCUMENTATION*
@@ -21,7 +21,7 @@ include include/host_arch.h
 ifeq ("", "$(CROSS_COMPILE)")
   MK_ARCH="${shell uname -m}"
 else
-  MK_ARCH="${shell echo $(CROSS_COMPILE) | sed -n 's/^\s*\([^\/]*\/\)*\([^-]*\)-\S*/\2/p'}"
+  MK_ARCH="${shell echo $(CROSS_COMPILE) | sed -n 's/^[[:space:]]*\([^\/]*\/\)*\([^-]*\)-[^[:space:]]*/\2/p'}"
 endif
 unexport HOST_ARCH
 ifeq ("x86_64", $(MK_ARCH))
@@ -30,7 +30,7 @@ else ifneq (,$(findstring $(MK_ARCH), "i386" "i486" "i586" "i686"))
   export HOST_ARCH=$(HOST_ARCH_X86)
 else ifneq (,$(findstring $(MK_ARCH), "aarch64" "armv8l"))
   export HOST_ARCH=$(HOST_ARCH_AARCH64)
-else ifneq (,$(findstring $(MK_ARCH), "arm" "armv7" "armv7l"))
+else ifneq (,$(findstring $(MK_ARCH), "arm" "armv7" "armv7a" "armv7l"))
   export HOST_ARCH=$(HOST_ARCH_ARM)
 else ifeq ("riscv32", $(MK_ARCH))
   export HOST_ARCH=$(HOST_ARCH_RISCV32)
@@ -521,7 +521,8 @@ env_h := include/generated/environment.h
 
 no-dot-config-targets := clean clobber mrproper distclean \
 			 help %docs check% coccicheck \
-			 ubootversion backup tests check qcheck tcheck pylint
+			 ubootversion backup tests check qcheck tcheck pylint \
+			 pylint_err
 
 config-targets := 0
 mixed-targets  := 0
@@ -672,6 +673,15 @@ else
 include/config/auto.conf: ;
 endif # $(dot-config)
 
+ifdef CONFIG_CC_OPTIMIZE_FOR_DEBUG
+KBUILD_HOSTCFLAGS   := -Wall -Wstrict-prototypes -Og -g -fomit-frame-pointer \
+		$(HOST_LFS_CFLAGS) $(HOSTCFLAGS)
+# Avoid false positives -Wmaybe-uninitialized
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=78394
+KBUILD_HOSTCFLAGS   += -Wno-maybe-uninitialized
+KBUILD_HOSTCXXFLAGS := -Og -g $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS)
+endif
+
 #
 # Xtensa linker script cannot be preprocessed with -ansi because of
 # preprocessor operations on strings that don't make C identifiers.
@@ -682,8 +692,17 @@ endif
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
-else
+endif
+
+ifdef CONFIG_CC_OPTIMIZE_FOR_SPEED
 KBUILD_CFLAGS	+= -O2
+endif
+
+ifdef CONFIG_CC_OPTIMIZE_FOR_DEBUG
+KBUILD_CFLAGS	+= -Og -Wno-maybe-uninitialized
+# Avoid false positives -Wmaybe-uninitialized
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=78394
+KBUILD_CFLAGS	+= -Wno-maybe-uninitialized
 endif
 
 LTO_CFLAGS :=
@@ -834,12 +853,13 @@ libs-y += drivers/usb/host/
 libs-y += drivers/usb/mtu3/
 libs-y += drivers/usb/musb/
 libs-y += drivers/usb/musb-new/
+libs-y += drivers/usb/isp1760/
 libs-y += drivers/usb/phy/
 libs-y += drivers/usb/ulpi/
 ifdef CONFIG_POST
 libs-y += post/
 endif
-libs-$(CONFIG_UNIT_TEST) += test/
+libs-$(CONFIG_$(SPL_TPL_)UNIT_TEST) += test/
 libs-$(CONFIG_UT_ENV) += test/env/
 libs-$(CONFIG_UT_OPTEE) += test/optee/
 libs-$(CONFIG_UT_OVERLAY) += test/overlay/
@@ -904,17 +924,21 @@ else
 TPL_SIZE_CHECK =
 endif
 
+ifneq ($(CONFIG_VPL_SIZE_LIMIT),0x0)
+VPL_SIZE_CHECK = @$(call size_check,$@,$(CONFIG_VPL_SIZE_LIMIT))
+else
+VPL_SIZE_CHECK =
+endif
+
 # Statically apply RELA-style relocations (currently arm64 only)
 # This is useful for arm64 where static relocation needs to be performed on
 # the raw binary, but certain simulators only accept an ELF file (but don't
 # do the relocation).
 ifneq ($(CONFIG_STATIC_RELA),)
-# $(1) is u-boot ELF, $(2) is u-boot bin, $(3) is text base
+# $(2) is u-boot ELF, $(3) is u-boot bin, $(4) is text base
 quiet_cmd_static_rela = RELOC   $@
 cmd_static_rela = \
-	start=$$($(NM) $(2) | grep __rel_dyn_start | cut -f 1 -d ' '); \
-	end=$$($(NM) $(2) | grep __rel_dyn_end | cut -f 1 -d ' '); \
-	tools/relocate-rela $(3) $(4) $$start $$end
+	tools/relocate-rela $(3) $(2)
 else
 quiet_cmd_static_rela =
 cmd_static_rela =
@@ -944,6 +968,7 @@ INPUTS-$(CONFIG_SPL_FRAMEWORK) += u-boot.img
 endif
 endif
 INPUTS-$(CONFIG_TPL) += tpl/u-boot-tpl.bin
+INPUTS-$(CONFIG_VPL) += vpl/u-boot-vpl.bin
 
 # Allow omitting the .dtb output if it is not normally used
 INPUTS-$(CONFIG_OF_SEPARATE) += $(if $(CONFIG_OF_OMIT_DTB),dts/dt.dtb,u-boot.dtb)
@@ -976,18 +1001,12 @@ ifeq ($(CONFIG_MPC85xx)$(CONFIG_OF_SEPARATE),yy)
 INPUTS-y += u-boot-with-dtb.bin
 endif
 
-ifeq ($(CONFIG_ARCH_ROCKCHIP),y)
-# On ARM64 this target is produced by binman so we don't need this dep
+ifeq ($(CONFIG_ARCH_ROCKCHIP)$(CONFIG_SPL),yy)
+# Binman image dependencies
 ifeq ($(CONFIG_ARM64),y)
-ifeq ($(CONFIG_SPL),y)
-# TODO: Get binman to generate this too
-INPUTS-y += u-boot-rockchip.bin
-endif
+INPUTS-y += u-boot.itb
 else
-ifeq ($(CONFIG_SPL),y)
-# Generate these inputs for binman which will create the output files
-INPUTS-y += idbloader.img u-boot.img
-endif
+INPUTS-y += u-boot.img
 endif
 endif
 
@@ -1106,7 +1125,7 @@ ifeq ($(CONFIG_OF_EMBED)$(CONFIG_EFI_APP),y)
 	@echo >&2 "CONFIG_OF_EMBED is enabled. This option should only"
 	@echo >&2 "be used for debugging purposes. Please use"
 	@echo >&2 "CONFIG_OF_SEPARATE for boards in mainline."
-	@echo >&2 "See doc/README.fdt-control for more info."
+	@echo >&2 "See doc/develop/devicetree/control.rst for more info."
 	@echo >&2 "===================================================="
 endif
 ifneq ($(CONFIG_SPL_FIT_GENERATOR),)
@@ -1126,7 +1145,6 @@ ifneq ($(CONFIG_DM),y)
 endif
 	$(call deprecated,CONFIG_WDT,DM watchdog,v2019.10,\
 		$(CONFIG_WATCHDOG)$(CONFIG_HW_WATCHDOG))
-	$(call deprecated,CONFIG_DM_ETH,Ethernet drivers,v2020.07,$(CONFIG_NET))
 	$(call deprecated,CONFIG_DM_I2C,I2C drivers,v2022.04,$(CONFIG_SYS_I2C_LEGACY))
 	$(call deprecated,CONFIG_DM_KEYBOARD,Keyboard drivers,v2022.10,$(CONFIG_KEYBOARD))
 	@# CONFIG_SYS_TIMER_RATE has brackets in it for some boards which
@@ -1249,7 +1267,7 @@ spl/u-boot-spl.srec: spl/u-boot-spl FORCE
 
 OBJCOPYFLAGS_u-boot-nodtb.bin := -O binary \
 		$(if $(CONFIG_X86_16BIT_INIT),-R .start16 -R .resetvec) \
-		$(if $(CONFIG_MPC85XX_HAVE_RESET_VECTOR),-R .bootpg -R .resetvec)
+		$(if $(CONFIG_MPC85XX_HAVE_RESET_VECTOR),$(if $(CONFIG_OF_EMBED),,-R .bootpg -R .resetvec))
 
 binary_size_check: u-boot-nodtb.bin FORCE
 	@file_size=$(shell wc -c u-boot-nodtb.bin | awk '{print $$1}') ; \
@@ -1335,6 +1353,7 @@ cmd_binman = $(srctree)/tools/binman/binman $(if $(BINMAN_DEBUG),-D) \
 		-a tpl-bss-pad=$(if $(CONFIG_TPL_SEPARATE_BSS),,1) \
 		-a spl-dtb=$(CONFIG_SPL_OF_REAL) \
 		-a tpl-dtb=$(CONFIG_TPL_OF_REAL) \
+		-a pre-load-key-path=${PRE_LOAD_KEY_PATH} \
 		$(BINMAN_$(@F))
 
 OBJCOPYFLAGS_u-boot.ldr.hex := -I binary -O ihex
@@ -1473,29 +1492,6 @@ OBJCOPYFLAGS_u-boot-with-spl.bin = -I binary -O binary \
 u-boot-with-spl.bin: $(SPL_IMAGE) $(SPL_PAYLOAD) FORCE
 	$(call if_changed,pad_cat)
 
-ifeq ($(CONFIG_ARCH_ROCKCHIP),y)
-
-# TPL + SPL
-ifeq ($(CONFIG_SPL)$(CONFIG_TPL),yy)
-MKIMAGEFLAGS_u-boot-tpl-rockchip.bin = -n $(CONFIG_SYS_SOC) -T rksd
-tpl/u-boot-tpl-rockchip.bin: tpl/u-boot-tpl.bin FORCE
-	$(call if_changed,mkimage)
-idbloader.img: tpl/u-boot-tpl-rockchip.bin spl/u-boot-spl.bin FORCE
-	$(call if_changed,cat)
-else
-MKIMAGEFLAGS_idbloader.img = -n $(CONFIG_SYS_SOC) -T rksd
-idbloader.img: spl/u-boot-spl.bin FORCE
-	$(call if_changed,mkimage)
-endif
-
-ifeq ($(CONFIG_ARM64),y)
-OBJCOPYFLAGS_u-boot-rockchip.bin = -I binary -O binary \
-	--pad-to=$(CONFIG_SPL_PAD_TO) --gap-fill=0xff
-u-boot-rockchip.bin: idbloader.img u-boot.itb FORCE
-	$(call if_changed,pad_cat)
-endif # CONFIG_ARM64
-
-endif # CONFIG_ARCH_ROCKCHIP
 
 ifeq ($(CONFIG_ARCH_LPC32XX)$(CONFIG_SPL),yy)
 MKIMAGEFLAGS_lpc32xx-spl.img = -T lpc32xximage -a $(CONFIG_SPL_TEXT_BASE)
@@ -1700,6 +1696,7 @@ u-boot-img-spl-at-end.bin: u-boot.img spl/u-boot-spl.bin FORCE
 
 quiet_cmd_u-boot-elf ?= LD      $@
 	cmd_u-boot-elf ?= $(LD) u-boot-elf.o -o $@ \
+	$(if $(CONFIG_SYS_BIG_ENDIAN),-EB,-EL) \
 	-T u-boot-elf.lds --defsym=$(CONFIG_PLATFORM_ELFENTRY)=$(CONFIG_SYS_TEXT_BASE) \
 	-Ttext=$(CONFIG_SYS_TEXT_BASE)
 u-boot.elf: u-boot.bin u-boot-elf.lds
@@ -1776,10 +1773,6 @@ quiet_cmd_u-boot__ ?= LTO     $@
 		-Wl,-Map,u-boot.map;						\
 		$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 else
-# Note: Linking efi-x86_app64 causes a segfault in the linker at present
-# when using x86_64-linux-gnu-ld.bfd
-# For now, disable --whole-archive which makes things link, although not
-# correctly
 quiet_cmd_u-boot__ ?= LD      $@
       cmd_u-boot__ ?= $(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_u-boot) -o $@		\
 		-T u-boot.lds $(u-boot-init)					\
@@ -2090,9 +2083,7 @@ spl/u-boot-spl-dtb.bin: spl/u-boot-spl
 spl/u-boot-spl-dtb.hex: spl/u-boot-spl
 	@:
 
-spl/u-boot-spl: tools prepare \
-		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb) \
-		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_TPL_OF_PLATDATA),dts/dt.dtb)
+spl/u-boot-spl: tools prepare $(if $(CONFIG_SPL_OF_CONTROL),dts/dt.dtb)
 	$(Q)$(MAKE) obj=spl -f $(srctree)/scripts/Makefile.spl all
 
 spl/sunxi-spl.bin: spl/u-boot-spl
@@ -2107,10 +2098,19 @@ spl/u-boot-spl.sfp: spl/u-boot-spl
 spl/boot.bin: spl/u-boot-spl
 	@:
 
-tpl/u-boot-tpl.bin: tools prepare \
-		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb)
-	$(Q)$(MAKE) obj=tpl -f $(srctree)/scripts/Makefile.spl all
+tpl/u-boot-tpl.bin: tpl/u-boot-tpl
+	@:
 	$(TPL_SIZE_CHECK)
+
+tpl/u-boot-tpl: tools prepare $(if $(CONFIG_TPL_OF_CONTROL),dts/dt.dtb)
+	$(Q)$(MAKE) obj=tpl -f $(srctree)/scripts/Makefile.spl all
+
+vpl/u-boot-vpl.bin: vpl/u-boot-vpl
+	@:
+	$(VPL_SIZE_CHECK)
+
+vpl/u-boot-vpl: tools prepare $(if $(CONFIG_TPL_OF_CONTROL),dts/dt.dtb)
+	$(Q)$(MAKE) obj=vpl -f $(srctree)/scripts/Makefile.spl all
 
 TAG_SUBDIRS := $(patsubst %,$(srctree)/%,$(u-boot-dirs) include)
 
@@ -2190,13 +2190,15 @@ CLEAN_DIRS  += $(MODVERDIR) \
 			$(filter-out include, $(shell ls -1 $d 2>/dev/null))))
 
 CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h \
-	       include/generated/env.in drivers/video/u_boot_logo.S \
+	       include/generated/env.* drivers/video/u_boot_logo.S \
 	       tools/version.h u-boot* MLO* SPL System.map fit-dtb.blob* \
 	       u-boot-ivt.img.log u-boot-dtb.imx.log SPL.log u-boot.imx.log \
 	       lpc32xx-* bl31.c bl31.elf bl31_*.bin image.map tispl.bin* \
 	       idbloader.img flash.bin flash.log defconfig keep-syms-lto.c \
 	       mkimage-out.spl.mkimage mkimage.spl.mkimage imx-boot.map \
-	       itb.fit.fit itb.fit.itb itb.map spl.map
+	       itb.fit.fit itb.fit.itb itb.map spl.map mkimage-out.rom.mkimage \
+	       mkimage.rom.mkimage rom.map simple-bin.map simple-bin-spi.map \
+	       idbloader-spi.img
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config include/generated spl tpl \
@@ -2265,7 +2267,7 @@ distclean: mrproper
 	@rm -f boards.cfg CHANGELOG
 
 # See doc/develop/python_cq.rst
-PHONY += pylint
+PHONY += pylint pylint_err
 PYLINT_BASE := scripts/pylint.base
 PYLINT_CUR := pylint.cur
 PYLINT_DIFF := pylint.diff
@@ -2306,6 +2308,11 @@ pylint:
 		else \
 			echo "No pylint regressions"; \
 		fi
+
+# Check for errors only
+pylint_err:
+	$(Q)pylint -E  -j 0 --ignore-imports=yes \
+		$(shell find tools test -name "*.py")
 
 backup:
 	F=`basename $(srctree)` ; cd .. ; \
@@ -2445,7 +2452,8 @@ endif
 
 quiet_cmd_genenv = GENENV  $@
 cmd_genenv = $(OBJCOPY) --dump-section .rodata.default_environment=$@ env/common.o; \
-	sed --in-place -e 's/\x00/\x0A/g' $@
+	sed --in-place -e 's/\x00/\x0A/g' $@; sed --in-place -e '/^\s*$$/d' $@; \
+	sort --field-separator== -k1,1 --stable $@ -o $@
 
 u-boot-initial-env: u-boot.bin
 	$(call if_changed,genenv)

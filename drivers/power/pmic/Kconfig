@@ -158,13 +158,15 @@ config SPL_DM_PMIC_MP5416
 
 config DM_PMIC_PCA9450
 	bool "Enable Driver Model for PMIC PCA9450"
+	depends on DM_I2C
 	help
 	  This config enables implementation of driver-model pmic uclass features
 	  for PMIC PCA9450. The driver implements read/write operations.
 
 config SPL_DM_PMIC_PCA9450
-	bool "Enable Driver Model for PMIC PCA9450"
+	bool "Enable Driver Model for PMIC PCA9450 in SPL"
 	depends on SPL_DM_PMIC
+	depends on SPL_DM_I2C
 	help
 	  This config enables implementation of driver-model pmic uclass features
 	  for PMIC PCA9450 in SPL. The driver implements read/write operations.
@@ -367,7 +369,21 @@ config PMIC_TPS65941
 	The TPS65941 is a PMIC containing a bunch of SMPS & LDOs.
 	This driver binds the pmic children.
 
+config PMIC_TPS65219
+	bool "Enable driver for Texas Instruments TPS65219 PMIC"
+	depends on DM_PMIC
+	help
+	The TPS65219 is a PMIC containing a bunch of SMPS & LDOs.
+	This driver binds the pmic children.
 endif
+
+config PMIC_TPS65217
+	bool "Enable driver for Texas Instruments TPS65217 PMIC"
+	---help---
+	The TPS65217 is a PMIC containing several LDOs, DC to DC convertors,
+	FETs and a battery charger. This driver provides register access
+	only, and you can enable the regulator/charger drivers separately if
+	required.
 
 config POWER_MC34VR500
 	bool "Enable driver for Freescale MC34VR500 PMIC"

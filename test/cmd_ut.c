@@ -28,12 +28,19 @@ int cmd_ut_category(const char *name, const char *prefix,
 
 static struct cmd_tbl cmd_ut_sub[] = {
 	U_BOOT_CMD_MKENT(all, CONFIG_SYS_MAXARGS, 1, do_ut_all, "", ""),
+#ifdef CONFIG_BOOTSTD
+	U_BOOT_CMD_MKENT(bootstd, CONFIG_SYS_MAXARGS, 1, do_ut_bootstd,
+			 "", ""),
+#endif
 	U_BOOT_CMD_MKENT(common, CONFIG_SYS_MAXARGS, 1, do_ut_common, "", ""),
 #if defined(CONFIG_UT_DM)
 	U_BOOT_CMD_MKENT(dm, CONFIG_SYS_MAXARGS, 1, do_ut_dm, "", ""),
 #endif
 #if defined(CONFIG_UT_ENV)
 	U_BOOT_CMD_MKENT(env, CONFIG_SYS_MAXARGS, 1, do_ut_env, "", ""),
+#endif
+#ifdef CONFIG_CMD_FDT
+	U_BOOT_CMD_MKENT(fdt, CONFIG_SYS_MAXARGS, 1, do_ut_fdt, "", ""),
 #endif
 #ifdef CONFIG_UT_OPTEE
 	U_BOOT_CMD_MKENT(optee, CONFIG_SYS_MAXARGS, 1, do_ut_optee, "", ""),
@@ -69,6 +76,9 @@ static struct cmd_tbl cmd_ut_sub[] = {
 	U_BOOT_CMD_MKENT(str, CONFIG_SYS_MAXARGS, 1, do_ut_str, "", ""),
 #ifdef CONFIG_CMD_ADDRMAP
 	U_BOOT_CMD_MKENT(addrmap, CONFIG_SYS_MAXARGS, 1, do_ut_addrmap, "", ""),
+#endif
+#ifdef CONFIG_CMD_LOADM
+	U_BOOT_CMD_MKENT(loadm, CONFIG_SYS_MAXARGS, 1, do_ut_loadm, "", ""),
 #endif
 };
 
@@ -115,11 +125,17 @@ static char ut_help_text[] =
 	"ut bloblist - Test bloblist implementation\n"
 	"ut compression - Test compressors and bootm decompression\n"
 #endif
+#ifdef CONFIG_BOOTSTD
+	"ut bootstd - Test standard boot implementation\n"
+#endif
 #ifdef CONFIG_UT_DM
 	"ut dm [test-name]\n"
 #endif
 #ifdef CONFIG_UT_ENV
 	"ut env [test-name]\n"
+#endif
+#ifdef CONFIG_CMD_FDT
+	"ut fdt [test-name] - test of the fdt command\n"
 #endif
 #ifdef CONFIG_UT_LIB
 	"ut lib [test-name] - test library functions\n"
@@ -148,6 +164,9 @@ static char ut_help_text[] =
 #endif
 #ifdef CONFIG_CMD_ADDRMAP
 	"ut addrmap - Very basic test of addrmap command\n"
+#endif
+#ifdef CONFIG_CMD_LOADM
+	"ut loadm [test-name]- test of parameters and load memory blob\n"
 #endif
 	;
 #endif /* CONFIG_SYS_LONGHELP */

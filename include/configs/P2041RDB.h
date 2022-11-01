@@ -25,28 +25,18 @@
 #endif
 
 /* High Level Configuration Options */
-#define CONFIG_SYS_BOOK3E_HV		/* Category E.HV supported */
 
 #ifndef CONFIG_RESET_VECTOR_ADDRESS
 #define CONFIG_RESET_VECTOR_ADDRESS	0xeffffffc
 #endif
 
-#define CONFIG_SYS_FSL_CPC		/* Corenet Platform Cache */
 #define CONFIG_SYS_NUM_CPC		CONFIG_SYS_NUM_DDR_CTLRS
-#define CONFIG_PCIE1			/* PCIE controller 1 */
-#define CONFIG_PCIE2			/* PCIE controller 2 */
-#define CONFIG_PCIE3			/* PCIE controller 3 */
 
 #define CONFIG_SYS_SRIO
 #define CONFIG_SRIO1			/* SRIO port 1 */
 #define CONFIG_SRIO2			/* SRIO port 2 */
 #define CONFIG_SRIO_PCIE_BOOT_MASTER
 #define CONFIG_SYS_DPAA_RMAN		/* RMan */
-
-#if defined(CONFIG_SPIFLASH)
-#elif defined(CONFIG_SDCARD)
-	#define CONFIG_FSL_FIXED_MMC_LOCATION
-#endif
 
 #ifndef __ASSEMBLY__
 #include <linux/stringify.h>
@@ -55,12 +45,7 @@
 /*
  * These can be toggled for performance analysis, otherwise use default.
  */
-#define CONFIG_SYS_CACHE_STASHING
-#define CONFIG_BACKSIDE_L2_CACHE
 #define CONFIG_SYS_INIT_L2CSR0		L2CSR0_L2E
-#define CONFIG_BTB			/* toggle branch predition */
-
-#define CONFIG_ENABLE_36BIT_PHYS
 
 #define CONFIG_POST CONFIG_SYS_POST_MEMORY	/* test POST memory test */
 
@@ -93,10 +78,6 @@
 #define CONFIG_SYS_DDR_SDRAM_BASE	0x00000000
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	(4 * CONFIG_DIMM_SLOTS_PER_CTLR)
-
-#define CONFIG_SYS_SPD_BUS_NUM	0
 #define SPD_EEPROM_ADDRESS	0x52
 #define CONFIG_SYS_SDRAM_SIZE	4096	/* for fixed parameter use */
 
@@ -119,13 +100,6 @@
 #define CONFIG_SYS_FLASH_BASE_PHYS	CONFIG_SYS_FLASH_BASE
 #endif
 
-#define CONFIG_SYS_FLASH_BR_PRELIM \
-		(BR_PHYS_ADDR((CONFIG_SYS_FLASH_BASE_PHYS + 0x8000000)) | \
-		BR_PS_16 | BR_V)
-#define CONFIG_SYS_FLASH_OR_PRELIM \
-		((0xf8000ff7 & ~OR_GPCM_SCY & ~OR_GPCM_EHTR) \
-		 | OR_GPCM_SCY_8 | OR_GPCM_EHTR_CLEAR)
-
 #define CONFIG_FSL_CPLD
 #define CPLD_BASE		0xffdf0000	/* CPLD registers */
 #ifdef CONFIG_PHYS_64BIT
@@ -139,18 +113,7 @@
 #define PIXIS_LBMAP_SHIFT	4
 #define PIXIS_LBMAP_ALTBANK	0x40
 
-#define CONFIG_SYS_FLASH_QUIET_TEST
 #define CONFIG_FLASH_SHOW_PROGRESS	45 /* count down from 45/5: 9..1 */
-
-#define CONFIG_SYS_MAX_FLASH_SECT	1024		/* sectors per device */
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000		/* Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500		/* Write Timeout (ms) */
-
-#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
-
-#if defined(CONFIG_RAMBOOT_PBL)
-#define CONFIG_SYS_RAMBOOT
-#endif
 
 /* Nand Flash */
 #ifdef CONFIG_NAND_FSL_ELBC
@@ -180,7 +143,6 @@
 			       | OR_FCM_EHTR)
 #endif /* CONFIG_NAND_FSL_ELBC */
 
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{CONFIG_SYS_FLASH_BASE_PHYS + 0x8000000}
 
 #define CONFIG_HWCONFIG
@@ -203,9 +165,7 @@
 #endif
 #define CONFIG_SYS_INIT_RAM_SIZE	0x00004000
 
-#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - \
-					GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
+#define CONFIG_SYS_INIT_SP_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 
 #define CONFIG_SYS_MONITOR_LEN		(768 * 1024)
 
@@ -339,25 +299,6 @@
 
 #define CONFIG_SYS_DPAA_FMAN
 #define CONFIG_SYS_DPAA_PME
-#define CONFIG_SYS_FDT_PAD		(0x3000 + CONFIG_SYS_QE_FMAN_FW_LENGTH)
-
-#ifdef CONFIG_PCI
-#define CONFIG_PCI_SCAN_SHOW		/* show pci devices on startup */
-#endif	/* CONFIG_PCI */
-
-/* SATA */
-#define CONFIG_FSL_SATA_V2
-
-#ifdef CONFIG_FSL_SATA_V2
-#define CONFIG_SATA1
-#define CONFIG_SYS_SATA1		CONFIG_SYS_MPC85xx_SATA1_ADDR
-#define CONFIG_SYS_SATA1_FLAGS		FLAGS_DMA
-#define CONFIG_SATA2
-#define CONFIG_SYS_SATA2		CONFIG_SYS_MPC85xx_SATA2_ADDR
-#define CONFIG_SYS_SATA2_FLAGS		FLAGS_DMA
-
-#define CONFIG_LBA48
-#endif
 
 #ifdef CONFIG_FMAN_ENET
 #define CONFIG_SYS_FM1_DTSEC1_PHY_ADDR	0x2
@@ -374,7 +315,6 @@
 #define CONFIG_SYS_FM1_10GEC1_PHY_ADDR	0
 
 #define CONFIG_SYS_TBIPA_VALUE	8
-#define CONFIG_ETHPRIME		"FM1@DTSEC1"
 #endif
 
 /*
@@ -383,19 +323,8 @@
 #define CONFIG_LOADS_ECHO		/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	/* allow baudrate change */
 
-/*
-* USB
-*/
-#define CONFIG_HAS_FSL_DR_USB
-#define CONFIG_HAS_FSL_MPH_USB
-
-#if defined(CONFIG_HAS_FSL_DR_USB) || defined(CONFIG_HAS_FSL_MPH_USB)
-#define CONFIG_EHCI_HCD_INIT_AFTER_RESET
-#endif
-
 #ifdef CONFIG_MMC
 #define CONFIG_SYS_FSL_ESDHC_ADDR       CONFIG_SYS_MPC85xx_ESDHC_ADDR
-#define CONFIG_SYS_FSL_ESDHC_BROKEN_TIMEOUT
 #endif
 
 /*
@@ -408,13 +337,11 @@
  * the maximum mapped by the Linux kernel during initialization.
  */
 #define CONFIG_SYS_BOOTMAPSZ	(64 << 20)	/* Initial Memory for Linux */
-#define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/* Increase max gunzip size */
 
 /*
  * Environment Configuration
  */
 #define CONFIG_ROOTPATH		"/opt/nfsroot"
-#define CONFIG_BOOTFILE		"uImage"
 #define CONFIG_UBOOTPATH	u-boot.bin
 
 #define __USB_PHY_TYPE	utmi

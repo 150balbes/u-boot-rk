@@ -8,14 +8,9 @@
 
 #include "ls1043a_common.h"
 
-#define CONFIG_LAYERSCAPE_NS_ACCESS
-
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
 /* Physical Memory Map */
-#define CONFIG_CHIP_SELECTS_PER_CTRL	4
 
 #define SPD_EEPROM_ADDRESS		0x51
-#define CONFIG_SYS_SPD_BUS_NUM		0
 
 #ifdef CONFIG_DDR_ECC
 #define CONFIG_MEM_INIT_VALUE           0xdeadbeef
@@ -38,11 +33,6 @@
 #define QSGMII_CARD_PORT2_PHY_ADDR_S2 0x9
 #define QSGMII_CARD_PORT3_PHY_ADDR_S2 0xA
 #define QSGMII_CARD_PORT4_PHY_ADDR_S2 0xB
-#endif
-
-/* LPUART */
-#ifdef CONFIG_LPUART
-#define CONFIG_LPUART_32B_REG
 #endif
 
 /* SATA */
@@ -84,15 +74,9 @@
 					FTIM2_NOR_TWP(0x1c))
 #define CONFIG_SYS_NOR_FTIM3		0
 
-#define CONFIG_SYS_MAX_FLASH_SECT	1024	/* sectors per device */
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{CONFIG_SYS_FLASH_BASE_PHYS, \
 					CONFIG_SYS_FLASH_BASE_PHYS + 0x8000000}
 
-#define CONFIG_CFI_FLASH_USE_WEAK_ACCESSORS
 #define CONFIG_SYS_WRITE_SWAPPED_DATA
 
 /*
@@ -136,19 +120,16 @@
 #endif
 
 #ifdef CONFIG_NAND_BOOT
-#define CONFIG_SPL_PAD_TO		0x20000		/* block aligned */
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	(640 << 10)
 #endif
 
 #if defined(CONFIG_TFABOOT) || \
 	defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)
-#define CONFIG_QIXIS_I2C_ACCESS
 #endif
 
 /*
  * QIXIS Definitions
  */
-#define CONFIG_FSL_QIXIS
 
 #ifdef CONFIG_FSL_QIXIS
 #define QIXIS_BASE			0x7fb00000
@@ -324,15 +305,6 @@
 /*
  * Miscellaneous configurable options
  */
-
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-
-#ifdef CONFIG_SPL_BUILD
-#define CONFIG_SYS_MONITOR_BASE CONFIG_SPL_TEXT_BASE
-#else
-#define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_TEXT_BASE    /* start of monitor */
-#endif
 
 /*
  * Environment

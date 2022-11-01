@@ -198,10 +198,44 @@ static void _serial_putc(struct udevice *dev, char ch)
 	} while (err == -EAGAIN);
 }
 
+static int __serial_puts(struct udevice *dev, const char *str, size_t len)
+{
+	struct dm_serial_ops *ops = serial_get_ops(dev);
+
+	do {
+		ssize_t written = ops->puts(dev, str, len);
+
+		if (written < 0)
+			return written;
+		str += written;
+		len -= written;
+	} while (len);
+
+	return 0;
+}
+
 static void _serial_puts(struct udevice *dev, const char *str)
 {
-	while (*str)
-		_serial_putc(dev, *str++);
+	struct dm_serial_ops *ops = serial_get_ops(dev);
+
+	if (!CONFIG_IS_ENABLED(SERIAL_PUTS) || !ops->puts) {
+		while (*str)
+			_serial_putc(dev, *str++);
+		return;
+	}
+
+	do {
+		const char *newline = strchrnul(str, '\n');
+		size_t len = newline - str;
+
+		if (__serial_puts(dev, str, len))
+			return;
+
+		if (*newline && __serial_puts(dev, "\r\n", 2))
+			return;
+
+		str += len + !!*newline;
+	} while (*str);
 }
 
 static int __serial_getc(struct udevice *dev)

@@ -9,9 +9,9 @@ import importlib
 import os
 import pathlib
 import sys
+import time
 
 from binman import bintool
-from binman import comp_util
 from dtoc import fdt_util
 from patman import tools
 from patman.tools import to_hex, to_hex_size
@@ -19,6 +19,8 @@ from patman import tout
 
 modules = {}
 
+# This is imported if needed
+state = None
 
 # An argument which can be passed to entries on the command line, in lieu of
 # device-tree properties.
@@ -80,7 +82,13 @@ class Entry(object):
         missing_bintools: List of missing bintools for this entry
         update_hash: True if this entry's "hash" subnode should be
             updated with a hash of the entry contents
+        comp_bintool: Bintools used for compress and decompress data
+        fake_fname: Fake filename, if one was created, else None
+        required_props (dict of str): Properties which must be present. This can
+            be added to by subclasses
     """
+    fake_dir = None
+
     def __init__(self, section, etype, node, name_prefix=''):
         # Put this here to allow entry-docs and help to work without libfdt
         global state
@@ -104,7 +112,7 @@ class Entry(object):
         self.pad_after = 0
         self.offset_unset = False
         self.image_pos = None
-        self.expand_size = False
+        self.extend_size = False
         self.compress = 'none'
         self.missing = False
         self.faked = False
@@ -114,6 +122,9 @@ class Entry(object):
         self.bintools = {}
         self.missing_bintools = []
         self.update_hash = True
+        self.fake_fname = None
+        self.required_props = []
+        self.comp_bintool = None
 
     @staticmethod
     def FindEntryClass(etype, expanded):
@@ -231,8 +242,11 @@ class Entry(object):
 
         This reads all the fields we recognise from the node, ready for use.
         """
+        self.ensure_props()
         if 'pos' in self._node.props:
             self.Raise("Please use 'offset' instead of 'pos'")
+        if 'expand-size' in self._node.props:
+            self.Raise("Please use 'extend-size' instead of 'expand-size'")
         self.offset = fdt_util.GetInt(self._node, 'offset')
         self.size = fdt_util.GetInt(self._node, 'size')
         self.orig_offset = fdt_util.GetInt(self._node, 'orig-offset')
@@ -260,7 +274,7 @@ class Entry(object):
                        self.align_size)
         self.align_end = fdt_util.GetInt(self._node, 'align-end')
         self.offset_unset = fdt_util.GetBool(self._node, 'offset-unset')
-        self.expand_size = fdt_util.GetBool(self._node, 'expand-size')
+        self.extend_size = fdt_util.GetBool(self._node, 'extend-size')
         self.missing_msg = fdt_util.GetString(self._node, 'missing-msg')
 
         # This is only supported by blobs and sections at present
@@ -282,8 +296,8 @@ class Entry(object):
         """
         return {}
 
-    def ExpandEntries(self):
-        """Expand out entries which produce other entries
+    def gen_entries(self):
+        """Allow entries to generate other entries
 
         Some entries generate subnodes automatically, from which sub-entries
         are then created. This method allows those to be added to the binman
@@ -413,8 +427,12 @@ class Entry(object):
         self.SetContents(data)
         return size_ok
 
-    def ObtainContents(self):
+    def ObtainContents(self, skip_entry=None, fake_size=0):
         """Figure out the contents of an entry.
+
+        Args:
+            skip_entry (Entry): Entry to skip when obtaining section contents
+            fake_size (int): Size of fake file to create if needed
 
         Returns:
             True if the contents were found, False if another call is needed
@@ -662,6 +680,7 @@ class Entry(object):
         self.WriteMapLine(fd, indent, self.name, self.offset, self.size,
                           self.image_pos)
 
+    # pylint: disable=assignment-from-none
     def GetEntries(self):
         """Return a list of entries contained by this entry
 
@@ -669,6 +688,28 @@ class Entry(object):
             List of entries, or None if none. A normal entry has no entries
                 within it so will return None
         """
+        return None
+
+    def FindEntryByNode(self, find_node):
+        """Find a node in an entry, searching all subentries
+
+        This does a recursive search.
+
+        Args:
+            find_node (fdt.Node): Node to find
+
+        Returns:
+            Entry: entry, if found, else None
+        """
+        entries = self.GetEntries()
+        if entries:
+            for entry in entries.values():
+                if entry._node == find_node:
+                    return entry
+                found = entry.FindEntryByNode(find_node)
+                if found:
+                    return found
+
         return None
 
     def GetArg(self, name, datatype=str):
@@ -742,6 +783,11 @@ features to produce new behaviours.
                 first_line = lines[0]
                 rest = [line[4:] for line in lines[1:]]
                 hdr = 'Entry: %s: %s' % (name.replace('_', '-'), first_line)
+
+                # Create a reference for use by rST docs
+                ref_name = f'etype_{module.__name__[6:]}'.lower()
+                print('.. _%s:' % ref_name)
+                print()
                 print(hdr)
                 print('-' * len(hdr))
                 print('\n'.join(rest))
@@ -767,13 +813,13 @@ features to produce new behaviours.
         node = self._node
         while node.parent:
             node = node.parent
-            if node.name == 'binman':
+            if node.name in ('binman', '/'):
                 break
             name = '%s.%s' % (node.name, name)
         return name
 
-    def ExpandToLimit(self, limit):
-        """Expand an entry so that it ends at the given offset limit"""
+    def extend_to_limit(self, limit):
+        """Extend an entry so that it ends at the given offset limit"""
         if self.offset + self.size < limit:
             self.size = limit - self.offset
             # Request the contents again, since changing the size requires that
@@ -986,24 +1032,30 @@ features to produce new behaviours.
         if self.missing:
             missing_list.append(self)
 
-    def check_fake_fname(self, fname):
+    def check_fake_fname(self, fname, size=0):
         """If the file is missing and the entry allows fake blobs, fake it
 
         Sets self.faked to True if faked
 
         Args:
             fname (str): Filename to check
+            size (int): Size of fake file to create
 
         Returns:
-            fname (str): Filename of faked file
+            tuple:
+                fname (str): Filename of faked file
+                bool: True if the blob was faked, False if not
         """
         if self.allow_fake and not pathlib.Path(fname).is_file():
-            outfname = tools.get_output_filename(os.path.basename(fname))
-            with open(outfname, "wb") as out:
-                out.truncate(1024)
+            if not self.fake_fname:
+                outfname = os.path.join(self.fake_dir, os.path.basename(fname))
+                with open(outfname, "wb") as out:
+                    out.truncate(size)
+                tout.info(f"Entry '{self._node.path}': Faked blob '{outfname}'")
+                self.fake_fname = outfname
             self.faked = True
-            return outfname
-        return fname
+            return self.fake_fname, True
+        return fname, False
 
     def CheckFakedBlobs(self, faked_blobs_list):
         """Check if any entries in this section have faked external blobs
@@ -1030,7 +1082,8 @@ features to produce new behaviours.
         Args:
             bintool (Bintool): Bintool that was missing
         """
-        self.missing_bintools.append(bintool)
+        if bintool not in self.missing_bintools:
+            self.missing_bintools.append(bintool)
 
     def check_missing_bintools(self, missing_list):
         """Check if any entries in this section have missing bintools
@@ -1040,7 +1093,10 @@ features to produce new behaviours.
         Args:
             missing_list: List of Bintool objects to be added to
         """
-        missing_list += self.missing_bintools
+        for bintool in self.missing_bintools:
+            if bintool not in missing_list:
+                missing_list.append(bintool)
+
 
     def GetHelpTags(self):
         """Get the tags use for missing-blob help
@@ -1057,12 +1113,39 @@ features to produce new behaviours.
             indata: Data to compress
 
         Returns:
-            Compressed data (first word is the compressed size)
+            Compressed data
         """
         self.uncomp_data = indata
         if self.compress != 'none':
             self.uncomp_size = len(indata)
-        data = comp_util.compress(indata, self.compress)
+            if self.comp_bintool.is_present():
+                data = self.comp_bintool.compress(indata)
+            else:
+                self.record_missing_bintool(self.comp_bintool)
+                data = tools.get_bytes(0, 1024)
+        else:
+            data = indata
+        return data
+
+    def DecompressData(self, indata):
+        """Decompress data according to the entry's compression method
+
+        Args:
+            indata: Data to decompress
+
+        Returns:
+            Decompressed data
+        """
+        if self.compress != 'none':
+            if self.comp_bintool.is_present():
+                data = self.comp_bintool.decompress(indata)
+                self.uncomp_size = len(data)
+            else:
+                self.record_missing_bintool(self.comp_bintool)
+                data = tools.get_bytes(0, 1024)
+        else:
+            data = indata
+        self.uncomp_data = data
         return data
 
     @classmethod
@@ -1097,13 +1180,23 @@ features to produce new behaviours.
         """
         pass
 
-    def AddBintools(self, tools):
+    def AddBintools(self, btools):
         """Add the bintools used by this entry type
 
         Args:
-            tools (dict of Bintool):
+            btools (dict of Bintool):
+
+        Raise:
+            ValueError if compression algorithm is not supported
         """
-        pass
+        algo = self.compress
+        if algo != 'none':
+            algos = ['bzip2', 'gzip', 'lz4', 'lzma', 'lzo', 'xz', 'zstd']
+            if algo not in algos:
+                raise ValueError("Unknown algorithm '%s'" % algo)
+            names = {'lzma': 'lzma_alone', 'lzo': 'lzop'}
+            name = names.get(self.compress, self.compress)
+            self.comp_bintool = self.AddBintool(btools, name)
 
     @classmethod
     def AddBintool(self, tools, name):
@@ -1124,30 +1217,55 @@ features to produce new behaviours.
         """
         self.update_hash = update_hash
 
-    def collect_contents_to_file(self, entries, prefix):
+    def collect_contents_to_file(self, entries, prefix, fake_size=0):
         """Put the contents of a list of entries into a file
 
         Args:
             entries (list of Entry): Entries to collect
             prefix (str): Filename prefix of file to write to
+            fake_size (int): Size of fake file to create if needed
 
         If any entry does not have contents yet, this function returns False
         for the data.
 
         Returns:
             Tuple:
-                bytes: Concatenated data from all the entries (or False)
-                str: Filename of file written (or False if no data)
-                str: Unique portion of filename (or False if no data)
+                bytes: Concatenated data from all the entries (or None)
+                str: Filename of file written (or None if no data)
+                str: Unique portion of filename (or None if no data)
         """
         data = b''
         for entry in entries:
             # First get the input data and put it in a file. If not available,
             # try later.
-            if not entry.ObtainContents():
-                return False, False, False
+            if not entry.ObtainContents(fake_size=fake_size):
+                return None, None, None
             data += entry.GetData()
         uniq = self.GetUniqueName()
         fname = tools.get_output_filename(f'{prefix}.{uniq}')
         tools.write_file(fname, data)
         return data, fname, uniq
+
+    @classmethod
+    def create_fake_dir(cls):
+        """Create the directory for fake files"""
+        cls.fake_dir = tools.get_output_filename('binman-fake')
+        if not os.path.exists(cls.fake_dir):
+            os.mkdir(cls.fake_dir)
+        tout.notice(f"Fake-blob dir is '{cls.fake_dir}'")
+
+    def ensure_props(self):
+        """Raise an exception if properties are missing
+
+        Args:
+            prop_list (list of str): List of properties to check for
+
+        Raises:
+            ValueError: Any property is missing
+        """
+        not_present = []
+        for prop in self.required_props:
+            if not prop in self._node.props:
+                not_present.append(prop)
+        if not_present:
+            self.Raise(f"'{self.etype}' entry is missing properties: {' '.join(not_present)}")

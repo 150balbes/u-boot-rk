@@ -30,7 +30,7 @@ const efi_guid_t efi_guid_virtio_dev = U_BOOT_VIRTIO_DEV_GUID;
 #endif
 
 /* template END node: */
-static const struct efi_device_path END = {
+const struct efi_device_path END = {
 	.type     = DEVICE_PATH_TYPE_END,
 	.sub_type = DEVICE_PATH_SUB_TYPE_END,
 	.length   = sizeof(END),
@@ -864,11 +864,16 @@ static void *dp_part_node(void *buf, struct blk_desc *desc, int part)
 			break;
 		case SIG_TYPE_GUID:
 			hddp->signature_type = 2;
+#if CONFIG_IS_ENABLED(PARTITION_UUIDS)
+			/* info.uuid exists only with PARTITION_UUIDS */
 			if (uuid_str_to_bin(info.uuid,
-					    hddp->partition_signature, 1))
+					    hddp->partition_signature,
+					    UUID_STR_FORMAT_GUID)) {
 				log_warning(
-					"Partition no. %d: invalid guid: %s\n",
+					"Partition %d: invalid GUID %s\n",
 					part, info.uuid);
+			}
+#endif
 			break;
 		}
 
@@ -968,9 +973,22 @@ static void path_to_uefi(void *uefi, const char *src)
 	*pos = 0;
 }
 
-/*
- * If desc is NULL, this creates a path with only the file component,
- * otherwise it creates a full path with both device and file components
+/**
+ * efi_dp_from_file() - create device path for file
+ *
+ * The function creates a device path from the block descriptor @desc and the
+ * partition number @part and appends a device path node created describing the
+ * file path @path.
+ *
+ * If @desc is NULL, the device path will not contain nodes describing the
+ * partition.
+ * If @path is an empty string "", the device path will not contain a node
+ * for the file path.
+ *
+ * @desc:	block device descriptor or NULL
+ * @part:	partition number
+ * @path:	file path on partition or ""
+ * Return:	device path or NULL in case of an error
  */
 struct efi_device_path *efi_dp_from_file(struct blk_desc *desc, int part,
 		const char *path)
@@ -997,12 +1015,14 @@ struct efi_device_path *efi_dp_from_file(struct blk_desc *desc, int part,
 		buf = dp_part_fill(buf, desc, part);
 
 	/* add file-path: */
-	fp = buf;
-	fp->dp.type = DEVICE_PATH_TYPE_MEDIA_DEVICE;
-	fp->dp.sub_type = DEVICE_PATH_SUB_TYPE_FILE_PATH;
-	fp->dp.length = (u16)fpsize;
-	path_to_uefi(fp->str, path);
-	buf += fpsize;
+	if (*path) {
+		fp = buf;
+		fp->dp.type = DEVICE_PATH_TYPE_MEDIA_DEVICE;
+		fp->dp.sub_type = DEVICE_PATH_SUB_TYPE_FILE_PATH;
+		fp->dp.length = (u16)fpsize;
+		path_to_uefi(fp->str, path);
+		buf += fpsize;
+	}
 
 	*((struct efi_device_path *)buf) = END;
 
@@ -1138,6 +1158,8 @@ efi_status_t efi_dp_from_name(const char *dev, const char *devnr,
 {
 	struct blk_desc *desc = NULL;
 	struct disk_partition fs_partition;
+	size_t image_size;
+	void *image_addr;
 	int part = 0;
 	char *filename;
 	char *s;
@@ -1153,6 +1175,13 @@ efi_status_t efi_dp_from_name(const char *dev, const char *devnr,
 	} else if (!strcmp(dev, "Uart")) {
 		if (device)
 			*device = efi_dp_from_uart();
+	} else if (!strcmp(dev, "Mem")) {
+		efi_get_image_parameters(&image_addr, &image_size);
+
+		if (device)
+			*device = efi_dp_from_mem(EFI_RESERVED_MEMORY_TYPE,
+						  (uintptr_t)image_addr,
+						  image_size);
 	} else {
 		part = blk_get_device_part_str(dev, devnr, &desc, &fs_partition,
 					       1);

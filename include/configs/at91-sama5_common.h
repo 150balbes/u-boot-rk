@@ -15,20 +15,4 @@
 #define CONFIG_SYS_AT91_SLOW_CLOCK      32768
 #define CONFIG_SYS_AT91_MAIN_CLOCK      12000000 /* from 12 MHz crystal */
 
-/*
- * BOOTP options
- */
-#define CONFIG_BOOTP_BOOTFILESIZE
-
-#ifdef CONFIG_SD_BOOT
-#else
-
-#ifdef CONFIG_NAND_BOOT
-/* u-boot env in nand flash */
-#elif CONFIG_SPI_BOOT
-/* u-boot env in serial flash, by default is bus 0 and cs 0 */
-#endif
-
-#endif
-
 #endif

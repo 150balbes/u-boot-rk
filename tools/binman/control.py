@@ -16,9 +16,14 @@ from patman import tools
 
 from binman import bintool
 from binman import cbfs_util
-from binman import elf
 from patman import command
+from binman import elf
+from binman import entry
 from patman import tout
+
+# These are imported if needed since they import libfdt
+state = None
+Image = None
 
 # List of images we plan to create
 # Make this global so that it can be referenced from tests
@@ -41,6 +46,8 @@ def _ReadImageDesc(binman_node, use_expanded):
     Returns:
         OrderedDict of Image objects, each of which describes an image
     """
+    # For Image()
+    # pylint: disable=E1102
     images = OrderedDict()
     if 'multiple-images' in binman_node.props:
         for node in binman_node.subnodes:
@@ -209,6 +216,7 @@ def ReadEntry(image_fname, entry_path, decomp=True):
     from binman.image import Image
 
     image = Image.FromFile(image_fname)
+    image.CollectBintools()
     entry = image.FindEntryPath(entry_path)
     return entry.ReadData(decomp)
 
@@ -245,6 +253,7 @@ def ExtractEntries(image_fname, output_fname, outdir, entry_paths,
         List of EntryInfo records that were written
     """
     image = Image.FromFile(image_fname)
+    image.CollectBintools()
 
     if alt_format == 'list':
         ShowAltFormats(image)
@@ -293,10 +302,11 @@ def BeforeReplace(image, allow_resize):
     """
     state.PrepareFromLoadedData(image)
     image.LoadData()
+    image.CollectBintools()
 
     # If repacking, drop the old offset/size values except for the original
     # ones, so we are only left with the constraints.
-    if allow_resize:
+    if image.allow_repack and allow_resize:
         image.ResetForPack()
 
 
@@ -363,6 +373,7 @@ def WriteEntry(image_fname, entry_path, data, do_compress=True,
     """
     tout.info("Write entry '%s', file '%s'" % (entry_path, image_fname))
     image = Image.FromFile(image_fname)
+    image.CollectBintools()
     entry = image.FindEntryPath(entry_path)
     WriteEntryToImage(image, entry, data, do_compress=do_compress,
                       allow_resize=allow_resize, write_map=write_map)
@@ -500,8 +511,8 @@ def PrepareImagesAndDtbs(dtb_fname, select_images, update_fdt, use_expanded):
     # without changing the device-tree size, thus ensuring that our
     # entry offsets remain the same.
     for image in images.values():
+        image.gen_entries()
         image.CollectBintools()
-        image.ExpandEntries()
         if update_fdt:
             image.AddMissingProperties(True)
         image.ProcessFdt(dtb)
@@ -710,6 +721,13 @@ def Binman(args):
             bintool.Bintool.set_missing_list(
                 args.force_missing_bintools.split(',') if
                 args.force_missing_bintools else None)
+
+            # Create the directory here instead of Entry.check_fake_fname()
+            # since that is called from a threaded context so different threads
+            # may race to create the directory
+            if args.fake_ext_blobs:
+                entry.Entry.create_fake_dir()
+
             for image in images.values():
                 invalid |= ProcessImage(image, args.update_fdt, args.map,
                                        allow_missing=args.allow_missing,

@@ -13,32 +13,22 @@
 #define BOARD_REV_C			0x00080000
 #define BOARD_REV_MASK			0x001A0000
 /* DDR */
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
-#define CONFIG_CHIP_SELECTS_PER_CTRL	1
 #define SYS_SDRAM_SIZE_512		0x20000000
 #define SYS_SDRAM_SIZE_1024		0x40000000
-#define CONFIG_CHIP_SELECTS_PER_CTRL	1
 
 /* ENV */
 #define CONFIG_SYS_FSL_QSPI_BASE	0x40000000
 
-#ifndef CONFIG_SPL_BUILD
 #undef BOOT_TARGET_DEVICES
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 0) \
 	func(USB, usb, 0) \
 	func(DHCP, dhcp, na)
-#endif
-
-#define CONFIG_PCIE1		/* PCIE controller 1 */
-
-#define CONFIG_PCI_SCAN_SHOW
 
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	"verify=no\0"				\
 	"initrd_high=0xffffffffffffffff\0"	\
-	"fdt_addr=0x00f00000\0"			\
 	"kernel_addr=0x01000000\0"		\
 	"kernel_size_sd=0x16000\0"		\
 	"kernelhdr_size_sd=0x10\0"		\

@@ -89,15 +89,6 @@
 	"ramdisk_addr_r=0x82100000\0" \
 	"scriptaddr=0x87000000\0"
 
-#define NFS_BOOTCMD \
-	"nfsargs=ip=:::::eth0: root=/dev/nfs\0" \
-	"nfsboot=run setup; " \
-		"setenv bootargs ${defargs} ${nfsargs} " \
-		"${setupargs} ${vidargs}; echo Booting from NFS...;" \
-		"dhcp ${kernel_addr_r} && " \
-		"tftp ${fdt_addr_r} ${soc}-colibri${variant}-${fdt_board}.dtb && " \
-		"run fdt_fixup && bootz ${kernel_addr_r} - ${fdt_addr_r}\0" \
-
 #define UBI_BOOTCMD	\
 	"ubiargs=ubi.mtd=ubi root=ubi0:rootfs rootfstype=ubifs " \
 		"ubi.fm_autoconvert=1\0" \
@@ -111,7 +102,6 @@
 
 #if defined(CONFIG_TARGET_COLIBRI_IMX7_NAND)
 #define MODULE_EXTRA_ENV_SETTINGS \
-	"mtdparts=" CONFIG_MTDPARTS_DEFAULT "\0" \
 	UBI_BOOTCMD
 #elif defined(CONFIG_TARGET_COLIBRI_IMX7_EMMC)
 #define MODULE_EXTRA_ENV_SETTINGS \
@@ -136,11 +126,10 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	BOOTENV \
 	MEM_LAYOUT_ENV_SETTINGS \
-	NFS_BOOTCMD \
 	MODULE_EXTRA_ENV_SETTINGS \
 	UBOOT_UPDATE \
 	"boot_file=zImage\0" \
-	"bootubipart=ubi\0" \
+	"boot_script_dhcp=boot.scr\0" \
 	"console=ttymxc0\0" \
 	"defargs=\0" \
 	"fdt_board=eval-v3\0" \
@@ -175,16 +164,6 @@
 #define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
 #define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
 
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
-
-/* environment organization */
-#if defined(CONFIG_ENV_IS_IN_NAND)
-#define CONFIG_ENV_RANGE	(4 * CONFIG_ENV_SIZE)
-#endif
-
 #ifdef CONFIG_TARGET_COLIBRI_IMX7_NAND
 /* NAND stuff */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -193,16 +172,10 @@
 #endif
 
 /* USB Configs */
-#define CONFIG_EHCI_HCD_INIT_AFTER_RESET
 
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS		0
-#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 #define CONFIG_USBD_HS
-
-#if defined(CONFIG_DM_VIDEO)
-#define CONFIG_VIDEO_BMP_LOGO
-#endif
 
 #endif

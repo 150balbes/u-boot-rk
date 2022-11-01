@@ -26,6 +26,7 @@ static struct sbi_imp implementations[] = {
 	{ 3, "KVM" },
 	{ 4, "RustSBI" },
 	{ 5, "Diosix" },
+	{ 6, "Coffer" },
 };
 
 static struct sbi_ext extensions[] = {
@@ -44,6 +45,7 @@ static struct sbi_ext extensions[] = {
 	{ SBI_EXT_RFENCE,		      "RFENCE Extension" },
 	{ SBI_EXT_HSM,			      "Hart State Management Extension" },
 	{ SBI_EXT_SRST,			      "System Reset Extension" },
+	{ SBI_EXT_PMU,			      "Performance Monitoring Unit Extension" },
 };
 
 static int do_sbi(struct cmd_tbl *cmdtp, int flag, int argc,
@@ -51,6 +53,7 @@ static int do_sbi(struct cmd_tbl *cmdtp, int flag, int argc,
 {
 	int i, impl_id;
 	long ret;
+	long mvendorid, marchid, mimpid;
 
 	ret = sbi_get_spec_version();
 	if (ret >= 0)
@@ -76,7 +79,17 @@ static int do_sbi(struct cmd_tbl *cmdtp, int flag, int argc,
 		if (i == ARRAY_SIZE(implementations))
 			printf("Unknown implementation ID %ld", ret);
 	}
-	printf("\nExtensions:\n");
+	printf("\nMachine:\n");
+	ret = sbi_get_mvendorid(&mvendorid);
+	if (!ret)
+		printf("  Vendor ID %lx\n", mvendorid);
+	ret = sbi_get_marchid(&marchid);
+	if (!ret)
+		printf("  Architecture ID %lx\n", marchid);
+	ret = sbi_get_mimpid(&mimpid);
+	if (!ret)
+		printf("  Implementation ID %lx\n", mimpid);
+	printf("Extensions:\n");
 	for (i = 0; i < ARRAY_SIZE(extensions); ++i) {
 		ret = sbi_probe_extension(extensions[i].id);
 		if (ret > 0)

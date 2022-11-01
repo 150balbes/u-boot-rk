@@ -174,6 +174,55 @@ static efi_status_t efi_init_os_indications(void)
 				    &os_indications_supported, false);
 }
 
+/**
+ * __efi_init_early() - handle initialization at early stage
+ *
+ * This function is called in efi_init_obj_list() only if
+ * !CONFIG_EFI_SETUP_EARLY.
+ *
+ * Return:	status code
+ */
+static efi_status_t __efi_init_early(void)
+{
+	efi_status_t ret = EFI_SUCCESS;
+
+	/* Allow unaligned memory access */
+	allow_unaligned();
+
+	/* Initialize root node */
+	ret = efi_root_node_register();
+	if (ret != EFI_SUCCESS)
+		goto out;
+
+	ret = efi_console_register();
+	if (ret != EFI_SUCCESS)
+		goto out;
+
+	ret = efi_disk_init();
+out:
+	return ret;
+}
+
+/**
+ * efi_init_early() - handle initialization at early stage
+ *
+ * external version of __efi_init_early(); expected to be called in
+ * board_init_r().
+ *
+ * Return:	status code
+ */
+int efi_init_early(void)
+{
+	efi_status_t ret;
+
+	ret = __efi_init_early();
+	if (ret != EFI_SUCCESS) {
+		/* never re-init UEFI subsystem */
+		efi_obj_list_initialized = ret;
+		return -1;
+	}
+	return 0;
+}
 
 /**
  * efi_init_obj_list() - Initialize and populate EFI object list
@@ -188,28 +237,22 @@ efi_status_t efi_init_obj_list(void)
 	if (efi_obj_list_initialized != OBJ_LIST_NOT_INITIALIZED)
 		return efi_obj_list_initialized;
 
-	/* Allow unaligned memory access */
-	allow_unaligned();
-
-	/* Initialize root node */
-	ret = efi_root_node_register();
-	if (ret != EFI_SUCCESS)
-		goto out;
-
-	ret = efi_console_register();
-	if (ret != EFI_SUCCESS)
-		goto out;
-
-#ifdef CONFIG_PARTITIONS
-	ret = efi_disk_register();
-	if (ret != EFI_SUCCESS)
-		goto out;
-#endif
-	if (IS_ENABLED(CONFIG_EFI_RNG_PROTOCOL)) {
-		ret = efi_rng_register();
+	if (!IS_ENABLED(CONFIG_EFI_SETUP_EARLY)) {
+		ret = __efi_init_early();
 		if (ret != EFI_SUCCESS)
 			goto out;
 	}
+
+	/* Set up console modes */
+	efi_setup_console_size();
+
+	/*
+	 * Probe block devices to find the ESP.
+	 * efi_disks_register() must be called before efi_init_variables().
+	 */
+	ret = efi_disks_register();
+	if (ret != EFI_SUCCESS)
+		goto out;
 
 	/* Initialize variable services */
 	ret = efi_init_variables();
@@ -231,6 +274,12 @@ efi_status_t efi_init_obj_list(void)
 	if (ret != EFI_SUCCESS)
 		goto out;
 
+	if (IS_ENABLED(CONFIG_EFI_ECPT)) {
+		ret = efi_ecpt_register();
+		if (ret != EFI_SUCCESS)
+			goto out;
+	}
+
 	if (IS_ENABLED(CONFIG_EFI_ESRT)) {
 		ret = efi_esrt_register();
 		if (ret != EFI_SUCCESS)
@@ -244,6 +293,13 @@ efi_status_t efi_init_obj_list(void)
 
 		ret = efi_tcg2_do_initial_measurement();
 		if (ret == EFI_SECURITY_VIOLATION)
+			goto out;
+	}
+
+	/* Install EFI_RNG_PROTOCOL */
+	if (IS_ENABLED(CONFIG_EFI_RNG_PROTOCOL)) {
+		ret = efi_rng_register();
+		if (ret != EFI_SUCCESS)
 			goto out;
 	}
 

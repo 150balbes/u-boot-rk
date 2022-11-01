@@ -157,6 +157,9 @@ a line with "CONFIG_DISTRO_DEFAULTS=y". If you want to enable this
 from Kconfig itself, for e.g. all boards using a specific SoC then
 add a "imply DISTRO_DEFAULTS" to your SoC CONFIG option.
 
+
+TO BE UPDATED:
+
 In your board configuration file, include the following::
 
     #ifndef CONFIG_SPL_BUILD
@@ -295,7 +298,8 @@ Each entry in the macro defines a single boot device (e.g. a specific eMMC
 device or SD card) or type of boot device (e.g. USB disk). The parameters to
 the func macro (passed in by the internal implementation of the header) are:
 
-- Upper-case disk type (MMC, SATA, SCSI, IDE, USB, DHCP, PXE, VIRTIO).
+- Upper-case disk type (DHCP, HOST, IDE, MMC, NVME, PXE, SATA, SCSI, UBIFS, USB,
+  VIRTIO).
 - Lower-case disk type (same options as above).
 - ID of the specific disk (MMC only) or ignored for other types.
 

@@ -19,6 +19,7 @@
 #include <fdt_support.h>
 #include <exports.h>
 #include <fdtdec.h>
+#include <version.h>
 
 /**
  * fdt_getprop_u32_default_node - Return a node's property or a default
@@ -303,6 +304,15 @@ int fdt_chosen(void *fdt)
 			       fdt_strerror(err));
 			return err;
 		}
+	}
+
+	/* add u-boot version */
+	err = fdt_setprop(fdt, nodeoffset, "u-boot,version", PLAIN_VERSION,
+			  strlen(PLAIN_VERSION) + 1);
+	if (err < 0) {
+		printf("WARNING: could not set u-boot,version %s.\n",
+		       fdt_strerror(err));
+		return err;
 	}
 
 	return fdt_fixup_stdout(fdt, nodeoffset);
@@ -1544,14 +1554,6 @@ int fdt_set_phandle(void *fdt, int nodeoffset, uint32_t phandle)
 #endif
 
 	ret = fdt_setprop_cell(fdt, nodeoffset, "phandle", phandle);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * For now, also set the deprecated "linux,phandle" property, so that we
-	 * don't break older kernels.
-	 */
-	ret = fdt_setprop_cell(fdt, nodeoffset, "linux,phandle", phandle);
 
 	return ret;
 }
@@ -1725,7 +1727,7 @@ int fdt_set_status_by_pathf(void *fdt, enum fdt_status status, const char *fmt,
 	return fdt_set_node_status(fdt, offset, status);
 }
 
-#if defined(CONFIG_VIDEO) || defined(CONFIG_LCD)
+#if defined(CONFIG_LCD)
 int fdt_add_edid(void *blob, const char *compat, unsigned char *edid_buf)
 {
 	int noff;

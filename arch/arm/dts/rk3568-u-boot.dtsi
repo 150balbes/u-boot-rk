@@ -3,6 +3,8 @@
  * (C) Copyright 2021 Rockchip Electronics Co., Ltd
  */
 
+#include "rockchip-u-boot.dtsi"
+
 / {
 	aliases {
 		mmc0 = &sdhci;
@@ -40,6 +42,31 @@
 	status = "okay";
 };
 
+&usb2phy0_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usbdrd30 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usbhost30 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&u2phy0_host {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
 &saradc {
 	u-boot,dm-spl;
 	status = "okay";
@@ -49,6 +76,7 @@
 	bus-width = <4>;
 	u-boot,dm-spl;
 	u-boot,spl-fifo-mode;
+	status = "okay";
 };
 
 &sdhci {
@@ -56,8 +84,17 @@
 	u-boot,dm-spl;
 	u-boot,spl-fifo-mode;
 	mmc-hs200-1_8v;
+	status = "okay";
 };
 
 &sfc {
 	u-boot,dm-spl;
+};
+
+&pipegrf {
+	u-boot,dm-pre-reloc;
+};
+
+&pipe_phy_grf1{
+	u-boot,dm-pre-reloc;
 };

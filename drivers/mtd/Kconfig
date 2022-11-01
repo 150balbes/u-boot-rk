@@ -22,6 +22,14 @@ config MTD_NOR_FLASH
 	help
 	  Enable support for parallel NOR flash.
 
+config MTD_CONCAT
+	bool "Enable MTD device concatenation"
+	depends on MTD
+	help
+	  Enable support for concatenating multiple physical MTD devices
+	  into a single logical device. The larger logical device can then
+	  be partitioned.
+
 config SYS_MTDPARTS_RUNTIME
 	bool "Allow MTDPARTS to be configured at runtime"
 	depends on MTD
@@ -40,6 +48,35 @@ config FLASH_CFI_DRIVER
 	  option. Visit <http://www.amd.com/products/nvd/overview/cfi.html>
 	  for more information on CFI.
 
+choice
+	prompt "Data-width of the flash device"
+	depends on FLASH_CFI_DRIVER
+	default SYS_FLASH_CFI_WIDTH_8BIT
+
+config SYS_FLASH_CFI_WIDTH_8BIT
+	bool "Data-width of the device is 8-bit"
+
+config SYS_FLASH_CFI_WIDTH_16BIT
+	bool "Data-width of the device is 16-bit"
+
+config SYS_FLASH_CFI_WIDTH_32BIT
+	bool "Data-width of the device is 32-bit"
+
+config SYS_FLASH_CFI_WIDTH_64BIT
+	bool "Data-width of the device is 64-bit"
+
+endchoice
+
+config SYS_FLASH_CFI_WIDTH
+	hex
+	depends on FLASH_CFI_DRIVER
+	default 0x1 if SYS_FLASH_CFI_WIDTH_8BIT
+	default 0x2 if SYS_FLASH_CFI_WIDTH_16BIT
+	default 0x4 if SYS_FLASH_CFI_WIDTH_32BIT
+	default 0x8 if SYS_FLASH_CFI_WIDTH_64BIT
+	help
+	  This must be kept in sync with the table in include/flash.h
+
 config CFI_FLASH
 	bool "Enable Driver Model for CFI Flash driver"
 	depends on DM_MTD
@@ -52,11 +89,26 @@ config CFI_FLASH
 	  option. Visit <http://www.amd.com/products/nvd/overview/cfi.html>
 	  for more information on CFI.
 
+config CFI_FLASH_USE_WEAK_ACCESSORS
+	bool "Allow read/write functions to be overridden"
+	depends on FLASH_CFI_DRIVER
+	help
+	  Enable this option to allow for the flash_{read,write}{8,16,32,64}
+	  functions to be overridden by the platform.
+
+config SYS_CFI_FLASH_STATUS_POLL
+	bool "Poll status on AMD flash chips"
+	depends on FLASH_CFI_DRIVER
+
 config SYS_FLASH_USE_BUFFER_WRITE
 	bool "Enable buffered writes to flash"
 	depends on FLASH_CFI_DRIVER
 	help
 	  Use buffered writes to flash.
+
+config SYS_FLASH_EMPTY_INFO
+	bool "Enable displaying empty sectors in flash info"
+	depends on FLASH_CFI_DRIVER
 
 config FLASH_CFI_MTD
 	bool "Enable CFI MTD driver"
@@ -80,6 +132,21 @@ config SYS_FLASH_CFI
 	  Define if the flash driver uses extra elements in the
 	  common flash structure for storing flash geometry.
 
+config SYS_FLASH_QUIET_TEST
+	bool "Disable printing a warning about not recognizing some flash banks"
+	depends on FLASH_CFI_DRIVER
+	help
+	  If this option is enabled, the common CFI flash doesn't print it's
+	  warning upon not recognized FLASH banks. This is useful, if some of
+	  the configured banks are only optionally available.
+
+config SYS_FLASH_CHECKSUM
+	bool "Compute and print flash CRC if 'flashchecksum' is set in the environment"
+	depends on MTD_NOR_FLASH
+	help
+	  If the variable flashchecksum is set in the environment, perform a CRC
+	  of the flash and print the value to console.
+
 config ALTERA_QSPI
 	bool "Altera Generic Quad SPI Controller"
 	depends on DM_MTD
@@ -89,14 +156,6 @@ config ALTERA_QSPI
 	  Altera Generic Quad SPI Controller. The controller converts SPI
 	  NOR flash to parallel flash interface. Please find details on the
 	  "Embedded Peripherals IP User Guide" of Altera.
-
-config FLASH_PIC32
-	bool "Microchip PIC32 Flash driver"
-	depends on MACH_PIC32 && DM_MTD
-	select USE_SYS_MAX_FLASH_BANKS
-	help
-	  This enables access to Microchip PIC32 internal non-CFI flash
-	  chips through PIC32 Non-Volatile-Memory Controller.
 
 config RENESAS_RPC_HF
 	bool "Renesas RCar Gen3 RPC HyperFlash driver"
@@ -119,6 +178,14 @@ config STM32_FLASH
 	help
 	 This is the driver of embedded flash for some STMicroelectronics
 	 STM32 MCU.
+
+config SYS_MAX_FLASH_SECT
+	int "Maximumm number of sectors on a flash chip"
+	depends on MTD_NOR_FLASH || FLASH_CFI_DRIVER
+	default 512
+
+config SAMSUNG_ONENAND
+	bool "Samsung OneNAND driver support"
 
 config USE_SYS_MAX_FLASH_BANKS
 	bool "Enable Max number of Flash memory banks"

@@ -15,19 +15,26 @@ ifdef CONFIG_ARCH_KIRKWOOD
 obj-y	= dram.o
 obj-y	+= gpio.o
 obj-y	+= mbus.o
+
+ifndef CONFIG_TIMER
 obj-y	+= timer.o
+endif
 
 else # CONFIG_ARCH_KIRKWOOD
 
 obj-y	= cpu.o
 obj-y	+= dram.o
+obj-y	+= lowlevel.o
 obj-$(CONFIG_DM_RESET) += system-controller.o
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_ARMADA_375) += ../../../drivers/ddr/marvell/axp/xor.o
 obj-$(CONFIG_ARMADA_38X) += ../../../drivers/ddr/marvell/a38x/xor.o
 obj-$(CONFIG_ARMADA_XP) += ../../../drivers/ddr/marvell/axp/xor.o
 obj-$(CONFIG_ARMADA_MSYS) += ../../../drivers/ddr/marvell/axp/xor.o
+
+ifdef CONFIG_ARMADA_38X
 obj-$(CONFIG_MVEBU_EFUSE) += efuse.o
+endif
 
 extra-y += kwbimage.cfg
 
@@ -61,10 +68,12 @@ KWB_REPLACE += CSK_INDEX
 KWB_CFG_CSK_INDEX = $(CONFIG_SECURED_MODE_CSK_INDEX)
 
 KWB_REPLACE += SEC_BOOT_DEV
-KWB_CFG_SEC_BOOT_DEV=$(patsubst "%",%, \
-	$(if $(findstring BOOT_SPI_NOR_FLASH,$(CONFIG_SPL_BOOT_DEVICE)),0x34) \
-	$(if $(findstring BOOT_SDIO_MMC_CARD,$(CONFIG_SPL_BOOT_DEVICE)),0x31) \
-	)
+ifneq ($(CONFIG_MVEBU_SPL_BOOT_DEVICE_SPI),)
+	KWB_CFG_SEC_BOOT_DEV=0x34
+endif
+ifneq ($(CONFIG_MVEBU_SPL_BOOT_DEVICE_MMC),)
+	KWB_CFG_SEC_BOOT_DEV=0x31
+endif
 
 KWB_REPLACE += SEC_FUSE_DUMP
 KWB_CFG_SEC_FUSE_DUMP = a38x

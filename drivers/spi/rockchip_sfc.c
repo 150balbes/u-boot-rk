@@ -164,8 +164,6 @@
 /* DMA is only enabled for large data transmission */
 #define SFC_DMA_TRANS_THRETHOLD		(0x40)
 
-#define SFC_MIN_SPEED		(24 * 1000 * 1000)
-
 /* Maximum clock values from datasheet suggest keeping clock value under
  * 150MHz. No minimum or average value is suggested.
  */
@@ -597,9 +595,6 @@ static int rockchip_sfc_set_speed(struct udevice *bus, uint speed)
 
 	if (speed > sfc->max_freq)
 		speed = sfc->max_freq;
-
-	if (speed < SFC_MIN_SPEED)
-		speed = SFC_MIN_SPEED;
 
 	if (speed == sfc->speed)
 		return 0;

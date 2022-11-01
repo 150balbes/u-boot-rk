@@ -19,7 +19,9 @@
 #include <mapmem.h>
 #include <serial.h>
 #include <spl.h>
+#include <system-constants.h>
 #include <asm/global_data.h>
+#include <asm-generic/gpio.h>
 #include <asm/u-boot.h>
 #include <nand.h>
 #include <fat.h>
@@ -32,12 +34,14 @@
 #include <malloc.h>
 #include <mapmem.h>
 #include <dm/root.h>
+#include <dm/util.h>
 #include <linux/compiler.h>
 #include <fdt_support.h>
 #include <bootcount.h>
 #include <wdt.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+DECLARE_BINMAN_MAGIC_SYM;
 
 #ifndef CONFIG_SYS_UBOOT_START
 #define CONFIG_SYS_UBOOT_START	CONFIG_SYS_TEXT_BASE
@@ -49,16 +53,22 @@ DECLARE_GLOBAL_DATA_PTR;
 
 u32 *boot_params_ptr = NULL;
 
-#if CONFIG_IS_ENABLED(BINMAN_SYMBOLS)
+#if CONFIG_IS_ENABLED(BINMAN_UBOOT_SYMBOLS)
 /* See spl.h for information about this */
 binman_sym_declare(ulong, u_boot_any, image_pos);
 binman_sym_declare(ulong, u_boot_any, size);
-#endif
 
 #ifdef CONFIG_TPL
 binman_sym_declare(ulong, u_boot_spl, image_pos);
 binman_sym_declare(ulong, u_boot_spl, size);
 #endif
+
+#ifdef CONFIG_VPL
+binman_sym_declare(ulong, u_boot_vpl, image_pos);
+binman_sym_declare(ulong, u_boot_vpl, size);
+#endif
+
+#endif /* BINMAN_UBOOT_SYMBOLS */
 
 /* Define board data structure */
 static struct bd_info bdata __attribute__ ((section(".data")));
@@ -142,25 +152,41 @@ void spl_fixup_fdt(void *fdt_blob)
 #endif
 }
 
-#if CONFIG_IS_ENABLED(BINMAN_SYMBOLS)
 ulong spl_get_image_pos(void)
 {
-	return spl_phase() == PHASE_TPL ?
+	if (!CONFIG_IS_ENABLED(BINMAN_UBOOT_SYMBOLS))
+		return BINMAN_SYM_MISSING;
+
+#ifdef CONFIG_VPL
+	if (spl_next_phase() == PHASE_VPL)
+		return binman_sym(ulong, u_boot_vpl, image_pos);
+#endif
+	return spl_next_phase() == PHASE_SPL ?
 		binman_sym(ulong, u_boot_spl, image_pos) :
 		binman_sym(ulong, u_boot_any, image_pos);
 }
 
 ulong spl_get_image_size(void)
 {
-	return spl_phase() == PHASE_TPL ?
+	if (!CONFIG_IS_ENABLED(BINMAN_UBOOT_SYMBOLS))
+		return BINMAN_SYM_MISSING;
+
+#ifdef CONFIG_VPL
+	if (spl_next_phase() == PHASE_VPL)
+		return binman_sym(ulong, u_boot_vpl, size);
+#endif
+	return spl_next_phase() == PHASE_SPL ?
 		binman_sym(ulong, u_boot_spl, size) :
 		binman_sym(ulong, u_boot_any, size);
 }
-#endif /* BINMAN_SYMBOLS */
 
 ulong spl_get_image_text_base(void)
 {
-	return spl_phase() == PHASE_TPL ? CONFIG_SPL_TEXT_BASE :
+#ifdef CONFIG_VPL
+	if (spl_next_phase() == PHASE_VPL)
+		return CONFIG_VPL_TEXT_BASE;
+#endif
+	return spl_next_phase() == PHASE_SPL ? CONFIG_SPL_TEXT_BASE :
 		CONFIG_SYS_TEXT_BASE;
 }
 
@@ -203,7 +229,7 @@ __weak struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
 
 void spl_set_header_raw_uboot(struct spl_image_info *spl_image)
 {
-	ulong u_boot_pos = binman_sym(ulong, u_boot_any, image_pos);
+	ulong u_boot_pos = spl_get_image_pos();
 
 	spl_image->size = CONFIG_SYS_MONITOR_LEN;
 
@@ -465,6 +491,8 @@ static enum bootstage_id get_bootstage_id(bool start)
 
 	if (IS_ENABLED(CONFIG_TPL_BUILD) && phase == PHASE_TPL)
 		return start ? BOOTSTAGE_ID_START_TPL : BOOTSTAGE_ID_END_TPL;
+	else if (IS_ENABLED(CONFIG_VPL_BUILD) && phase == PHASE_VPL)
+		return start ? BOOTSTAGE_ID_START_VPL : BOOTSTAGE_ID_END_VPL;
 	else
 		return start ? BOOTSTAGE_ID_START_SPL : BOOTSTAGE_ID_END_SPL;
 }
@@ -708,9 +736,8 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 
 	spl_set_bd();
 
-#if defined(CONFIG_SYS_SPL_MALLOC_START)
-	mem_malloc_init(CONFIG_SYS_SPL_MALLOC_START,
-			CONFIG_SYS_SPL_MALLOC_SIZE);
+#if defined(CONFIG_SYS_SPL_MALLOC)
+	mem_malloc_init(SYS_SPL_MALLOC_START, CONFIG_SYS_SPL_MALLOC_SIZE);
 	gd->flags |= GD_FLG_FULL_MALLOC_INIT;
 #endif
 	if (!(gd->flags & GD_FLG_SPL_INIT)) {
@@ -743,6 +770,9 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 		}
 	}
 
+	if (CONFIG_IS_ENABLED(GPIO_HOG))
+		gpio_hog_probe_all();
+
 #if CONFIG_IS_ENABLED(BOARD_INIT)
 	spl_board_init();
 #endif
@@ -756,6 +786,14 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 		dram_init_banksize();
 
 	bootcount_inc();
+
+	/* Dump driver model states to aid analysis */
+	if (CONFIG_IS_ENABLED(DM_STATS)) {
+		struct dm_stats mem;
+
+		dm_get_mem(&mem);
+		dm_dump_mem(&mem);
+	}
 
 	memset(&spl_image, '\0', sizeof(spl_image));
 #ifdef CONFIG_SYS_SPL_ARGS_ADDR

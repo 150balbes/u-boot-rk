@@ -8,11 +8,6 @@
 #define _CONFIG_CONTROLCENTERDC_H
 
 /*
- * High Level Configuration Options (easy to change)
- */
-#define CONFIG_CUSTOMER_BOARD_SUPPORT
-
-/*
  * TEXT_BASE needs to be below 16MiB, since this area is scrubbed
  * for DDR ECC byte filling in the SPL before loading the main
  * U-Boot into it.
@@ -22,61 +17,12 @@
 
 #define PHY_ANEG_TIMEOUT	8000	/* PHY needs a longer aneg time */
 
-/* PCIe support */
-#ifndef CONFIG_SPL_BUILD
-#define CONFIG_PCI_SCAN_SHOW
-#endif
-
-/*
- * Software (bit-bang) MII driver configuration
- */
-#define CONFIG_BITBANGMII_MULTI
-
-/* SPL */
-/*
- * Select the boot device here
- *
- * Currently supported are:
- * SPL_BOOT_SPI_NOR_FLASH	- Booting via SPI NOR flash
- * SPL_BOOT_SDIO_MMC_CARD	- Booting via SDIO/MMC card (partition 1)
- */
-#define SPL_BOOT_SPI_NOR_FLASH		1
-#define SPL_BOOT_SDIO_MMC_CARD		2
-#define CONFIG_SPL_BOOT_DEVICE		SPL_BOOT_SPI_NOR_FLASH
-
-/* Defines for SPL */
-#define CONFIG_SPL_SIZE			(160 << 10)
-
-#if defined(CONFIG_SECURED_MODE_IMAGE)
-#define CONFIG_SPL_MAX_SIZE		(CONFIG_SPL_SIZE - 0x2614)
-#else
-#define CONFIG_SPL_MAX_SIZE		(CONFIG_SPL_SIZE - 0x30)
-#endif
-
-#define CONFIG_SPL_BSS_START_ADDR	(0x40000000 + CONFIG_SPL_SIZE)
-#define CONFIG_SPL_BSS_MAX_SIZE		(16 << 10)
-
-#ifdef CONFIG_SPL_BUILD
-#define CONFIG_SYS_MALLOC_SIMPLE
-#endif
-
-#define CONFIG_SPL_STACK		(0x40000000 + ((212 - 16) << 10))
-#define CONFIG_SPL_BOOTROM_SAVE		(CONFIG_SPL_STACK + 4)
-
-#if CONFIG_SPL_BOOT_DEVICE == SPL_BOOT_SDIO_MMC_CARD
-/* SPL related MMC defines */
-#ifdef CONFIG_SPL_BUILD
-#define CONFIG_FIXED_SDHCI_ALIGNED_BUFFER	0x00180000	/* in SDRAM */
-#endif
-#endif
-
 /*
  * Environment Configuration
  */
 
 #define CONFIG_HOSTNAME		"ccdc"
 #define CONFIG_ROOTPATH		"/opt/nfsroot"
-#define CONFIG_BOOTFILE		"ccdc.img"
 
 #define CONFIG_EXTRA_ENV_SETTINGS						\
 	"netdev=eth1\0"						\

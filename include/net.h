@@ -35,13 +35,7 @@ struct udevice;
  *	alignment in memory.
  *
  */
-
-#ifdef CONFIG_SYS_RX_ETH_BUFFER
-# define PKTBUFSRX	CONFIG_SYS_RX_ETH_BUFFER
-#else
-# define PKTBUFSRX	4
-#endif
-
+#define PKTBUFSRX	CONFIG_SYS_RX_ETH_BUFFER
 #define PKTALIGN	ARCH_DMA_MINALIGN
 
 /* Number of packets processed together */
@@ -397,6 +391,8 @@ struct ip_hdr {
 
 #define IP_HDR_SIZE		(sizeof(struct ip_hdr))
 
+#define IP_MIN_FRAG_DATAGRAM_SIZE	(IP_HDR_SIZE + 8)
+
 /*
  *	Internet Protocol (IP) + UDP header.
  */
@@ -540,7 +536,9 @@ extern struct in_addr net_dns_server2;
 #endif
 extern char	net_nis_domain[32];	/* Our IS domain */
 extern char	net_hostname[32];	/* Our hostname */
-extern char	net_root_path[64];	/* Our root path */
+#ifdef CONFIG_NET
+extern char	net_root_path[CONFIG_BOOTP_MAX_ROOT_PATH_LEN];	/* Our root path */
+#endif
 /** END OF BOOTP EXTENTIONS **/
 extern u8		net_ethaddr[ARP_HLEN];		/* Our ethernet address */
 extern u8		net_server_ethaddr[ARP_HLEN];	/* Boot server enet address */

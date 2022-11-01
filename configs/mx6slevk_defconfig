@@ -12,9 +12,11 @@ CONFIG_DEFAULT_DEVICE_TREE="imx6sl-evk"
 # CONFIG_CMD_BMODE is not set
 CONFIG_SUPPORT_RAW_INITRD=y
 CONFIG_USE_BOOTCOMMAND=y
-CONFIG_BOOTCOMMAND="mmc dev ${mmcdev};mmc dev ${mmcdev}; if mmc rescan; then if run loadbootscript; then run bootscript; else if run loadimage; then run mmcboot; else run netboot; fi; fi; else run netboot; fi"
+CONFIG_BOOTCOMMAND="mmc dev ${mmcdev}; if mmc rescan; then if run loadbootscript; then run bootscript; else if run loadimage; then run mmcboot; else run netboot; fi; fi; else run netboot; fi"
 CONFIG_BOARD_EARLY_INIT_F=y
 CONFIG_HUSH_PARSER=y
+CONFIG_SYS_MAXARGS=32
+CONFIG_SYS_PBSIZE=532
 CONFIG_CMD_BOOTZ=y
 # CONFIG_CMD_FLASH is not set
 CONFIG_CMD_GPIO=y
@@ -48,7 +50,6 @@ CONFIG_SF_DEFAULT_SPEED=20000000
 CONFIG_SPI_FLASH_STMICRO=y
 CONFIG_PHYLIB=y
 CONFIG_PHY_SMSC=y
-CONFIG_DM_ETH=y
 CONFIG_FEC_MXC=y
 CONFIG_MII=y
 CONFIG_PINCTRL=y

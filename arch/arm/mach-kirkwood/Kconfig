@@ -45,6 +45,8 @@ config TARGET_LSXL
 	bool "lsxl Board"
 	select FEROCEON_88FR131
 	select KW88F6281
+	select BOARD_EARLY_INIT_R
+	select MISC_INIT_R
 
 config TARGET_POGO_E02
 	bool "pogo_e02 Board"
@@ -121,6 +123,18 @@ endchoice
 config SYS_SOC
 	default "kirkwood"
 
+config KIRKWOOD_RGMII_PAD_1V8
+	bool "Configures the I/O voltage of the pads connected gigabit interface to 1.8V"
+	default y
+
+config KIRKWOOD_EGIGA_INIT
+	bool "Enable GbePort0/1 for kernel"
+	default y
+
+config KIRKWOOD_PCIE_INIT
+	bool "Enable PCIe Port0 for kernel"
+	default y
+
 source "board/Marvell/openrd/Kconfig"
 source "board/Marvell/dreamplug/Kconfig"
 source "board/Synology/ds109/Kconfig"
@@ -131,7 +145,6 @@ source "board/cloudengines/pogo_e02/Kconfig"
 source "board/cloudengines/pogo_v4/Kconfig"
 source "board/d-link/dns325/Kconfig"
 source "board/iomega/iconnect/Kconfig"
-source "board/keymile/Kconfig"
 source "board/LaCie/net2big_v2/Kconfig"
 source "board/LaCie/netspace_v2/Kconfig"
 source "board/raidsonic/ib62x0/Kconfig"

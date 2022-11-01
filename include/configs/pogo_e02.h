@@ -19,9 +19,6 @@
  */
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"mtdparts=mtdparts=orion_nand:1M(u-boot),4M(uImage)," \
-	"32M(rootfs),-(data)\0"\
-	"mtdids=nand0=orion_nand\0"\
 	"bootargs_console=console=ttyS0,115200\0" \
 	"bootcmd_usb=usb start; ext2load usb 0:1 0x00800000 /uImage; " \
 	"ext2load usb 0:1 0x01100000 /uInitrd\0"
@@ -31,8 +28,5 @@
  */
 #define CONFIG_MVGBE_PORTS	{1, 0}	/* enable port 0 only */
 #define CONFIG_PHY_BASE_ADR	0
-#ifdef CONFIG_RESET_PHY_R
-#undef CONFIG_RESET_PHY_R	/* remove legacy reset_phy() */
-#endif
 
 #endif /* _CONFIG_POGO_E02_H */

@@ -132,3 +132,26 @@ An attached disk can be emulated in RISC-V virt machine by adding::
     -device ide-hd,drive=mydisk,bus=ahci.0
 
 You will have to run 'scsi scan' to use it.
+
+Running with KVM
+----------------
+
+Running with QEMU using KVM requires an S-mode U-Boot binary as created by
+qemu-riscv64_smode_defconfig.
+
+Provide the U-Boot S-mode ELF image as *-kernel* parameter and do not add a
+*-bios* parameter, e.g.
+
+.. code-block:: bash
+
+    qemu-system-riscv64 -accel kvm -nographic -machine virt -kernel u-boot
+
+Debug UART
+----------
+
+The following settings provide a debug UART for the virt machine::
+
+    CONFIG_DEBUG_UART=y
+    CONFIG_DEBUG_UART_NS16550=y
+    CONFIG_DEBUG_UART_BASE=0x10000000
+    CONFIG_DEBUG_UART_CLOCK=3686400

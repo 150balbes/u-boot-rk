@@ -38,6 +38,7 @@
 	BOOTENV \
 	MEM_LAYOUT_ENV_SETTINGS \
 	"boot_file=Image\0" \
+	"boot_script_dhcp=boot.scr\0" \
 	"console=ttyLP1 earlycon\0" \
 	"fdt_addr=0x83000000\0"	\
 	"fdt_file=fsl-imx8qm-apalis-eval.dtb\0" \
@@ -49,11 +50,6 @@
 		"root=PARTUUID=${uuid} rootwait " \
 	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0" \
 	"mmcpart=1\0" \
-	"netargs=setenv bootargs console=${console},${baudrate} " \
-		"root=/dev/nfs ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp" \
-		"\0" \
-	"nfsboot=run netargs; dhcp ${loadaddr} ${boot_file}; tftp ${fdt_addr} " \
-		"apalis-imx8/${fdt_file}; booti ${loadaddr} - ${fdt_addr}\0" \
 	"panel=NULL\0" \
 	"script=boot.scr\0" \
 	"update_uboot=askenv confirm Did you load u-boot-dtb.imx (y/N)?; " \
@@ -64,27 +60,13 @@
 
 /* Link Definitions */
 
-#define CONFIG_SYS_INIT_SP_ADDR		0x80200000
-
 /* On Apalis iMX8 USDHC1 is eMMC, USDHC2 is 8-bit and USDHC3 is 4-bit MMC/SD */
 #define CONFIG_SYS_FSL_USDHC_NUM	3
-
-#define CONFIG_SYS_BOOTM_LEN		SZ_64M /* Increase max gunzip size */
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
 #define PHYS_SDRAM_1_SIZE		SZ_2G		/* 2 GB */
 #define PHYS_SDRAM_2_SIZE		SZ_2G		/* 2 GB */
-
-/* Monitor Command Prompt */
-#define CONFIG_SYS_CBSIZE		SZ_2K
-#define CONFIG_SYS_MAXARGS		64
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
-
-/* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		8000000	/* 8MHz */
 
 #endif /* __APALIS_IMX8_H */

@@ -9,24 +9,6 @@
 
 struct udevice;
 
-/**
- * struct led_uc_plat - Platform data the uclass stores about each device
- *
- * @label:	LED label
- */
-struct led_uc_plat {
-	const char *label;
-};
-
-/**
- * struct led_uc_priv - Private data the uclass stores about each device
- *
- * @period_ms:	Flash period in milliseconds
- */
-struct led_uc_priv {
-	int period_ms;
-};
-
 enum led_state_t {
 	LEDST_OFF = 0,
 	LEDST_ON = 1,
@@ -36,6 +18,26 @@ enum led_state_t {
 #endif
 
 	LEDST_COUNT,
+};
+
+/**
+ * struct led_uc_plat - Platform data the uclass stores about each device
+ *
+ * @label:	LED label
+ * @default_state:	LED default state
+ */
+struct led_uc_plat {
+	const char *label;
+	enum led_state_t default_state;
+};
+
+/**
+ * struct led_uc_priv - Private data the uclass stores about each device
+ *
+ * @period_ms:	Flash period in milliseconds
+ */
+struct led_uc_priv {
+	int period_ms;
 };
 
 struct led_ops {
@@ -107,14 +109,5 @@ enum led_state_t led_get_state(struct udevice *dev);
  * Return: 0 if OK, -ve on error
  */
 int led_set_period(struct udevice *dev, int period_ms);
-
-/**
- * led_default_state() - set the default state for all the LED
- *
- * This enables all leds which have default state.
- * see Documentation/devicetree/bindings/leds/common.txt
- *
- */
-int led_default_state(void);
 
 #endif

@@ -123,6 +123,7 @@ config FIT_BEST_MATCH
 config FIT_IMAGE_POST_PROCESS
 	bool "Enable post-processing of FIT artifacts after loading by U-Boot"
 	depends on TI_SECURE_DEVICE || SOCFPGA_SECURE_VAB_AUTH
+	default y if TI_SECURE_DEVICE
 	help
 	  Allows doing any sort of manipulation to blobs after they got extracted
 	  from FIT images like stripping off headers or modifying the size of the
@@ -209,8 +210,8 @@ config SPL_LOAD_FIT
 	  1. "loadables" images, other than FDTs, which do not have a "load"
 	     property will not be loaded. This limitation also applies to FPGA
 	     images with the correct "compatible" string.
-	  2. For FPGA images, only the "compatible" = "u-boot,fpga-legacy"
-	     loading method is supported.
+	  2. For FPGA images, the supported "compatible" list is in the
+	     doc/uImage.FIT/source_file_format.txt.
 	  3. FDTs are only loaded for images with an "os" property of "u-boot".
 	     "linux" images are also supported with Falcon boot mode.
 
@@ -254,6 +255,7 @@ config SPL_LOAD_FIT_FULL
 config SPL_FIT_IMAGE_POST_PROCESS
 	bool "Enable post-processing of FIT artifacts after loading by the SPL"
 	depends on SPL_LOAD_FIT
+	default y if TI_SECURE_DEVICE
 	help
 	  Allows doing any sort of manipulation to blobs after they got extracted
 	  from the U-Boot FIT image like stripping off headers or modifying the
@@ -292,9 +294,155 @@ endif # SPL
 
 endif # FIT
 
+config PXE_UTILS
+	bool
+	select MENU
+	help
+	  Utilities for parsing PXE file formats.
+
+config BOOTSTD
+	bool "Standard boot support"
+	default y
+	depends on DM && OF_CONTROL && BLK
+	help
+	  U-Boot supports a standard way of locating something to boot,
+	  typically an Operating System such as Linux, provided by a distro such
+	  as Arch Linux or Debian. Enable this to support iterating through
+	  available bootdevs and using bootmeths to find bootflows suitable for
+	  booting.
+
+	  Standard boot is not a standard way of booting, just a framework
+	  within U-Boot for supporting all the different ways that exist.
+
+	  Terminology:
+
+	    - bootdev - a device which can hold a distro (e.g. MMC)
+	    - bootmeth - a method to scan a bootdev to find bootflows (owned by
+	        U-Boot)
+	    - bootflow - a description of how to boot (owned by the distro)
+
+config BOOTSTD_FULL
+	bool "Enhanced features for standard boot"
+	default y if SANDBOX
+	help
+	  This enables various useful features for standard boot, which are not
+	  essential for operation:
+
+	  - bootdev, bootmeth commands
+	  - extra features in the bootflow command
+	  - support for selecting the ordering of bootmeths ("bootmeth order")
+	  - support for selecting the ordering of bootdevs using the devicetree
+	    as well as the "boot_targets" environment variable
+
+if BOOTSTD
+
+config BOOTSTD_BOOTCOMMAND
+	bool "Use bootstd to boot"
+	default y if !DISTRO_DEFAULTS
+	help
+	  Enable this to select a default boot-command suitable for booting
+	  with standard boot. This can be overridden by the board if needed,
+	  but the default command should be enough for most boards which use
+	  standard boot.
+
+	  For now this is only selected if distro boot is NOT used, since
+	  standard boot does not support all of the features of distro boot
+	  yet.
+
+config BOOTMETH_GLOBAL
+	bool
+	help
+	  Add support for global bootmeths. This feature is used by VBE and
+	  EFI bootmgr, since they take full control over which bootdevs are
+	  selected to boot.
+
+config BOOTMETH_DISTRO
+	bool "Bootdev support for distro boot"
+	select PXE_UTILS
+	default y
+	help
+	  Enables support for distro boot using bootdevs. This makes the
+	  bootdevs look for a 'extlinux/extlinux.conf' on each filesystem
+	  they scan.
+
+	  This provides a way to try out standard boot on an existing boot flow.
+
+config BOOTMETH_DISTRO_PXE
+	bool "Bootdev support for distro boot over network"
+	depends on CMD_PXE && CMD_NET && DM_ETH
+	default y
+	help
+	  Enables support for distro boot using bootdevs. This makes the
+	  bootdevs look for a 'extlinux/extlinux.conf' on the tftp server.
+
+	  This provides a way to try out standard boot on an existing boot flow.
+
+config BOOTMETH_EFILOADER
+	bool "Bootdev support for EFI boot"
+	depends on CMD_BOOTEFI
+	default y
+	help
+	  Enables support for EFI boot using bootdevs. This makes the
+	  bootdevs look for a 'boot<arch>.efi' on each filesystem
+	  they scan. The resulting file is booted after enabling U-Boot's
+	  EFI loader support.
+
+	  The <arch> depends on the architecture of the board:
+
+	     aa64      - aarch64 (ARM 64-bit)
+	     arm       - ARM 32-bit
+	     ia32      - x86 32-bit
+	     x64       - x86 64-bit
+	     riscv32   - RISC-V 32-bit
+	     riscv64   - RISC-V 64-bit
+
+	  This provides a way to try out standard boot on an existing boot flow.
+
+config BOOTMETH_VBE
+	bool "Bootdev support for Verified Boot for Embedded"
+	depends on FIT
+	default y
+	select BOOTMETH_GLOBAL
+	help
+	  Enables support for VBE boot. This is a standard boot method which
+	  supports selection of various firmware components, seleciton of an OS to
+	  boot as well as updating these using fwupd.
+
+if BOOTMETH_VBE
+
+config BOOTMETH_VBE_SIMPLE
+	bool "Bootdev support for VBE 'simple' method"
+	default y
+	help
+	  Enables support for VBE 'simple' boot. This allows updating a single
+	  firmware image in boot media such as MMC. It does not support any sort
+	  of rollback, recovery or A/B boot.
+
+endif # BOOTMETH_VBE
+
+config BOOTMETH_SANDBOX
+	def_bool y
+	depends on SANDBOX
+	help
+	  This is a sandbox bootmeth driver used for testing. It always returns
+	  -ENOTSUPP when attempting to boot.
+
+config BOOTMETH_SCRIPT
+	bool "Bootdev support for U-Boot scripts"
+	default y if BOOTSTD_FULL
+	help
+	  Enables support for booting a distro via a U-Boot script. This makes
+	  the bootdevs look for a 'boot/boot.scr' file which can be used to
+	  boot the distro.
+
+	  This provides a way to try out standard boot on an existing boot flow.
+	  It is not enabled by default to save space.
+
+endif
+
 config LEGACY_IMAGE_FORMAT
 	bool "Enable support for the legacy image format"
-	default y if !FIT_SIGNATURE
+	default y if !FIT_SIGNATURE && !TI_SECURE_DEVICE
 	help
 	  This option enables the legacy image format. It is enabled by
 	  default for backward compatibility, unless FIT_SIGNATURE is
@@ -339,19 +487,6 @@ config OF_STDOUT_VIA_ALIAS
 	  incorrect when used with device tree as this option does not
 	  exist / should not be used.
 
-config SYS_EXTRA_OPTIONS
-	string "Extra Options (DEPRECATED)"
-	help
-	  The old configuration infrastructure (= mkconfig + boards.cfg)
-	  provided the extra options field. If you have something like
-	  "HAS_BAR,BAZ=64", the optional options
-	    #define CONFIG_HAS
-	    #define CONFIG_BAZ	64
-	  will be defined in include/config.h.
-	  This option was prepared for the smooth migration from the old
-	  configuration to Kconfig. Since this option will be removed sometime,
-	  new boards should not use this option.
-
 config HAVE_SYS_TEXT_BASE
 	bool
 	depends on !NIOS2 && !XTENSA
@@ -369,6 +504,31 @@ config SYS_TEXT_BASE
 	hex "Text Base"
 	help
 	  The address in memory that U-Boot will be running from, initially.
+
+config HAVE_SYS_MONITOR_BASE
+	bool
+	depends on ARC || MIPS || M68K || NIOS2 || PPC || XTENSA || X86 \
+		|| ENV_IS_IN_FLASH || MTD_NOR_FLASH
+	depends on !EFI_APP
+	default y
+
+config SYS_MONITOR_BASE
+	depends on HAVE_SYS_MONITOR_BASE
+	hex "Physical start address of boot monitor code"
+	default SYS_TEXT_BASE
+	help
+	  The physical start address of boot monitor code (which is the same as
+	  CONFIG_SYS_TEXT_BASE when linking) and the same as CONFIG_SYS_FLASH_BASE
+	  when booting from flash.
+
+config SPL_SYS_MONITOR_BASE
+	depends on MPC85xx && SPL && HAVE_SYS_MONITOR_BASE
+	hex "Physical start address of SPL monitor code"
+	default SPL_TEXT_BASE
+
+config TPL_SYS_MONITOR_BASE
+	depends on MPC85xx && TPL && HAVE_SYS_MONITOR_BASE
+	hex "Physical start address of TPL monitor code"
 
 config DYNAMIC_SYS_CLK_FREQ
 	bool "Determine CPU clock frequency at run-time"
@@ -417,11 +577,42 @@ config CHROMEOS_VBOOT
 	  distinguishing between booting Chrome OS in a basic way (developer
 	  mode) and a full boot.
 
+config SYS_RAMBOOT
+	bool
+
 config RAMBOOT_PBL
 	bool "Freescale PBL(pre-boot loader) image format support"
+	select SYS_RAMBOOT if PPC
 	help
 	  Some SoCs use PBL to load RCW and/or pre-initialization instructions.
 	  For more details refer to doc/README.pblimage
+
+choice
+	prompt "Freescale PBL load location"
+	depends on RAMBOOT_PBL || ((TARGET_P1010RDB_PA || TARGET_P1010RDB_PB \
+		|| TARGET_P1020RDB_PC || TARGET_P1020RDB_PD || TARGET_P2020RDB) \
+		&& !CMD_NAND)
+
+config SDCARD
+	bool "Freescale PBL is found on SD card"
+
+config SPIFLASH
+	bool "Freescale PBL is found on SPI flash"
+
+endchoice
+
+config FSL_FIXED_MMC_LOCATION
+	bool "PBL MMC is at a fixed location"
+	depends on SDCARD && !RAMBOOT_PBL
+
+config ESDHC_HC_BLK_ADDR
+	def_bool y
+	depends on FSL_FIXED_MMC_LOCATION && (ARCH_BSC9131 || ARCH_BSC9132 || ARCH_P1010)
+	help
+	  In High Capacity SD Cards (> 2 GBytes), the 32-bit source address and
+	  code length of these soc specify the memory address in block address
+	  format. Block length is fixed to 512 bytes as per the SD High
+	  Capacity specification.
 
 config SYS_FSL_PBL_PBI
 	string "PBI(pre-boot instructions) commands for the PBL image"
@@ -436,6 +627,14 @@ config SYS_FSL_PBL_RCW
 	help
 	  Enables addition of RCW (Power on reset configuration) in built image.
 	  Please refer doc/README.pblimage for more details.
+
+config SYS_BOOT_RAMDISK_HIGH
+	depends on CMD_BOOTM || CMD_BOOTI || CMD_BOOTZ
+	depends on !(NIOS2 || SANDBOX || SH || XTENSA)
+	def_bool y
+	help
+	  Enable initrd_high functionality.  If defined then the initrd_high
+	  feature is enabled and the boot* ramdisk subcommand is enabled.
 
 endmenu		# Boot images
 
@@ -461,7 +660,7 @@ config BOOTSTAGE
 
 config SPL_BOOTSTAGE
 	bool "Boot timing and reported in SPL"
-	depends on BOOTSTAGE
+	depends on BOOTSTAGE && SPL
 	help
 	  Enable recording of boot time in SPL. To make this visible to U-Boot
 	  proper, enable BOOTSTAGE_STASH as well. This will stash the timing
@@ -470,7 +669,7 @@ config SPL_BOOTSTAGE
 
 config TPL_BOOTSTAGE
 	bool "Boot timing and reported in TPL"
-	depends on BOOTSTAGE
+	depends on BOOTSTAGE && TPL
 	help
 	  Enable recording of boot time in SPL. To make this visible to U-Boot
 	  proper, enable BOOTSTAGE_STASH as well. This will stash the timing
@@ -991,6 +1190,98 @@ config AUTOBOOT_MENU_SHOW
 	  environmnent variable (if enabled) and before handling the boot delay.
 	  See README.bootmenu for more details.
 
+config BOOTMENU_DISABLE_UBOOT_CONSOLE
+	bool "Disallow bootmenu to enter the U-Boot console"
+	depends on AUTOBOOT_MENU_SHOW
+	help
+	  If this option is enabled, user can not enter the U-Boot console from
+	  bootmenu. It increases the system security.
+
+config BOOT_RETRY
+	bool "Boot retry feature"
+	help
+	  Allow for having the U-Boot command prompt time out and attempt
+	  to boot again.  If the environment variable "bootretry" is found then
+	  its value is used, otherwise the retry timeout is
+	  CONFIG_BOOT_RETRY_TIME.  CONFIG_BOOT_RETRY_MIN is optional and
+	  defaults to CONFIG_BOOT_RETRY_TIME. All times are in seconds.
+
+config BOOT_RETRY_TIME
+	int "Timeout in seconds before attempting to boot again"
+	depends on BOOT_RETRY
+	help
+	  Time in seconds before the U-Boot prompt will timeout and boot will
+	  be attempted again.
+
+config BOOT_RETRY_MIN
+	int "Minimum timeout in seconds for 'bootretry'"
+	depends on BOOT_RETRY
+	default BOOT_RETRY_TIME
+	help
+	  The minimum time in seconds that "bootretry" can be set to.
+
+config RESET_TO_RETRY
+	bool "Reset the board to retry autoboot"
+	depends on BOOT_RETRY
+	help
+	  After the countdown timed out, the board will be reset to restart
+	  again.
+
+endmenu
+
+menu "Image support"
+
+config IMAGE_PRE_LOAD
+	bool "Image pre-load support"
+	help
+	  Enable an image pre-load stage in the SPL.
+	  This pre-load stage allows to do some manipulation
+	  or check (for example signature check) on an image
+	  before launching it.
+
+config SPL_IMAGE_PRE_LOAD
+	bool "Image pre-load support within SPL"
+	depends on SPL && IMAGE_PRE_LOAD
+	help
+	  Enable an image pre-load stage in the SPL.
+	  This pre-load stage allows to do some manipulation
+	  or check (for example signature check) on an image
+	  before launching it.
+
+config IMAGE_PRE_LOAD_SIG
+	bool "Image pre-load signature support"
+	depends on IMAGE_PRE_LOAD
+	select FIT_SIGNATURE
+	select RSA
+	select RSA_VERIFY_WITH_PKEY
+	help
+	  Enable signature check support in the pre-load stage.
+	  For this feature a very simple header is added before
+	  the image with few fields:
+	  - a magic
+	  - the image size
+	  - the signature
+	  All other information (header size, type of signature,
+	  ...) are provided in the node /image/pre-load/sig of
+	  u-boot.
+
+config SPL_IMAGE_PRE_LOAD_SIG
+	bool "Image pre-load signature support witin SPL"
+	depends on SPL_IMAGE_PRE_LOAD && IMAGE_PRE_LOAD_SIG
+	select SPL_FIT_SIGNATURE
+	select SPL_RSA
+	select SPL_RSA_VERIFY_WITH_PKEY
+	help
+	  Enable signature check support in the pre-load stage in the SPL.
+	  For this feature a very simple header is added before
+	  the image with few fields:
+	  - a magic
+	  - the image size
+	  - the signature
+	  All other information (header size, type of signature,
+	  ...) are provided in the node /image/pre-load/sig of
+	  u-boot.
+
 endmenu
 
 config USE_BOOTARGS
@@ -1038,7 +1329,9 @@ config USE_BOOTCOMMAND
 config BOOTCOMMAND
 	string "bootcmd value"
 	depends on USE_BOOTCOMMAND && !USE_DEFAULT_ENV_FILE
-	default "run distro_bootcmd" if DISTRO_DEFAULTS
+	default "bootflow scan -lb" if BOOTSTD_BOOTCOMMAND && CMD_BOOTFLOW_FULL
+	default "bootflow scan" if BOOTSTD_BOOTCOMMAND && !CMD_BOOTFLOW_FULL
+	default "run distro_bootcmd" if !BOOTSTD_BOOTCOMMAND && DISTRO_DEFAULTS
 	help
 	  This is the string of commands that will be used as bootcmd and if
 	  AUTOBOOT is set, automatically run.
@@ -1067,5 +1360,29 @@ config DEFAULT_FDT_FILE
 	string "Default fdt file"
 	help
 	  This option is used to set the default fdt file to boot OS.
+
+config SAVE_PREV_BL_FDT_ADDR
+	depends on ARM
+	bool "Saves fdt address, passed by the previous bootloader, to env var"
+	help
+	  When u-boot is used as a chain-loaded bootloader (replacing OS kernel),
+	  enable this option to save fdt address, passed by the
+	  previous bootloader for future use.
+	  Address is saved to `prevbl_fdt_addr` environment variable.
+
+	  If no fdt was provided by previous bootloader, no env variables
+	  will be created.
+
+config SAVE_PREV_BL_INITRAMFS_START_ADDR
+	depends on ARM
+	bool "Saves initramfs address, passed by the previous bootloader, to env var"
+	help
+	  When u-boot is used as a chain-loaded bootloader(replacing OS kernel),
+	  enable this option to save initramfs address, passed by the
+	  previous bootloader for future use.
+	  Address is saved to `prevbl_initrd_start_addr` environment variable.
+
+	  If no initramfs was provided by previous bootloader, no env variables
+	  will be created.
 
 endmenu		# Booting

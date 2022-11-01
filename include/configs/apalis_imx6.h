@@ -25,27 +25,17 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 #define CONFIG_SYS_FSL_USDHC_NUM	3
 
-/*
- * SATA Configs
- */
-#ifdef CONFIG_CMD_SATA
-#define CONFIG_LBA48
-#endif
-
 /* Network */
 #define PHY_ANEG_TIMEOUT		15000 /* PHY needs longer aneg time */
 
 /* USB Configs */
 /* Host */
-#define CONFIG_USB_MAX_CONTROLLER_COUNT		2
-#define CONFIG_EHCI_HCD_INIT_AFTER_RESET	/* For OTG port */
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS		0
 /* Client */
 #define CONFIG_USBD_HS
 
 /* Framebuffer and LCD */
-#define CONFIG_VIDEO_BMP_LOGO
 #define CONFIG_IMX_HDMI
 #define CONFIG_IMX_VIDEO_SKIP
 
@@ -57,7 +47,6 @@
 #undef CONFIG_SERVERIP
 #define CONFIG_SERVERIP			192.168.10.1
 
-#ifndef CONFIG_SPL_BUILD
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 1) \
 	func(MMC, mmc, 2) \
@@ -67,9 +56,6 @@
 #include <config_distro_bootcmd.h>
 #undef BOOTENV_RUN_NET_USB_START
 #define BOOTENV_RUN_NET_USB_START ""
-#else /* CONFIG_SPL_BUILD */
-#define BOOTENV
-#endif /* CONFIG_SPL_BUILD */
 
 #define UBOOT_UPDATE \
 	"uboot_hwpart=1\0" \
@@ -90,32 +76,15 @@
 	"ramdisk_addr_r=0x12200000\0" \
 	"scriptaddr=0x17000000\0"
 
-#define NFS_BOOTCMD \
-	"nfsargs=ip=:::::eth0:on root=/dev/nfs ro\0" \
-	"nfsboot=run setup; " \
-		"setenv bootargs ${defargs} ${nfsargs} ${setupargs} " \
-		"${vidargs}; echo Booting via DHCP/TFTP/NFS...; " \
-		"run nfsdtbload; dhcp ${kernel_addr_r} " \
-		"&& run fdt_fixup && bootz ${kernel_addr_r} ${dtbparam}\0" \
-	"nfsdtbload=setenv dtbparam; tftp ${fdt_addr_r} ${fdt_file} " \
-		"&& setenv dtbparam \" - ${fdt_addr_r}\" && true\0"
-
-#ifndef CONFIG_TDX_APALIS_IMX6_V1_0
-#define FDT_FILE "imx6q-apalis-eval.dtb"
-#define FDT_FILE_V1_0 "imx6q-apalis_v1_0-eval.dtb"
-#else
-#define FDT_FILE "imx6q-apalis_v1_0-eval.dtb"
-#endif
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	BOOTENV \
 	"boot_file=zImage\0" \
+	"boot_script_dhcp=boot.scr\0" \
 	"console=ttymxc0\0" \
 	"defargs=enable_wait_mode=off vmalloc=400M\0" \
-	"fdt_file=" FDT_FILE "\0" \
-	"fdtfile=" FDT_FILE "\0" \
+	"fdt_board=eval\0" \
 	"fdt_fixup=;\0" \
 	MEM_LAYOUT_ENV_SETTINGS \
-	NFS_BOOTCMD \
 	UBOOT_UPDATE \
 	"setethupdate=if env exists ethaddr; then; else setenv ethaddr " \
 		"00:14:2d:00:00:00; fi; tftpboot ${loadaddr} " \
@@ -137,10 +106,6 @@
 	"vidargs=mxc_hdmi.only_cea=1 fbmem=32M\0"
 
 /* Miscellaneous configurable options */
-#undef CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_CBSIZE		1024
-#undef CONFIG_SYS_MAXARGS
-#define CONFIG_SYS_MAXARGS		48
 
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
@@ -148,10 +113,5 @@
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
 #define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
 #define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
-
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 #endif	/* __CONFIG_H */

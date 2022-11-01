@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2015 Freescale Semiconductor
+ * Copyright 2022 NXP
  */
 
 #ifndef __LS1043ARDB_H__
@@ -8,23 +9,10 @@
 
 #include "ls1043a_common.h"
 
-#define CONFIG_LAYERSCAPE_NS_ACCESS
-
-#define CONFIG_DIMM_SLOTS_PER_CTLR	1
 /* Physical Memory Map */
-#define CONFIG_CHIP_SELECTS_PER_CTRL	4
-
-#define CONFIG_SYS_SPD_BUS_NUM		0
 
 #ifndef CONFIG_SPL
-#define CONFIG_SYS_DDR_RAW_TIMING
 #define CONFIG_MEM_INIT_VALUE           0xdeadbeef
-#endif
-
-#ifdef CONFIG_SD_BOOT
-#define CONFIG_SYS_SPL_ARGS_ADDR	0x90000000
-#define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR	0x500
-#define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTORS	30
 #endif
 
 /*
@@ -55,14 +43,8 @@
 #define CONFIG_SYS_NOR_FTIM3		0
 #define CONFIG_SYS_IFC_CCR		0x01000000
 
-#define CONFIG_SYS_MAX_FLASH_SECT	1024	/* sectors per device */
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BASE_PHYS }
 
-#define CONFIG_CFI_FLASH_USE_WEAK_ACCESSORS
 #define CONFIG_SYS_WRITE_SWAPPED_DATA
 
 /*
@@ -104,7 +86,6 @@
 #define CONFIG_MTD_NAND_VERIFY_WRITE
 
 #ifdef CONFIG_NAND_BOOT
-#define CONFIG_SPL_PAD_TO		0x20000		/* block aligned */
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	(1024 << 10)
 #endif
 
@@ -226,9 +207,9 @@
 #define QSGMII_PORT3_PHY_ADDR		0x6
 #define QSGMII_PORT4_PHY_ADDR		0x7
 
-#define FM1_10GEC1_PHY_ADDR		0x1
-
-#define CONFIG_ETHPRIME			"FM1@DTSEC3"
+/* The AQR PHY model and MDIO address differ between board revisions */
+#define FM1_10GEC1_PHY_ADDR		0x1 /* AQR105 on boards up to v6.0 */
+#define AQR113C_PHY_ADDR		0x8 /* AQR113C on boards v7.0 and up */
 #endif
 #endif
 

@@ -24,8 +24,6 @@
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"console=console=ttyS0,115200\0" \
-	"mtdids=nand0=orion_nand\0" \
-	"mtdparts=" CONFIG_MTDPARTS_DEFAULT \
 	"kernel=/boot/uImage\0" \
 	"initrd=/boot/uInitrd\0" \
 	"bootargs_root=ubi.mtd=1 root=ubi0:root rootfstype=ubifs ro\0"
@@ -35,8 +33,5 @@
  */
 #define CONFIG_MVGBE_PORTS	{1, 0}	/* enable port 0 only */
 #define CONFIG_PHY_BASE_ADR	0
-#ifdef CONFIG_RESET_PHY_R
-#undef CONFIG_RESET_PHY_R	/* remove legacy reset_phy() */
-#endif
 
 #endif /* _CONFIG_DOCKSTAR_H */

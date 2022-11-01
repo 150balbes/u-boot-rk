@@ -55,130 +55,7 @@
 #define PCI_CLASS_PROG		0x09	/* Reg. Level Programming Interface */
 #define PCI_CLASS_DEVICE	0x0a	/* Device class */
 #define PCI_CLASS_CODE		0x0b	/* Device class code */
-#define  PCI_CLASS_CODE_TOO_OLD	0x00
-#define  PCI_CLASS_CODE_STORAGE 0x01
-#define  PCI_CLASS_CODE_NETWORK 0x02
-#define  PCI_CLASS_CODE_DISPLAY	0x03
-#define  PCI_CLASS_CODE_MULTIMEDIA 0x04
-#define  PCI_CLASS_CODE_MEMORY	0x05
-#define  PCI_CLASS_CODE_BRIDGE	0x06
-#define  PCI_CLASS_CODE_COMM	0x07
-#define  PCI_CLASS_CODE_PERIPHERAL 0x08
-#define  PCI_CLASS_CODE_INPUT	0x09
-#define  PCI_CLASS_CODE_DOCKING	0x0A
-#define  PCI_CLASS_CODE_PROCESSOR 0x0B
-#define  PCI_CLASS_CODE_SERIAL	0x0C
-#define  PCI_CLASS_CODE_WIRELESS 0x0D
-#define  PCI_CLASS_CODE_I2O	0x0E
-#define  PCI_CLASS_CODE_SATELLITE 0x0F
-#define  PCI_CLASS_CODE_CRYPTO	0x10
-#define  PCI_CLASS_CODE_DATA	0x11
-/* Base Class 0x12 - 0xFE is reserved */
-#define  PCI_CLASS_CODE_OTHER	0xFF
-
 #define PCI_CLASS_SUB_CODE	0x0a	/* Device sub-class code */
-#define  PCI_CLASS_SUB_CODE_TOO_OLD_NOTVGA	0x00
-#define  PCI_CLASS_SUB_CODE_TOO_OLD_VGA		0x01
-#define  PCI_CLASS_SUB_CODE_STORAGE_SCSI	0x00
-#define  PCI_CLASS_SUB_CODE_STORAGE_IDE		0x01
-#define  PCI_CLASS_SUB_CODE_STORAGE_FLOPPY	0x02
-#define  PCI_CLASS_SUB_CODE_STORAGE_IPIBUS	0x03
-#define  PCI_CLASS_SUB_CODE_STORAGE_RAID	0x04
-#define  PCI_CLASS_SUB_CODE_STORAGE_ATA		0x05
-#define  PCI_CLASS_SUB_CODE_STORAGE_SATA	0x06
-#define  PCI_CLASS_SUB_CODE_STORAGE_SAS		0x07
-#define  PCI_CLASS_SUB_CODE_STORAGE_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_NETWORK_ETHERNET	0x00
-#define  PCI_CLASS_SUB_CODE_NETWORK_TOKENRING	0x01
-#define  PCI_CLASS_SUB_CODE_NETWORK_FDDI	0x02
-#define  PCI_CLASS_SUB_CODE_NETWORK_ATM		0x03
-#define  PCI_CLASS_SUB_CODE_NETWORK_ISDN	0x04
-#define  PCI_CLASS_SUB_CODE_NETWORK_WORLDFIP	0x05
-#define  PCI_CLASS_SUB_CODE_NETWORK_PICMG	0x06
-#define  PCI_CLASS_SUB_CODE_NETWORK_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_DISPLAY_VGA		0x00
-#define  PCI_CLASS_SUB_CODE_DISPLAY_XGA		0x01
-#define  PCI_CLASS_SUB_CODE_DISPLAY_3D		0x02
-#define  PCI_CLASS_SUB_CODE_DISPLAY_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_MULTIMEDIA_VIDEO	0x00
-#define  PCI_CLASS_SUB_CODE_MULTIMEDIA_AUDIO	0x01
-#define  PCI_CLASS_SUB_CODE_MULTIMEDIA_PHONE	0x02
-#define  PCI_CLASS_SUB_CODE_MULTIMEDIA_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_MEMORY_RAM		0x00
-#define  PCI_CLASS_SUB_CODE_MEMORY_FLASH	0x01
-#define  PCI_CLASS_SUB_CODE_MEMORY_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_BRIDGE_HOST		0x00
-#define  PCI_CLASS_SUB_CODE_BRIDGE_ISA		0x01
-#define  PCI_CLASS_SUB_CODE_BRIDGE_EISA		0x02
-#define  PCI_CLASS_SUB_CODE_BRIDGE_MCA		0x03
-#define  PCI_CLASS_SUB_CODE_BRIDGE_PCI		0x04
-#define  PCI_CLASS_SUB_CODE_BRIDGE_PCMCIA	0x05
-#define  PCI_CLASS_SUB_CODE_BRIDGE_NUBUS	0x06
-#define  PCI_CLASS_SUB_CODE_BRIDGE_CARDBUS	0x07
-#define  PCI_CLASS_SUB_CODE_BRIDGE_RACEWAY	0x08
-#define  PCI_CLASS_SUB_CODE_BRIDGE_SEMI_PCI	0x09
-#define  PCI_CLASS_SUB_CODE_BRIDGE_INFINIBAND	0x0A
-#define  PCI_CLASS_SUB_CODE_BRIDGE_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_COMM_SERIAL		0x00
-#define  PCI_CLASS_SUB_CODE_COMM_PARALLEL	0x01
-#define  PCI_CLASS_SUB_CODE_COMM_MULTIPORT	0x02
-#define  PCI_CLASS_SUB_CODE_COMM_MODEM		0x03
-#define  PCI_CLASS_SUB_CODE_COMM_GPIB		0x04
-#define  PCI_CLASS_SUB_CODE_COMM_SMARTCARD	0x05
-#define  PCI_CLASS_SUB_CODE_COMM_OTHER		0x80
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_PIC	0x00
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_DMA	0x01
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_TIMER	0x02
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_RTC	0x03
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_HOTPLUG	0x04
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_SD	0x05
-#define  PCI_CLASS_SUB_CODE_PERIPHERAL_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_INPUT_KEYBOARD	0x00
-#define  PCI_CLASS_SUB_CODE_INPUT_DIGITIZER	0x01
-#define  PCI_CLASS_SUB_CODE_INPUT_MOUSE		0x02
-#define  PCI_CLASS_SUB_CODE_INPUT_SCANNER	0x03
-#define  PCI_CLASS_SUB_CODE_INPUT_GAMEPORT	0x04
-#define  PCI_CLASS_SUB_CODE_INPUT_OTHER		0x80
-#define  PCI_CLASS_SUB_CODE_DOCKING_GENERIC	0x00
-#define  PCI_CLASS_SUB_CODE_DOCKING_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_386	0x00
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_486	0x01
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_PENTIUM	0x02
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_ALPHA	0x10
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_POWERPC	0x20
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_MIPS	0x30
-#define  PCI_CLASS_SUB_CODE_PROCESSOR_COPROC	0x40
-#define  PCI_CLASS_SUB_CODE_SERIAL_1394		0x00
-#define  PCI_CLASS_SUB_CODE_SERIAL_ACCESSBUS	0x01
-#define  PCI_CLASS_SUB_CODE_SERIAL_SSA		0x02
-#define  PCI_CLASS_SUB_CODE_SERIAL_USB		0x03
-#define  PCI_CLASS_SUB_CODE_SERIAL_FIBRECHAN	0x04
-#define  PCI_CLASS_SUB_CODE_SERIAL_SMBUS	0x05
-#define  PCI_CLASS_SUB_CODE_SERIAL_INFINIBAND	0x06
-#define  PCI_CLASS_SUB_CODE_SERIAL_IPMI		0x07
-#define  PCI_CLASS_SUB_CODE_SERIAL_SERCOS	0x08
-#define  PCI_CLASS_SUB_CODE_SERIAL_CANBUS	0x09
-#define  PCI_CLASS_SUB_CODE_WIRELESS_IRDA	0x00
-#define  PCI_CLASS_SUB_CODE_WIRELESS_IR		0x01
-#define  PCI_CLASS_SUB_CODE_WIRELESS_RF		0x10
-#define  PCI_CLASS_SUB_CODE_WIRELESS_BLUETOOTH	0x11
-#define  PCI_CLASS_SUB_CODE_WIRELESS_BROADBAND	0x12
-#define  PCI_CLASS_SUB_CODE_WIRELESS_80211A	0x20
-#define  PCI_CLASS_SUB_CODE_WIRELESS_80211B	0x21
-#define  PCI_CLASS_SUB_CODE_WIRELESS_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_I2O_V1_0		0x00
-#define  PCI_CLASS_SUB_CODE_SATELLITE_TV	0x01
-#define  PCI_CLASS_SUB_CODE_SATELLITE_AUDIO	0x02
-#define  PCI_CLASS_SUB_CODE_SATELLITE_VOICE	0x03
-#define  PCI_CLASS_SUB_CODE_SATELLITE_DATA	0x04
-#define  PCI_CLASS_SUB_CODE_CRYPTO_NETWORK	0x00
-#define  PCI_CLASS_SUB_CODE_CRYPTO_ENTERTAINMENT 0x10
-#define  PCI_CLASS_SUB_CODE_CRYPTO_OTHER	0x80
-#define  PCI_CLASS_SUB_CODE_DATA_DPIO		0x00
-#define  PCI_CLASS_SUB_CODE_DATA_PERFCNTR	0x01
-#define  PCI_CLASS_SUB_CODE_DATA_COMMSYNC	0x10
-#define  PCI_CLASS_SUB_CODE_DATA_MGMT		0x20
-#define  PCI_CLASS_SUB_CODE_DATA_OTHER		0x80
 
 #define PCI_CACHE_LINE_SIZE	0x0c	/* 8 bits */
 #define PCI_LATENCY_TIMER	0x0d	/* 8 bits */
@@ -1436,26 +1313,30 @@ void dm_pci_write_bar32(struct udevice *dev, int barnum, u32 addr);
 u32 dm_pci_read_bar32(const struct udevice *dev, int barnum);
 
 /**
- * dm_pci_bus_to_phys() - convert a PCI bus address to a physical address
+ * dm_pci_bus_to_phys() - convert a PCI bus address range to a physical address
  *
  * @dev:	Device containing the PCI address
  * @addr:	PCI address to convert
+ * @len:	Length of the address range
+ * @mask:	Mask to match flags for the region type
  * @flags:	Flags for the region type (PCI_REGION_...)
  * Return: physical address corresponding to that PCI bus address
  */
-phys_addr_t dm_pci_bus_to_phys(struct udevice *dev, pci_addr_t addr,
-			       unsigned long flags);
+phys_addr_t dm_pci_bus_to_phys(struct udevice *dev, pci_addr_t addr, size_t len,
+			       unsigned long mask, unsigned long flags);
 
 /**
  * dm_pci_phys_to_bus() - convert a physical address to a PCI bus address
  *
  * @dev:	Device containing the bus address
  * @addr:	Physical address to convert
+ * @len:	Length of the address range
+ * @mask:	Mask to match flags for the region type
  * @flags:	Flags for the region type (PCI_REGION_...)
  * Return: PCI bus address corresponding to that physical address
  */
-pci_addr_t dm_pci_phys_to_bus(struct udevice *dev, phys_addr_t addr,
-			      unsigned long flags);
+pci_addr_t dm_pci_phys_to_bus(struct udevice *dev, phys_addr_t addr, size_t len,
+			      unsigned long mask, unsigned long flags);
 
 /**
  * dm_pci_map_bar() - get a virtual address associated with a BAR region
@@ -1469,10 +1350,14 @@ pci_addr_t dm_pci_phys_to_bus(struct udevice *dev, phys_addr_t addr,
  *
  * @dev:	Device to check
  * @bar:	Bar register offset (PCI_BASE_ADDRESS_...)
+ * @offset:     Offset from the base to map
+ * @len:        Length to map
+ * @mask:       Mask to match flags for the region type
  * @flags:	Flags for the region type (PCI_REGION_...)
  * @return: pointer to the virtual address to use or 0 on error
  */
-void *dm_pci_map_bar(struct udevice *dev, int bar, int flags);
+void *dm_pci_map_bar(struct udevice *dev, int bar, size_t offset, size_t len,
+		     unsigned long mask, unsigned long flags);
 
 /**
  * dm_pci_find_next_capability() - find a capability starting from an offset
@@ -1576,28 +1461,34 @@ int dm_pci_find_ext_capability(struct udevice *dev, int cap);
 int dm_pci_flr(struct udevice *dev);
 
 #define dm_pci_virt_to_bus(dev, addr, flags) \
-	dm_pci_phys_to_bus(dev, (virt_to_phys(addr)), (flags))
-#define dm_pci_bus_to_virt(dev, addr, flags, len, map_flags) \
-	map_physmem(dm_pci_bus_to_phys(dev, (addr), (flags)), \
-		    (len), (map_flags))
+	dm_pci_phys_to_bus(dev, (virt_to_phys(addr)), 0, PCI_REGION_TYPE, (flags))
+#define dm_pci_bus_to_virt(dev, addr, len, mask, flags, map_flags)	\
+({									\
+	size_t _len = (len);						\
+	phys_addr_t phys_addr = dm_pci_bus_to_phys((dev), (addr), _len,	\
+						   (mask), (flags));	\
+	map_physmem(phys_addr, _len, (map_flags));			\
+})
 
 #define dm_pci_phys_to_mem(dev, addr) \
-	dm_pci_phys_to_bus((dev), (addr), PCI_REGION_MEM)
+	dm_pci_phys_to_bus((dev), (addr), 0, PCI_REGION_TYPE, PCI_REGION_MEM)
 #define dm_pci_mem_to_phys(dev, addr) \
-	dm_pci_bus_to_phys((dev), (addr), PCI_REGION_MEM)
+	dm_pci_bus_to_phys((dev), (addr), 0, PCI_REGION_TYPE, PCI_REGION_MEM)
 #define dm_pci_phys_to_io(dev, addr) \
-	dm_pci_phys_to_bus((dev), (addr), PCI_REGION_IO)
+	dm_pci_phys_to_bus((dev), (addr), 0, PCI_REGION_TYPE, PCI_REGION_IO)
 #define dm_pci_io_to_phys(dev, addr) \
-	dm_pci_bus_to_phys((dev), (addr), PCI_REGION_IO)
+	dm_pci_bus_to_phys((dev), (addr), 0, PCI_REGION_TYPE, PCI_REGION_IO)
 
 #define dm_pci_virt_to_mem(dev, addr) \
 	dm_pci_virt_to_bus((dev), (addr), PCI_REGION_MEM)
 #define dm_pci_mem_to_virt(dev, addr, len, map_flags) \
-	dm_pci_bus_to_virt((dev), (addr), PCI_REGION_MEM, (len), (map_flags))
+	dm_pci_bus_to_virt((dev), (addr), (len), PCI_REGION_TYPE, \
+			   PCI_REGION_MEM, (map_flags))
 #define dm_pci_virt_to_io(dev, addr) \
 	dm_pci_virt_to_bus((dev), (addr), PCI_REGION_IO)
 #define dm_pci_io_to_virt(dev, addr, len, map_flags) \
-	dm_pci_bus_to_virt((dev), (addr), PCI_REGION_IO, (len), (map_flags))
+	dm_pci_bus_to_virt((dev), (addr), (len), PCI_REGION_TYPE, \
+			   PCI_REGION_IO, (map_flags))
 
 /**
  * dm_pci_find_device() - find a device by vendor/device ID

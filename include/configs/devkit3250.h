@@ -18,9 +18,6 @@
 #define CONFIG_SYS_SDRAM_BASE		EMC_DYCS0_BASE
 #define CONFIG_SYS_SDRAM_SIZE		SZ_64M
 
-#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_SDRAM_BASE + SZ_4K \
-					 - GENERATED_GBL_DATA_SIZE)
-
 /*
  * DMA
  */
@@ -30,16 +27,8 @@
  */
 
 /*
- * Ethernet
- */
-#define CONFIG_RMII
-#define CONFIG_LPC32XX_ETH
-#define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-
-/*
  * NOR Flash
  */
-#define CONFIG_SYS_MAX_FLASH_SECT	71
 #define CONFIG_SYS_FLASH_BASE		EMC_CS0_BASE
 #define CONFIG_SYS_FLASH_SIZE		SZ_4M
 
@@ -65,14 +54,11 @@
 /*
  * USB
  */
-#define CONFIG_USB_OHCI_LPC32XX
 #define CONFIG_USB_ISP1301_I2C_ADDR		0x2d
 
 /*
  * U-Boot General Configurations
  */
-#define CONFIG_SYS_CBSIZE		1024
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
 
 /*
  * Pass open firmware flat tree
@@ -83,7 +69,6 @@
  */
 
 #define CONFIG_EXTRA_ENV_SETTINGS		\
-	"autoload=no\0"				\
 	"ethaddr=00:01:90:00:C0:81\0"		\
 	"dtbaddr=0x81000000\0"			\
 	"nfsroot=/opt/projects/images/vladimir/oe/devkit3250/rootfs\0"	\
@@ -93,28 +78,6 @@
 /*
  * U-Boot Commands
  */
-
-#define CONFIG_BOOTFILE			"uImage"
-
-/*
- * SPL specific defines
- */
-/* SPL will be executed at offset 0 */
-
-/* SPL will use SRAM as stack */
-#define CONFIG_SPL_STACK		0x0000FFF8
-
-/* Use the framework and generic lib */
-
-/* SPL will use serial */
-
-/* SPL loads an image from NAND */
-#define CONFIG_SPL_NAND_RAW_ONLY
-
-#define CONFIG_SPL_NAND_SOFTECC
-
-#define CONFIG_SPL_MAX_SIZE		0x20000
-#define CONFIG_SPL_PAD_TO		CONFIG_SPL_MAX_SIZE
 
 /* U-Boot will be 0x60000 bytes, loaded and run at CONFIG_SYS_TEXT_BASE */
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	0x60000

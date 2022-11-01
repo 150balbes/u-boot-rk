@@ -27,21 +27,10 @@
 
 #define CONFIG_SYS_L2_PL310
 
-/* end of 16M scrubbed by training in bootrom */
-#define CONFIG_SYS_INIT_SP_ADDR		0x00FF0000
-
 #define MV_UART_CONSOLE_BASE		MVEBU_UART0_BASE
 
 /* Needed for SPI NOR booting in SPL */
 #define CONFIG_DM_SEQ_ALIAS		1
-
-/*
- * Ethernet Driver configuration
- */
-#ifdef CONFIG_CMD_NET
-#define CONFIG_ARP_TIMEOUT	200
-#define CONFIG_NET_RETRY_COUNT	50
-#endif /* CONFIG_CMD_NET */
 
 /*
  * I2C related stuff

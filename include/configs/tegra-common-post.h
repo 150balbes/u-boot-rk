@@ -9,8 +9,6 @@
 
 #define CONFIG_SYS_NONCACHED_MEMORY	(1 << 20)	/* 1 MiB */
 
-#ifndef CONFIG_SPL_BUILD
-
 #if CONFIG_IS_ENABLED(CMD_USB)
 # define BOOT_TARGET_USB(func) func(USB, usb, 0)
 #else
@@ -26,9 +24,6 @@
 	func(DHCP, dhcp, na)
 #endif
 #include <config_distro_bootcmd.h>
-#else
-#define BOOTENV
-#endif
 
 #ifdef CONFIG_TEGRA_KEYBOARD
 #define STDIN_KBD_KBC ",tegra-kbc"
@@ -70,10 +65,6 @@
 #define BOARD_EXTRA_ENV_SETTINGS
 #endif
 
-#ifndef CONFIG_CHROMEOS_EXTRA_ENV_SETTINGS
-#define CONFIG_CHROMEOS_EXTRA_ENV_SETTINGS
-#endif
-
 #ifdef CONFIG_ARM64
 #define FDT_HIGH "ffffffffffffffff"
 #define INITRD_HIGH "ffffffffffffffff"
@@ -88,21 +79,10 @@
 	"fdt_high=" FDT_HIGH "\0" \
 	"initrd_high=" INITRD_HIGH "\0" \
 	BOOTENV \
-	BOARD_EXTRA_ENV_SETTINGS \
-	CONFIG_CHROMEOS_EXTRA_ENV_SETTINGS
+	BOARD_EXTRA_ENV_SETTINGS
 
 #if defined(CONFIG_TEGRA20_SFLASH) || defined(CONFIG_TEGRA20_SLINK) || defined(CONFIG_TEGRA114_SPI)
 #define CONFIG_TEGRA_SPI
 #endif
-
-/* overrides for SPL build here */
-#ifdef CONFIG_SPL_BUILD
-
-/* remove USB */
-#ifdef CONFIG_USB_EHCI_TEGRA
-#undef CONFIG_USB_EHCI_TEGRA
-#endif
-
-#endif /* CONFIG_SPL_BUILD */
 
 #endif /* __TEGRA_COMMON_POST_H */

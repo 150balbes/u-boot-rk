@@ -3,21 +3,13 @@
  * Copyright 2021 Gateworks Corporation
  */
 
-#include <common.h>
 #include <init.h>
 #include <led.h>
-#include <linux/delay.h>
 #include <miiphy.h>
-#include <netdev.h>
-
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/io.h>
-#include <asm/unaligned.h>
 
-#include "gsc.h"
-
-DECLARE_GLOBAL_DATA_PTR;
+#include "eeprom.h"
 
 int board_phys_sdram_size(phys_size_t *size)
 {
@@ -37,7 +29,7 @@ int board_fit_config_name_match(const char *name)
 	char buf[32];
 
 	do {
-		dtb = gsc_get_dtb_name(i++, buf, sizeof(buf));
+		dtb = eeprom_get_dtb_name(i++, buf, sizeof(buf));
 		if (!strcmp(dtb, name)) {
 			if (!init++)
 				printf("DTB     : %s\n", name);
@@ -48,21 +40,40 @@ int board_fit_config_name_match(const char *name)
 	return -1;
 }
 
-#if (IS_ENABLED(CONFIG_FEC_MXC))
+#if (IS_ENABLED(CONFIG_NET))
 static int setup_fec(void)
 {
 	struct iomuxc_gpr_base_regs *gpr =
 		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
 
+#ifndef CONFIG_IMX8MP
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
 	clrsetbits_le32(&gpr->gpr[1], 0x2000, 0);
+#else
+	/* Enable RGMII TX clk output */
+	setbits_le32(&gpr->gpr[1], BIT(22));
+#endif
 
 	return 0;
+}
+
+static int setup_eqos(void)
+{
+	struct iomuxc_gpr_base_regs *gpr =
+		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
+
+	/* set INTF as RGMII, enable RGMII TXC clock */
+	clrsetbits_le32(&gpr->gpr[1],
+			IOMUXC_GPR_GPR1_GPR_ENET_QOS_INTF_SEL_MASK, BIT(16));
+	setbits_le32(&gpr->gpr[1], BIT(19) | BIT(21));
+
+	return set_clk_eqos(ENET_125MHZ);
 }
 
 int board_phy_config(struct phy_device *phydev)
 {
 	unsigned short val;
+	ofnode node;
 
 	switch (phydev->phy_id) {
 	case 0x2000a231: /* TI DP83867 GbE PHY */
@@ -73,6 +84,21 @@ int board_phy_config(struct phy_device *phydev)
 		val |= 0xb << 8; /* LED2(Green;Link/Act): blink for TX/RX act */
 		phy_write(phydev, MDIO_DEVAD_NONE, 24, val);
 		break;
+	case 0xd565a401: /* MaxLinear GPY111 */
+		puts("GPY111 ");
+		node = phy_get_ofnode(phydev);
+		if (ofnode_valid(node)) {
+			u32 rx_delay, tx_delay;
+
+			rx_delay = ofnode_read_u32_default(node, "rx-internal-delay-ps", 2000);
+			tx_delay = ofnode_read_u32_default(node, "tx-internal-delay-ps", 2000);
+			val = phy_read(phydev, MDIO_DEVAD_NONE, 0x17);
+			val &= ~((0x7 << 12) | (0x7 << 8));
+			val |= (rx_delay / 500) << 12;
+			val |= (tx_delay / 500) << 8;
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x17, val);
+		}
+		break;
 	}
 
 	if (phydev->drv->config)
@@ -80,16 +106,16 @@ int board_phy_config(struct phy_device *phydev)
 
 	return 0;
 }
-#endif // IS_ENABLED(CONFIG_FEC_MXC)
+#endif // IS_ENABLED(CONFIG_NET)
 
 int board_init(void)
 {
-	gsc_init(1);
+	eeprom_init(1);
 
 	if (IS_ENABLED(CONFIG_FEC_MXC))
 		setup_fec();
-
-	gsc_hwmon();
+	if (IS_ENABLED(CONFIG_DWC_ETH_QOS))
+		setup_eqos();
 
 	return 0;
 }
@@ -102,17 +128,15 @@ int board_late_init(void)
 	u8 enetaddr[6];
 	char fdt[64];
 
-	led_default_state();
-
 	/* Set board serial/model */
 	if (!env_get("serial#"))
-		env_set_ulong("serial#", gsc_get_serial());
-	env_set("model", gsc_get_model());
+		env_set_ulong("serial#", eeprom_get_serial());
+	env_set("model", eeprom_get_model());
 
 	/* Set fdt_file vars */
 	i = 0;
 	do {
-		str = gsc_get_dtb_name(i, fdt, sizeof(fdt));
+		str = eeprom_get_dtb_name(i, fdt, sizeof(fdt));
 		if (str) {
 			sprintf(env, "fdt_file%d", i + 1);
 			strcat(fdt, ".dtb");
@@ -130,7 +154,7 @@ int board_late_init(void)
 			sprintf(env, "ethaddr");
 		str = env_get(env);
 		if (!str) {
-			ret = gsc_getmac(i, enetaddr);
+			ret = eeprom_getmac(i, enetaddr);
 			if (!ret)
 				eth_env_set_enetaddr(env, enetaddr);
 		}
@@ -150,7 +174,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	int off;
 
 	/* set board model dt prop */
-	fdt_setprop_string(blob, 0, "board", gsc_get_model());
+	fdt_setprop_string(blob, 0, "board", eeprom_get_model());
 
 	/* update temp thresholds */
 	off = fdt_path_offset(blob, "/thermal-zones/cpu-thermal/trips");

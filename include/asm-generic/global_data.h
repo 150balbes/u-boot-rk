@@ -20,6 +20,7 @@
  */
 
 #ifndef __ASSEMBLY__
+#include <event_internal.h>
 #include <fdtdec.h>
 #include <membuff.h>
 #include <linux/list.h>
@@ -66,7 +67,7 @@ struct global_data {
 	 * @mem_clk: memory clock rate in Hz
 	 */
 	unsigned long mem_clk;
-#if defined(CONFIG_LCD) || defined(CONFIG_VIDEO) || defined(CONFIG_DM_VIDEO)
+#if defined(CONFIG_LCD) || defined(CONFIG_DM_VIDEO)
 	/**
 	 * @fb_base: base address of frame buffer memory
 	 */
@@ -114,10 +115,14 @@ struct global_data {
 	/**
 	 * @precon_buf_idx: pre-console buffer index
 	 *
-	 * @precon_buf_idx indicates the current position of the buffer used to
-	 * collect output before the console becomes available
+	 * @precon_buf_idx indicates the current position of the
+	 * buffer used to collect output before the console becomes
+	 * available. When negative, the pre-console buffer is
+	 * temporarily disabled (used when the pre-console buffer is
+	 * being written out, to prevent adding its contents to
+	 * itself).
 	 */
-	unsigned long precon_buf_idx;
+	long precon_buf_idx;
 #endif
 	/**
 	 * @env_addr: address of environment structure
@@ -467,6 +472,16 @@ struct global_data {
 	 */
 	char *smbios_version;
 #endif
+#if CONFIG_IS_ENABLED(EVENT)
+	/**
+	 * @event_state: Points to the current state of events
+	 */
+	struct event_state event_state;
+#endif
+	/**
+	 * @dmtag_list: List of DM tags
+	 */
+	struct list_head dmtag_list;
 };
 #ifndef DO_DEPS_ONLY
 static_assert(sizeof(struct global_data) == GD_SIZE);
@@ -530,6 +545,12 @@ static_assert(sizeof(struct global_data) == GD_SIZE);
 #else
 #define gd_multi_dtb_fit()	NULL
 #define gd_set_multi_dtb_fit(_dtb)
+#endif
+
+#if CONFIG_IS_ENABLED(EVENT_DYNAMIC)
+#define gd_event_state()	((struct event_state *)&gd->event_state)
+#else
+#define gd_event_state()	NULL
 #endif
 
 /**

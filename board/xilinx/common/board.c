@@ -5,6 +5,8 @@
  */
 
 #include <common.h>
+#include <efi.h>
+#include <efi_loader.h>
 #include <env.h>
 #include <log.h>
 #include <asm/global_data.h>
@@ -20,8 +22,35 @@
 #include <generated/dt.h>
 #include <soc.h>
 #include <linux/ctype.h>
+#include <linux/kernel.h>
+#include <uuid.h>
 
 #include "fru.h"
+
+#if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
+struct efi_fw_image fw_images[] = {
+#if defined(XILINX_BOOT_IMAGE_GUID)
+	{
+		.image_type_id = XILINX_BOOT_IMAGE_GUID,
+		.fw_name = u"XILINX-BOOT",
+		.image_index = 1,
+	},
+#endif
+#if defined(XILINX_UBOOT_IMAGE_GUID)
+	{
+		.image_type_id = XILINX_UBOOT_IMAGE_GUID,
+		.fw_name = u"XILINX-UBOOT",
+		.image_index = 2,
+	},
+#endif
+};
+
+struct efi_capsule_update_info update_info = {
+	.images = fw_images,
+};
+
+u8 num_image_type_guids = ARRAY_SIZE(fw_images);
+#endif /* EFI_HAVE_CAPSULE_SUPPORT */
 
 #if defined(CONFIG_ZYNQ_GEM_I2C_MAC_OFFSET)
 int zynq_board_read_rom_ethaddr(unsigned char *ethaddr)
@@ -58,6 +87,7 @@ int zynq_board_read_rom_ethaddr(unsigned char *ethaddr)
 #define EEPROM_HDR_SERIAL_LEN		20
 #define EEPROM_HDR_NO_OF_MAC_ADDR	4
 #define EEPROM_HDR_ETH_ALEN		ETH_ALEN
+#define EEPROM_HDR_UUID_LEN		16
 
 struct xilinx_board_description {
 	u32 header;
@@ -66,6 +96,7 @@ struct xilinx_board_description {
 	char revision[EEPROM_HDR_REV_LEN + 1];
 	char serial[EEPROM_HDR_SERIAL_LEN + 1];
 	u8 mac_addr[EEPROM_HDR_NO_OF_MAC_ADDR][EEPROM_HDR_ETH_ALEN + 1];
+	char uuid[EEPROM_HDR_UUID_LEN + 1];
 };
 
 static int highest_id = -1;
@@ -171,6 +202,7 @@ static int xilinx_read_eeprom_fru(struct udevice *dev, char *name,
 {
 	int i, ret, eeprom_size;
 	u8 *fru_content;
+	u8 id = 0;
 
 	/* FIXME this is shortcut - if eeprom type is wrong it will fail */
 	eeprom_size = i2c_eeprom_size(dev);
@@ -206,18 +238,32 @@ static int xilinx_read_eeprom_fru(struct udevice *dev, char *name,
 	}
 
 	/* It is clear that FRU was captured and structures were filled */
-	strncpy(desc->manufacturer, (char *)fru_data.brd.manufacturer_name,
+	strlcpy(desc->manufacturer, (char *)fru_data.brd.manufacturer_name,
 		sizeof(desc->manufacturer));
-	strncpy(desc->name, (char *)fru_data.brd.product_name,
+	strlcpy(desc->uuid, (char *)fru_data.brd.uuid,
+		sizeof(desc->uuid));
+	strlcpy(desc->name, (char *)fru_data.brd.product_name,
 		sizeof(desc->name));
 	for (i = 0; i < sizeof(desc->name); i++) {
 		if (desc->name[i] == ' ')
 			desc->name[i] = '\0';
 	}
-	strncpy(desc->revision, (char *)fru_data.brd.rev,
+	strlcpy(desc->revision, (char *)fru_data.brd.rev,
 		sizeof(desc->revision));
-	strncpy(desc->serial, (char *)fru_data.brd.serial_number,
+	for (i = 0; i < sizeof(desc->revision); i++) {
+		if (desc->revision[i] == ' ')
+			desc->revision[i] = '\0';
+	}
+	strlcpy(desc->serial, (char *)fru_data.brd.serial_number,
 		sizeof(desc->serial));
+
+	while (id < EEPROM_HDR_NO_OF_MAC_ADDR) {
+		if (is_valid_ethaddr((const u8 *)fru_data.mac.macid[id]))
+			memcpy(&desc->mac_addr[id],
+			       (char *)fru_data.mac.macid[id], ETH_ALEN);
+		id++;
+	}
+
 	desc->header = EEPROM_HEADER_MAGIC;
 
 end:
@@ -411,12 +457,25 @@ int board_late_init_xilinx(void)
 				ret |= env_set_by_index("serial", id,
 							desc->serial);
 
+			if (desc->uuid[0]) {
+				char uuid[UUID_STR_LEN + 1];
+				char *t = desc->uuid;
+
+				memset(uuid, 0, UUID_STR_LEN + 1);
+
+				sprintf(uuid, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+					t[0], t[1], t[2], t[3], t[4], t[5],
+					t[6], t[7], t[8], t[9], t[10], t[11],
+					t[12], t[13], t[14], t[15]);
+				ret |= env_set_by_index("uuid", id, uuid);
+			}
+
 			if (!CONFIG_IS_ENABLED(NET))
 				continue;
 
 			for (i = 0; i < EEPROM_HDR_NO_OF_MAC_ADDR; i++) {
 				if (!desc->mac_addr[i])
-					continue;
+					break;
 
 				if (is_valid_ethaddr((const u8 *)desc->mac_addr[i]))
 					ret |= eth_env_set_enetaddr_by_index("eth",
@@ -443,31 +502,6 @@ int __maybe_unused board_fit_config_name_match(const char *name)
 
 	return -1;
 }
-
-#if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_ARCH_ZYNQ)
-int print_cpuinfo(void)
-{
-	struct udevice *soc;
-	char name[SOC_MAX_STR_SIZE];
-	int ret;
-
-	ret = soc_get(&soc);
-	if (ret) {
-		printf("CPU:   UNKNOWN\n");
-		return 0;
-	}
-
-	ret = soc_get_family(soc, name, SOC_MAX_STR_SIZE);
-	if (ret)
-		printf("CPU:   %s\n", name);
-
-	ret = soc_get_revision(soc, name, SOC_MAX_STR_SIZE);
-	if (ret)
-		printf("Silicon: %s\n", name);
-
-	return 0;
-}
-#endif
 
 #if CONFIG_IS_ENABLED(DTB_RESELECT)
 #define MAX_NAME_LENGTH	50

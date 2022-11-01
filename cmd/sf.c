@@ -7,9 +7,9 @@
 
 #include <common.h>
 #include <command.h>
+#include <display_options.h>
 #include <div64.h>
 #include <dm.h>
-#include <flash.h>
 #include <log.h>
 #include <malloc.h>
 #include <mapmem.h>
@@ -91,6 +91,7 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	char *endp;
+	bool use_dt = true;
 #if CONFIG_IS_ENABLED(DM_SPI_FLASH)
 	struct udevice *new, *bus_dev;
 	int ret;
@@ -117,11 +118,13 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 		speed = simple_strtoul(argv[2], &endp, 0);
 		if (*argv[2] == 0 || *endp != 0)
 			return -1;
+		use_dt = false;
 	}
 	if (argc >= 4) {
 		mode = hextoul(argv[3], &endp);
 		if (*argv[3] == 0 || *endp != 0)
 			return -1;
+		use_dt = false;
 	}
 
 #if CONFIG_IS_ENABLED(DM_SPI_FLASH)
@@ -131,14 +134,18 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 		device_remove(new, DM_REMOVE_NORMAL);
 	}
 	flash = NULL;
-	ret = spi_flash_probe_bus_cs(bus, cs, speed, mode, &new);
-	if (ret) {
+	if (use_dt) {
+		spi_flash_probe_bus_cs(bus, cs, &new);
+		flash = dev_get_uclass_priv(new);
+	} else {
+		flash = spi_flash_probe(bus, cs, speed, mode);
+	}
+
+	if (!flash) {
 		printf("Failed to initialize SPI flash at %u:%u (error %d)\n",
 		       bus, cs, ret);
 		return 1;
 	}
-
-	flash = dev_get_uclass_priv(new);
 #else
 	if (flash)
 		spi_flash_free(flash);
@@ -287,6 +294,12 @@ static int do_spi_flash_read_write(int argc, char *const argv[])
 		return 1;
 	}
 
+	if (strncmp(argv[0], "read", 4) != 0 && flash->flash_is_unlocked &&
+	    !flash->flash_is_unlocked(flash, offset, len)) {
+		printf("ERROR: flash area is locked\n");
+		return 1;
+	}
+
 	buf = map_physmem(addr, len, MAP_WRBACK);
 	if (!buf && addr) {
 		puts("Failed to map physical memory\n");
@@ -340,6 +353,12 @@ static int do_spi_flash_erase(int argc, char *const argv[])
 	if (offset + size > flash->size) {
 		printf("ERROR: attempting %s past flash size (%#x)\n",
 		       argv[0], flash->size);
+		return 1;
+	}
+
+	if (flash->flash_is_unlocked &&
+	    !flash->flash_is_unlocked(flash, offset, len)) {
+		printf("ERROR: flash area is locked\n");
 		return 1;
 	}
 

@@ -5,7 +5,7 @@
 #
 # (C) Copyright 2011 Freescale Semiconductor, Inc.
 
-ifeq ($(SOC),$(filter $(SOC),mx25 mx35 mx5 mx6 mx7 imx8m vf610))
+ifeq ($(SOC),$(filter $(SOC),mx25 mx35 mx5 mx6 mx7 imx8m imx9 vf610))
 obj-y	= iomux-v3.o
 endif
 
@@ -29,7 +29,7 @@ endif
 obj-$(CONFIG_GPT_TIMER) += timer.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 endif
-ifeq ($(SOC),$(filter $(SOC),mx7 mx6 mxs imx8m imx8 imxrt))
+ifeq ($(SOC),$(filter $(SOC),mx7 mx6 mxs imx8m imx8 imx9 imxrt))
 obj-y	+= misc.o
 obj-$(CONFIG_CMD_PRIBLOB) += priblob.o
 obj-$(CONFIG_SPL_BUILD)	+= spl.o
@@ -38,7 +38,11 @@ ifeq ($(SOC),$(filter $(SOC),mx7))
 obj-y	+= cpu.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 obj-$(CONFIG_ENV_IS_IN_MMC) += mmc_env.o
+endif
+ifeq ($(SOC),$(filter $(SOC),mx7 imx8m))
+ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_FSL_MFGPROT) += cmd_mfgprot.o
+endif
 endif
 ifeq ($(SOC),$(filter $(SOC),mx5 mx6 mx7))
 obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
@@ -191,6 +195,10 @@ flash.bin: spl/u-boot-spl.bin FORCE
 endif
 endif
 
+ifeq ($(CONFIG_ARCH_IMX9), y)
+SPL:
+endif
+
 else
 MKIMAGEFLAGS_SPL = -n $(filter-out $(PLUGIN).bin $< $(PHONY),$^) \
 		   -T $(IMAGE_TYPE) -e $(CONFIG_SPL_TEXT_BASE)
@@ -236,6 +244,8 @@ obj-$(CONFIG_ARCH_MX7ULP) += mx7ulp/
 obj-$(CONFIG_ARCH_IMX8ULP) += imx8ulp/
 obj-$(CONFIG_IMX8M) += imx8m/
 obj-$(CONFIG_ARCH_IMX8) += imx8/
+obj-$(CONFIG_ARCH_IMX9) += imx9/
 obj-$(CONFIG_ARCH_IMXRT) += imxrt/
 
 obj-$(CONFIG_SPL_BOOTROM_SUPPORT) += spl_imx_romapi.o
+obj-$(CONFIG_IMX8_ROMAPI) += romapi.o

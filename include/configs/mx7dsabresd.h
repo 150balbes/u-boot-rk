@@ -12,14 +12,7 @@
 
 #define PHYS_SDRAM_SIZE			SZ_1G
 
-#define CONFIG_MXC_UART_BASE            UART1_IPS_BASE_ADDR
-
-/* MMC Config*/
-#define CONFIG_SYS_FSL_ESDHC_ADDR       0
-
 #ifdef CONFIG_IMX_BOOTAUX
-/* Set to QSPI1 A flash at default */
-#define CONFIG_SYS_AUXCORE_BOOTDATA 0x60000000
 
 #define UPDATE_M4_ENV \
 	"m4image=m4_qspi.bin\0" \
@@ -34,7 +27,7 @@
 				"sf write ${loadaddr} 0x0 ${filesize}; " \
 			"fi; " \
 		"fi\0" \
-	"m4boot=sf probe 0:0; bootaux "__stringify(CONFIG_SYS_AUXCORE_BOOTDATA)"\0"
+	"m4boot=sf probe 0:0; bootaux 0x60000000\0"
 #else
 #define UPDATE_M4_ENV ""
 #endif
@@ -92,11 +85,6 @@
 #define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
 #define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
 
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
-	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
-
 /* environment organization */
 
 /*
@@ -111,19 +99,9 @@
 /* DMA stuff, needed for GPMI/MXS NAND support */
 #endif
 
-#ifdef CONFIG_NAND_MXS
-#define CONFIG_SYS_FSL_USDHC_NUM	1
-#else
-#define CONFIG_SYS_FSL_USDHC_NUM	2
-#endif
-
 /* USB Configs */
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
 
 #define CONFIG_USBD_HS
-
-#ifdef CONFIG_DM_VIDEO
-#define CONFIG_VIDEO_BMP_LOGO
-#endif
 
 #endif	/* __CONFIG_H */

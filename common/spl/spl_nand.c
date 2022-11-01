@@ -43,20 +43,32 @@ static ulong spl_nand_fit_read(struct spl_load_info *load, ulong offs,
 			       ulong size, void *dst)
 {
 	int err;
-#ifdef CONFIG_SYS_NAND_BLOCK_SIZE
 	ulong sector;
 
 	sector = *(int *)load->priv;
-	offs = sector + nand_spl_adjust_offset(sector, offs - sector);
-#else
 	offs *= load->bl_len;
 	size *= load->bl_len;
-#endif
+	offs = sector + nand_spl_adjust_offset(sector, offs - sector);
 	err = nand_spl_load_image(offs, size, dst);
 	if (err)
 		return 0;
 
 	return size / load->bl_len;
+}
+
+static ulong spl_nand_legacy_read(struct spl_load_info *load, ulong offs,
+				  ulong size, void *dst)
+{
+	int err;
+
+	debug("%s: offs %lx, size %lx, dst %p\n",
+	      __func__, offs, size, dst);
+
+	err = nand_spl_load_image(offs, size, dst);
+	if (err)
+		return 0;
+
+	return size;
 }
 
 struct mtd_info * __weak nand_get_mtd(void)
@@ -96,6 +108,18 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 		load.bl_len = bl_len;
 		load.read = spl_nand_fit_read;
 		return spl_load_imx_container(spl_image, &load, offset / bl_len);
+	} else if (IS_ENABLED(CONFIG_SPL_LEGACY_IMAGE_FORMAT) &&
+		   image_get_magic(header) == IH_MAGIC) {
+		struct spl_load_info load;
+
+		debug("Found legacy image\n");
+		load.dev = NULL;
+		load.priv = NULL;
+		load.filename = NULL;
+		load.bl_len = 1;
+		load.read = spl_nand_legacy_read;
+
+		return spl_load_legacy_img(spl_image, bootdev, &load, offset);
 	} else {
 		err = spl_parse_image_header(spl_image, bootdev, header);
 		if (err)

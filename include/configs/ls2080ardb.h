@@ -9,12 +9,6 @@
 
 #include "ls2080a_common.h"
 
-#ifdef CONFIG_FSL_QSPI
-#ifdef CONFIG_TARGET_LS2081ARDB
-#define CONFIG_QIXIS_I2C_ACCESS
-#endif
-#endif
-
 #define I2C_MUX_CH_VOL_MONITOR		0xa
 #define I2C_VOL_MONITOR_ADDR		0x38
 
@@ -35,17 +29,6 @@
 #define SPD_EEPROM_ADDRESS5	0x55
 #define SPD_EEPROM_ADDRESS6	0x56	/* dummy address */
 #define SPD_EEPROM_ADDRESS	SPD_EEPROM_ADDRESS1
-#define CONFIG_SYS_SPD_BUS_NUM	0	/* SPD on I2C bus 0 */
-#define CONFIG_DIMM_SLOTS_PER_CTLR		2
-#define CONFIG_CHIP_SELECTS_PER_CTRL		4
-#ifdef CONFIG_SYS_FSL_HAS_DP_DDR
-#define CONFIG_DP_DDR_DIMM_SLOTS_PER_CTLR	1
-#endif
-
-/* SATA */
-
-#define CONFIG_SYS_SATA1			AHCI_BASE_ADDR1
-#define CONFIG_SYS_SATA2			AHCI_BASE_ADDR2
 
 #if !defined(CONFIG_FSL_QSPI) || defined(CONFIG_TFABOOT)
 
@@ -78,14 +61,8 @@
 #define CONFIG_SYS_IFC_CCR	0x01000000
 
 #ifdef CONFIG_MTD_NOR_FLASH
-#define CONFIG_SYS_FLASH_QUIET_TEST
 #define CONFIG_FLASH_SHOW_PROGRESS	45 /* count down from 45/5: 9..1 */
 
-#define CONFIG_SYS_MAX_FLASH_SECT	1024	/* sectors per device */
-#define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
-#define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
-
-#define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BASE,\
 					 CONFIG_SYS_FLASH_BASE + 0x40000000}
 #endif
@@ -126,7 +103,6 @@
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_MTD_NAND_VERIFY_WRITE
 
-#define CONFIG_FSL_QIXIS	/* use common QIXIS code */
 #define QIXIS_LBMAP_SWITCH		0x06
 #define QIXIS_LBMAP_MASK		0x0f
 #define QIXIS_LBMAP_SHIFT		0
@@ -183,7 +159,6 @@
 #define CONFIG_SYS_CS0_FTIM2		CONFIG_SYS_NAND_FTIM2
 #define CONFIG_SYS_CS0_FTIM3		CONFIG_SYS_NAND_FTIM3
 
-#define CONFIG_SPL_PAD_TO		0x80000
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	(512 * 1024)
 #else
 #define CONFIG_SYS_CSPR0_EXT		CONFIG_SYS_NOR0_CSPR_EXT
@@ -204,15 +179,10 @@
 #define CONFIG_SYS_CS2_FTIM2		CONFIG_SYS_NAND_FTIM2
 #define CONFIG_SYS_CS2_FTIM3		CONFIG_SYS_NAND_FTIM3
 #endif
-
-/* Debug Server firmware */
-#define CONFIG_SYS_DEBUG_SERVER_FW_IN_NOR
-#define CONFIG_SYS_DEBUG_SERVER_FW_ADDR	0x580D00000ULL
 #endif
 #define CONFIG_SYS_LS_MC_BOOT_TIMEOUT_MS 5000
 
 #ifdef CONFIG_TARGET_LS2081ARDB
-#define CONFIG_FSL_QIXIS	/* use common QIXIS code */
 #define QIXIS_QMAP_MASK			0x07
 #define QIXIS_QMAP_SHIFT		5
 #define QIXIS_LBMAP_DFLTBANK		0x00
@@ -255,12 +225,6 @@
 /* EEPROM */
 #define CONFIG_SYS_I2C_EEPROM_NXID
 #define CONFIG_SYS_EEPROM_BUS_NUM	0
-
-#define CONFIG_FSL_MEMAC
-
-#ifdef CONFIG_PCI
-#define CONFIG_PCI_SCAN_SHOW
-#endif
 
 #define BOOT_TARGET_DEVICES(func) \
 	func(USB, usb, 0) \
@@ -333,7 +297,6 @@
 	"ramdisk_size=0x2000000\0"		\
 	"fdt_high=0xa0000000\0"			\
 	"initrd_high=0xffffffffffffffff\0"	\
-	"fdt_addr=0x64f00000\0"			\
 	"kernel_addr=0x581000000\0"		\
 	"kernel_start=0x1000000\0"		\
 	"kernelheader_start=0x800000\0"		\
@@ -396,7 +359,6 @@
 	"ramdisk_size=0x2000000\0"		\
 	"fdt_high=0xa0000000\0"			\
 	"initrd_high=0xffffffffffffffff\0"	\
-	"fdt_addr=0x64f00000\0"			\
 	"kernel_addr=0x581000000\0"		\
 	"kernel_start=0x1000000\0"		\
 	"kernelheader_start=0x600000\0"		\
@@ -505,7 +467,6 @@
 #define AQ_PHY_ADDR3		0x02
 #define AQ_PHY_ADDR4		0x03
 #define AQR405_IRQ_MASK		0x36
-#define CONFIG_ETHPRIME		"DPMAC1@xgmii"
 
 #include <asm/fsl_secure_boot.h>
 
