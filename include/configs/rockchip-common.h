@@ -58,6 +58,12 @@
 	BOOT_TARGET_DEVICES_references_MTD_without_CONFIG_CMD_MTD_BLK
 #endif
 
+#if (CONFIG_IS_ENABLED(CMD_PCI) && CONFIG_IS_ENABLED(CMD_NVME))
+	#define BOOT_TARGET_NVME(func) func(NVME, nvme, na)
+#else
+	#define BOOT_TARGET_NVME(func)
+#endif
+
 /* First try to boot from SD (index 1), then eMMC (index 0) */
 #if CONFIG_IS_ENABLED(CMD_MMC)
 	#define BOOT_TARGET_MMC(func) \
@@ -104,6 +110,7 @@
 	BOOT_TARGET_USB(func) \
 	BOOT_TARGET_MMC(func) \
 	BOOT_TARGET_MTD(func) \
+	BOOT_TARGET_NVME(func) \
 	BOOT_TARGET_RKNAND(func) \
 	BOOT_TARGET_PXE(func) \
 	BOOT_TARGET_DHCP(func)
@@ -142,7 +149,9 @@
 
 #define RKIMG_DET_BOOTDEV \
 	"rkimg_bootdev=" \
-	"if mmc dev 1 && rkimgtest mmc 1; then " \
+	"if nvme dev 0; then " \
+		"setenv devtype nvme; setenv devnum 0; echo Boot from nvme;" \
+	"elif mmc dev 1 && rkimgtest mmc 1; then " \
 		"setenv devtype mmc; setenv devnum 1; echo Boot from SDcard;" \
 	"elif mmc dev 0; then " \
 		"setenv devtype mmc; setenv devnum 0;" \
