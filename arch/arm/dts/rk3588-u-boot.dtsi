@@ -192,59 +192,6 @@
 	status = "okay";
 };
 
-&usb2phy2_grf {
-	u-boot,dm-pre-reloc;
-};
-
-&u2phy2 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&u2phy2_host {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usb2phy3_grf {
-	u-boot,dm-pre-reloc;
-};
-
-&u2phy3 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&u2phy3_host {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usbhost3_0 {
-	u-boot,dm-pre-reloc;
-};
-
-&usbhost_dwc3_0 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usb_host0_ehci {
-	status = "okay";
-};
-
-&usb_host0_ohci {
-	status = "okay";
-};
-
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
-	status = "okay";
-};
-
 /* Support SPL-PINCTRL:
  * 1. ioc
  * 2. pinctrl(sdmmc)

@@ -1187,11 +1187,7 @@ static ulong rk3588_dclk_vop_set_clk(struct rk3588_clk_priv *priv,
 			}
 			debug("p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
 			      pll_rate, best_rate, best_div, best_sel);
-			printf("[list]p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
-			      pll_rate, best_rate, best_div, best_sel);
 		}
-		printf("[result]p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
-					      pll_rate, best_rate, best_div, best_sel);
 
 		if (best_rate) {
 			rk_clrsetreg(&cru->clksel_con[conid],
