@@ -59,6 +59,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3566-firefly.dtb \
 	rk3568-firefly.dtb \
 	rk3568-bpi-r2pro.dtb \
+	rk3588s-roc-pc.dtb \
+	rk3588-rock-5b.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
 	meson-gxbb-odroidc2.dtb
