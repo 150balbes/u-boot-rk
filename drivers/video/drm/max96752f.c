@@ -15,15 +15,13 @@
 #include "rockchip_display.h"
 #include "rockchip_panel.h"
 
-static void max96752f_bridge_pre_enable(struct rockchip_bridge *bridge)
+static void max96752f_bridge_enable(struct rockchip_bridge *bridge)
 {
 	struct udevice *dev = bridge->dev;
-	struct connector_state *conn_state = &bridge->state->conn_state;
+	struct rockchip_panel *panel = state_get_panel(bridge->state);
 	bool oldi_format, oldi_4th_lane;
 
-	max96752f_init(dev->parent);
-
-	switch (conn_state->bus_format) {
+	switch (panel->bus_format) {
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 		oldi_4th_lane = false;
 		oldi_format = 0x0;
@@ -48,7 +46,7 @@ static void max96752f_bridge_pre_enable(struct rockchip_bridge *bridge)
 }
 
 static const struct rockchip_bridge_funcs max96752f_bridge_funcs = {
-	.pre_enable = max96752f_bridge_pre_enable,
+	.enable = max96752f_bridge_enable,
 };
 
 static int max96752f_bridge_probe(struct udevice *dev)

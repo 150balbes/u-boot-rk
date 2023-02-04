@@ -25,9 +25,6 @@
 #include "rockchip_connector.h"
 #include "rockchip_panel.h"
 
-int is_mipi_lcd_exit = 0x0;
-int vpx_id = 0;
-
 struct rockchip_cmd_header {
 	u8 data_type;
 	u8 delay_ms;
@@ -54,7 +51,7 @@ struct rockchip_panel_plat {
 		unsigned int unprepare;
 		unsigned int enable;
 		unsigned int disable;
-		//unsigned int reset;
+		unsigned int reset;
 		unsigned int init;
 	} delay;
 
@@ -68,7 +65,7 @@ struct rockchip_panel_priv {
 	struct udevice *power_supply;
 	struct udevice *backlight;
 	struct gpio_desc enable_gpio;
-	//struct gpio_desc reset_gpio;
+	struct gpio_desc reset_gpio;
 
 	int cmd_type;
 	struct gpio_desc spi_sdi_gpio;
@@ -161,7 +158,7 @@ static void rockchip_panel_write_spi_cmds(struct rockchip_panel_priv *priv,
 	dm_gpio_set_value(&priv->spi_cs_gpio, 1);
 }
 
-static int rockchip_panel_send_mcu_cmds(struct rockchip_panel *panel, struct display_state *state,
+static int rockchip_panel_send_mcu_cmds(struct display_state *state,
 					struct rockchip_panel_cmds *cmds)
 {
 	int i;
@@ -185,9 +182,10 @@ static int rockchip_panel_send_mcu_cmds(struct rockchip_panel *panel, struct dis
 	return 0;
 }
 
-static int rockchip_panel_send_spi_cmds(struct rockchip_panel *panel, struct display_state *state,
+static int rockchip_panel_send_spi_cmds(struct display_state *state,
 					struct rockchip_panel_cmds *cmds)
 {
+	struct rockchip_panel *panel = state_get_panel(state);
 	struct rockchip_panel_priv *priv = dev_get_priv(panel->dev);
 	int i;
 
@@ -269,14 +267,12 @@ static int rockchip_panel_send_dsi_cmds(struct mipi_dsi_device *dsi,
 	return 0;
 }
 
-extern int khadas_mipi_id;
 static void panel_simple_prepare(struct rockchip_panel *panel)
 {
 	struct rockchip_panel_plat *plat = dev_get_platdata(panel->dev);
 	struct rockchip_panel_priv *priv = dev_get_priv(panel->dev);
 	struct mipi_dsi_device *dsi = dev_get_parent_platdata(panel->dev);
 	int ret;
-	u8 mode;
 
 	if (priv->prepared)
 		return;
@@ -290,50 +286,31 @@ static void panel_simple_prepare(struct rockchip_panel *panel)
 	if (plat->delay.prepare)
 		mdelay(plat->delay.prepare);
 
+	if (dm_gpio_is_valid(&priv->reset_gpio))
+		dm_gpio_set_value(&priv->reset_gpio, 1);
+
+	if (plat->delay.reset)
+		mdelay(plat->delay.reset);
+
+	if (dm_gpio_is_valid(&priv->reset_gpio))
+		dm_gpio_set_value(&priv->reset_gpio, 0);
+
 	if (plat->delay.init)
 		mdelay(plat->delay.init);
 
-	mipi_dsi_dcs_get_power_mode(dsi, &mode);
-	if(0x8 == mode){
-		is_mipi_lcd_exit = is_mipi_lcd_exit | (0x1 << vpx_id);
-	}
-	else{
-		if(2 == vpx_id && 2!=khadas_mipi_id){
-			is_mipi_lcd_exit = is_mipi_lcd_exit & 0xb;
-			run_command("fdt set /dsi@fde20000 status disable", 0);
-			run_command("fdt set /dsi@fde20000/panel@0 status disable", 0);
-			run_command("fdt set /dsi@fde20000/ports/port@0/endpoint@0 status disable", 0);
-			run_command("fdt set /display-subsystem/route/route-dsi0 status disable", 0);
-		}
-		else if(3 == vpx_id && 2!=khadas_mipi_id){
-			is_mipi_lcd_exit = is_mipi_lcd_exit & 0x7;
-			run_command("fdt set /dsi@fde30000 status disable", 0);
-			run_command("fdt set /dsi@fde30000/panel@0 status disable", 0);
-			run_command("fdt set /dsi@fde30000/ports/port@0/endpoint@1 status disable", 0);
-			run_command("fdt set /display-subsystem/route/route-dsi1 status disable", 0);
-		}
-		printf("(vpx_id=%x)==(is_mipi_lcd_exit=%x)=vp2 and vp3 status disable\n", vpx_id,is_mipi_lcd_exit);
-	}
-	printf("0x8===>mode: 0x%d is_mipi_lcd_exit=%d\n", mode,is_mipi_lcd_exit);
-       /*ret = mipi_dsi_dcs_read(dsi, 0xDA, &khadas_mipi_id, sizeof(khadas_mipi_id));
-       if (ret <= 0) {
-               printf("mipi_dsi_dcs_read ID ,error=%d!!\n", ret);
-       }
-       printf("hlm panel_simple_prepare() khadas_mipi_id=%d\n", khadas_mipi_id);*/
 	if (plat->on_cmds) {
 		if (priv->cmd_type == CMD_TYPE_SPI)
-			ret = rockchip_panel_send_spi_cmds(panel, panel->state,
+			ret = rockchip_panel_send_spi_cmds(panel->state,
 							   plat->on_cmds);
 		else if (priv->cmd_type == CMD_TYPE_MCU)
-			ret = rockchip_panel_send_mcu_cmds(panel, panel->state,
+			ret = rockchip_panel_send_mcu_cmds(panel->state,
 							   plat->on_cmds);
 		else
 			ret = rockchip_panel_send_dsi_cmds(dsi, plat->on_cmds);
 		if (ret)
 			printf("failed to send on cmds: %d\n", ret);
 	}
-	//mipi_dsi_dcs_get_power_mode(dsi, &mode);
-	//printf("0x9c===>mode: 0x%x\n", mode);
+
 	priv->prepared = true;
 }
 
@@ -349,10 +326,10 @@ static void panel_simple_unprepare(struct rockchip_panel *panel)
 
 	if (plat->off_cmds) {
 		if (priv->cmd_type == CMD_TYPE_SPI)
-			ret = rockchip_panel_send_spi_cmds(panel, panel->state,
+			ret = rockchip_panel_send_spi_cmds(panel->state,
 							   plat->off_cmds);
 		else if (priv->cmd_type == CMD_TYPE_MCU)
-			ret = rockchip_panel_send_mcu_cmds(panel, panel->state,
+			ret = rockchip_panel_send_mcu_cmds(panel->state,
 							   plat->off_cmds);
 		else
 			ret = rockchip_panel_send_dsi_cmds(dsi, plat->off_cmds);
@@ -360,8 +337,8 @@ static void panel_simple_unprepare(struct rockchip_panel *panel)
 			printf("failed to send off cmds: %d\n", ret);
 	}
 
-	//if (dm_gpio_is_valid(&priv->reset_gpio))
-	//	dm_gpio_set_value(&priv->reset_gpio, 1);
+	if (dm_gpio_is_valid(&priv->reset_gpio))
+		dm_gpio_set_value(&priv->reset_gpio, 1);
 
 	if (dm_gpio_is_valid(&priv->enable_gpio))
 		dm_gpio_set_value(&priv->enable_gpio, 0);
@@ -409,7 +386,16 @@ static void panel_simple_disable(struct rockchip_panel *panel)
 	priv->enabled = false;
 }
 
+static void panel_simple_init(struct rockchip_panel *panel)
+{
+	struct display_state *state = panel->state;
+	struct connector_state *conn_state = &state->conn_state;
+
+	conn_state->bus_format = panel->bus_format;
+}
+
 static const struct rockchip_panel_funcs rockchip_panel_funcs = {
+	.init = panel_simple_init,
 	.prepare = panel_simple_prepare,
 	.unprepare = panel_simple_unprepare,
 	.enable = panel_simple_enable,
@@ -430,7 +416,7 @@ static int rockchip_panel_ofdata_to_platdata(struct udevice *dev)
 	plat->delay.enable = dev_read_u32_default(dev, "enable-delay-ms", 0);
 	plat->delay.disable = dev_read_u32_default(dev, "disable-delay-ms", 0);
 	plat->delay.init = dev_read_u32_default(dev, "init-delay-ms", 0);
-	//plat->delay.reset = dev_read_u32_default(dev, "reset-delay-ms", 0);
+	plat->delay.reset = dev_read_u32_default(dev, "reset-delay-ms", 0);
 
 	plat->bus_format = dev_read_u32_default(dev, "bus-format",
 						MEDIA_BUS_FMT_RBG888_1X24);
@@ -488,12 +474,12 @@ static int rockchip_panel_probe(struct udevice *dev)
 		return ret;
 	}
 
-	//ret = gpio_request_by_name(dev, "reset-gpios", 0,
-	//			   &priv->reset_gpio, GPIOD_IS_OUT);
-	//if (ret && ret != -ENOENT) {
-	//	printf("%s: Cannot get reset GPIO: %d\n", __func__, ret);
-	//	return ret;
-	//}
+	ret = gpio_request_by_name(dev, "reset-gpios", 0,
+				   &priv->reset_gpio, GPIOD_IS_OUT);
+	if (ret && ret != -ENOENT) {
+		printf("%s: Cannot get reset GPIO: %d\n", __func__, ret);
+		return ret;
+	}
 
 	ret = uclass_get_device_by_phandle(UCLASS_PANEL_BACKLIGHT, dev,
 					   "backlight", &priv->backlight);
@@ -540,7 +526,7 @@ static int rockchip_panel_probe(struct udevice *dev)
 		dm_gpio_set_value(&priv->spi_sdi_gpio, 1);
 		dm_gpio_set_value(&priv->spi_scl_gpio, 1);
 		dm_gpio_set_value(&priv->spi_cs_gpio, 1);
-		//dm_gpio_set_value(&priv->reset_gpio, 0);
+		dm_gpio_set_value(&priv->reset_gpio, 0);
 	}
 
 	panel = calloc(1, sizeof(*panel));

@@ -149,8 +149,6 @@ struct crtc_state {
 	int rb_swap;
 	int xvir;
 	int post_csc_mode;
-	int dclk_core_div;
-	int dclk_out_div;
 	struct display_rect src_rect;
 	struct display_rect crtc_rect;
 	struct display_rect right_src_rect;
@@ -191,8 +189,13 @@ struct overscan {
 };
 
 struct connector_state {
-	struct rockchip_connector *connector;
-	struct rockchip_connector *secondary;
+	struct udevice *dev;
+	const struct rockchip_connector *connector;
+	struct rockchip_bridge *bridge;
+	struct rockchip_phy *phy;
+	ofnode node;
+
+	void *private;
 
 	struct drm_display_mode mode;
 	struct overscan overscan;
@@ -273,6 +276,13 @@ struct display_state {
 	u32 force_bus_format;
 };
 
+static inline struct rockchip_panel *state_get_panel(struct display_state *s)
+{
+	struct panel_state *panel_state = &s->panel_state;
+
+	return panel_state->panel;
+}
+
 int drm_mode_vrefresh(const struct drm_display_mode *mode);
 int display_send_mcu_cmd(struct display_state *state, u32 type, u32 val);
 bool drm_mode_is_420(const struct drm_display_info *display,
@@ -282,11 +292,5 @@ struct base2_disp_info *rockchip_get_disp_info(int type, int id);
 void drm_mode_max_resolution_filter(struct hdmi_edid_data *edid_data,
 				    struct vop_rect *max_output);
 unsigned long get_cubic_lut_buffer(int crtc_id);
-int rockchip_ofnode_get_display_mode(ofnode node, struct drm_display_mode *mode);
-
-int display_rect_calc_hscale(struct display_rect *src, struct display_rect *dst,
-			     int min_hscale, int max_hscale);
-int display_rect_calc_vscale(struct display_rect *src, struct display_rect *dst,
-			     int min_vscale, int max_vscale);
 
 #endif
