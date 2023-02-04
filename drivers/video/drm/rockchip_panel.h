@@ -9,13 +9,15 @@
 
 struct display_state;
 struct rockchip_panel;
+struct rockchip_conn;
 
 struct rockchip_panel_funcs {
-	void (*init)(struct rockchip_panel *panel);
 	void (*prepare)(struct rockchip_panel *panel);
 	void (*unprepare)(struct rockchip_panel *panel);
 	void (*enable)(struct rockchip_panel *panel);
 	void (*disable)(struct rockchip_panel *panel);
+	int (*get_mode)(struct rockchip_panel *panel,
+			struct drm_display_mode *mode);
 };
 
 struct rockchip_panel {
@@ -25,16 +27,25 @@ struct rockchip_panel {
 	const struct rockchip_panel_funcs *funcs;
 	const void *data;
 
+	struct rockchip_connector *conn;
 	struct display_state *state;
 };
 
-static inline void rockchip_panel_init(struct rockchip_panel *panel)
+static inline void rockchip_panel_init(struct rockchip_panel *panel,
+				       struct rockchip_connector *conn,
+				       struct display_state *state)
 {
 	if (!panel)
 		return;
 
-	if (panel->funcs && panel->funcs->init)
-		panel->funcs->init(panel);
+	panel->conn = conn;
+	panel->state = state;
+
+	if (panel->bus_format)
+		state->conn_state.bus_format = panel->bus_format;
+
+	if (panel->bpc)
+		state->conn_state.bpc = panel->bpc;
 }
 
 static inline void rockchip_panel_prepare(struct rockchip_panel *panel)
