@@ -15,9 +15,9 @@
 *.i
 *.lst
 *.order
-#*.elf
+*.elf
 *.swp
-#*.bin
+*.bin
 *.patch
 *.cfgtmp
 *.img
