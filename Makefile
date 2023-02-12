@@ -338,7 +338,7 @@ LD		= $(CROSS_COMPILE)ld.bfd
 else
 LD		= $(CROSS_COMPILE)ld
 endif
-CC		= $(CROSS_COMPILE)gcc-11
+CC		= $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
