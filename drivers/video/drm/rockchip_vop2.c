@@ -26,7 +26,6 @@
 #include <fixp-arith.h>
 #include <syscon.h>
 #include <linux/iopoll.h>
-#include <dm/uclass-internal.h>
 
 #include "rockchip_display.h"
 #include "rockchip_crtc.h"
@@ -2679,46 +2678,6 @@ static void vop2_dsc_enable(struct display_state *state, struct vop2 *vop2, u8 d
 	       cstate->dsc_cds_clk_rate, dsc_cds_clk_div);
 }
 
-static bool is_extend_pll(struct display_state *state, struct udevice **clk_dev)
-{
-	struct crtc_state *cstate = &state->crtc_state;
-	struct vop2 *vop2 = cstate->private;
-	struct udevice *vp_dev, *dev;
-	struct ofnode_phandle_args args;
-	char vp_name[10];
-	int ret;
-
-	if (vop2->version != VOP_VERSION_RK3588)
-		return false;
-
-	sprintf(vp_name, "port@%d", cstate->crtc_id);
-	if (uclass_find_device_by_name(UCLASS_VIDEO_CRTC, vp_name, &vp_dev)) {
-		printf("warn: can't get vp device\n");
-		return false;
-	}
-
-	ret = dev_read_phandle_with_args(vp_dev, "assigned-clock-parents", "#clock-cells", 0,
-					 0, &args);
-	if (ret) {
-		printf("warn: can't get assigned-clock-parents's node\n");
-		return false;
-	}
-
-	if (uclass_find_device_by_ofnode(UCLASS_CLK, args.node, &dev)) {
-		printf("warn: can't get clk device\n");
-		return false;
-	}
-
-	if (!strcmp(dev->name, "hdmiphypll_clk0") || !strcmp(dev->name, "hdmiphypll_clk1")) {
-		printf("%s: clk dev :%s: vp port:%s\n", __func__, dev->name, vp_dev->name);
-		if (clk_dev)
-			*clk_dev = dev;
-		return true;
-	}
-
-	return false;
-}
-
 static int rockchip_vop2_init(struct display_state *state)
 {
 	struct crtc_state *cstate = &state->crtc_state;
@@ -2747,8 +2706,6 @@ static int rockchip_vop2_init(struct display_state *state)
 	struct clk dclk;
 	struct clk hdmi0_phy_pll;
 	struct clk hdmi1_phy_pll;
-	struct clk hdmi_phy_pll;
-	struct udevice *disp_dev;
 	unsigned long dclk_rate;
 	int ret;
 
@@ -2919,18 +2876,20 @@ static int rockchip_vop2_init(struct display_state *state)
 		return ret;
 	}
 
-	ret = uclass_get_device_by_name(UCLASS_VIDEO, "display-subsystem", &disp_dev);
-	if (!ret) {
-		ret = clk_get_by_name(disp_dev, "hdmi0_phy_pll", &hdmi0_phy_pll);
-		if (ret)
-			printf("%s: Failed to get hdmi0_phy_pll ret=%d\n", __func__, ret);
-		ret = clk_get_by_name(disp_dev, "hdmi1_phy_pll", &hdmi1_phy_pll);
-		if (ret)
-			printf("%s: Failed to get hdmi1_phy_pll ret=%d\n", __func__, ret);
-	} else {
+	ret = uclass_get_device_by_name(UCLASS_CLK, "hdmiphypll_clk0",
+					&hdmi0_phy_pll.dev);
+	if (ret) {
 		hdmi0_phy_pll.dev = NULL;
+		printf("%s:No hdmiphypll clk0 found, use system clk\n",
+		       __func__);
+	}
+
+	ret = uclass_get_device_by_name(UCLASS_CLK, "hdmiphypll_clk1",
+					&hdmi1_phy_pll.dev);
+	if (ret) {
 		hdmi1_phy_pll.dev = NULL;
-		printf("%s: Faile to find display-subsystem node\n", __func__);
+		printf("%s:No hdmiphypll clk1 found, use system clk\n",
+		       __func__);
 	}
 
 	if (mode->clock < VOP2_MAX_DCLK_RATE) {
@@ -2945,16 +2904,12 @@ static int rockchip_vop2_init(struct display_state *state)
 		 * So set dclk rate is meaningless. Set hdmi phypll rate
 		 * directly.
 		 */
-		if ((conn_state->output_if & VOP_OUTPUT_IF_HDMI0) && hdmi0_phy_pll.dev) {
+		if ((conn_state->output_if & VOP_OUTPUT_IF_HDMI0) && hdmi0_phy_pll.dev)
 			ret = vop2_clk_set_rate(&hdmi0_phy_pll, dclk_rate * 1000);
-		} else if ((conn_state->output_if & VOP_OUTPUT_IF_HDMI1) && hdmi1_phy_pll.dev) {
+		else if ((conn_state->output_if & VOP_OUTPUT_IF_HDMI1) && hdmi1_phy_pll.dev)
 			ret = vop2_clk_set_rate(&hdmi1_phy_pll, dclk_rate * 1000);
-		} else {
-			if (is_extend_pll(state, &hdmi_phy_pll.dev))
-				ret = vop2_clk_set_rate(&hdmi_phy_pll, dclk_rate * 1000);
-			else
-				ret = vop2_clk_set_rate(&dclk, dclk_rate * 1000);
-		}
+		else
+			ret = vop2_clk_set_rate(&dclk, dclk_rate * 1000);
 
 		if (IS_ERR_VALUE(ret)) {
 			printf("%s: Failed to set vp%d dclk[%ld KHZ] ret=%d\n",
@@ -2967,10 +2922,7 @@ static int rockchip_vop2_init(struct display_state *state)
 				mode->crtc_clock = ret / 1000;
 		}
 	} else {
-		if (is_extend_pll(state, &hdmi_phy_pll.dev))
-			ret = vop2_clk_set_rate(&hdmi_phy_pll, dclk_rate * 1000);
-		else
-			ret = vop2_clk_set_rate(&dclk, dclk_rate * 1000);
+		ret = vop2_clk_set_rate(&dclk, dclk_rate * 1000);
 
 		if (IS_ERR_VALUE(ret)) {
 			printf("%s: Failed to set vp%d dclk[%ld KHZ] ret=%d\n",

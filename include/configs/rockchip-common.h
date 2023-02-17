@@ -149,9 +149,7 @@
 
 #define RKIMG_DET_BOOTDEV \
 	"rkimg_bootdev=" \
-	"if nvme dev 0; then " \
-		"setenv devtype nvme; setenv devnum 0; echo Boot from nvme;" \
-	"elif mmc dev 1 && rkimgtest mmc 1; then " \
+	"if mmc dev 1 && rkimgtest mmc 1; then " \
 		"setenv devtype mmc; setenv devnum 1; echo Boot from SDcard;" \
 	"elif mmc dev 0; then " \
 		"setenv devtype mmc; setenv devnum 0;" \

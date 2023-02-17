@@ -1265,10 +1265,14 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	struct rockchip_logo_cache *logo_cache;
 	struct bmp_header *header;
 	void *dst = NULL, *pdst;
-	int size, len;
+	int size;
 	int ret = 0;
 	int reserved = 0;
 	int dst_size;
+
+	ulong logo_addr_r;
+
+	logo_addr_r = env_get_ulong("logo_addr_r", 16, 0);
 
 	if (!logo || !bmp_name)
 		return -EINVAL;
@@ -1281,14 +1285,14 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 		return 0;
 	}
 
-	header = malloc(RK_BLK_SIZE);
-	if (!header)
-		return -ENOMEM;
+	env_set("logo_file", bmp_name);
+	run_command(env_get("logocmd"), 0);
 
-	len = rockchip_read_resource_file(header, bmp_name, 0, RK_BLK_SIZE);
-	if (len != RK_BLK_SIZE) {
-		ret = -EINVAL;
-		goto free_header;
+	header = (void *)logo_addr_r;
+
+	if (header->signature[0] != 'B' || header->signature[1] != 'M') {
+	    printf("!!!RK logo not valid bmp\n");
+	    return 0;
 	}
 
 	logo->bpp = get_unaligned_le16(&header->bit_count);
@@ -1300,23 +1304,10 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	    logo->height = -logo->height;
 	size = get_unaligned_le32(&header->file_size);
 	if (!can_direct_logo(logo->bpp)) {
-		if (size > MEMORY_POOL_SIZE) {
-			printf("failed to use boot buf as temp bmp buffer\n");
-			ret = -ENOMEM;
-			goto free_header;
-		}
-		pdst = get_display_buffer(size);
-
+		pdst = (void *)logo_addr_r;
 	} else {
 		pdst = get_display_buffer(size);
 		dst = pdst;
-	}
-
-	len = rockchip_read_resource_file(pdst, bmp_name, 0, size);
-	if (len != size) {
-		printf("failed to load bmp %s\n", bmp_name);
-		ret = -ENOENT;
-		goto free_header;
 	}
 
 	if (!can_direct_logo(logo->bpp)) {
@@ -1352,8 +1343,6 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	flush_dcache_range((ulong)dst, ALIGN((ulong)dst + dst_size, CONFIG_SYS_CACHELINE_SIZE));
 
 free_header:
-
-	free(header);
 
 	return ret;
 #else
@@ -1487,71 +1476,59 @@ found:
 	return (struct rockchip_panel *)dev_get_driver_data(panel_dev);
 }
 
-static struct rockchip_bridge *rockchip_ofnode_find_bridge(ofnode node)
+static struct rockchip_bridge *rockchip_of_find_bridge(struct udevice *conn_dev)
 {
+	ofnode node, ports, port, ep;
 	struct udevice *dev;
 	int ret;
 
-	ret = uclass_get_device_by_ofnode(UCLASS_VIDEO_BRIDGE, node, &dev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return (struct rockchip_bridge *)dev_get_driver_data(dev);
-}
-
-static int rockchip_of_find_bridge(ofnode node, struct rockchip_bridge **bridge)
-{
-	ofnode remote, ports, port, ep;
-	int ret = -EPROBE_DEFER;
-	u32 reg;
-
-	if (!bridge)
-		return -EINVAL;
-
-	ports = ofnode_find_subnode(node, "ports");
+	ports = dev_read_subnode(conn_dev, "ports");
 	if (!ofnode_valid(ports))
-		return -ENODEV;
+		return NULL;
 
 	ofnode_for_each_subnode(port, ports) {
+		u32 reg;
+
 		if (ofnode_read_u32(port, "reg", &reg))
 			continue;
 
-		if (reg == PORT_DIR_OUT)
-			break;
+		if (reg != PORT_DIR_OUT)
+			continue;
+
+		ofnode_for_each_subnode(ep, port) {
+			ofnode _ep, _port, _ports;
+			uint phandle;
+
+			if (ofnode_read_u32(ep, "remote-endpoint", &phandle))
+				continue;
+
+			_ep = ofnode_get_by_phandle(phandle);
+			if (!ofnode_valid(_ep))
+				continue;
+
+			_port = ofnode_get_parent(_ep);
+			if (!ofnode_valid(_port))
+				continue;
+
+			_ports = ofnode_get_parent(_port);
+			if (!ofnode_valid(_ports))
+				continue;
+
+			node = ofnode_get_parent(_ports);
+			if (!ofnode_valid(node))
+				continue;
+
+			ret = uclass_get_device_by_ofnode(UCLASS_VIDEO_BRIDGE,
+							  node, &dev);
+			if (!ret)
+				goto found;
+		}
 	}
 
-	if (reg != PORT_DIR_OUT)
-		return -ENODEV;
+	return NULL;
 
-	ofnode_for_each_subnode(ep, port) {
-		ofnode _ep, _port, _ports;
-		uint phandle;
-
-		if (ofnode_read_u32(ep, "remote-endpoint", &phandle))
-			continue;
-
-		_ep = ofnode_get_by_phandle(phandle);
-		if (!ofnode_valid(_ep))
-			continue;
-
-		_port = ofnode_get_parent(_ep);
-		if (!ofnode_valid(_port))
-			continue;
-
-		_ports = ofnode_get_parent(_port);
-		if (!ofnode_valid(_ports))
-			continue;
-
-		remote = ofnode_get_parent(_ports);
-		if (ofnode_valid(remote))
-			break;
-	}
-
-	*bridge = rockchip_ofnode_find_bridge(remote);
-	if (!IS_ERR(*bridge))
-		ret = 0;
-
-	return ret;
+found:
+	return (struct rockchip_bridge *)dev_get_driver_data(dev);
 }
 
 static struct udevice *rockchip_of_find_connector(ofnode endpoint)
@@ -1784,28 +1761,24 @@ static int rockchip_display_probe(struct udevice *dev)
 
 		phy = rockchip_of_find_phy(conn_dev);
 
-		panel = rockchip_of_find_panel(conn_dev);
-		if (!panel) {
-			/* No panel found yet, check for a bridge next. */
-			ret = rockchip_of_find_bridge(dev_ofnode(conn_dev), &bridge);
-			if (ret && ret != -ENODEV)
-				continue;
-
+		bridge = rockchip_of_find_bridge(conn_dev);
+		if (bridge)
 			b = bridge;
-			while (b) {
-				struct rockchip_bridge *next_bridge = NULL;
+		while (b) {
+			struct rockchip_bridge *next_bridge = NULL;
 
-				ret = rockchip_of_find_bridge(dev_ofnode(b->dev), &next_bridge);
-				if (ret)
-					break;
+			next_bridge = rockchip_of_find_bridge(b->dev);
+			if (!next_bridge)
+				break;
 
-				b->next_bridge = next_bridge;
-				b = next_bridge;
-			}
-
-			if (b)
-				panel = rockchip_of_find_panel(b->dev);
+			b->next_bridge = next_bridge;
+			b = next_bridge;
 		}
+
+		if (b)
+			panel = rockchip_of_find_panel(b->dev);
+		else
+			panel = rockchip_of_find_panel(conn_dev);
 
 		s = malloc(sizeof(*s));
 		if (!s)
