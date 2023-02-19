@@ -14,13 +14,84 @@
 
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = &sdhci, &sdmmc, &spi_nand, &spi_nor;
+		u-boot,spl-boot-order = &sdmmc, &sdhci, &spi_nand, &spi_nor;
 	};
 
 	secure-otp@fe3a0000 {
 		u-boot,dm-spl;
 		compatible = "rockchip,rk3588-secure-otp";
 		reg = <0x0 0xfe3a0000 0x0 0x4000>;
+	};
+
+	vcc12v_dcin: vcc12v-dcin {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc5v0_usbdcin: vcc5v0-usbdcin {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usbdcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc5v0_usb: vcc5v0-usb {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_usbdcin>;
+	};
+
+	vbus5v0_typec: vbus5v0-typec {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vbus5v0_typec";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec5v_pwren>;
+	};
+
+	vcc5v0_host: vcc5v0-host {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_host_en>;
 	};
 };
 
@@ -166,7 +237,7 @@
 &sdmmc {
 	bus-width = <4>;
 	u-boot,dm-spl;
-	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+//	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -230,18 +301,22 @@
 };
 
 &usb_host0_ehci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host0_ohci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host1_ehci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host1_ohci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
@@ -298,6 +373,25 @@
 			rockchip,pins =
 				/* sdmmc_pwren */
 				<0 RK_PA5 2 &pcfg_pull_none>;
+		};
+	};
+
+	usb {
+		vcc5v0_host_en: vcc5v0-host-en {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb-typec {
+		usbc0_int: usbc0-int {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		typec5v_pwren: typec5v-pwren {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
