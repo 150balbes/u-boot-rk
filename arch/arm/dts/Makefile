@@ -30,7 +30,6 @@ dtb-$(CONFIG_EXYNOS7420) += exynos7420-espresso7420.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3036-sdk.dtb \
 	rk3066a-mk808.dtb \
-	rk3126-evb.dtb \
 	rk3128-evb.dtb \
 	rk3188-radxarock.dtb \
 	rk3288-evb.dtb \
@@ -60,7 +59,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3568-firefly.dtb \
 	rk3568-bpi-r2pro.dtb \
 	rk3588s-roc-pc.dtb \
-	rk3588s-edge2.dtb \
+	rk3588s-khadas-edge2.dtb \
 	rk3588-rock-5b.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
