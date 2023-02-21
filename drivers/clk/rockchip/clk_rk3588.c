@@ -34,6 +34,7 @@ static struct rockchip_pll_rate_table rk3588_pll_rates[] = {
 	RK3588_PLL_RATE(816000000, 2, 272, 2, 0),
 	RK3588_PLL_RATE(786432000, 2, 262, 2, 9437),
 	RK3588_PLL_RATE(786000000, 1, 131, 2, 0),
+	RK3588_PLL_RATE(742500000, 4, 495, 2, 0),
 	RK3588_PLL_RATE(722534400, 8, 963, 2, 24850),
 	RK3588_PLL_RATE(600000000, 2, 200, 2, 0),
 	RK3588_PLL_RATE(594000000, 2, 198, 2, 0),
@@ -1187,7 +1188,11 @@ static ulong rk3588_dclk_vop_set_clk(struct rk3588_clk_priv *priv,
 			}
 			debug("p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
 			      pll_rate, best_rate, best_div, best_sel);
+			printf("[list]p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
+			      pll_rate, best_rate, best_div, best_sel);
 		}
+		printf("[result]p_rate=%lu, best_rate=%lu, div=%u, sel=%u\n",
+					      pll_rate, best_rate, best_div, best_sel);
 
 		if (best_rate) {
 			rk_clrsetreg(&cru->clksel_con[conid],
