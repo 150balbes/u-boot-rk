@@ -11,6 +11,9 @@
 #include <asm/arch/boot_mode.h>
 #include <usb.h>
 #include <dm/device.h>
+#ifdef CONFIG_TOYBRICK_VERIFY
+#include <asm/arch/toybrick-check.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -201,6 +204,10 @@ int rockchip_get_boot_mode(void)
 			printf("boot mode: watchdog\n");
 			boot_mode[PL] = BOOT_MODE_WATCHDOG;
 			break;
+		case BOOT_REBOOT_TEST:
+			printf("boot mode: reboot test\n");
+			boot_mode[PL] = BOOT_MODE_REBOOT_TEST;
+			break;
 		default:
 			printf("boot mode: None\n");
 			boot_mode[PL] = BOOT_MODE_UNDEFINE;
@@ -276,6 +283,10 @@ int setup_boot_mode(void)
 		"%s storagenode=%s ", bootargs, storage_node);
 	env_update("bootargs", boot_options);
 
+#ifdef CONFIG_TOYBRICK_VERIFY
+	toybrick_check_SnMacAc();
+#endif
+
 	switch (rockchip_get_boot_mode()) {
 	case BOOT_MODE_BOOTLOADER:
 		printf("enter fastboot!\n");
@@ -302,10 +313,16 @@ int setup_boot_mode(void)
 	case BOOT_MODE_LOADER:
 		printf("enter Rockusb!\n");
 		env_set("preboot", "setenv preboot; rockusb 0 ${devtype} ${devnum}; rbrom");
+		run_command("gpio clear 138; gpio clear 139; gpio set 140;", 0);
+		run_command("rockusb 0 ${devtype} ${devnum}", 0);
 		break;
 	case BOOT_MODE_CHARGING:
 		printf("enter charging!\n");
 		env_set("preboot", "setenv preboot; charge");
+		break;
+	case BOOT_MODE_REBOOT_TEST:
+		printf("enter reboot test mode!\n");
+		env_set("reboot_mode", "reboot_test");
 		break;
 	}
 

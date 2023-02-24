@@ -230,18 +230,22 @@
 };
 
 &usb_host0_ehci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host0_ohci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host1_ehci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
 &usb_host1_ohci {
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
@@ -300,6 +304,26 @@
 				<0 RK_PA5 2 &pcfg_pull_none>;
 		};
 	};
+
+	usb {
+		vcc5v0_host_en: vcc5v0-host-en {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb-typec {
+		usbc0_int: usbc0-int {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		typec5v_pwren: typec5v-pwren {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 };
 
 &pcfg_pull_up_drv_level_2 {

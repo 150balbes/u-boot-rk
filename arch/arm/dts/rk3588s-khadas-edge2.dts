@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include "rk3588.dtsi"
-#include "rk3588-u-boot.dtsi"
+#include "rk3588s-khadas-edge2-u-boot.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
