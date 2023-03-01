@@ -41,9 +41,7 @@ DECLARE_GLOBAL_DATA_PTR;
  *	The AMP feature requires trust support.
  */
 
-#define AMP_PART		"amp"
-#define FIT_HEADER_SIZE		SZ_4K
-
+#define AMP_PART	"amp"
 #define gicd_readl(offset)	readl((void *)GICD_BASE + (offset))
 #define gicd_writel(v, offset)	writel(v, (void *)GICD_BASE + (offset))
 #define LINXU_AMP_NODES		"/rockchip-amp/amp-cpus"
@@ -362,9 +360,7 @@ int amp_cpus_on(void)
 	struct blk_desc *dev_desc;
 	bootm_headers_t images;
 	disk_partition_t part;
-	void *hdr, *fit;
-	int offset, cnt;
-	int totalsize;
+	void *fit;
 	int ret = 0;
 
 	dev_desc = rockchip_get_bootdev();
@@ -374,45 +370,21 @@ int amp_cpus_on(void)
 	if (part_get_info_by_name(dev_desc, AMP_PART, &part) < 0)
 		return -ENODEV;
 
-	hdr = memalign(ARCH_DMA_MINALIGN, FIT_HEADER_SIZE);
-	if (!hdr)
+	fit = memalign(ARCH_DMA_MINALIGN, part.size * part.blksz);
+	if (!fit) {
+		AMP_E("No memory, please increase CONFIG_SYS_MALLOC_LEN\n");
 		return -ENOMEM;
-
-	/* get totalsize */
-	offset = part.start;
-	cnt = DIV_ROUND_UP(FIT_HEADER_SIZE, part.blksz);
-	if (blk_dread(dev_desc, offset, cnt, hdr) != cnt) {
-		ret = -EIO;
-		goto out2;
 	}
 
-	if (fdt_check_header(hdr)) {
+	if (blk_dread(dev_desc, part.start, part.size, fit) != part.size) {
+		ret = -EIO;
+		goto out;
+	}
+
+	if (fdt_check_header(fit)) {
 		AMP_E("Not fit\n");
 		ret = -EINVAL;
-		goto out2;
-	}
-
-	if (fit_get_totalsize(hdr, &totalsize)) {
-		AMP_E("No totalsize\n");
-		ret = -EINVAL;
-		goto out2;
-	}
-
-	/* load image */
-	fit = memalign(ARCH_DMA_MINALIGN, ALIGN(totalsize, part.blksz));
-	if (!fit) {
-		printf("No memory\n");
-		ret = -ENOMEM;
-		goto out2;
-	}
-
-	memcpy(fit, hdr, FIT_HEADER_SIZE);
-
-	offset += cnt;
-	cnt = DIV_ROUND_UP(totalsize, part.blksz) - cnt;
-	if (blk_dread(dev_desc, offset, cnt, fit + FIT_HEADER_SIZE) != cnt) {
-		ret = -EIO;
-		goto out1;
+		goto out;
 	}
 
 	/* prase linux info */
@@ -426,7 +398,7 @@ int amp_cpus_on(void)
 	ret = boot_get_loadable(0, NULL, &images, IH_ARCH_DEFAULT, NULL, NULL);
 	if (ret) {
 		AMP_E("Load loadables, ret=%d\n", ret);
-		goto out1;
+		goto out;
 	}
 	flush_dcache_all();
 
@@ -434,10 +406,8 @@ int amp_cpus_on(void)
 	ret = brought_up_all_amp(images.fit_hdr_os, images.fit_uname_cfg);
 	if (ret)
 		AMP_E("Brought up amps, ret=%d\n", ret);
-out1:
+out:
 	free(fit);
-out2:
-	free(hdr);
 
 	return ret;
 }

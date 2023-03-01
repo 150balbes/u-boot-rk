@@ -146,7 +146,6 @@ ENTRY(__asm_flush_dcache_range)
 	cmp	x0, x1
 	b.lo	1b
 	dsb	sy
-	isb
 	ret
 ENDPROC(__asm_flush_dcache_range)
 .popsection
