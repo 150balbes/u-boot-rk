@@ -898,8 +898,6 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 		return 1;
 	}
 
-	env_helper(cmdtp, label);
-
 	if (label->initrd) {
 		if (get_relfile_envaddr(cmdtp, label->initrd, "ramdisk_addr_r") < 0) {
 			printf("Skipping %s for failure retrieving initrd\n",
@@ -918,6 +916,8 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 				label->name);
 		return 1;
 	}
+
+	env_helper(cmdtp, label);
 
 	if (label->ipappend & 0x1) {
 		sprintf(ip_str, " ip=%s:%s:%s:%s",
