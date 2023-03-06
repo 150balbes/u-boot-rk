@@ -29,6 +29,12 @@ config TARGET_QUARTZ64_B_RK3566
 	help
 	  Quartz64 Model B RK3566 is a development board from Pine64.
 
+config TARGET_SOQUARTZ_MODEL_A_RK3566
+	bool "PINE64 SOQuartz in Model A carrier board"
+	help
+	  The PINE64 SOQuartz Model A board is a carrier board for the
+	  PINE64 SOQuartz CM4 compute module.
+
 endchoice
 
 config ROCKCHIP_BOOT_MODE_REG
@@ -48,5 +54,6 @@ source "board/firefly/roc-pc-rk3566/Kconfig"
 source "board/pine64/quartz64-a-rk3566/Kconfig"
 source "board/pine64/quartz64-b-rk3566/Kconfig"
 source "board/pine64/pinenote-rk3566/Kconfig"
+source "board/pine64/soquartz-model-a-rk3566/Kconfig"
 
 endif
