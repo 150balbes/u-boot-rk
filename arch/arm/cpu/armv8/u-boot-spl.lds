@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013
  * David Feng <fenghua@phytium.com.cn>
@@ -8,12 +9,10 @@
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
  *	Aneesh V <aneesh@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
-MEMORY { .sram : ORIGIN = CONFIG_SPL_TEXT_BASE,
-		LENGTH = CONFIG_SPL_MAX_SIZE }
+MEMORY { .sram : ORIGIN = IMAGE_TEXT_BASE,
+		LENGTH = IMAGE_MAX_SIZE }
 MEMORY { .sdram : ORIGIN = CONFIG_SPL_BSS_START_ADDR,
 		LENGTH = CONFIG_SPL_BSS_MAX_SIZE }
 
@@ -24,7 +23,7 @@ SECTIONS
 {
 	.text : {
 		. = ALIGN(8);
-		*(.__image_copy_start)
+		__image_copy_start = .;
 		CPUDIR/start.o (.text*)
 		*(.text*)
 	} >.sram
@@ -39,9 +38,17 @@ SECTIONS
 		*(.data*)
 	} >.sram
 
-	.u_boot_list : {
+#ifdef CONFIG_SPL_RECOVER_DATA_SECTION
+	.data_save : {
+		*(.__data_save_start)
+		. = SIZEOF(.data);
+		*(.__data_save_end)
+	} >.sram
+#endif
+
+	__u_boot_list : {
 		. = ALIGN(8);
-		KEEP(*(SORT(.u_boot_list*)));
+		KEEP(*(SORT(__u_boot_list*)));
 	} >.sram
 
 	.image_copy_end : {
@@ -54,23 +61,6 @@ SECTIONS
 		*(.__end)
 	} >.sram
 
-#ifndef CONFIG_SPL_SKIP_RELOCATE
-	. = ALIGN(8);
-
-	.rel_dyn_start :
-	{
-		*(.__rel_dyn_start)
-	} >.sram
-
-	.rela.dyn : {
-		*(.rela*)
-	} >.sram
-
-	.rel_dyn_end :
-	{
-		*(.__rel_dyn_end)
-	} >.sram
-#endif
 	_image_binary_end = .;
 
 	.bss_start (NOLOAD) : {
@@ -87,10 +77,15 @@ SECTIONS
 		KEEP(*(.__bss_end));
 	} >.sdram
 
+	/DISCARD/ : { *(.rela*) }
 	/DISCARD/ : { *(.dynsym) }
 	/DISCARD/ : { *(.dynstr*) }
 	/DISCARD/ : { *(.dynamic*) }
 	/DISCARD/ : { *(.plt*) }
 	/DISCARD/ : { *(.interp*) }
 	/DISCARD/ : { *(.gnu*) }
+
+#ifdef CONFIG_LINUX_KERNEL_IMAGE_HEADER
+#include "linux-kernel-image-header-vars.h"
+#endif
 }

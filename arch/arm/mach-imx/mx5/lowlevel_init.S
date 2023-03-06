@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2007, Guennadi Liakhovetski <lg@denx.de>
  *
  * (C) Copyright 2009 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -206,7 +205,7 @@ setup_pll_func:
 
 	/* Switch peripheral to PLL 3 */
 	ldr r0, =CCM_BASE_ADDR
-	ldr r1, =0x000010C0 | CONFIG_SYS_DDR_CLKSEL
+	ldr r1, =0x000010C0 | CFG_SYS_DDR_CLKSEL
 	str r1, [r0, #CLKCTL_CBCMR]
 	ldr r1, =0x13239145
 	str r1, [r0, #CLKCTL_CBCDR]
@@ -216,7 +215,7 @@ setup_pll_func:
 	ldr r0, =CCM_BASE_ADDR
 	ldr r1, =0x19239145
 	str r1, [r0, #CLKCTL_CBCDR]
-	ldr r1, =0x000020C0 | CONFIG_SYS_DDR_CLKSEL
+	ldr r1, =0x000020C0 | CFG_SYS_DDR_CLKSEL
 	str r1, [r0, #CLKCTL_CBCMR]
 
 	setup_pll PLL3_BASE_ADDR, 216
@@ -241,10 +240,10 @@ setup_pll_func:
 
 	/* setup the rest */
 	/* Use lp_apm (24MHz) source for perclk */
-	ldr r1, =0x000020C2 | CONFIG_SYS_DDR_CLKSEL
+	ldr r1, =0x000020C2 | CFG_SYS_DDR_CLKSEL
 	str r1, [r0, #CLKCTL_CBCMR]
 	/* ddr clock from PLL 1, all perclk dividers are 1 since using 24MHz */
-	ldr r1, =CONFIG_SYS_CLKTL_CBCDR
+	ldr r1, =CFG_SYS_CLKTL_CBCDR
 	str r1, [r0, #CLKCTL_CBCDR]
 
 	/* Restore the default values in the Gate registers */
@@ -379,7 +378,7 @@ ENTRY(lowlevel_init)
 	mov r10, lr
 	mov r4, #0	/* Fix R4 to 0 */
 
-#if defined(CONFIG_SYS_MAIN_PWR_ON)
+#if defined(CFG_SYS_MAIN_PWR_ON)
 	ldr r0, =GPIO1_BASE_ADDR
 	ldr r1, [r0, #0x0]
 	orr r1, r1, #1 << 23

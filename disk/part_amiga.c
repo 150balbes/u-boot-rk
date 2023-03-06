@@ -1,16 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Hans-Joerg Frieden, Hyperion Entertainment
  * Hans-JoergF@hyperion-entertainment.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <command.h>
+#include <env.h>
 #include <ide.h>
 #include "part_amiga.h"
-
-#ifdef HAVE_BLOCK_DEVICE
+#include <part.h>
 
 #undef AMIGA_DEBUG
 
@@ -134,7 +133,7 @@ struct rigid_disk_block *get_rdisk(struct blk_desc *dev_desc)
 
     s = env_get("amiga_scanlimit");
     if (s)
-	limit = simple_strtoul(s, NULL, 10);
+	limit = dectoul(s, NULL);
     else
 	limit = AMIGA_BLOCK_LIMIT;
 
@@ -174,7 +173,7 @@ struct bootcode_block *get_bootcode(struct blk_desc *dev_desc)
 
     s = env_get("amiga_scanlimit");
     if (s)
-	limit = simple_strtoul(s, NULL, 10);
+	limit = dectoul(s, NULL);
     else
 	limit = AMIGA_BLOCK_LIMIT;
 
@@ -291,7 +290,7 @@ static struct partition_block *find_partition(struct blk_desc *dev_desc,
  * Get info about a partition
  */
 static int part_get_info_amiga(struct blk_desc *dev_desc, int part,
-				    disk_partition_t *info)
+				    struct disk_partition *info)
 {
     struct partition_block *p = find_partition(dev_desc, part-1);
     struct amiga_part_geometry *g;
@@ -386,5 +385,3 @@ U_BOOT_PART_TYPE(amiga) = {
 	.print		= part_print_amiga,
 	.test		= part_test_amiga,
 };
-
-#endif

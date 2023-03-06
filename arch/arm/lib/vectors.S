@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  vectors - Generic ARM exception table code
  *
@@ -9,8 +10,6 @@
  *  Copyright (c) 2002	Alex Züpke <azu@sysgo.de>
  *  Copyright (c) 2002	Gary Jennejohn <garyj@denx.de>
  *  Copyright (c) 2002	Kyle Harris <kharris@nexus-tech.net>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -20,7 +19,12 @@
  * for the non-boot0 case or by a boot0-header.
  */
         .macro ARM_VECTORS
+#ifdef CONFIG_ARCH_K3
+	ldr     pc, _reset
+#else
 	b	reset
+#endif
+#if !CONFIG_IS_ENABLED(SYS_NO_VECTOR_TABLE)
 	ldr	pc, _undefined_instruction
 	ldr	pc, _software_interrupt
 	ldr	pc, _prefetch_abort
@@ -28,6 +32,7 @@
 	ldr	pc, _not_used
 	ldr	pc, _irq
 	ldr	pc, _fiq
+#endif
 	.endm
 
 
@@ -65,7 +70,6 @@
  *   (2) inserts the vector table using ARM_VECTORS as appropriate
  */
 #include <asm/arch/boot0.h>
-
 #else
 
 /*
@@ -79,12 +83,13 @@
  */
 
 _start:
-#ifdef CONFIG_SYS_DV_NOR_BOOT_CFG
-	.word	CONFIG_SYS_DV_NOR_BOOT_CFG
+#ifdef CFG_SYS_DV_NOR_BOOT_CFG
+	.word	CFG_SYS_DV_NOR_BOOT_CFG
 #endif
 	ARM_VECTORS
 #endif /* !defined(CONFIG_ENABLE_ARM_SOC_BOOT0_HOOK) */
 
+#if !CONFIG_IS_ENABLED(SYS_NO_VECTOR_TABLE)
 /*
  *************************************************************************
  *
@@ -95,6 +100,7 @@ _start:
  *************************************************************************
  */
 
+	.globl  _reset
 	.globl	_undefined_instruction
 	.globl	_software_interrupt
 	.globl	_prefetch_abort
@@ -103,6 +109,9 @@ _start:
 	.globl	_irq
 	.globl	_fiq
 
+#ifdef CONFIG_ARCH_K3
+_reset:			.word reset
+#endif
 _undefined_instruction:	.word undefined_instruction
 _software_interrupt:	.word software_interrupt
 _prefetch_abort:	.word prefetch_abort
@@ -112,6 +121,7 @@ _irq:			.word irq
 _fiq:			.word fiq
 
 	.balignl 16,0xdeadbeef
+#endif
 
 /*
  *************************************************************************
@@ -125,6 +135,7 @@ _fiq:			.word fiq
 
 #ifdef CONFIG_SPL_BUILD
 
+#if !CONFIG_IS_ENABLED(SYS_NO_VECTOR_TABLE)
 	.align	5
 undefined_instruction:
 software_interrupt:
@@ -134,7 +145,8 @@ not_used:
 irq:
 fiq:
 1:
-	bl	1b			/* hang and never return */
+	b	1b			/* hang and never return */
+#endif
 
 #else	/* !CONFIG_SPL_BUILD */
 
@@ -144,13 +156,6 @@ IRQ_STACK_START_IN:
 #ifdef IRAM_BASE_ADDR
 	.word   IRAM_BASE_ADDR + 0x20
 #else
-	.word	0x0badc0de
-#endif
-
-#if CONFIG_IS_ENABLED(IRQ)
-/* IRQ stack memory (calculated at run-time) */
-.globl IRQ_STACK_START
-IRQ_STACK_START:
 	.word	0x0badc0de
 #endif
 
@@ -179,7 +184,6 @@ IRQ_STACK_START:
 #define S_R1		4
 #define S_R0		0
 
-#define MODE_IRQ 0x12
 #define MODE_SVC 0x13
 #define I_BIT	 0x80
 
@@ -207,15 +211,7 @@ IRQ_STACK_START:
 	stmia	sp, {r0 - r12}			@ Calling r0-r12
 	@ !!!! R8 NEEDS to be saved !!!! a reserved stack spot would be good.
 	add	r8, sp, #S_PC
-
-	cps	#MODE_SVC	@ SVC-Mode
-	isb
-	mov	r1, sp		@ svc_sp
-	mov	r2, lr		@ svc_lr
-	cps	#MODE_IRQ	@ IRQ-Mode
-	isb
-
-	stmdb	r8, {r1, r2}^		@ Calling svc_sp, svc_lr
+	stmdb	r8, {sp, lr}^		@ Calling SP, LR
 	str	lr, [r8, #0]		@ Save calling PC
 	mrs	r6, spsr
 	str	r6, [r8, #4]		@ Save CPSR
@@ -289,16 +285,9 @@ not_used:
 
 	.align	5
 irq:
-#if CONFIG_IS_ENABLED(IRQ)
-	get_irq_stack
-	irq_save_user_regs
-	bl	do_irq
-	irq_restore_user_regs
-#else
 	get_bad_stack
 	bad_save_user_regs
 	bl	do_irq
-#endif
 
 	.align	5
 fiq:

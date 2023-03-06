@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * Copyright (c) 2009-2015 NVIDIA Corporation
  * Copyright (c) 2013 Lucas Stach
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm-generic/gpio.h>
@@ -19,8 +20,6 @@
 #include <linux/libfdt.h>
 
 #include "ehci.h"
-
-DECLARE_GLOBAL_DATA_PTR;
 
 #define USB1_ADDR_MASK	0xFFFF0000
 
@@ -579,8 +578,8 @@ static int init_utmi_usb_controller(struct fdt_usb *config,
 
 #ifdef CONFIG_USB_ULPI
 /* if board file does not set a ULPI reference frequency we default to 24MHz */
-#ifndef CONFIG_ULPI_REF_CLK
-#define CONFIG_ULPI_REF_CLK 24000000
+#ifndef CFG_ULPI_REF_CLK
+#define CFG_ULPI_REF_CLK 24000000
 #endif
 
 /* set up the ULPI USB controller with the parameters provided */
@@ -595,7 +594,7 @@ static int init_ulpi_usb_controller(struct fdt_usb *config,
 
 	/* set up ULPI reference clock on pllp_out4 */
 	clock_enable(PERIPH_ID_DEV2_OUT);
-	clock_set_pllout(CLOCK_ID_PERIPH, PLL_OUT4, CONFIG_ULPI_REF_CLK);
+	clock_set_pllout(CLOCK_ID_PERIPH, PLL_OUT4, CFG_ULPI_REF_CLK);
 
 	/* reset ULPI phy */
 	if (dm_gpio_is_valid(&config->phy_reset_gpio)) {
@@ -813,7 +812,7 @@ static const struct ehci_ops tegra_ehci_ops = {
 	.powerup_fixup		= tegra_ehci_powerup_fixup,
 };
 
-static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
+static int ehci_usb_of_to_plat(struct udevice *dev)
 {
 	struct fdt_usb *priv = dev_get_priv(dev);
 	int ret;
@@ -829,7 +828,7 @@ static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
 
 static int ehci_usb_probe(struct udevice *dev)
 {
-	struct usb_platdata *plat = dev_get_platdata(dev);
+	struct usb_plat *plat = dev_get_plat(dev);
 	struct fdt_usb *priv = dev_get_priv(dev);
 	struct ehci_hccr *hccr;
 	struct ehci_hcor *hcor;
@@ -862,11 +861,11 @@ U_BOOT_DRIVER(usb_ehci) = {
 	.name	= "ehci_tegra",
 	.id	= UCLASS_USB,
 	.of_match = ehci_usb_ids,
-	.ofdata_to_platdata = ehci_usb_ofdata_to_platdata,
+	.of_to_plat = ehci_usb_of_to_plat,
 	.probe = ehci_usb_probe,
 	.remove = ehci_deregister,
 	.ops	= &ehci_usb_ops,
-	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
-	.priv_auto_alloc_size = sizeof(struct fdt_usb),
+	.plat_auto	= sizeof(struct usb_plat),
+	.priv_auto	= sizeof(struct fdt_usb),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };

@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * Based on code:
  *	Copyright (C) 2005-2009 Samsung Electronics
  *	Kyungmin Park <kyungmin.park@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/io.h>
+#include <linux/bitops.h>
 #include <linux/mtd/onenand_regs.h>
 #include <onenand_uboot.h>
 
@@ -49,12 +49,12 @@ static inline int onenand_bufferram_address(int block)
 
 static inline uint16_t onenand_readw(uint32_t addr)
 {
-	return readw(CONFIG_SYS_ONENAND_BASE + addr);
+	return readw(CFG_SYS_ONENAND_BASE + addr);
 }
 
 static inline void onenand_writew(uint16_t value, uint32_t addr)
 {
-	writew(value, CONFIG_SYS_ONENAND_BASE + addr);
+	writew(value, CFG_SYS_ONENAND_BASE + addr);
 }
 
 static enum onenand_spl_pagesize onenand_spl_get_geometry(void)
@@ -82,7 +82,7 @@ static enum onenand_spl_pagesize onenand_spl_get_geometry(void)
 static int onenand_spl_read_page(uint32_t block, uint32_t page, uint32_t *buf,
 					enum onenand_spl_pagesize pagesize)
 {
-	const uint32_t addr = CONFIG_SYS_ONENAND_BASE + ONENAND_DATARAM;
+	const uint32_t addr = CFG_SYS_ONENAND_BASE + ONENAND_DATARAM;
 	uint32_t offset;
 
 	onenand_writew(onenand_block_address(block),

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2007
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 /*
  * Test for correctness of composite floating-point comparisons.
@@ -16,7 +15,7 @@
 
 GNU_FPOST_ATTR
 
-#if CONFIG_POST & CONFIG_SYS_POST_FPU
+#if CFG_POST & CFG_SYS_POST_FPU
 
 static int failed;
 
@@ -205,4 +204,4 @@ int fpu_post_test_math6 (void)
 	return 0;
 }
 
-#endif /* CONFIG_POST & CONFIG_SYS_POST_FPU */
+#endif /* CFG_POST & CFG_SYS_POST_FPU */

@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013-2015
  * NVIDIA Corporation <www.nvidia.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 /* Tegra124 Clock control functions */
 
 #include <common.h>
+#include <init.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sysctr.h>
@@ -16,6 +17,7 @@
 #include <asm/arch-tegra/timer.h>
 #include <div64.h>
 #include <fdtdec.h>
+#include <linux/delay.h>
 
 /*
  * Clock types that we can use as a source. The Tegra124 has muxes for the
@@ -72,7 +74,7 @@ enum {
  */
 #define CLK(x) CLOCK_ID_ ## x
 static enum clock_id clock_source[CLOCK_TYPE_COUNT][CLOCK_MAX_MUX+1] = {
-	{ CLK(AUDIO),	CLK(XCPU),	CLK(PERIPH),	CLK(OSC),
+	{ CLK(AUDIO),	CLK(XCPU),	CLK(PERIPH),	CLK(CLK_M),
 		CLK(NONE),	CLK(NONE),	CLK(NONE),	CLK(NONE),
 		MASK_BITS_31_30},
 	{ CLK(MEMORY),	CLK(CGENERAL),	CLK(PERIPH),	CLK(AUDIO),
@@ -697,7 +699,7 @@ enum clock_id get_periph_clock_id(enum periph_id periph_id, int source)
  * @param source	PLL id of required parent clock
  * @param mux_bits	Set to number of bits in mux register: 2 or 4
  * @param divider_bits Set to number of divider bits (8 or 16)
- * @return mux value (0-4, or -1 if not found)
+ * Return: mux value (0-4, or -1 if not found)
  */
 int get_periph_clock_source(enum periph_id periph_id,
 	enum clock_id parent, int *mux_bits, int *divider_bits)
@@ -771,7 +773,7 @@ void reset_set_enable(enum periph_id periph_id, int enable)
  * provided.
  *
  * @param clk_id    Clock ID according to tegra124 device tree binding
- * @return peripheral ID, or PERIPH_ID_NONE if the clock ID is invalid
+ * Return: peripheral ID, or PERIPH_ID_NONE if the clock ID is invalid
  */
 enum periph_id clk_id_to_periph_id(int clk_id)
 {
@@ -897,7 +899,7 @@ void clock_early_init(void)
  * Check a register that we set up to see if clock_early_init() has already
  * been called.
  *
- * @return true if clock_early_init() was called, false if not
+ * Return: true if clock_early_init() was called, false if not
  */
 bool clock_early_init_done(void)
 {

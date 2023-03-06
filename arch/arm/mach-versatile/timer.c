@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Texas Instruments <www.ti.com>
@@ -15,8 +16,6 @@
  *
  * (C) Copyright 2004
  * Philippe Robin, ARM Ltd. <philippe.robin@arm.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -37,9 +36,9 @@ int timer_init (void)
 	ulong	tmr_ctrl_val;
 
 	/* 1st disable the Timer */
-	tmr_ctrl_val = *(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8);
+	tmr_ctrl_val = *(volatile ulong *)(CFG_SYS_TIMERBASE + 8);
 	tmr_ctrl_val &= ~TIMER_ENABLE;
-	*(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8) = tmr_ctrl_val;
+	*(volatile ulong *)(CFG_SYS_TIMERBASE + 8) = tmr_ctrl_val;
 
 	/*
 	 * The Timer Control Register has one Undefined/Shouldn't Use Bit
@@ -53,12 +52,11 @@ int timer_init (void)
 	 * Tmr Siz : 16 Bit Counter
 	 * Tmr in Wrapping Mode
 	 */
-	tmr_ctrl_val = *(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8);
+	tmr_ctrl_val = *(volatile ulong *)(CFG_SYS_TIMERBASE + 8);
 	tmr_ctrl_val &= ~(TIMER_MODE_MSK | TIMER_INT_EN | TIMER_PRS_MSK | TIMER_SIZE_MSK | TIMER_ONE_SHT );
 	tmr_ctrl_val |= (TIMER_ENABLE | TIMER_PRS_8S);
 
-	*(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8) = tmr_ctrl_val;
+	*(volatile ulong *)(CFG_SYS_TIMERBASE + 8) = tmr_ctrl_val;
 
 	return 0;
 }
-

@@ -1,19 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#define LOG_CATEGORY UCLASS_SYSRESET
+
 #include <common.h>
-#include <sysreset.h>
+#include <command.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <errno.h>
+#include <hang.h>
+#include <log.h>
 #include <regmap.h>
+#include <spl.h>
+#include <sysreset.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <dm/root.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <asm/global_data.h>
 
 int sysreset_request(struct udevice *dev, enum sysreset_t type)
 {
@@ -23,6 +31,26 @@ int sysreset_request(struct udevice *dev, enum sysreset_t type)
 		return -ENOSYS;
 
 	return ops->request(dev, type);
+}
+
+int sysreset_get_status(struct udevice *dev, char *buf, int size)
+{
+	struct sysreset_ops *ops = sysreset_get_ops(dev);
+
+	if (!ops->get_status)
+		return -ENOSYS;
+
+	return ops->get_status(dev, buf, size);
+}
+
+int sysreset_get_last(struct udevice *dev)
+{
+	struct sysreset_ops *ops = sysreset_get_ops(dev);
+
+	if (!ops->get_last)
+		return -ENOSYS;
+
+	return ops->get_last(dev);
 }
 
 int sysreset_walk(enum sysreset_t type)
@@ -44,23 +72,24 @@ int sysreset_walk(enum sysreset_t type)
 	return ret;
 }
 
-static void sysreset_walk_reboot_mode(const char *mode)
+int sysreset_get_last_walk(void)
 {
-	struct sysreset_ops *ops;
 	struct udevice *dev;
-
-	if (!mode)
-		return;
+	int value = -ENOENT;
 
 	for (uclass_first_device(UCLASS_SYSRESET, &dev);
 	     dev;
 	     uclass_next_device(&dev)) {
-		ops = sysreset_get_ops(dev);
-		if (ops && ops->request_by_mode) {
-			ops->request_by_mode(dev, mode);
+		int ret;
+
+		ret = sysreset_get_last(dev);
+		if (ret >= 0) {
+			value = ret;
 			break;
 		}
 	}
+
+	return value;
 }
 
 void sysreset_walk_halt(enum sysreset_t type)
@@ -74,36 +103,78 @@ void sysreset_walk_halt(enum sysreset_t type)
 		mdelay(100);
 
 	/* Still no reset? Give up */
-	debug("System reset not supported on this platform\n");
+	if (spl_phase() <= PHASE_SPL)
+		log_err("no sysreset\n");
+	else
+		log_err("System reset not supported on this platform\n");
 	hang();
 }
 
 /**
  * reset_cpu() - calls sysreset_walk(SYSRESET_WARM)
  */
-void reset_cpu(ulong addr)
+void reset_cpu(void)
 {
 	sysreset_walk_halt(SYSRESET_WARM);
 }
 
-void reboot(const char *mode)
+
+#if IS_ENABLED(CONFIG_SYSRESET_CMD_RESET)
+int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	sysreset_walk_reboot_mode(mode);
-	flushc();
-	sysreset_walk_halt(SYSRESET_COLD);
+	enum sysreset_t reset_type = SYSRESET_COLD;
+
+	if (argc > 2)
+		return CMD_RET_USAGE;
+
+	if (argc == 2 && argv[1][0] == '-' && argv[1][1] == 'w') {
+		reset_type = SYSRESET_WARM;
+	}
+
+	printf("resetting ...\n");
+	mdelay(100);
+
+	sysreset_walk_halt(reset_type);
+
+	return 0;
 }
+#endif
 
-int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+#if IS_ENABLED(CONFIG_SYSRESET_CMD_POWEROFF)
+int do_poweroff(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	if (argc > 1)
-		reboot(argv[1]);
-	else
-		reboot(NULL);
+	int ret;
 
+	puts("poweroff ...\n");
+	mdelay(100);
+
+	ret = sysreset_walk(SYSRESET_POWER_OFF);
+
+	if (ret == -EINPROGRESS)
+		mdelay(1000);
+
+	/*NOTREACHED when power off*/
+	return CMD_RET_FAILURE;
+}
+#endif
+
+static int sysreset_post_bind(struct udevice *dev)
+{
+#if defined(CONFIG_NEEDS_MANUAL_RELOC)
+	struct sysreset_ops *ops = sysreset_get_ops(dev);
+	static int reloc_done;
+
+	if (!reloc_done) {
+		if (ops->request)
+			ops->request += gd->reloc_off;
+		reloc_done++;
+	}
+#endif
 	return 0;
 }
 
 UCLASS_DRIVER(sysreset) = {
 	.id		= UCLASS_SYSRESET,
 	.name		= "sysreset",
+	.post_bind	= sysreset_post_bind,
 };

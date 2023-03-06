@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __BOOTRETRY_H
@@ -15,7 +14,7 @@
  * Check for a keypress repeatedly, resetting the watchdog each time. If a
  * keypress is not received within the command timeout, return an error.
  *
- * @return 0 if a key is received in time, -ETIMEDOUT if not
+ * Return: 0 if a key is received in time, -ETIMEDOUT if not
  */
 int bootretry_tstc_timeout(void);
 

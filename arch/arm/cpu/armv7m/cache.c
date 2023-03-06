@@ -1,14 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * (C) Copyright 2017
- * Vikas Manocha, ST Micoelectronics, vikas.manocha@st.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
+ * Author(s): Vikas Manocha, <vikas.manocha@st.com> for STMicroelectronics.
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <errno.h>
+#include <log.h>
 #include <asm/armv7m.h>
+#include <asm/cache.h>
 #include <asm/io.h>
+#include <linux/bitops.h>
 
 /* Cache maintenance operation registers */
 
@@ -55,7 +58,7 @@ enum cache_action {
 	FLUSH_INVAL_SET_WAY,	/* d-cache clean & invalidate by set/ways */
 };
 
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 struct dcache_config {
 	u32 ways;
 	u32 sets;
@@ -291,9 +294,15 @@ void flush_dcache_all(void)
 void invalidate_dcache_all(void)
 {
 }
+
+void mmu_set_region_dcache_behaviour(phys_addr_t start, size_t size,
+				     enum dcache_option option)
+{
+}
+
 #endif
 
-#ifndef CONFIG_SYS_ICACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_ICACHE_OFF)
 
 void invalidate_icache_all(void)
 {
@@ -332,6 +341,11 @@ void icache_disable(void)
 	isb();	/* subsequent instructions fetch see cache disable effect */
 }
 #else
+void invalidate_icache_all(void)
+{
+	return;
+}
+
 void icache_enable(void)
 {
 	return;
@@ -350,10 +364,10 @@ int icache_status(void)
 
 void enable_caches(void)
 {
-#ifndef CONFIG_SYS_ICACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_ICACHE_OFF)
 	icache_enable();
 #endif
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 	dcache_enable();
 #endif
 }

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Linaro
  * Peter Griffin <peter.griffin@linaro.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,6 +9,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <errno.h>
+#include <linux/bitops.h>
 
 static int hi6220_gpio_direction_input(struct udevice *dev, unsigned int gpio)
 {
@@ -54,8 +54,6 @@ static int hi6220_gpio_get_value(struct udevice *dev, unsigned gpio)
 	return !!readb(bank->base + (BIT(gpio + 2)));
 }
 
-
-
 static const struct dm_gpio_ops gpio_hi6220_ops = {
 	.direction_input	= hi6220_gpio_direction_input,
 	.direction_output	= hi6220_gpio_direction_output,
@@ -66,8 +64,8 @@ static const struct dm_gpio_ops gpio_hi6220_ops = {
 static int hi6220_gpio_probe(struct udevice *dev)
 {
 	struct gpio_bank *bank = dev_get_priv(dev);
-	struct hikey_gpio_platdata *plat = dev_get_platdata(dev);
-	struct gpio_dev_priv *uc_priv = dev->uclass_priv;
+	struct hikey_gpio_plat *plat = dev_get_plat(dev);
+	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 	char name[18], *str;
 
 	sprintf(name, "GPIO%d_", plat->bank_index);
@@ -89,7 +87,5 @@ U_BOOT_DRIVER(gpio_hi6220) = {
 	.id	= UCLASS_GPIO,
 	.ops	= &gpio_hi6220_ops,
 	.probe	= hi6220_gpio_probe,
-	.priv_auto_alloc_size = sizeof(struct gpio_bank),
+	.priv_auto	= sizeof(struct gpio_bank),
 };
-
-

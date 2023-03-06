@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016
  * Mario Six, Guntermann & Drunck GmbH, mario.six@gdsys.cc
- *
- * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #include <common.h>
@@ -40,4 +39,3 @@ int request_gpio_by_name(struct gpio_desc *gpio, const char *gpio_dev_name,
 
 	return dm_gpio_request(gpio, gpio_name);
 }
-

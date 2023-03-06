@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2008 - 2013 Tensilica Inc.
  * (C) Copyright 2014 - 2016 Cadence Design Systems Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -165,19 +164,19 @@ _start:
 	 * enable data/instruction cache for relocated image.
 	 */
 #if XCHAL_HAVE_SPANNING_WAY && \
-	(!defined(CONFIG_SYS_DCACHE_OFF) || \
-	 !defined(CONFIG_SYS_ICACHE_OFF))
+	!(CONFIG_IS_ENABLED(SYS_DCACHE_OFF) && \
+	  CONFIG_IS_ENABLED(SYS_ICACHE_OFF))
 	srli	a7, a4, 29
 	slli	a7, a7, 29
 	addi	a7, a7, XCHAL_SPANNING_WAY
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 	rdtlb1	a8, a7
 	srli	a8, a8, 4
 	slli	a8, a8, 4
 	addi	a8, a8, CA_WRITEBACK
 	wdtlb	a8, a7
 #endif
-#ifndef CONFIG_SYS_ICACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_ICACHE_OFF)
 	ritlb1	a8, a7
 	srli	a8, a8, 4
 	slli	a8, a8, 4
@@ -226,7 +225,7 @@ _start:
 #endif
 
 	movi	a0, 0
-	movi	sp, (CONFIG_SYS_TEXT_ADDR - 16) & 0xfffffff0
+	movi	sp, (XTENSA_SYS_TEXT_ADDR - 16) & 0xfffffff0
 
 #ifdef CONFIG_DEBUG_UART
 	movi	a4, debug_uart_init
@@ -274,7 +273,7 @@ _start:
 	ill
 
 /*
- * void relocate_code (addr_sp, gd, addr_moni)
+ * void relocate_code(addr_sp, gd, addr_moni)
  *
  * This "function" does not return, instead it continues in RAM
  * after relocating the monitor code.

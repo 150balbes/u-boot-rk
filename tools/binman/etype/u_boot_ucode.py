@@ -1,17 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2016 Google, Inc
 # Written by Simon Glass <sjg@chromium.org>
-#
-# SPDX-License-Identifier:      GPL-2.0+
 #
 # Entry-type module for a U-Boot binary with an embedded microcode pointer
 #
 
-from entry import Entry
-from blob import Entry_blob
-import tools
+from binman.entry import Entry
+from binman.etype.blob import Entry_blob
+from patman import tools
 
 class Entry_u_boot_ucode(Entry_blob):
     """U-Boot microcode block
+
+    Properties / Entry arguments:
+        None
+
+    The contents of this entry are filled in automatically by other entries
+    which must also be in the image.
 
     U-Boot on x86 needs a single block of microcode. This is collected from
     the various microcode update nodes in the device tree. It is also unable
@@ -52,39 +57,44 @@ class Entry_u_boot_ucode(Entry_blob):
             the Entry_u_boot_dtb_with_ucode entry, and uses it as the
             contents of this entry.
     """
-    def __init__(self, image, etype, node):
-        Entry_blob.__init__(self, image, etype, node)
+    def __init__(self, section, etype, node):
+        super().__init__(section, etype, node)
 
     def ObtainContents(self):
-        # If the image does not need microcode, there is nothing to do
-        ucode_dest_entry = self.image.FindEntryType('u-boot-with-ucode-ptr')
-        if ucode_dest_entry and not ucode_dest_entry.target_pos:
-            self.data = ''
+        # If the section does not need microcode, there is nothing to do
+        found = False
+        for suffix in ['', '-spl', '-tpl']:
+            name = 'u-boot%s-with-ucode-ptr' % suffix
+            entry = self.section.FindEntryType(name)
+            if entry and entry.target_offset:
+                found = True
+        if not found:
+            self.data = b''
             return True
-
-        # Handle microcode in SPL image as well
-        ucode_dest_entry = self.image.FindEntryType('u-boot-spl-with-ucode-ptr')
-        if ucode_dest_entry and not ucode_dest_entry.target_pos:
-            self.data = ''
+        # Get the microcode from the device tree entry. If it is not available
+        # yet, return False so we will be called later. If the section simply
+        # doesn't exist, then we may as well return True, since we are going to
+        # get an error anyway.
+        for suffix in ['', '-spl', '-tpl']:
+            name = 'u-boot%s-dtb-with-ucode' % suffix
+            fdt_entry = self.section.FindEntryType(name)
+            if fdt_entry:
+                break
+        if not fdt_entry:
+            self.data = b''
             return True
-
-        # Get the microcode from the device tree entry
-        fdt_entry = self.image.FindEntryType('u-boot-dtb-with-ucode')
-        if not fdt_entry or not fdt_entry.ucode_data:
+        if not fdt_entry.ready:
             return False
 
         if not fdt_entry.collate:
-            # This section can be empty
-            self.data = ''
+            # This binary can be empty
+            self.data = b''
             return True
 
         # Write it out to a file
-        dtb_name = 'u-boot-ucode.bin'
-        fname = tools.GetOutputFilename(dtb_name)
-        with open(fname, 'wb') as fd:
-            fd.write(fdt_entry.ucode_data)
+        self._pathname = tools.get_output_filename('u-boot-ucode.bin')
+        tools.write_file(self._pathname, fdt_entry.ucode_data)
 
-        self._pathname = fname
-        self.ReadContents()
+        self.ReadBlobContents()
 
         return True

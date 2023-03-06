@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 Google, Inc
  *
  * From Coreboot src/soc/intel/broadwell/include/soc/gpio.h
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_ARCH_GPIO
@@ -12,7 +11,7 @@
 #define GPIO_PER_BANK	32
 #define GPIO_BANKS	3
 
-struct broadwell_bank_platdata {
+struct broadwell_bank_plat {
 	uint16_t base_addr;
 	const char *bank_name;
 	int bank;

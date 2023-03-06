@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
+#include <malloc.h>
 #include <dm/test.h>
 #include <asm/mbox.h>
+#include <test/test.h>
 #include <test/ut.h>
 
 static int dm_test_mailbox(struct unit_test_state *uts)
@@ -28,4 +29,4 @@ static int dm_test_mailbox(struct unit_test_state *uts)
 
 	return 0;
 }
-DM_TEST(dm_test_mailbox, DM_TESTF_SCAN_FDT);
+DM_TEST(dm_test_mailbox, UT_TESTF_SCAN_FDT);

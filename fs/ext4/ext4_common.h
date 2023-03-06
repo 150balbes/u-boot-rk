@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -15,8 +16,6 @@
  * Copyright (C) 2003, 2004  Free Software Foundation, Inc.
  *
  * ext4write : Based on generic ext4 protocol.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __EXT4_COMMON__
@@ -24,10 +23,11 @@
 #include <ext_common.h>
 #include <ext4fs.h>
 #include <malloc.h>
+#include <asm/cache.h>
 #include <linux/errno.h>
 #if defined(CONFIG_EXT4_WRITE)
 #include "ext4_journal.h"
-#include "crc16.h"
+#include <linux/crc16.h>
 #endif
 
 #define YES		1

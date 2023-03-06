@@ -1,12 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2004, Psyent Corporation <www.psyent.com>
  * Scott McNutt <smcnutt@psyent.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_NIOS2_IO_H_
 #define __ASM_NIOS2_IO_H_
+
+#include <asm/global_data.h>
 
 static inline void sync(void)
 {
@@ -19,9 +20,6 @@ static inline void sync(void)
  * properties specified by "flags".
  */
 #define MAP_NOCACHE	1
-#define MAP_WRCOMBINE	0
-#define MAP_WRBACK	0
-#define MAP_WRTHROUGH	0
 
 static inline void *
 map_physmem(phys_addr_t paddr, unsigned long len, unsigned long flags)
@@ -32,20 +30,22 @@ map_physmem(phys_addr_t paddr, unsigned long len, unsigned long flags)
 	else
 		return (void *)(paddr | gd->arch.mem_region_base);
 }
+#define map_physmem map_physmem
 
-/*
- * Take down a mapping set up by map_physmem().
- */
-static inline void unmap_physmem(void *vaddr, unsigned long flags)
+static inline void *phys_to_virt(phys_addr_t paddr)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 
+	return (void *)(paddr | gd->arch.mem_region_base);
 }
+#define phys_to_virt phys_to_virt
 
 static inline phys_addr_t virt_to_phys(void * vaddr)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 	return (phys_addr_t)vaddr & gd->arch.physaddr_mask;
 }
+#define virt_to_phys virt_to_phys
 
 #define __raw_writeb(v,a)       (*(volatile unsigned char  *)(a) = (v))
 #define __raw_writew(v,a)       (*(volatile unsigned short *)(a) = (v))
@@ -170,5 +170,8 @@ static inline void outsl (unsigned long port, const void *src, unsigned long cou
 #define memset_io(a, b, c)		memset((void *)(a), (b), (c))
 #define memcpy_fromio(a, b, c)		memcpy((a), (void *)(b), (c))
 #define memcpy_toio(a, b, c)		memcpy((void *)(a), (b), (c))
+
+#include <asm-generic/io.h>
+#include <asm/global_data.h>
 
 #endif /* __ASM_NIOS2_IO_H_ */

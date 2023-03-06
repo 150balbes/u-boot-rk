@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI PIPE3 PHY
  *
  * (C) Copyright 2013
  * Texas Instruments, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -12,6 +11,8 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/io.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include "pipe3-phy.h"
 
@@ -228,4 +229,3 @@ int phy_pipe3_power_off(struct omap_pipe3 *phy)
 
 	return 0;
 }
-

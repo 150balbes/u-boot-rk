@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #ifndef _RESET_UCLASS_H
@@ -52,14 +51,14 @@ struct reset_ops {
 	 */
 	int (*request)(struct reset_ctl *reset_ctl);
 	/**
-	 * free - Free a previously requested reset control.
+	 * rfree - Free a previously requested reset control.
 	 *
 	 * This is the implementation of the client reset_free() API.
 	 *
 	 * @reset_ctl:	The reset control to free.
 	 * @return 0 if OK, or a negative error code.
 	 */
-	int (*free)(struct reset_ctl *reset_ctl);
+	int (*rfree)(struct reset_ctl *reset_ctl);
 	/**
 	 * rst_assert - Assert a reset signal.
 	 *
@@ -77,6 +76,14 @@ struct reset_ops {
 	 * @return 0 if OK, or a negative error code.
 	 */
 	int (*rst_deassert)(struct reset_ctl *reset_ctl);
+	/**
+	 * rst_status - Check reset signal status.
+	 *
+	 * @reset_ctl:	The reset signal to check.
+	 * @return 0 if deasserted, positive if asserted, or a negative
+	 *           error code.
+	 */
+	int (*rst_status)(struct reset_ctl *reset_ctl);
 };
 
 #endif

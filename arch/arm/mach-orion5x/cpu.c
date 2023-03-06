@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 Albert ARIBAUD <albert.u.boot@aribaud.net>
  *
@@ -5,11 +6,12 @@
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <init.h>
+#include <net.h>
 #include <netdev.h>
 #include <asm/cache.h>
 #include <asm/io.h>
@@ -18,7 +20,7 @@
 
 #define BUFLEN	16
 
-void reset_cpu(unsigned long ignored)
+void reset_cpu(void)
 {
 	struct orion5x_cpu_registers *cpureg =
 	    (struct orion5x_cpu_registers *)ORION5X_CPU_REG_BASE;
@@ -288,7 +290,7 @@ int arch_misc_init(void)
 #endif /* CONFIG_ARCH_MISC_INIT */
 
 #ifdef CONFIG_MVGBE
-int cpu_eth_init(bd_t *bis)
+int cpu_eth_init(struct bd_info *bis)
 {
 	mvgbe_initialize(bis);
 	return 0;

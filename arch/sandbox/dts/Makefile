@@ -1,9 +1,14 @@
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
+# SPDX-License-Identifier: GPL-2.0+
 
+ifdef CONFIG_SANDBOX64
+dtb-$(CONFIG_SANDBOX) += sandbox64.dtb
+else
 dtb-$(CONFIG_SANDBOX) += sandbox.dtb
-dtb-$(CONFIG_UT_DM) += test.dtb
+endif
+dtb-$(CONFIG_UT_DM) += test.dtb other.dtb
+dtb-$(CONFIG_CMD_EXTENSION) += overlay0.dtbo overlay1.dtbo
+
+include $(srctree)/scripts/Makefile.dts
 
 targets += $(dtb-y)
 

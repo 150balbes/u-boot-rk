@@ -1,15 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012 SAMSUNG Electronics
  * Jaehoon Chung <jh80.chung@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <malloc.h>
 #include <sdhci.h>
 #include <fdtdec.h>
+#include <asm/global_data.h>
 #include <linux/libfdt.h>
 #include <asm/gpio.h>
 #include <asm/arch/mmc.h>
@@ -73,14 +74,14 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 	sdhci_writel(host, ctrl, SDHCI_CONTROL2);
 }
 
-static void s5p_set_clock_ext(struct sdhci_host *host, u32 div)
+static void s5p_set_clock(struct sdhci_host *host, u32 div)
 {
 	/* ToDo : Use the Clock Framework */
 	set_mmc_clk(host->index, div);
 }
 
 static const struct sdhci_ops s5p_sdhci_ops = {
-	.set_clock_ext	= &s5p_set_clock_ext,
+	.set_clock	= &s5p_set_clock,
 	.set_control_reg = &s5p_sdhci_set_control_reg,
 };
 
@@ -118,9 +119,6 @@ int s5p_sdhci_init(u32 regbase, int index, int bus_width)
 
 	return s5p_sdhci_core_init(host);
 }
-
-#if CONFIG_IS_ENABLED(OF_CONTROL)
-struct sdhci_host sdhci_host[SDHCI_MAX_HOSTS];
 
 static int do_sdhci_init(struct sdhci_host *host)
 {
@@ -192,57 +190,10 @@ static int sdhci_get_config(const void *blob, int node, struct sdhci_host *host)
 	return 0;
 }
 
-static int process_nodes(const void *blob, int node_list[], int count)
-{
-	struct sdhci_host *host;
-	int i, node, ret;
-	int failed = 0;
-
-	debug("%s: count = %d\n", __func__, count);
-
-	/* build sdhci_host[] for each controller */
-	for (i = 0; i < count; i++) {
-		node = node_list[i];
-		if (node <= 0)
-			continue;
-
-		host = &sdhci_host[i];
-
-		ret = sdhci_get_config(blob, node, host);
-		if (ret) {
-			printf("%s: failed to decode dev %d (%d)\n",	__func__, i, ret);
-			failed++;
-			continue;
-		}
-
-		ret = do_sdhci_init(host);
-		if (ret && ret != -ENODEV) {
-			printf("%s: failed to initialize dev %d (%d)\n", __func__, i, ret);
-			failed++;
-		}
-	}
-
-	/* we only consider it an error when all nodes fail */
-	return (failed == count ? -1 : 0);
-}
-
-int exynos_mmc_init(const void *blob)
-{
-	int count;
-	int node_list[SDHCI_MAX_HOSTS];
-
-	count = fdtdec_find_aliases_for_id(blob, "mmc",
-			COMPAT_SAMSUNG_EXYNOS_MMC, node_list,
-			SDHCI_MAX_HOSTS);
-
-	return process_nodes(blob, node_list, count);
-}
-#endif
-
 #ifdef CONFIG_DM_MMC
 static int s5p_sdhci_probe(struct udevice *dev)
 {
-	struct s5p_sdhci_plat *plat = dev_get_platdata(dev);
+	struct s5p_sdhci_plat *plat = dev_get_plat(dev);
 	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
 	struct sdhci_host *host = dev_get_priv(dev);
 	int ret;
@@ -255,13 +206,18 @@ static int s5p_sdhci_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	ret = sdhci_setup_cfg(&plat->cfg, host, 0, 400000);
+	ret = mmc_of_parse(dev, &plat->cfg);
 	if (ret)
 		return ret;
 
 	host->mmc = &plat->mmc;
-	host->mmc->priv = host;
 	host->mmc->dev = dev;
+
+	ret = sdhci_setup_cfg(&plat->cfg, host, 0, 400000);
+	if (ret)
+		return ret;
+
+	host->mmc->priv = host;
 	upriv->mmc = host->mmc;
 
 	return sdhci_probe(dev);
@@ -269,7 +225,7 @@ static int s5p_sdhci_probe(struct udevice *dev)
 
 static int s5p_sdhci_bind(struct udevice *dev)
 {
-	struct s5p_sdhci_plat *plat = dev_get_platdata(dev);
+	struct s5p_sdhci_plat *plat = dev_get_plat(dev);
 	int ret;
 
 	ret = sdhci_bind(dev, &plat->mmc, &plat->cfg);
@@ -291,7 +247,7 @@ U_BOOT_DRIVER(s5p_sdhci_drv) = {
 	.bind		= s5p_sdhci_bind,
 	.ops		= &sdhci_ops,
 	.probe		= s5p_sdhci_probe,
-	.priv_auto_alloc_size = sizeof(struct sdhci_host),
-	.platdata_auto_alloc_size = sizeof(struct s5p_sdhci_plat),
+	.priv_auto	= sizeof(struct sdhci_host),
+	.plat_auto	= sizeof(struct s5p_sdhci_plat),
 };
 #endif /* CONFIG_DM_MMC */

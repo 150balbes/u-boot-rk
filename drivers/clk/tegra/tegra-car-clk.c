@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
 #include <clk-uclass.h>
 #include <dm.h>
+#include <log.h>
+#include <malloc.h>
 #include <asm/arch/clock.h>
 #include <asm/arch-tegra/clk_rst.h>
 
@@ -25,14 +26,6 @@ static int tegra_car_clk_request(struct clk *clk)
 	 */
 	if (clk->id >= PERIPH_ID_COUNT)
 		return -EINVAL;
-
-	return 0;
-}
-
-static int tegra_car_clk_free(struct clk *clk)
-{
-	debug("%s(clk=%p) (dev=%p, id=%lu)\n", __func__, clk, clk->dev,
-	      clk->id);
 
 	return 0;
 }
@@ -81,7 +74,6 @@ static int tegra_car_clk_disable(struct clk *clk)
 
 static struct clk_ops tegra_car_clk_ops = {
 	.request = tegra_car_clk_request,
-	.free = tegra_car_clk_free,
 	.get_rate = tegra_car_clk_get_rate,
 	.set_rate = tegra_car_clk_set_rate,
 	.enable = tegra_car_clk_enable,

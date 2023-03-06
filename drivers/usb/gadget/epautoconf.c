@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * epautoconf.c -- endpoint autoconfiguration for usb gadget drivers
  *
  * Copyright (C) 2004 David Brownell
- *
- * SPDX-License-Identifier:	GPL-2.0+
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Ported to U-Boot by: Thomas Smits <ts.smits@gmail.com> and
  *                      Remy Bohmer <linux@bohmer.net>
@@ -82,12 +79,6 @@ static int ep_matches(
 				 */
 				if ('s' == tmp[2])	/* == "-iso" */
 					return 0;
-				/* for now, avoid PXA "interrupt-in";
-				 * it's documented as never using DATA1.
-				 */
-				if (gadget_is_pxa(gadget)
-						&& 'i' == tmp[1])
-					return 0;
 				break;
 			case USB_ENDPOINT_XFER_BULK:
 				if ('b' != tmp[1])	/* != "-bulk" */
@@ -147,7 +138,7 @@ static int ep_matches(
 
 	/* report address */
 	if (isdigit(ep->name[2])) {
-		u8	num = simple_strtoul(&ep->name[2], NULL, 10);
+		u8	num = dectoul(&ep->name[2], NULL);
 		desc->bEndpointAddress |= num;
 #ifdef	MANY_ENDPOINTS
 	} else if (desc->bEndpointAddress & USB_DIR_IN) {
@@ -170,6 +161,10 @@ static int ep_matches(
 			size = 64;
 		put_unaligned(cpu_to_le16(size), &desc->wMaxPacketSize);
 	}
+
+	if (gadget->ops->ep_conf)
+		return gadget->ops->ep_conf(gadget, ep, desc);
+
 	return 1;
 }
 
@@ -261,6 +256,7 @@ struct usb_ep *usb_ep_autoconfig(
 		ep = find_ep(gadget, "ep1-bulk");
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#ifndef CONFIG_SPL_BUILD
 	} else if (gadget_is_dwc3(gadget)) {
 		const char *name = NULL;
 		/*
@@ -283,6 +279,7 @@ struct usb_ep *usb_ep_autoconfig(
 			ep = find_ep(gadget, name);
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#endif
 	}
 
 	if (gadget->ops->match_ep)

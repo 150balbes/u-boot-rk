@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
  * Copyright (C) 2006, 2007 University of Szeged, Hungary
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -60,8 +59,12 @@
  */
 
 #ifndef __UBOOT__
+#include <init.h>
+#include <log.h>
+#include <dm/devres.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <u-boot/crc.h>
 #else
 #include <linux/compat.h>
 #include <linux/err.h>
@@ -111,7 +114,7 @@ int ubifs_leb_read(const struct ubifs_info *c, int lnum, void *buf, int offs,
 int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
 		    int len)
 {
-	int err;
+	int err = 0;
 
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (c->ro_error)
@@ -133,7 +136,7 @@ int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
 
 int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len)
 {
-	int err;
+	int err = 0;
 
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (c->ro_error)
@@ -155,7 +158,7 @@ int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len)
 
 int ubifs_leb_unmap(struct ubifs_info *c, int lnum)
 {
-	int err;
+	int err = 0;
 
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (c->ro_error)
@@ -176,7 +179,7 @@ int ubifs_leb_unmap(struct ubifs_info *c, int lnum)
 
 int ubifs_leb_map(struct ubifs_info *c, int lnum)
 {
-	int err;
+	int err = 0;
 
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (c->ro_error)

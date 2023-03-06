@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2012, Google Inc. All rights reserved.
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _X86_GPIO_H_
@@ -8,7 +8,7 @@
 
 #include <asm-generic/gpio.h>
 
-struct ich6_bank_platdata {
+struct ich6_bank_plat {
 	uint16_t base_addr;
 	const char *bank_name;
 	int offset;

@@ -1,13 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * X-Powers AXP Power Management ICs gpio driver
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/arch/gpio.h>
 #include <asm/arch/pmic_bus.h>
 #include <asm/gpio.h>
 #include <axp_pmic.h>

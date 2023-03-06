@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001, 2002, 2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  * Keith Outwater, keith_outwater@mvis.com`
  * Steven Scholz, steven.scholz@imc-berlin.de
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -19,8 +18,6 @@
 #include <rtc.h>
 #include <i2c.h>
 
-#if defined(CONFIG_CMD_DATE)
-
 /*---------------------------------------------------------------------*/
 #undef DEBUG_RTC
 #define DEBUG_RTC
@@ -32,8 +29,8 @@
 #endif
 /*---------------------------------------------------------------------*/
 
-#ifndef CONFIG_SYS_I2C_RTC_ADDR
-# define CONFIG_SYS_I2C_RTC_ADDR	0x68
+#ifndef CFG_SYS_I2C_RTC_ADDR
+# define CFG_SYS_I2C_RTC_ADDR	0x68
 #endif
 
 #if defined(CONFIG_RTC_DS1374) && (CONFIG_SYS_I2C_SPEED > 400000)
@@ -61,7 +58,7 @@
 #define RTC_CTL_BIT_RS2			(1<<2) /* Bit 2/2 - Rate Select square wave output */
 #define RTC_CTL_BIT_WDSTR		(1<<3) /* Bit 3 - Watchdog Reset Steering */
 #define RTC_CTL_BIT_BBSQW		(1<<4) /* Bit 4 - Battery-Backed Square-Wave */
-#define RTC_CTL_BIT_WD_ALM		(1<<5) /* Bit 5 - Watchdoc/Alarm Counter Select */
+#define RTC_CTL_BIT_WD_ALM		(1<<5) /* Bit 5 - Watchdog/Alarm Counter Select */
 #define RTC_CTL_BIT_WACE		(1<<6) /* Bit 6 - Watchdog/Alarm Counter Enable WACE*/
 #define RTC_CTL_BIT_EN_OSC		(1<<7) /* Bit 7 - Enable Oscilator */
 
@@ -172,8 +169,6 @@ int rtc_set (struct rtc_time *tmp){
  */
 void rtc_reset (void){
 
-	struct rtc_time tmp;
-
 	/* clear status flags */
 	rtc_write(RTC_SR_ADDR, (RTC_SR_BIT_AF|RTC_SR_BIT_OSF), false); /* clearing OSF and AF */
 
@@ -189,19 +184,6 @@ void rtc_reset (void){
 				|RTC_CTL_BIT_BBSQW), true);/* disable WD/ALM, WDSTR set to INT-pin,
 							      set BBSQW and SQW to 32k
 							      - set to 1 */
-	tmp.tm_year = 1970;
-	tmp.tm_mon = 1;
-	tmp.tm_mday= 1;
-	tmp.tm_hour = 0;
-	tmp.tm_min = 0;
-	tmp.tm_sec = 0;
-
-	rtc_set(&tmp);
-
-	printf("RTC:   %4d-%02d-%02d %2d:%02d:%02d UTC\n",
-		tmp.tm_year, tmp.tm_mon, tmp.tm_mday,
-		tmp.tm_hour, tmp.tm_min, tmp.tm_sec);
-
 	rtc_write(RTC_WD_ALM_CNT_BYTE2_ADDR, 0xAC, true);
 	rtc_write(RTC_WD_ALM_CNT_BYTE1_ADDR, 0xDE, true);
 	rtc_write(RTC_WD_ALM_CNT_BYTE2_ADDR, 0xAD, true);
@@ -212,22 +194,21 @@ void rtc_reset (void){
  */
 static uchar rtc_read (uchar reg)
 {
-	return (i2c_reg_read (CONFIG_SYS_I2C_RTC_ADDR, reg));
+	return (i2c_reg_read (CFG_SYS_I2C_RTC_ADDR, reg));
 }
 
 static void rtc_write(uchar reg, uchar val, bool set)
 {
 	if (set == true) {
-		val |= i2c_reg_read (CONFIG_SYS_I2C_RTC_ADDR, reg);
-		i2c_reg_write (CONFIG_SYS_I2C_RTC_ADDR, reg, val);
+		val |= i2c_reg_read (CFG_SYS_I2C_RTC_ADDR, reg);
+		i2c_reg_write (CFG_SYS_I2C_RTC_ADDR, reg, val);
 	} else {
-		val = i2c_reg_read (CONFIG_SYS_I2C_RTC_ADDR, reg) & ~val;
-		i2c_reg_write (CONFIG_SYS_I2C_RTC_ADDR, reg, val);
+		val = i2c_reg_read (CFG_SYS_I2C_RTC_ADDR, reg) & ~val;
+		i2c_reg_write (CFG_SYS_I2C_RTC_ADDR, reg, val);
 	}
 }
 
 static void rtc_write_raw (uchar reg, uchar val)
 {
-		i2c_reg_write (CONFIG_SYS_I2C_RTC_ADDR, reg, val);
+		i2c_reg_write (CFG_SYS_I2C_RTC_ADDR, reg, val);
 }
-#endif

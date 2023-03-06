@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Davinci MMC Controller Defines - Based on Linux davinci_mmc.c
  *
  * Copyright (C) 2010 Texas Instruments Incorporated
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SDMMC_DEFS_H_
@@ -150,15 +149,16 @@ struct davinci_mmc {
 	uint input_clk;		/* Input clock to MMC controller */
 	uint host_caps;		/* Host capabilities */
 	uint voltages;		/* Host supported voltages */
-	uint version;		/* MMC Controller version */
 	struct mmc_config cfg;
 };
 
-enum {
-	MMC_CTLR_VERSION_1 = 0,	/* DM644x and DM355 */
-	MMC_CTLR_VERSION_2,	/* DA830 */
+#define DAVINCI_MAX_BLOCKS	(32)
+struct davinci_mmc_plat {
+	struct davinci_mmc_regs *reg_base;	/* Register base address */
+	struct mmc_config cfg;
+	struct mmc mmc;
 };
 
-int davinci_mmc_init(bd_t *bis, struct davinci_mmc *host);
+int davinci_mmc_init(struct bd_info *bis, struct davinci_mmc *host);
 
 #endif /* _SDMMC_DEFS_H */

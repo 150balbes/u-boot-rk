@@ -1,20 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2016 Google, Inc
-#
-# SPDX-License-Identifier:            GPL-2.0+
 #
 # Terminal output logging.
 #
 
 import sys
 
-import terminal
+from patman import terminal
 
 # Output verbosity levels that we support
-ERROR = 0
-WARNING = 1
-NOTICE = 2
-INFO = 3
-DEBUG = 4
+ERROR, WARNING, NOTICE, INFO, DETAIL, DEBUG = range(6)
+
+in_progress = False
 
 """
 This class handles output of progress and other useful information
@@ -33,10 +30,10 @@ def __enter__():
 
 def __exit__(unused1, unused2, unused3):
     """Clean up and remove any progress message."""
-    ClearProgress()
+    clear_progress()
     return False
 
-def UserIsPresent():
+def user_is_present():
     """This returns True if it is likely that a user is present.
 
     Sometimes we want to prompt the user, but if no one is there then this
@@ -47,29 +44,33 @@ def UserIsPresent():
     """
     return stdout_is_tty and verbose > 0
 
-def ClearProgress():
+def clear_progress():
     """Clear any active progress message on the terminal."""
-    if verbose > 0 and stdout_is_tty:
+    global in_progress
+    if verbose > 0 and stdout_is_tty and in_progress:
         _stdout.write('\r%s\r' % (" " * len (_progress)))
         _stdout.flush()
+        in_progress = False
 
-def Progress(msg, warning=False, trailer='...'):
+def progress(msg, warning=False, trailer='...'):
     """Display progress information.
 
     Args:
         msg: Message to display.
         warning: True if this is a warning."""
-    ClearProgress()
+    global in_progress
+    clear_progress()
     if verbose > 0:
         _progress = msg + trailer
         if stdout_is_tty:
             col = _color.YELLOW if warning else _color.GREEN
-            _stdout.write('\r' + _color.Color(col, _progress))
+            _stdout.write('\r' + _color.build(col, _progress))
             _stdout.flush()
+            in_progress = True
         else:
             _stdout.write(_progress + '\n')
 
-def _Output(level, msg, color=None):
+def _output(level, msg, color=None):
     """Output a message to the terminal.
 
     Args:
@@ -79,12 +80,15 @@ def _Output(level, msg, color=None):
         error: True if this is an error message, else False.
     """
     if verbose >= level:
-        ClearProgress()
+        clear_progress()
         if color:
-            msg = _color.Color(color, msg)
-        _stdout.write(msg + '\n')
+            msg = _color.build(color, msg)
+        if level < NOTICE:
+            print(msg, file=sys.stderr)
+        else:
+            print(msg)
 
-def DoOutput(level, msg):
+def do_output(level, msg):
     """Output a message to the terminal.
 
     Args:
@@ -92,58 +96,66 @@ def DoOutput(level, msg):
                 this as high as the currently selected level.
         msg; Message to display.
     """
-    _Output(level, msg)
+    _output(level, msg)
 
-def Error(msg):
+def error(msg):
     """Display an error message
 
     Args:
         msg; Message to display.
     """
-    _Output(0, msg, _color.RED)
+    _output(ERROR, msg, _color.RED)
 
-def Warning(msg):
+def warning(msg):
     """Display a warning message
 
     Args:
         msg; Message to display.
     """
-    _Output(1, msg, _color.YELLOW)
+    _output(WARNING, msg, _color.YELLOW)
 
-def Notice(msg):
+def notice(msg):
     """Display an important infomation message
 
     Args:
         msg; Message to display.
     """
-    _Output(2, msg)
+    _output(NOTICE, msg)
 
-def Info(msg):
+def info(msg):
     """Display an infomation message
 
     Args:
         msg; Message to display.
     """
-    _Output(3, msg)
+    _output(INFO, msg)
 
-def Debug(msg):
+def detail(msg):
+    """Display a detailed message
+
+    Args:
+        msg; Message to display.
+    """
+    _output(DETAIL, msg)
+
+def debug(msg):
     """Display a debug message
 
     Args:
         msg; Message to display.
     """
-    _Output(4, msg)
+    _output(DEBUG, msg)
 
-def UserOutput(msg):
+def user_output(msg):
     """Display a message regardless of the current output level.
 
     This is used when the output was specifically requested by the user.
     Args:
         msg; Message to display.
     """
-    _Output(0, msg)
+    _output(0, msg)
 
-def Init(_verbose=WARNING, stdout=sys.stdout):
+def init(_verbose=WARNING, stdout=sys.stdout):
     """Initialize a new output object.
 
     Args:
@@ -159,8 +171,9 @@ def Init(_verbose=WARNING, stdout=sys.stdout):
 
     # TODO(sjg): Move this into Chromite libraries when we have them
     stdout_is_tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+    stderr_is_tty = hasattr(sys.stderr, 'isatty') and sys.stderr.isatty()
 
-def Uninit():
-    ClearProgress()
+def uninit():
+    clear_progress()
 
-Init()
+init()

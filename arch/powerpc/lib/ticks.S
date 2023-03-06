@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2000, 2001
  * Erik Theisen, Wave 7 Optics, etheisen@mindspring.com.
  *  base on code by
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <ppc_asm.tmpl>
 #include <ppc_defs.h>
 #include <config.h>
-#include <watchdog.h>
 
 /*
  * unsigned long long get_ticks(void);
@@ -43,7 +41,9 @@ wait_ticks:
 	addc    r14, r4, r14	/* Compute end time lower */
 	addze	r15, r3		/*     and end time upper */
 
-	WATCHDOG_RESET		/* Trigger watchdog, if needed */
+#if defined(CONFIG_WATCHDOG) || defined(CONFIG_HW_WATCHDOG)
+	bl	schedule	/* Trigger watchdog, if needed */
+#endif
 1:	bl	get_ticks	/* Get current time */
 	subfc	r4, r4, r14	/* Subtract current time from end time */
 	subfe.	r3, r3, r15

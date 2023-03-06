@@ -1,35 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2013-2014 Synopsys, Inc. All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
 #include <config.h>
 #include <linux/linkage.h>
 #include <asm/arcregs.h>
+#include <system-constants.h>
 
 ENTRY(_start)
-; ARCompact devices are not supposed to be SMP so master/slave check
-; makes no sense.
-#ifdef CONFIG_ISA_ARCV2
-	; Non-masters will be halted immediately, they might be kicked later
-	; by platform code right before passing control to the Linux kernel
-	; in bootm.c:boot_jump_linux().
-	lr 	r5, [identity]
-	lsr	r5, r5, 8
-	bmsk	r5, r5, 7
-	cmp	r5, 0
-	mov.nz	r0, r5
-	bz	.Lmaster_proceed
-	flag	1
-	nop
-	nop
-	nop
-
-.Lmaster_proceed:
-#endif
-
 	/* Setup interrupt vector base that matches "__text_start" */
 	sr	__ivt_start, [ARC_AUX_INTR_VEC_BASE]
 
@@ -37,12 +17,20 @@ ENTRY(_start)
 	lr	r5, [ARC_BCR_IC_BUILD]
 	breq	r5, 0, 1f		; I$ doesn't exist
 	lr	r5, [ARC_AUX_IC_CTRL]
-#ifndef CONFIG_SYS_ICACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_ICACHE_OFF)
 	bclr	r5, r5, 0		; 0 - Enable, 1 is Disable
 #else
 	bset	r5, r5, 0		; I$ exists, but is not used
 #endif
 	sr	r5, [ARC_AUX_IC_CTRL]
+
+	mov	r5, 1
+	sr	r5, [ARC_AUX_IC_IVIC]
+	; As per ARC HS databook (see chapter 5.3.3.2)
+	; it is required to add 3 NOPs after each write to IC_IVIC.
+	nop
+	nop
+	nop
 
 1:
 	; Disable/enable D-cache according to configuration
@@ -50,12 +38,16 @@ ENTRY(_start)
 	breq	r5, 0, 1f		; D$ doesn't exist
 	lr	r5, [ARC_AUX_DC_CTRL]
 	bclr	r5, r5, 6		; Invalidate (discard w/o wback)
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 	bclr	r5, r5, 0		; Enable (+Inv)
 #else
 	bset	r5, r5, 0		; Disable (+Inv)
 #endif
 	sr	r5, [ARC_AUX_DC_CTRL]
+
+	mov	r5, 1
+	sr	r5, [ARC_AUX_DC_IVDC]
+
 
 1:
 #ifdef CONFIG_ISA_ARCV2
@@ -70,8 +62,32 @@ ENTRY(_start)
 1:
 #endif
 
+#ifdef CONFIG_ISA_ARCV2
+	; In case of DSP extension presence in HW some instructions
+	; (related to integer multiply, multiply-accumulate, and divide
+	; operation) executes on this DSP execution unit. So their
+	; execution will depend on dsp configuration register (DSP_CTRL)
+	; As we want these instructions to execute the same way regardless
+	; of DSP presence we need to set DSP_CTRL properly.
+	lr	r5, [ARC_AUX_DSP_BUILD]
+	bmsk	r5, r5, 7
+	breq    r5, 0, 1f
+	mov	r5, 0
+	sr	r5, [ARC_AUX_DSP_CTRL]
+1:
+#endif
+
+#ifdef __ARC_UNALIGNED__
+	/*
+	 * Enable handling of unaligned access in the CPU as by default
+	 * this HW feature is disabled while GCC starting from 8.1.0
+	 * unconditionally uses it for ARC HS cores.
+	 */
+	flag	1 << STATUS_AD_BIT
+#endif
+
 	/* Establish C runtime stack and frame */
-	mov	%sp, CONFIG_SYS_INIT_SP_ADDR
+	mov	%sp, SYS_INIT_SP_ADDR
 	mov	%fp, %sp
 
 	/* Allocate reserved area from current top of stack */
@@ -84,9 +100,20 @@ ENTRY(_start)
 	/* Initialize reserved area - note: r0 already contains address */
 	bl	board_init_f_init_reserve
 
+#ifdef CONFIG_DEBUG_UART
+	/* Earliest point to set up early debug uart */
+	bl	debug_uart_init
+#endif
+
 	/* Zero the one and only argument of "board_init_f" */
 	mov_s	%r0, 0
-	j	board_init_f
+	bl	board_init_f
+
+	/* We only get here if relocation is disabled by GD_FLG_SKIP_RELOC */
+	/* Make sure we don't lose GD overwritten by zero new GD */
+	mov	%r0, %r25
+	mov	%r1, 0
+	bl	board_init_r
 ENDPROC(_start)
 
 /*

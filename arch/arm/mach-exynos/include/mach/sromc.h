@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010 Samsung Electronics
  * Naveen Krishna Ch <ch.naveen@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Note: This file contains the register description for SROMC
  */
@@ -33,23 +32,5 @@ struct s5p_sromc {
 
 /* Configure the Band Width and Bank Control Regs for required SROMC Bank */
 void s5p_config_sromc(u32 srom_bank, u32 srom_bw_conf, u32 srom_bc_conf);
-
-enum {
-	FDT_SROM_PMC,
-	FDT_SROM_TACP,
-	FDT_SROM_TAH,
-	FDT_SROM_TCOH,
-	FDT_SROM_TACC,
-	FDT_SROM_TCOS,
-	FDT_SROM_TACS,
-
-	FDT_SROM_TIMING_COUNT,
-};
-
-struct fdt_sromc {
-	u8 bank;	/* srom bank number */
-	u8 width;	/* bus width in bytes */
-	unsigned int timing[FDT_SROM_TIMING_COUNT]; /* timing parameters */
-};
 
 #endif /* __ASM_ARCH_SROMC_H_ */

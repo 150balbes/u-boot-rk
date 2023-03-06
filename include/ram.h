@@ -1,12 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __RAM_H
 #define __RAM_H
+
+struct udevice;
 
 struct ram_info {
 	phys_addr_t base;
@@ -31,7 +32,7 @@ struct ram_ops {
  *
  * @dev:	Device to check (UCLASS_RAM)
  * @info:	Returns RAM info
- * @return 0 if OK, -ve on error
+ * Return: 0 if OK, -ve on error
  */
 int ram_get_info(struct udevice *dev, struct ram_info *info);
 

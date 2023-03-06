@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale i.MX23/i.MX28 specific functions
  *
  * Copyright (C) 2011 Marek Vasut <marek.vasut@gmail.com>
  * on behalf of DENX Software Engineering GmbH
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MXS_SYS_PROTO_H__
@@ -12,7 +11,8 @@
 
 #include <asm/mach-imx/sys_proto.h>
 
-int mxsmmc_initialize(bd_t *bis, int id, int (*wp)(int), int (*cd)(int));
+int mxsmmc_initialize(struct bd_info *bis, int id, int (*wp)(int),
+		      int (*cd)(int));
 
 #ifdef CONFIG_SPL_BUILD
 
@@ -84,6 +84,8 @@ static const struct mxs_pair mxs_boot_modes[] = {
 #define MXS_BM_SDMMC0_1V8		0x19
 #define MXS_BM_SDMMC1_3V3		0x0a
 #define MXS_BM_SDMMC1_1V8		0x1a
+
+#define MXS_SPL_DATA ((struct mxs_spl_data *)(CONFIG_TEXT_BASE - 0x200))
 
 struct mxs_spl_data {
 	uint8_t		boot_mode_idx;

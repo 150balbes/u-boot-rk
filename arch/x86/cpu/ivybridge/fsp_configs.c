@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016, Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <fdtdec.h>
-#include <asm/fsp/fsp_support.h>
+#include <log.h>
+#include <asm/fsp1/fsp_support.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-void update_fsp_configs(struct fsp_config_data *config,
+void fsp_update_configs(struct fsp_config_data *config,
 			struct fspinit_rtbuf *rt_buf)
 {
 	struct platform_config *plat_config = &config->plat_config;

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale i.MX23/i.MX28 SB image generator
  *
  * Copyright (C) 2012-2013 Marek Vasut <marex@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifdef CONFIG_MXS
@@ -12,6 +11,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <u-boot/crc.h>
 #include <unistd.h>
 #include <limits.h>
 
@@ -26,7 +26,8 @@
  * OpenSSL 1.1.0 and newer compatibility functions:
  * https://wiki.openssl.org/index.php/1.1_API_Changes
  */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
 static void *OPENSSL_zalloc(size_t num)
 {
 	void *ret = OPENSSL_malloc(num);
@@ -1594,8 +1595,11 @@ static int sb_load_cmdfile(struct sb_image_ctx *ictx)
 	size_t len;
 
 	fp = fopen(ictx->cfg_filename, "r");
-	if (!fp)
-		goto err_file;
+	if (!fp) {
+		fprintf(stderr, "ERR: Failed to load file \"%s\": \"%s\"\n",
+			ictx->cfg_filename, strerror(errno));
+		return -EINVAL;
+	}
 
 	while ((rlen = getline(&line, &len, fp)) > 0) {
 		memset(&cmd, 0, sizeof(cmd));
@@ -1615,12 +1619,6 @@ static int sb_load_cmdfile(struct sb_image_ctx *ictx)
 	fclose(fp);
 
 	return 0;
-
-err_file:
-	fclose(fp);
-	fprintf(stderr, "ERR: Failed to load file \"%s\"\n",
-		ictx->cfg_filename);
-	return -EINVAL;
 }
 
 static int sb_build_tree_from_cfg(struct sb_image_ctx *ictx)

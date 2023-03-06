@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016 Vladimir Zapolskiy <vz@mleia.com>
  * (C) Copyright 2007 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
+#include <cpu_func.h>
+#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/system.h>

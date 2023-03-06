@@ -1,14 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * K2HK: SoC definitions
  *
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_HARDWARE_K2HK_H
 #define __ASM_ARCH_HARDWARE_K2HK_H
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 #define KS2_ARM_PLL_EN			BIT(13)
 

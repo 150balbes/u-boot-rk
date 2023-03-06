@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012-2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include "imagetool.h"
 #include <image.h>
 #include "pblimage.h"
 #include "pbl_crc32.h"
+#include <u-boot/crc.h>
 
 #define roundup(x, y)		((((x) + ((y) - 1)) / (y)) * (y))
 #define PBL_ACS_CONT_CMD	0x81000000
@@ -230,19 +230,25 @@ static int pblimage_verify_header(unsigned char *ptr, int image_size,
 			struct image_tool_params *params)
 {
 	struct pbl_header *pbl_hdr = (struct pbl_header *) ptr;
+	uint32_t rcwheader;
+
+	if (params->arch == IH_ARCH_ARM)
+		rcwheader = RCW_ARM_HEADER;
+	else
+		rcwheader = RCW_PPC_HEADER;
 
 	/* Only a few checks can be done: search for magic numbers */
 	if (ENDIANNESS == 'l') {
 		if (pbl_hdr->preamble != reverse_byte(RCW_PREAMBLE))
 			return -FDT_ERR_BADSTRUCTURE;
 
-		if (pbl_hdr->rcwheader != reverse_byte(RCW_HEADER))
+		if (pbl_hdr->rcwheader != reverse_byte(rcwheader))
 			return -FDT_ERR_BADSTRUCTURE;
 	} else {
 		if (pbl_hdr->preamble != RCW_PREAMBLE)
 			return -FDT_ERR_BADSTRUCTURE;
 
-		if (pbl_hdr->rcwheader != RCW_HEADER)
+		if (pbl_hdr->rcwheader != rcwheader)
 			return -FDT_ERR_BADSTRUCTURE;
 	}
 	return 0;
@@ -293,7 +299,7 @@ int pblimage_check_params(struct image_tool_params *params)
 		pbi_crc_cmd2 = 0;
 		pbl_cmd_initaddr = params->addr & PBL_ADDR_24BIT_MASK;
 		pbl_cmd_initaddr |= PBL_ACS_CONT_CMD;
-		pbl_cmd_initaddr |= uboot_size;
+		pbl_cmd_initaddr += uboot_size;
 		pbl_end_cmd[0] = 0x09610000;
 		pbl_end_cmd[1] = 0x00000000;
 		pbl_end_cmd[2] = 0x096100c0;

@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2004-2008 Texas Instruments
  *
  * (C) Copyright 2002
  * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -15,8 +14,8 @@ OUTPUT_ARCH(arm)
 ENTRY(_start)
 SECTIONS
 {
-#if !defined(CONFIG_CMDLINE) && !defined(CONFIG_U_BOOT_CMD_ALWAYS)
-	/DISCARD/ : { *(.u_boot_list_2_cmd_*) }
+#ifndef CONFIG_CMDLINE
+	/DISCARD/ : { *(__u_boot_list_2_cmd_*) }
 #endif
 #if defined(CONFIG_ARMV7_SECURE_BASE) && defined(CONFIG_ARMV7_NONSEC)
 	/*
@@ -44,26 +43,47 @@ SECTIONS
 		*(.__image_copy_start)
 		*(.vectors)
 		CPUDIR/start.o (.text*)
+	}
+
+	/* This needs to come before *(.text*) */
+	.__efi_runtime_start : {
+		*(.__efi_runtime_start)
+	}
+
+	.efi_runtime : {
+		*(.text.efi_runtime*)
+		*(.rodata.efi_runtime*)
+		*(.data.efi_runtime*)
+	}
+
+	.__efi_runtime_stop : {
+		*(.__efi_runtime_stop)
+	}
+
+	.text_rest :
+	{
 		*(.text*)
 	}
 
 #ifdef CONFIG_ARMV7_NONSEC
 
 	/* Align the secure section only if we're going to use it in situ */
-	.__secure_start :
+	.__secure_start
 #ifndef CONFIG_ARMV7_SECURE_BASE
 		ALIGN(CONSTANT(COMMONPAGESIZE))
 #endif
-	{
+	: {
 		KEEP(*(.__secure_start))
 	}
 
 #ifndef CONFIG_ARMV7_SECURE_BASE
-#define CONFIG_ARMV7_SECURE_BASE
+#define __ARMV7_SECURE_BASE
 #define __ARMV7_PSCI_STACK_IN_RAM
+#else
+#define __ARMV7_SECURE_BASE	CONFIG_ARMV7_SECURE_BASE
 #endif
 
-	.secure_text CONFIG_ARMV7_SECURE_BASE :
+	.secure_text __ARMV7_SECURE_BASE :
 		AT(ADDR(.__secure_start) + SIZEOF(.__secure_start))
 	{
 		*(._secure.text)
@@ -131,41 +151,11 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(4);
-	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list*)));
-	}
-
-	/*
-	 * Stack unwinding tables
-	 */
-	. = ALIGN(8);
-	/* .ARM.exidx is sorted, so has to go in its own output section. */
-	.ARM.exidx : {
-		__exidx_start = .;
-		*(.ARM.exidx*)
-		__exidx_end = .;
-	}
-
-	.ARM.extab : {
-		__extab_start = .;
-		*(.ARM.extab*)
-		__extab_end = .;
+	__u_boot_list : {
+		KEEP(*(SORT(__u_boot_list*)));
 	}
 
 	. = ALIGN(4);
-
-	.__efi_runtime_start : {
-		*(.__efi_runtime_start)
-	}
-
-	.efi_runtime : {
-		*(efi_runtime_text)
-		*(efi_runtime_data)
-	}
-
-	.__efi_runtime_stop : {
-		*(.__efi_runtime_stop)
-	}
 
 	.efi_runtime_rel_start :
 	{
@@ -173,8 +163,8 @@ SECTIONS
 	}
 
 	.efi_runtime_rel : {
-		*(.relefi_runtime_text)
-		*(.relefi_runtime_data)
+		*(.rel*.efi_runtime)
+		*(.rel*.efi_runtime.*)
 	}
 
 	.efi_runtime_rel_stop :
@@ -182,7 +172,7 @@ SECTIONS
 		*(.__efi_runtime_rel_stop)
 	}
 
-	. = ALIGN(8);
+	. = ALIGN(4);
 
 	.image_copy_end :
 	{
@@ -205,7 +195,6 @@ SECTIONS
 
 	.end :
 	{
-		. = ALIGN(8);
 		*(.__end)
 	}
 

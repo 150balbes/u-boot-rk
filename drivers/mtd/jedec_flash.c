@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Michael Schwingen, <michael@schwingen.org>
@@ -5,18 +6,17 @@
  * based in great part on jedec_probe.c from linux kernel:
  * (C) 2000 Red Hat. GPL'd.
  * Occasionally maintained by Thayne Harbaugh tharbaugh at lnxi dot com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* The DEBUG define must be before common to enable debugging */
 /*#define DEBUG*/
 
 #include <common.h>
+#include <flash.h>
+#include <log.h>
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <environment.h>
 
 #define P_ID_AMD_STD CFI_CMDSET_AMD_LEGACY
 

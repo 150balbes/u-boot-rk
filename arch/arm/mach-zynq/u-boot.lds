@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2004-2008 Texas Instruments
  *
  * (C) Copyright 2002
  * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
@@ -20,6 +19,25 @@ SECTIONS
 		*(.__image_copy_start)
 		*(.vectors)
 		CPUDIR/start.o (.text*)
+	}
+
+	/* This needs to come before *(.text*) */
+	.__efi_runtime_start : {
+		*(.__efi_runtime_start)
+	}
+
+	.efi_runtime : {
+		*(.text.efi_runtime*)
+		*(.rodata.efi_runtime*)
+		*(.data.efi_runtime*)
+	}
+
+	.__efi_runtime_stop : {
+		*(.__efi_runtime_stop)
+	}
+
+	.text_rest :
+	{
 		*(.text*)
 	}
 
@@ -36,24 +54,11 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(4);
-	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list*)));
+	__u_boot_list : {
+		KEEP(*(SORT(__u_boot_list*)));
 	}
 
 	. = ALIGN(4);
-
-	.__efi_runtime_start : {
-		*(.__efi_runtime_start)
-	}
-
-	.efi_runtime : {
-		*(efi_runtime_text)
-		*(efi_runtime_data)
-	}
-
-	.__efi_runtime_stop : {
-		*(.__efi_runtime_stop)
-	}
 
 	.efi_runtime_rel_start :
 	{
@@ -61,8 +66,8 @@ SECTIONS
 	}
 
 	.efi_runtime_rel : {
-		*(.relefi_runtime_text)
-		*(.relefi_runtime_data)
+		*(.rel*.efi_runtime)
+		*(.rel*.efi_runtime.*)
 	}
 
 	.efi_runtime_rel_stop :
@@ -70,7 +75,7 @@ SECTIONS
 		*(.__efi_runtime_rel_stop)
 	}
 
-	. = ALIGN(4);
+	. = ALIGN(8);
 	.image_copy_end :
 	{
 		*(.__image_copy_end)
@@ -109,7 +114,7 @@ SECTIONS
 
 	.bss __bss_base (OVERLAY) : {
 		*(.bss*)
-		 . = ALIGN(4);
+		 . = ALIGN(8);
 		 __bss_limit = .;
 	}
 

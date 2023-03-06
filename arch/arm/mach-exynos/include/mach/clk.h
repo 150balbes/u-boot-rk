@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010 Samsung Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARM_ARCH_CLK_H_
@@ -56,7 +55,7 @@ int set_spi_clk(int periph_id, unsigned int rate);
  *
  * @param peripheral	Peripheral id
  *
- * @return frequency of the peripheral clk
+ * Return: frequency of the peripheral clk
  */
 unsigned long clock_get_periph_rate(int peripheral);
 

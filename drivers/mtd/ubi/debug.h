@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) International Business Machines Corp., 2006
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
@@ -28,13 +27,8 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 	}                                                                    \
 } while (0)
 #else
-#define ubi_assert(expr)  do {                                               \
-	if (unlikely(!(expr))) {                                             \
-		pr_debug("UBI assert failed in %s at %u\n",                  \
-		       __func__, __LINE__);                                  \
-		dump_stack();                                                \
-	}                                                                    \
-} while (0)
+#include <log.h>
+#define ubi_assert(expr) assert(expr)
 #endif
 
 #define ubi_dbg_print_hex_dump(ps, pt, r, g, b, len, a)                      \

@@ -1,0 +1,15 @@
+if TARGET_QUARTZ64_B_RK3566
+
+config SYS_BOARD
+	default "quartz64-b-rk3566"
+
+config SYS_VENDOR
+	default "pine64"
+
+config SYS_CONFIG_NAME
+	default "quartz64-b-rk3566"
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+
+endif

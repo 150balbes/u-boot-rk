@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Gooogle, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_SIPI_H
@@ -11,7 +10,7 @@
 #define AP_DEFAULT_BASE 0x30000
 #define AP_DEFAULT_SIZE 0x10000
 
-#ifndef __ASSEMBLER__
+#ifndef __ASSEMBLY__
 
 /**
  * struct sipi_params_16bit - 16-bit SIPI entry-point parameters
@@ -82,6 +81,6 @@ void ap_start(void);
 extern char sipi_params_16bit[];
 extern char sipi_params[];
 
-#endif /* __ASSEMBLER__ */
+#endif /* __ASSEMBLY__ */
 
 #endif

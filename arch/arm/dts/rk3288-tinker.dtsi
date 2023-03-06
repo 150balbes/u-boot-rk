@@ -39,7 +39,6 @@
  */
 
 #include "rk3288.dtsi"
-#include "rk3288-u-boot.dtsi"
 
 / {
 	memory {
@@ -56,8 +55,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";

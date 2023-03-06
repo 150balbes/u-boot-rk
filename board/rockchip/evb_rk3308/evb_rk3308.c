@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2018 Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <adc.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -38,7 +38,7 @@ int rockchip_dnl_key_pressed(void)
 		return false;
 	}
 
-	if ((key_val >= KEY_DOWN_MIN_VAL) && (key_val <= KEY_DOWN_MAX_VAL))
+	if (key_val >= KEY_DOWN_MIN_VAL && key_val <= KEY_DOWN_MAX_VAL)
 		return true;
 	else
 		return false;

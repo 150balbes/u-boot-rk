@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale i.MX28 GPMI Register Definitions
  *
@@ -6,8 +7,6 @@
  *
  * Based on code from LTIB:
  * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MX28_REGS_GPMI_H__
@@ -71,6 +70,11 @@ struct mxs_gpmi_regs {
 #define	GPMI_ECCCTRL_ECC_CMD_OFFSET			13
 #define	GPMI_ECCCTRL_ECC_CMD_DECODE			(0x0 << 13)
 #define	GPMI_ECCCTRL_ECC_CMD_ENCODE			(0x1 << 13)
+#define	GPMI_ECCCTRL_RANDOMIZER_ENABLE			(1 << 11)
+#define	GPMI_ECCCTRL_RANDOMIZER_TYPE0			0
+#define	GPMI_ECCCTRL_RANDOMIZER_TYPE1			(1 << 9)
+#define	GPMI_ECCCTRL_RANDOMIZER_TYPE2			(2 << 9)
+
 #define	GPMI_ECCCTRL_ENABLE_ECC				(1 << 12)
 #define	GPMI_ECCCTRL_BUFFER_MASK_MASK			0x1ff
 #define	GPMI_ECCCTRL_BUFFER_MASK_OFFSET			0
@@ -89,6 +93,11 @@ struct mxs_gpmi_regs {
 #define	GPMI_CTRL1_DECOUPLE_CS				(1 << 24)
 #define	GPMI_CTRL1_WRN_DLY_SEL_MASK			(0x3 << 22)
 #define	GPMI_CTRL1_WRN_DLY_SEL_OFFSET			22
+#define	GPMI_CTRL1_WRN_DLY_SEL_4_TO_8NS			0x0
+#define	GPMI_CTRL1_WRN_DLY_SEL_6_TO_10NS		0x1
+#define	GPMI_CTRL1_WRN_DLY_SEL_7_TO_12NS		0x2
+#define	GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY			0x3
+
 #define	GPMI_CTRL1_TIMEOUT_IRQ_EN			(1 << 20)
 #define	GPMI_CTRL1_GANGED_RDYBUSY			(1 << 19)
 #define	GPMI_CTRL1_BCH_MODE				(1 << 18)
@@ -107,6 +116,10 @@ struct mxs_gpmi_regs {
 #define	GPMI_CTRL1_ATA_IRQRDY_POLARITY			(1 << 2)
 #define	GPMI_CTRL1_CAMERA_MODE				(1 << 1)
 #define	GPMI_CTRL1_GPMI_MODE				(1 << 0)
+#define	GPMI_CTRL1_CLEAR_MASK				(GPMI_CTRL1_WRN_DLY_SEL_MASK | \
+							 GPMI_CTRL1_DLL_ENABLE | \
+							 GPMI_CTRL1_RDN_DELAY_MASK | \
+							 GPMI_CTRL1_HALF_PERIOD)
 
 #define	GPMI_TIMING0_ADDRESS_SETUP_MASK			(0xff << 16)
 #define	GPMI_TIMING0_ADDRESS_SETUP_OFFSET		16

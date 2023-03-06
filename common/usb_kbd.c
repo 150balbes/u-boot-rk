@@ -1,21 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Denis Peter, MPL AG Switzerland
  *
  * Part of this source has been derived from the Linux USB
  * project.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <console.h>
 #include <dm.h>
+#include <env.h>
 #include <errno.h>
+#include <log.h>
 #include <malloc.h>
 #include <memalign.h>
 #include <stdio_dev.h>
+#include <watchdog.h>
 #include <asm/byteorder.h>
-#include <linux/input.h>
+#ifdef CONFIG_SANDBOX
+#include <asm/state.h>
+#endif
 
 #include <usb.h>
 
@@ -95,12 +99,6 @@ static const u8 usb_special_keys[] = {
 #define USB_KBD_LEDMASK		\
 	(USB_KBD_NUMLOCK | USB_KBD_CAPSLOCK | USB_KBD_SCROLLLOCK)
 
-/*
- * USB Keyboard reports are 8 bytes in boot protocol.
- * Appendix B of HID Device Class Definition 1.11
- */
-#define USB_KBD_BOOT_REPORT_SIZE 8
-
 struct usb_kbd_pdata {
 	unsigned long	intpipe;
 	int		intpktsize;
@@ -123,7 +121,7 @@ struct usb_kbd_pdata {
 extern int __maybe_unused net_busy_flag;
 
 /* The period of time between two calls of usb_kbd_testc(). */
-static unsigned long __maybe_unused kbd_testc_tms;
+static unsigned long kbd_testc_tms;
 
 /* Puts character in the queue and sets up the in and out pointer. */
 static void usb_kbd_put_queue(struct usb_kbd_pdata *data, u8 c)
@@ -399,21 +397,39 @@ static int usb_kbd_testc(struct stdio_dev *sdev)
 	struct usb_device *usb_kbd_dev;
 	struct usb_kbd_pdata *data;
 
+	/*
+	 * Polling the keyboard for an event can take dozens of milliseconds.
+	 * Add a delay between polls to avoid blocking activity which polls
+	 * rapidly, like the UEFI console timer.
+	 */
+	unsigned long poll_delay = CONFIG_SYS_HZ / 50;
+
 #ifdef CONFIG_CMD_NET
 	/*
 	 * If net_busy_flag is 1, NET transfer is running,
 	 * then we check key-pressed every second (first check may be
 	 * less than 1 second) to improve TFTP booting performance.
 	 */
-	if (net_busy_flag && (get_timer(kbd_testc_tms) < CONFIG_SYS_HZ))
-		return 0;
-	kbd_testc_tms = get_timer(0);
+	if (net_busy_flag)
+		poll_delay = CONFIG_SYS_HZ;
 #endif
-	dev = stdio_get_by_name(DEVNAME);
+
+#ifdef CONFIG_SANDBOX
+	/*
+	 * Skip delaying polls if a test requests it.
+	 */
+	if (state_get_skip_delays())
+		poll_delay = 0;
+#endif
+
+	dev = stdio_get_by_name(sdev->name);
 	usb_kbd_dev = (struct usb_device *)dev->priv;
 	data = usb_kbd_dev->privptr;
 
-	usb_kbd_poll_for_event(usb_kbd_dev);
+	if (get_timer(kbd_testc_tms) >= poll_delay) {
+		usb_kbd_poll_for_event(usb_kbd_dev);
+		kbd_testc_tms = get_timer(0);
+	}
 
 	return !(data->usb_in_pointer == data->usb_out_pointer);
 }
@@ -425,12 +441,14 @@ static int usb_kbd_getc(struct stdio_dev *sdev)
 	struct usb_device *usb_kbd_dev;
 	struct usb_kbd_pdata *data;
 
-	dev = stdio_get_by_name(DEVNAME);
+	dev = stdio_get_by_name(sdev->name);
 	usb_kbd_dev = (struct usb_device *)dev->priv;
 	data = usb_kbd_dev->privptr;
 
-	while (data->usb_in_pointer == data->usb_out_pointer)
+	while (data->usb_in_pointer == data->usb_out_pointer) {
+		schedule();
 		usb_kbd_poll_for_event(usb_kbd_dev);
+	}
 
 	if (data->usb_out_pointer == USB_KBD_BUFFER_LEN - 1)
 		data->usb_out_pointer = 0;
@@ -446,6 +464,7 @@ static int usb_kbd_probe_dev(struct usb_device *dev, unsigned int ifnum)
 	struct usb_interface *iface;
 	struct usb_endpoint_descriptor *ep;
 	struct usb_kbd_pdata *data;
+	int epNum;
 
 	if (dev->descriptor.bNumConfigurations != 1)
 		return 0;
@@ -461,19 +480,21 @@ static int usb_kbd_probe_dev(struct usb_device *dev, unsigned int ifnum)
 	if (iface->desc.bInterfaceProtocol != USB_PROT_HID_KEYBOARD)
 		return 0;
 
-	if (iface->desc.bNumEndpoints != 1)
+	for (epNum = 0; epNum < iface->desc.bNumEndpoints; epNum++) {
+		ep = &iface->ep_desc[epNum];
+
+		/* Check if endpoint is interrupt IN endpoint */
+		if ((ep->bmAttributes & 3) != 3)
+			continue;
+
+		if (ep->bEndpointAddress & 0x80)
+			break;
+	}
+
+	if (epNum == iface->desc.bNumEndpoints)
 		return 0;
 
-	ep = &iface->ep_desc[0];
-
-	/* Check if endpoint 1 is interrupt endpoint */
-	if (!(ep->bEndpointAddress & 0x80))
-		return 0;
-
-	if ((ep->bmAttributes & 3) != 3)
-		return 0;
-
-	debug("USB KBD: found set protocol...\n");
+	debug("USB KBD: found interrupt EP: 0x%x\n", ep->bEndpointAddress);
 
 	data = malloc(sizeof(struct usb_kbd_pdata));
 	if (!data) {
@@ -501,13 +522,15 @@ static int usb_kbd_probe_dev(struct usb_device *dev, unsigned int ifnum)
 	data->last_report = -1;
 
 	/* We found a USB Keyboard, install it. */
+	debug("USB KBD: set boot protocol\n");
 	usb_set_protocol(dev, iface->desc.bInterfaceNumber, 0);
 
-	debug("USB KBD: found set idle...\n");
 #if !defined(CONFIG_SYS_USB_EVENT_POLL_VIA_CONTROL_EP) && \
     !defined(CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE)
+	debug("USB KBD: set idle interval...\n");
 	usb_set_idle(dev, iface->desc.bInterfaceNumber, REPEAT_RATE / 4, 0);
 #else
+	debug("USB KBD: set idle interval=0...\n");
 	usb_set_idle(dev, iface->desc.bInterfaceNumber, 0, 0);
 #endif
 
@@ -558,21 +581,22 @@ static int probe_usb_keyboard(struct usb_device *dev)
 
 	stdinname = env_get("stdin");
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
-	error = iomux_doenv(stdin, stdinname);
-	if (error)
-		return error;
+	if (strstr(stdinname, DEVNAME) != NULL) {
+		error = iomux_doenv(stdin, stdinname);
+		if (error)
+			return error;
+	}
 #else
 	/* Check if this is the standard input device. */
-	if (strcmp(stdinname, DEVNAME))
-		return 1;
+	if (!strcmp(stdinname, DEVNAME)) {
+		/* Reassign the console */
+		if (overwrite_console())
+			return 1;
 
-	/* Reassign the console */
-	if (overwrite_console())
-		return 1;
-
-	error = console_assign(stdin, DEVNAME);
-	if (error)
-		return error;
+		error = console_assign(stdin, DEVNAME);
+		if (error)
+			return error;
+	}
 #endif
 
 	return 0;
@@ -620,12 +644,12 @@ int usb_kbd_deregister(int force)
 	if (dev) {
 		usb_kbd_dev = (struct usb_device *)dev->priv;
 		data = usb_kbd_dev->privptr;
-		if (stdio_deregister_dev(dev, force) != 0)
-			return 1;
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
-		if (iomux_doenv(stdin, env_get("stdin")) != 0)
+		if (iomux_replace_device(stdin, DEVNAME, force ? "nulldev" : ""))
 			return 1;
 #endif
+		if (stdio_deregister_dev(dev, force) != 0)
+			return 1;
 #ifdef CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE
 		destroy_int_queue(usb_kbd_dev, data->intq);
 #endif
@@ -642,61 +666,6 @@ int usb_kbd_deregister(int force)
 #endif
 
 #if CONFIG_IS_ENABLED(DM_USB)
-
-int usb_kbd_recv_fn(int key_fn)
-{
-	char ch[5];
-	int i;
-
-	if (!ftstc(stdin)) {
-		debug("No char\n");
-		return 0;
-	}
-
-	memset(ch, 0, 5);
-	for (i = 0; i < 5; i++) {
-		if (!ftstc(stdin))
-			break;
-		ch[i] = fgetc(stdin);
-		debug("char[%d]: 0x%x, %d\n", i, ch[i], ch[i]);
-	}
-
-	if (ch[0] != 0x1b) {
-		debug("Invalid 0x1b\n");
-		return 0;
-	}
-
-	switch (key_fn) {
-	case KEY_F1:
-	case KEY_F2:
-	case KEY_F3:
-	case KEY_F4:
-		if (ch[1] != 0x4f)
-			return 0;
-		return (ch[2] - 21 == key_fn);
-	case KEY_F5:
-	case KEY_F6:
-	case KEY_F7:
-	case KEY_F8:
-		if (ch[1] != '[' || ch[2] != '1' || ch[4] != '~')
-			return 0;
-		return (ch[3] + 9 == key_fn);
-	case KEY_F9:
-	case KEY_F10:
-		if (ch[1] != '[' || ch[2] != '2' || ch[4] != '~')
-			return 0;
-		return (ch[3] + 19 == key_fn);
-	case KEY_F11:
-	case KEY_F12:
-		if (ch[1] != '[' || ch[2] != '2' || ch[4] != '~')
-			return 0;
-		return (ch[3] + 36 == key_fn);
-	default:
-		return 0;
-	}
-
-	return 0;
-}
 
 static int usb_kbd_probe(struct udevice *dev)
 {
@@ -718,16 +687,16 @@ static int usb_kbd_remove(struct udevice *dev)
 		goto err;
 	}
 	data = udev->privptr;
-	if (stdio_deregister_dev(sdev, true)) {
-		ret = -EPERM;
-		goto err;
-	}
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
-	if (iomux_doenv(stdin, env_get("stdin"))) {
+	if (iomux_replace_device(stdin, DEVNAME, "nulldev")) {
 		ret = -ENOLINK;
 		goto err;
 	}
 #endif
+	if (stdio_deregister_dev(sdev, true)) {
+		ret = -EPERM;
+		goto err;
+	}
 #ifdef CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE
 	destroy_int_queue(udev, data->intq);
 #endif

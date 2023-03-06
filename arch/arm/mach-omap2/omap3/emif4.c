@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Author :
  *     Vaibhav Hiremath <hvaibhav@ti.com>
@@ -6,11 +7,11 @@
  *
  * Copyright (C) 2010
  * Texas Instruments Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/mem.h>
 #include <asm/arch/sys_proto.h>
@@ -34,13 +35,13 @@ u32 is_mem_sdr(void)
  * get_sdr_cs_size -
  *  - Get size of chip select 0/1
  */
-u32 get_sdr_cs_size(u32 cs)
+static u32 get_sdr_cs_size(u32 cs)
 {
 	u32 size = 0;
 
 	/* TODO: Calculate the size based on EMIF4 configuration */
 	if (cs == CS0)
-		size = CONFIG_SYS_CS0_SIZE;
+		size = 256 * 1024 * 1024;
 
 	return size;
 }

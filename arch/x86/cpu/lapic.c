@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * From coreboot file of same name
  *
  * Copyright (C) 2008-2009 coresystems GmbH
  * Copyright (C) 2014 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/lapic.h>
 #include <asm/msr.h>

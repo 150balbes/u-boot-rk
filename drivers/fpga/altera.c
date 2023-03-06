@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Steven Scholz, imc Measurement & Control, steven.scholz@imc-berlin.de
  *
  * (C) Copyright 2002
  * Rich Ireland, Enterasys Networks, rireland@enterasys.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
+
+#define LOG_CATEGORY UCLASS_FPGA
 
 /*
  *  Altera FPGA support
@@ -14,10 +15,8 @@
 #include <common.h>
 #include <errno.h>
 #include <ACEX1K.h>
+#include <log.h>
 #include <stratixII.h>
-
-/* Define FPGA_DEBUG to 1 to get debug printf's */
-#define FPGA_DEBUG	0
 
 static const struct altera_fpga {
 	enum altera_family	family;
@@ -42,6 +41,10 @@ static const struct altera_fpga {
 #endif
 #if defined(CONFIG_FPGA_SOCFPGA)
 	{ Altera_SoCFPGA, "SoC FPGA", socfpga_load, NULL, NULL },
+#endif
+#if defined(CONFIG_FPGA_INTEL_SDM_MAILBOX)
+	{ Intel_FPGA_SDM_Mailbox, "Intel SDM Mailbox", intel_sdm_mb_load, NULL,
+	  NULL },
 #endif
 };
 
@@ -102,8 +105,7 @@ int altera_load(Altera_desc *desc, const void *buf, size_t bsize)
 	if (!fpga)
 		return FPGA_FAIL;
 
-	debug_cond(FPGA_DEBUG, "%s: Launching the %s Loader...\n",
-		   __func__, fpga->name);
+	log_debug("Launching the %s Loader...\n", fpga->name);
 	if (fpga->load)
 		return fpga->load(desc, buf, bsize);
 	return 0;
@@ -116,8 +118,7 @@ int altera_dump(Altera_desc *desc, const void *buf, size_t bsize)
 	if (!fpga)
 		return FPGA_FAIL;
 
-	debug_cond(FPGA_DEBUG, "%s: Launching the %s Reader...\n",
-		   __func__, fpga->name);
+	log_debug("Launching the %s Reader...\n", fpga->name);
 	if (fpga->dump)
 		return fpga->dump(desc, buf, bsize);
 	return 0;
@@ -154,6 +155,9 @@ int altera_info(Altera_desc *desc)
 		break;
 	case fast_passive_parallel_security:
 		printf("Fast Passive Parallel with Security (FPPS)\n");
+		break;
+	case secure_device_manager_mailbox:
+		puts("Secure Device Manager (SDM) Mailbox\n");
 		break;
 		/* Add new interface types here */
 	default:

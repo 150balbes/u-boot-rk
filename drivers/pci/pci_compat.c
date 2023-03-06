@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Compatibility functions for pre-driver-model code
  *
  * Copyright (C) 2014 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
+#include <log.h>
 #include <malloc.h>
 #include <pci.h>
 #include <dm/device-internal.h>

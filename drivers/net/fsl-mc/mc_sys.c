@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale Layerscape MC I/O wrapper
  *
  * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <fsl-mc/fsl_mc_sys.h>
@@ -12,6 +11,7 @@
 #include <common.h>
 #include <errno.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 
 #define MC_CMD_HDR_READ_CMDID(_hdr) \
 	((uint16_t)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))

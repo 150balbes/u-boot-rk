@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * Author:
  *	Peng Fan <Peng.Fan@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_CLOCK_H
 #define _ASM_ARCH_CLOCK_H
 
-#include <common.h>
 #include <asm/arch/crm_regs.h>
 
 #ifdef CONFIG_SYS_MX7_HCLK
@@ -176,6 +174,24 @@ enum clk_root_index {
 	CLK_ROOT_MAX,
 };
 
+#if (CONFIG_CONS_INDEX == 0)
+#define UART_CLK_ROOT UART1_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 1)
+#define UART_CLK_ROOT UART2_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 2)
+#define UART_CLK_ROOT UART3_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 3)
+#define UART_CLK_ROOT UART4_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 4)
+#define UART_CLK_ROOT UART5_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 5)
+#define UART_CLK_ROOT UART6_CLK_ROOT
+#elif (CONFIG_CONS_INDEX == 6)
+#define UART_CLK_ROOT UART7_CLK_ROOT
+#else
+#error "Invalid IMX UART ID for serial console is defined"
+#endif
+
 struct clk_root_setting {
 	enum clk_root_index root;
 	u32 setting;
@@ -318,9 +334,9 @@ struct clk_root_map {
 };
 
 enum enet_freq {
-	ENET_25MHz,
-	ENET_50MHz,
-	ENET_125MHz,
+	ENET_25MHZ,
+	ENET_50MHZ,
+	ENET_125MHZ,
 };
 
 u32 get_root_clk(enum clk_root_index clock_id);
@@ -340,7 +356,7 @@ int set_clk_nand(void);
 void enable_ocotp_clk(unsigned char enable);
 #endif
 void enable_usboh3_clk(unsigned char enable);
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable);
 #endif
 void mxs_set_lcdclk(uint32_t base_addr, uint32_t freq);

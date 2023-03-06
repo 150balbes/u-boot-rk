@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002
  * Rich Ireland, Enterasys Networks, rireland@enterasys.com.
  * Keith Outwater, keith_outwater@mvis.com
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _VIRTEX2_H_
@@ -12,7 +11,7 @@
 #include <xilinx.h>
 
 /*
- * Slave SelectMap Implementation function table.
+ * Slave SelectMap or Serial Implementation function table.
  */
 typedef struct {
 	xilinx_pre_fn	pre;
@@ -25,18 +24,11 @@ typedef struct {
 	xilinx_wr_fn	wr;
 	xilinx_rdata_fn	rdata;
 	xilinx_wdata_fn	wdata;
+	xilinx_bwr_fn   wbulkdata;
 	xilinx_busy_fn	busy;
 	xilinx_abort_fn	abort;
 	xilinx_post_fn	post;
-} xilinx_virtex2_slave_selectmap_fns;
-
-/* Slave Serial Implementation function table */
-typedef struct {
-	xilinx_pgm_fn	pgm;
-	xilinx_clk_fn	clk;
-	xilinx_rdata_fn	rdata;
-	xilinx_wdata_fn	wdata;
-} xilinx_virtex2_slave_serial_fns;
+} xilinx_virtex2_slave_fns;
 
 #if defined(CONFIG_FPGA_VIRTEX2)
 extern struct xilinx_fpga_op virtex2_op;

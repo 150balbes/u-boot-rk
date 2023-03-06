@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * mcf5249.h -- Definitions for Motorola Coldfire 5249
  *
  * Based on mcf5272sim.h of uCLinux distribution:
  *      (C) Copyright 1999, Greg Ungerer (gerg@snapgear.com)
  *      (C) Copyright 2000, Lineo Inc. (www.lineo.com)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef	mcf5249_h
@@ -15,14 +14,14 @@
 /*
  * useful definitions for reading/writing MBAR offset memory
  */
-#define mbar_readLong(x)	*((volatile unsigned long *) (CONFIG_SYS_MBAR + x))
-#define mbar_writeLong(x,y)	*((volatile unsigned long *) (CONFIG_SYS_MBAR + x)) = y
-#define mbar_writeShort(x,y)	*((volatile unsigned short *) (CONFIG_SYS_MBAR + x)) = y
-#define mbar_writeByte(x,y)	*((volatile unsigned char *) (CONFIG_SYS_MBAR + x)) = y
-#define mbar2_readLong(x)	*((volatile unsigned long *) (CONFIG_SYS_MBAR2 + x))
-#define mbar2_writeLong(x,y)	*((volatile unsigned long *) (CONFIG_SYS_MBAR2 + x)) = y
-#define mbar2_writeShort(x,y)	*((volatile unsigned short *) (CONFIG_SYS_MBAR2 + x)) = y
-#define mbar2_writeByte(x,y)	*((volatile unsigned char *) (CONFIG_SYS_MBAR2 + x)) = y
+#define mbar_readLong(x)	*((volatile unsigned long *) (CFG_SYS_MBAR + x))
+#define mbar_writeLong(x,y)	*((volatile unsigned long *) (CFG_SYS_MBAR + x)) = y
+#define mbar_writeShort(x,y)	*((volatile unsigned short *) (CFG_SYS_MBAR + x)) = y
+#define mbar_writeByte(x,y)	*((volatile unsigned char *) (CFG_SYS_MBAR + x)) = y
+#define mbar2_readLong(x)	*((volatile unsigned long *) (CFG_SYS_MBAR2 + x))
+#define mbar2_writeLong(x,y)	*((volatile unsigned long *) (CFG_SYS_MBAR2 + x)) = y
+#define mbar2_writeShort(x,y)	*((volatile unsigned short *) (CFG_SYS_MBAR2 + x)) = y
+#define mbar2_writeByte(x,y)	*((volatile unsigned char *) (CFG_SYS_MBAR2 + x)) = y
 
 /*
  * Size of internal RAM

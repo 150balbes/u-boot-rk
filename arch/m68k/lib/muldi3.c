@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * muldi3.c extracted from gcc-2.7.2.3/libgcc2.c and
  *			   gcc-2.7.2.3/longlong.h
  *
  * Copyright (C) 1989, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #define SI_TYPE_SIZE 32
@@ -42,7 +41,7 @@
     umul_ppmm (__w.s.high, __w.s.low, u, v);				\
     __w.ll; })
 
-typedef 	 int SItype	__attribute__ ((mode (SI)));
+typedef		 int SItype	__attribute__ ((mode (SI)));
 typedef unsigned int USItype	__attribute__ ((mode (SI)));
 typedef		 int DItype	__attribute__ ((mode (DI)));
 typedef int word_type __attribute__ ((mode (__word__)));

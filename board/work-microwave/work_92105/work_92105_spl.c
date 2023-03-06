@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * WORK Microwave work_92105 board support
  *
  * (C) Copyright 2014  DENX Software Engineering GmbH
  * Written-by: Albert ARIBAUD <albert.aribaud@3adev.fr>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -59,7 +58,7 @@ const struct emc_dram_settings dram_128mb = {
 void spl_board_init(void)
 {
 	/* initialize serial port for console */
-	lpc32xx_uart_init(CONFIG_SYS_LPC32XX_UART);
+	lpc32xx_uart_init(CONFIG_CONS_INDEX);
 	/* initialize console */
 	preloader_console_init();
 	/* init DDR and NAND to chainload U-Boot */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013
  * Afzal Mohammed <afzal.mohd.ma@gmail.com>
@@ -5,12 +6,11 @@
  * Reference: dfu_mmc.c
  * Copyright (C) 2012 Samsung Electronics
  * author: Lukasz Majewski <l.majewski@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <malloc.h>
+#include <mapmem.h>
 #include <errno.h>
 #include <dfu.h>
 
@@ -28,9 +28,9 @@ static int dfu_transfer_medium_ram(enum dfu_op op, struct dfu_entity *dfu,
 	}
 
 	if (op == DFU_OP_WRITE)
-		memcpy(dfu->data.ram.start + offset, buf, *len);
+		memcpy(map_sysmem(dfu->data.ram.start + offset, 0), buf, *len);
 	else
-		memcpy(buf, dfu->data.ram.start + offset, *len);
+		memcpy(buf, map_sysmem(dfu->data.ram.start + offset, 0), *len);
 
 	return 0;
 }
@@ -54,17 +54,13 @@ static int dfu_read_medium_ram(struct dfu_entity *dfu, u64 offset,
 	return dfu_transfer_medium_ram(DFU_OP_READ, dfu, offset, buf, len);
 }
 
-int dfu_fill_entity_ram(struct dfu_entity *dfu, char *devstr, char *s)
+int dfu_fill_entity_ram(struct dfu_entity *dfu, char *devstr, char **argv, int argc)
 {
-	const char *argv[3];
-	const char **parg = argv;
+	char *s;
 
-	for (; parg < argv + sizeof(argv) / sizeof(*argv); ++parg) {
-		*parg = strsep(&s, " ");
-		if (*parg == NULL) {
-			pr_err("Invalid number of arguments.\n");
-			return -ENODEV;
-		}
+	if (argc != 3) {
+		pr_err("Invalid number of arguments.\n");
+		return -EINVAL;
 	}
 
 	dfu->dev_type = DFU_DEV_RAM;
@@ -74,8 +70,12 @@ int dfu_fill_entity_ram(struct dfu_entity *dfu, char *devstr, char *s)
 	}
 
 	dfu->layout = DFU_RAM_ADDR;
-	dfu->data.ram.start = (void *)simple_strtoul(argv[1], NULL, 16);
-	dfu->data.ram.size = simple_strtoul(argv[2], NULL, 16);
+	dfu->data.ram.start = hextoul(argv[1], &s);
+	if (*s)
+		return -EINVAL;
+	dfu->data.ram.size = hextoul(argv[2], &s);
+	if (*s)
+		return -EINVAL;
 
 	dfu->write_medium = dfu_write_medium_ram;
 	dfu->get_medium_size = dfu_get_medium_size_ram;

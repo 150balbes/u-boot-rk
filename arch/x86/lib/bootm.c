@@ -1,15 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Marius Groeger <mgroeger@sysgo.de>
  *
  * Copyright (C) 2001  Erik Mouw (J.A.K.Mouw@its.tudelft.nl)
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <bootstage.h>
 #include <command.h>
+#include <hang.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <dm/device.h>
 #include <dm/root.h>
 #include <errno.h>
@@ -28,19 +31,15 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define COMMAND_LINE_OFFSET 0x9000
 
-__weak void board_quiesce_devices(void)
-{
-}
-
 void bootm_announce_and_cleanup(void)
 {
 	printf("\nStarting kernel ...\n\n");
 
 #ifdef CONFIG_SYS_COREBOOT
-	timestamp_add_now(TS_U_BOOT_START_KERNEL);
+	timestamp_add_now(TS_START_KERNEL);
 #endif
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
-#ifdef CONFIG_BOOTSTAGE_REPORT
+#if CONFIG_IS_ENABLED(BOOTSTAGE_REPORT)
 	bootstage_report();
 #endif
 
@@ -55,7 +54,7 @@ void bootm_announce_and_cleanup(void)
 #if defined(CONFIG_OF_LIBFDT) && !defined(CONFIG_OF_NO_KERNEL)
 int arch_fixup_memory_node(void *blob)
 {
-	bd_t	*bd = gd->bd;
+	struct bd_info	*bd = gd->bd;
 	int bank;
 	u64 start[CONFIG_NR_DRAM_BANKS];
 	u64 size[CONFIG_NR_DRAM_BANKS];
@@ -70,24 +69,23 @@ int arch_fixup_memory_node(void *blob)
 #endif
 
 /* Subcommand: PREP */
-static int boot_prep_linux(bootm_headers_t *images)
+static int boot_prep_linux(struct bootm_headers *images)
 {
 	char *cmd_line_dest = NULL;
-	image_header_t *hdr;
+	struct legacy_img_hdr *hdr;
 	int is_zimage = 0;
 	void *data = NULL;
 	size_t len;
 	int ret;
 
-#ifdef CONFIG_OF_LIBFDT
-	if (images->ft_len) {
+	if (CONFIG_IS_ENABLED(OF_LIBFDT) && CONFIG_IS_ENABLED(LMB) && images->ft_len) {
 		debug("using: FDT\n");
 		if (image_setup_linux(images)) {
 			puts("FDT creation failed! hanging...");
 			hang();
 		}
 	}
-#endif
+
 	if (images->legacy_hdr_valid) {
 		hdr = images->legacy_hdr_os;
 		if (image_check_type(hdr, IH_TYPE_MULTI)) {
@@ -104,7 +102,7 @@ static int boot_prep_linux(bootm_headers_t *images)
 		}
 		is_zimage = 1;
 #if defined(CONFIG_FIT)
-	} else if (images->fit_uname_os) {
+	} else if (images->fit_uname_os && is_zimage) {
 		ret = fit_image_get_data(images->fit_hdr_os,
 				images->fit_noffset_os,
 				(const void **)&data, &len);
@@ -121,6 +119,10 @@ static int boot_prep_linux(bootm_headers_t *images)
 		char *base_ptr;
 
 		base_ptr = (char *)load_zimage(data, len, &load_address);
+		if (!base_ptr) {
+			puts("## Kernel loading failed ...\n");
+			goto error;
+		}
 		images->os.load = load_address;
 		cmd_line_dest = base_ptr + COMMAND_LINE_OFFSET;
 		images->ep = (ulong)base_ptr;
@@ -134,7 +136,7 @@ static int boot_prep_linux(bootm_headers_t *images)
 	printf("Setup at %#08lx\n", images->ep);
 	ret = setup_zimage((void *)images->ep, cmd_line_dest,
 			0, images->rd_start,
-			images->rd_end - images->rd_start);
+			images->rd_end - images->rd_start, 0);
 
 	if (ret) {
 		printf("## Setting up boot parameters failed ...\n");
@@ -176,10 +178,14 @@ int boot_linux_kernel(ulong setup_base, ulong load_address, bool image_64bit)
 		* U-Boot is setting them up that way for itself in
 		* arch/i386/cpu/cpu.c.
 		*
-		* Note that we cannot currently boot a kernel while running as
-		* an EFI application. Please use the payload option for that.
+		* Note: this is incomplete for EFI kernels!
+		*
+		* This can boot a kernel while running as an EFI application,
+		* but if the kernel requires EFI support then that support needs
+		* to be enabled first (see EFI_LOADER). Also the EFI information
+		* must enabled with setup_efi_info(). See setup_zimage() for
+		* how this is done with the stub.
 		*/
-#ifndef CONFIG_EFI_APP
 		__asm__ __volatile__ (
 		"movl $0, %%ebp\n"
 		"cli\n"
@@ -188,7 +194,6 @@ int boot_linux_kernel(ulong setup_base, ulong load_address, bool image_64bit)
 		[boot_params] "S"(setup_base),
 		"b"(0), "D"(0)
 		);
-#endif
 	}
 
 	/* We can't get to here */
@@ -196,7 +201,7 @@ int boot_linux_kernel(ulong setup_base, ulong load_address, bool image_64bit)
 }
 
 /* Subcommand: GO */
-static int boot_jump_linux(bootm_headers_t *images)
+static int boot_jump_linux(struct bootm_headers *images)
 {
 	debug("## Transferring control to Linux (at address %08lx, kernel %08lx) ...\n",
 	      images->ep, images->os.load);
@@ -205,8 +210,8 @@ static int boot_jump_linux(bootm_headers_t *images)
 				 images->os.arch == IH_ARCH_X86_64);
 }
 
-int do_bootm_linux(int flag, int argc, char * const argv[],
-		bootm_headers_t *images)
+int do_bootm_linux(int flag, int argc, char *const argv[],
+		   struct bootm_headers *images)
 {
 	/* No need for those on x86 */
 	if (flag & BOOTM_STATE_OS_BD_T || flag & BOOTM_STATE_OS_CMDLINE)
@@ -219,4 +224,22 @@ int do_bootm_linux(int flag, int argc, char * const argv[],
 		return boot_jump_linux(images);
 
 	return boot_jump_linux(images);
+}
+
+static ulong get_sp(void)
+{
+	ulong ret;
+
+#if CONFIG_IS_ENABLED(X86_64)
+	ret = gd->start_addr_sp;
+#else
+	asm("mov %%esp, %0" : "=r"(ret) : );
+#endif
+
+	return ret;
+}
+
+void arch_lmb_reserve(struct lmb *lmb)
+{
+	arch_lmb_reserve_generic(lmb, get_sp(), gd->ram_top, 4096);
 }

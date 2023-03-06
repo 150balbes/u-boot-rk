@@ -8,6 +8,7 @@
 #include <dm/pinctrl.h>
 #include <regmap.h>
 #include <syscon.h>
+#include <linux/bitops.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -174,7 +175,6 @@ static struct rockchip_pin_bank rk3128_pin_banks[] = {
 static struct rockchip_pin_ctrl rk3128_pin_ctrl = {
 	.pin_banks		= rk3128_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3128_pin_banks),
-	.nr_pins		= 128,
 	.grf_mux_offset		= 0xa8,
 	.iomux_recalced		= rk3128_mux_recalced_data,
 	.niomux_recalced	= ARRAY_SIZE(rk3128_mux_recalced_data),
@@ -194,9 +194,9 @@ U_BOOT_DRIVER(pinctrl_rk3128) = {
 	.name		= "pinctrl_rk3128",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= rk3128_pinctrl_ids,
-	.priv_auto_alloc_size = sizeof(struct rockchip_pinctrl_priv),
+	.priv_auto	= sizeof(struct rockchip_pinctrl_priv),
 	.ops		= &rockchip_pinctrl_ops,
-#if !CONFIG_IS_ENABLED(OF_PLATDATA)
+#if CONFIG_IS_ENABLED(OF_REAL)
 	.bind		= dm_scan_fdt_dev,
 #endif
 	.probe		= rockchip_pinctrl_probe,

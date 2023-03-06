@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Written by H. Peter Anvin <hpa@zytor.com>
  * Brought in from Linux v4.4 and modified for U-Boot
  * From Linux arch/um/sys-i386/setjmp.S
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #define _REGPARM
@@ -50,12 +49,17 @@ longjmp:
 	xchgl %eax, %edx
 #else
 	movl 4(%esp), %edx	/* jmp_ptr address */
+	movl 8(%esp), %eax	/* Return value */
 #endif
 	movl (%edx), %ebx
 	movl 4(%edx), %esp
 	movl 8(%edx), %ebp
 	movl 12(%edx), %esi
 	movl 16(%edx), %edi
+	test %eax, %eax
+	jnz nz
+	inc %eax
+nz:
 	jmp *20(%edx)
 
 	.size longjmp, .-longjmp

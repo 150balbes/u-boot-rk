@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -18,10 +19,13 @@
  */
 
 #include <common.h>
+#include <blk.h>
 #include <ext_common.h>
 #include <ext4fs.h>
+#include <log.h>
 #include <malloc.h>
 #include <memalign.h>
+#include <part.h>
 #include <stddef.h>
 #include <linux/stat.h>
 #include <linux/time.h>
@@ -423,14 +427,14 @@ uint16_t ext4fs_checksum_update(uint32_t i)
 	if (le32_to_cpu(fs->sb->feature_ro_compat) & EXT4_FEATURE_RO_COMPAT_GDT_CSUM) {
 		int offset = offsetof(struct ext2_block_group, bg_checksum);
 
-		crc = ext2fs_crc16(~0, fs->sb->unique_id,
+		crc = crc16(~0, (__u8 *)fs->sb->unique_id,
 				   sizeof(fs->sb->unique_id));
-		crc = ext2fs_crc16(crc, &le32_i, sizeof(le32_i));
-		crc = ext2fs_crc16(crc, desc, offset);
+		crc = crc16(crc, (__u8 *)&le32_i, sizeof(le32_i));
+		crc = crc16(crc, (__u8 *)desc, offset);
 		offset += sizeof(desc->bg_checksum);	/* skip checksum */
 		assert(offset == sizeof(*desc));
 		if (offset < fs->gdsize) {
-			crc = ext2fs_crc16(crc, (__u8 *)desc + offset,
+			crc = crc16(crc, (__u8 *)desc + offset,
 					   fs->gdsize - offset);
 		}
 	}
@@ -846,15 +850,20 @@ end:
 
 fail:
 	free(depth_dirname);
-	free(parse_dirname);
-	for (i = 0; i < depth; i++) {
-		if (!ptr[i])
-			break;
-		free(ptr[i]);
+	if (parse_dirname)
+		free(parse_dirname);
+	if (ptr) {
+		for (i = 0; i < depth; i++) {
+			if (!ptr[i])
+				break;
+			free(ptr[i]);
+		}
+		free(ptr);
 	}
-	free(ptr);
-	free(parent_inode);
-	free(first_inode);
+	if (parent_inode)
+		free(parent_inode);
+	if (first_inode)
+		free(first_inode);
 
 	return result_inode_no;
 }
@@ -2411,7 +2420,7 @@ int ext4fs_mount(unsigned part_length)
 
 	return 1;
 fail:
-	printf("Failed to mount ext2 filesystem...\n");
+	log_debug("Failed to mount ext2 filesystem...\n");
 fail_noerr:
 	free(data);
 	ext4fs_root = NULL;

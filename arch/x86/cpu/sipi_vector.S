@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  *
  * Taken from coreboot file of the same name
  */
@@ -12,7 +11,6 @@
  * C code
  */
 
-#include <asm/global_data.h>
 #include <asm/msr-index.h>
 #include <asm/processor.h>
 #include <asm/processor-flags.h>
@@ -132,12 +130,12 @@ ap_start:
 	jnz	microcode_done
 
 	/* Determine if parallel microcode loading is allowed */
-	cmp	$0xffffffff, microcode_lock
+	cmpl	$0xffffffff, microcode_lock
 	je	load_microcode
 
 	/* Protect microcode loading */
 lock_microcode:
-	lock bts $0, microcode_lock
+	lock btsl $0, microcode_lock
 	jc	lock_microcode
 
 load_microcode:
@@ -155,7 +153,7 @@ load_microcode:
 	popa
 
 	/* Unconditionally unlock microcode loading */
-	cmp	$0xffffffff, microcode_lock
+	cmpl	$0xffffffff, microcode_lock
 	je	microcode_done
 
 	xor	%eax, %eax

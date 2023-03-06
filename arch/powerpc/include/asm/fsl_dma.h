@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Freescale DMA Controller
  *
  * Copyright 2006 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _ASM_FSL_DMA_H_
@@ -118,7 +117,7 @@ typedef struct fsl_dma {
 void dma_init(void);
 int dmacpy(phys_addr_t dest, phys_addr_t src, phys_size_t n);
 #if (defined(CONFIG_DDR_ECC) && !defined(CONFIG_ECC_INIT_VIA_DDRCONTROLLER))
-void dma_meminit(uint val, uint size);
+void dma_meminit(uint size);
 #endif
 #endif
 

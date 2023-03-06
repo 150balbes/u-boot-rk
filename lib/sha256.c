@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FIPS-180-2 compliant SHA-256 implementation
  *
  * Copyright (C) 2001-2003  Christophe Devine
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef USE_HOSTCC
@@ -14,6 +13,8 @@
 #endif /* USE_HOSTCC */
 #include <watchdog.h>
 #include <u-boot/sha256.h>
+
+#include <linux/compiler_attributes.h>
 
 const uint8_t sha256_der_prefix[SHA256_DER_LEN] = {
 	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
@@ -56,7 +57,7 @@ void sha256_starts(sha256_context * ctx)
 	ctx->state[7] = 0x5BE0CD19;
 }
 
-static void sha256_process(sha256_context *ctx, const uint8_t data[64])
+static void sha256_process_one(sha256_context *ctx, const uint8_t data[64])
 {
 	uint32_t temp1, temp2;
 	uint32_t W[64];
@@ -187,6 +188,18 @@ static void sha256_process(sha256_context *ctx, const uint8_t data[64])
 	ctx->state[7] += H;
 }
 
+__weak void sha256_process(sha256_context *ctx, const unsigned char *data,
+			   unsigned int blocks)
+{
+	if (!blocks)
+		return;
+
+	while (blocks--) {
+		sha256_process_one(ctx, data);
+		data += 64;
+	}
+}
+
 void sha256_update(sha256_context *ctx, const uint8_t *input, uint32_t length)
 {
 	uint32_t left, fill;
@@ -205,17 +218,15 @@ void sha256_update(sha256_context *ctx, const uint8_t *input, uint32_t length)
 
 	if (left && length >= fill) {
 		memcpy((void *) (ctx->buffer + left), (void *) input, fill);
-		sha256_process(ctx, ctx->buffer);
+		sha256_process(ctx, ctx->buffer, 1);
 		length -= fill;
 		input += fill;
 		left = 0;
 	}
 
-	while (length >= 64) {
-		sha256_process(ctx, input);
-		length -= 64;
-		input += 64;
-	}
+	sha256_process(ctx, input, length / 64);
+	input += length / 64 * 64;
+	length = length % 64;
 
 	if (length)
 		memcpy((void *) (ctx->buffer + left), (void *) input, length);
@@ -258,19 +269,6 @@ void sha256_finish(sha256_context * ctx, uint8_t digest[32])
 }
 
 /*
- * Output = SHA-256( input buffer ).
- */
-void sha256_csum(const unsigned char *input, unsigned int ilen,
-		 unsigned char *output)
-{
-	sha256_context ctx;
-
-	sha256_starts(&ctx);
-	sha256_update(&ctx, input, ilen);
-	sha256_finish(&ctx, output);
-}
-
-/*
  * Output = SHA-256( input buffer ). Trigger the watchdog every 'chunk_sz'
  * bytes of input processed.
  */
@@ -295,7 +293,7 @@ void sha256_csum_wd(const unsigned char *input, unsigned int ilen,
 			chunk = chunk_sz;
 		sha256_update(&ctx, curr, chunk);
 		curr += chunk;
-		WATCHDOG_RESET();
+		schedule();
 	}
 #else
 	sha256_update(&ctx, input, ilen);

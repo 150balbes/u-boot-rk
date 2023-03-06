@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * omap.h
  *
@@ -8,8 +9,6 @@
  *
  * Derived from OMAP4 work by
  *	Aneesh V <aneesh@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _OMAP_H_
@@ -21,7 +20,7 @@
 #define NON_SECURE_SRAM_START	0x402F0400
 #define NON_SECURE_SRAM_END	0x40310000
 #define NON_SECURE_SRAM_IMG_END	0x4030B800
-#elif defined(CONFIG_TI816X) || defined(CONFIG_TI814X)
+#elif defined(CONFIG_TI816X)
 #define NON_SECURE_SRAM_START	0x40300000
 #define NON_SECURE_SRAM_END	0x40320000
 #define NON_SECURE_SRAM_IMG_END	0x4031B800

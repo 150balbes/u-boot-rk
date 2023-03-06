@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * (C) Copyright 2019 Rockchip Electronics Co., Ltd.
+ * (C) Copyright 2019 Amarula Solutions
+ */
+
 {
 	{
 		{
@@ -15,12 +21,22 @@
 				.ddrconfig = 1,
 			},
 			{
-				{0x8010100d},
-				{0x08020b04},
-				{0x00000602},
-				{0x00002562},
-				{0x0000004c},
-				0x00000000
+				.ddrtiminga0 = {
+					0x8010100d,
+				},
+				.ddrtimingb0 = {
+					0x08020b04,
+				},
+				.ddrtimingc0 = {
+					0x00000602,
+				},
+				.devtodev0 = {
+					0x00002562,
+				},
+				.ddrmode = {
+					0x0000004c,
+				},
+				.agingx0 = 0x00000000,
 			}
 		},
 		{
@@ -38,17 +54,27 @@
 				.ddrconfig = 1,
 			},
 			{
-				{0x8010100d},
-				{0x08020b04},
-				{0x00000602},
-				{0x00002562},
-				{0x0000004c},
-				0x00000000
+				.ddrtiminga0 = {
+					0x8010100d,
+				},
+				.ddrtimingb0 = {
+					0x08020b04,
+				},
+				.ddrtimingc0 = {
+					0x00000602,
+				},
+				.devtodev0 = {
+					0x00002562,
+				},
+				.ddrmode = {
+					0x0000004c,
+				},
+				.agingx0 = 0x00000000,
 			}
 		}
 	},
 	{
-		.ddr_freq = 400*MHZ,
+		.ddr_freq = 400 * MHz,
 		.dramtype = LPDDR4,
 		.num_channels = 2,
 		.stride = 13,

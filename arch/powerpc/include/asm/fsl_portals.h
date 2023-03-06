@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2009-2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _FSL_PORTALS_H_
@@ -12,7 +11,7 @@ enum fsl_dpaa_dev {
 	FSL_HW_PORTAL_SEC,
 #ifdef CONFIG_SYS_DPAA_FMAN
 	FSL_HW_PORTAL_FMAN1,
-#if (CONFIG_SYS_NUM_FMAN == 2)
+#if (CFG_SYS_NUM_FMAN == 2)
 	FSL_HW_PORTAL_FMAN2,
 #endif
 #endif
@@ -41,10 +40,6 @@ struct qportal_info {
 
 extern int get_dpaa_liodn(enum fsl_dpaa_dev dpaa_dev,
 			  u32 *liodns, int liodn_offset);
-extern void setup_portals(void);
-extern void fdt_fixup_qportals(void *blob);
-extern void fdt_fixup_bportals(void *blob);
-
 extern struct qportal_info qp_info[];
 extern void fdt_portal(void *blob, const char *compat, const char *container,
 			u64 addr, u32 size);

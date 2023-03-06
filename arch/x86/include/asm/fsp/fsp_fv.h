@@ -1,12 +1,13 @@
+/* SPDX-License-Identifier: Intel */
 /*
  * Copyright (C) 2013, Intel Corporation
  * Copyright (C) 2014, Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	Intel
  */
 
 #ifndef __FSP_FV___
 #define __FSP_FV___
+
+#include <efi.h>
 
 /* Value of EFI_FV_FILE_ATTRIBUTES */
 #define EFI_FV_FILE_ATTR_ALIGNMENT	0x0000001F
@@ -81,7 +82,7 @@ struct fv_header {
 	 * Declares the file system with which the firmware volume
 	 * is formatted.
 	 */
-	struct efi_guid		fs_guid;
+	efi_guid_t		fs_guid;
 	/*
 	 * Length in bytes of the complete firmware volume, including
 	 * the header.
@@ -129,7 +130,7 @@ struct fv_header {
 /* Extension header pointed by ExtHeaderOffset of volume header */
 struct fv_ext_header {
 	/* firmware volume name */
-	struct efi_guid		fv_name;
+	efi_guid_t		fv_name;
 	/* Size of the rest of the extension header including this structure */
 	u32			ext_hdr_size;
 };

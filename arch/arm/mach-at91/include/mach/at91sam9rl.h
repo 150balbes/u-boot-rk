@@ -15,11 +15,6 @@
 #define AT91SAM9RL_H
 
 /*
- * defines to be used in other places
- */
-#define CONFIG_AT91FAMILY	/* it's a member of AT91 */
-
-/*
  * Peripheral identifiers/interrupts.
  */
 #define ATMEL_ID_FIQ	0	/* Advanced Interrupt Controller (FIQ) */
@@ -117,7 +112,7 @@
 #define ATMEL_BASE_CS5		0x60000000	/* Compact Flash Slot 1 */
 
 /* Timer */
-#define CONFIG_SYS_TIMER_COUNTER	0xfffffd3c
+#define CFG_SYS_TIMER_COUNTER	0xfffffd3c
 
 /*
  * Other misc defines

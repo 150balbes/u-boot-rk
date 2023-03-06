@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013
  * Andre Przywara, Linaro <andre.przywara@linaro.org>
@@ -5,12 +6,12 @@
  * Routines to transition ARMv7 processors from secure into non-secure state
  * and from non-secure SVC into HYP mode
  * needed to enable ARMv7 virtualization for current hypervisors
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/armv7.h>
+#include <asm/cache.h>
 #include <asm/gic.h>
 #include <asm/io.h>
 #include <asm/secure.h>
@@ -25,8 +26,8 @@ static unsigned int read_id_pfr1(void)
 
 static unsigned long get_gicd_base_address(void)
 {
-#ifdef CONFIG_ARM_GIC_BASE_ADDRESS
-	return CONFIG_ARM_GIC_BASE_ADDRESS + GIC_DIST_OFFSET;
+#ifdef CFG_ARM_GIC_BASE_ADDRESS
+	return CFG_ARM_GIC_BASE_ADDRESS + GIC_DIST_OFFSET;
 #else
 	unsigned periphbase;
 

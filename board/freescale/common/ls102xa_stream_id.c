@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,7 +9,7 @@
 
 void ls102xa_config_smmu_stream_id(struct smmu_stream_id *id, uint32_t num)
 {
-	void *scfg = (void *)CONFIG_SYS_FSL_SCFG_ADDR;
+	void *scfg = (void *)CFG_SYS_FSL_SCFG_ADDR;
 	int i;
 	u32 icid;
 

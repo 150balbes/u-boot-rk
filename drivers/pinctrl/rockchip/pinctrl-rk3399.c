@@ -5,9 +5,11 @@
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
 #include <dm/pinctrl.h>
 #include <regmap.h>
 #include <syscon.h>
+#include <linux/bitops.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -281,7 +283,6 @@ static struct rockchip_pin_bank rk3399_pin_banks[] = {
 static struct rockchip_pin_ctrl rk3399_pin_ctrl = {
 	.pin_banks		= rk3399_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3399_pin_banks),
-	.nr_pins		= 160,
 	.grf_mux_offset		= 0xe000,
 	.pmu_mux_offset		= 0x0,
 	.grf_drv_offset		= 0xe100,
@@ -305,9 +306,9 @@ U_BOOT_DRIVER(pinctrl_rk3399) = {
 	.name		= "rockchip_rk3399_pinctrl",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= rk3399_pinctrl_ids,
-	.priv_auto_alloc_size = sizeof(struct rockchip_pinctrl_priv),
+	.priv_auto	= sizeof(struct rockchip_pinctrl_priv),
 	.ops		= &rockchip_pinctrl_ops,
-#if !CONFIG_IS_ENABLED(OF_PLATDATA)
+#if CONFIG_IS_ENABLED(OF_REAL)
 	.bind		= dm_scan_fdt_dev,
 #endif
 	.probe		= rockchip_pinctrl_probe,

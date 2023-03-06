@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015
  * Linus Walleij, Linaro
  *
  * Support for ARM Flash Partitions
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 #include <common.h>
 #include <command.h>
 #include <console.h>
+#include <flash.h>
 #include <asm/io.h>
 
 #define MAX_REGIONS 4
@@ -267,7 +267,7 @@ static int exists(const char * const name)
 	return CMD_RET_FAILURE;
 }
 
-static int do_afs(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_afs(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret = CMD_RET_SUCCESS;
 
@@ -280,7 +280,7 @@ static int do_afs(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	} else if (argc == 4 && !strcmp(argv[1], "load")) {
 		ulong load_addr;
 
-		load_addr = simple_strtoul(argv[3], NULL, 16);
+		load_addr = hextoul(argv[3], NULL);
 		ret = load_image(argv[2], load_addr);
 	} else {
 		return CMD_RET_USAGE;

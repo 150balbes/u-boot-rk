@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Eastman Kodak Company, <www.kodak.com>
@@ -5,17 +6,18 @@
  *
  * The code is based on the cpu/mpc83xx/ecc.c written by
  * Dave Liu <daveliu@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <irq_func.h>
+#include <log.h>
 #include <mpc83xx.h>
 #include <watchdog.h>
 #include <asm/io.h>
 #include <post.h>
 
-#if CONFIG_POST & CONFIG_SYS_POST_ECC
+#if CFG_POST & CFG_SYS_POST_ECC
 /*
  * We use the RAW I/O accessors where possible in order to
  * achieve performance goal, since the test's execution time
@@ -49,7 +51,7 @@ int ecc_post_test(int flags)
 	int errbit;
 	u32 pattern[2], writeback[2], retval[2];
 	ddr83xx_t *ddr = &((immap_t *)CONFIG_SYS_IMMR)->ddr;
-	volatile u64 *addr = (u64 *)CONFIG_SYS_POST_ECC_START_ADDR;
+	volatile u64 *addr = (u64 *)CFG_SYS_POST_ECC_START_ADDR;
 
 	/* The pattern is written into memory to generate error */
 	pattern[0] = 0xfedcba98UL;
@@ -68,14 +70,10 @@ int ecc_post_test(int flags)
 	int_state = disable_interrupts();
 	icache_enable();
 
-#ifdef CONFIG_DDR_32BIT
-	/* It seems like no one really uses the CONFIG_DDR_32BIT mode */
-#error "Add ECC POST support for CONFIG_DDR_32BIT here!"
-#else
-	for (addr = (u64*)CONFIG_SYS_POST_ECC_START_ADDR, errbit=0;
-	     addr < (u64*)CONFIG_SYS_POST_ECC_STOP_ADDR; addr++, errbit++ ) {
+	for (addr = (u64*)CFG_SYS_POST_ECC_START_ADDR, errbit=0;
+	     addr < (u64*)CFG_SYS_POST_ECC_STOP_ADDR; addr++, errbit++ ) {
 
-		WATCHDOG_RESET();
+		schedule();
 
 		ecc_clear(ddr);
 
@@ -136,7 +134,6 @@ int ecc_post_test(int flags)
 
 		errbit %= 63;
 	}
-#endif /* !CONFIG_DDR_32BIT */
 
 	ecc_clear(ddr);
 

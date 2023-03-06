@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*-
  * Copyright (c) 2007-2008, Juniper Networks, Inc.
  * All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
+#include <init.h>
+#include <log.h>
 #include <pci.h>
 #include <usb.h>
 #include <asm/io.h>
@@ -30,12 +31,13 @@ static int ehci_pci_init(struct udevice *dev, struct ehci_hccr **ret_hccr,
 	int ret;
 	u32 cmd;
 
-	ret = ehci_setup_phy(dev, &priv->phy, 0);
+	ret = generic_setup_phy(dev, &priv->phy, 0);
 	if (ret)
 		return ret;
 
 	hccr = (struct ehci_hccr *)dm_pci_map_bar(dev,
-			PCI_BASE_ADDRESS_0, PCI_REGION_MEM);
+			PCI_BASE_ADDRESS_0, 0, 0, PCI_REGION_TYPE,
+			PCI_REGION_MEM);
 	hcor = (struct ehci_hcor *)((uintptr_t) hccr +
 			HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
 
@@ -147,7 +149,7 @@ static int ehci_pci_remove(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	return ehci_shutdown_phy(dev, &priv->phy);
+	return generic_shutdown_phy(&priv->phy);
 }
 
 static const struct udevice_id ehci_pci_ids[] = {
@@ -162,8 +164,8 @@ U_BOOT_DRIVER(ehci_pci) = {
 	.remove = ehci_pci_remove,
 	.of_match = ehci_pci_ids,
 	.ops	= &ehci_usb_ops,
-	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
-	.priv_auto_alloc_size = sizeof(struct ehci_pci_priv),
+	.plat_auto	= sizeof(struct usb_plat),
+	.priv_auto	= sizeof(struct ehci_pci_priv),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
 

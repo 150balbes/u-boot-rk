@@ -1,23 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * STMicroelectronics TPM ST33ZP24 SPI UBOOT driver
  *
- * Copyright (C) 2016 STMicroelectronics
+ * Copyright (C) 2016, STMicroelectronics - All Rights Reserved
+ * Author(s): Christophe Ricard <christophe-h.ricard@st.com> for STMicroelectronics.
  *
  * Description: Device driver for ST33ZP24 SPI TPM TCG.
  *
  * This device driver implements the TPM interface as defined in
  * the TCG TPM Interface Spec version 1.21, revision 1.0 and the
  * STMicroelectronics Protocol Stack Specification version 1.2.0.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <fdtdec.h>
+#include <log.h>
 #include <spi.h>
-#include <tpm.h>
+#include <tpm-v1.h>
 #include <errno.h>
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <asm/unaligned.h>
 #include <linux/compat.h>
@@ -114,7 +116,7 @@ static int st33zp24_spi_write(struct udevice *dev, u8 tpm_register,
 {
 	int total_length = 0, ret;
 	struct spi_slave *slave = dev_get_parent_priv(dev);
-	struct st33zp24_spi_phy *phy = dev_get_platdata(dev);
+	struct st33zp24_spi_phy *phy = dev_get_plat(dev);
 
 	u8 *tx_buf = (u8 *)phy->tx_buf;
 	u8 *rx_buf = phy->rx_buf;
@@ -165,7 +167,7 @@ static u8 st33zp24_spi_read8_reg(struct udevice *dev, u8 tpm_register,
 {
 	int total_length = 0, ret;
 	struct spi_slave *slave = dev_get_parent_priv(dev);
-	struct st33zp24_spi_phy *phy = dev_get_platdata(dev);
+	struct st33zp24_spi_phy *phy = dev_get_plat(dev);
 
 	u8 *tx_buf = (u8 *)phy->tx_buf;
 	u8 *rx_buf = phy->rx_buf;
@@ -221,7 +223,7 @@ static int st33zp24_spi_evaluate_latency(struct udevice *dev)
 {
 	int latency = 1, status = 0;
 	u8 data = 0;
-	struct st33zp24_spi_phy *phy = dev_get_platdata(dev);
+	struct st33zp24_spi_phy *phy = dev_get_plat(dev);
 
 	while (!status && latency < MAX_SPI_LATENCY) {
 		phy->latency = latency;
@@ -430,7 +432,8 @@ static int st33zp24_spi_recv_data(struct udevice *dev, u8 *buf, size_t count)
 static int st33zp24_spi_recv(struct udevice *dev, u8 *buf, size_t count)
 {
 	struct tpm_chip *chip = dev_get_priv(dev);
-	int size, expected;
+	int size;
+	unsigned int expected;
 
 	if (!chip)
 		return -ENODEV;
@@ -447,7 +450,7 @@ static int st33zp24_spi_recv(struct udevice *dev, u8 *buf, size_t count)
 	}
 
 	expected = get_unaligned_be32(buf + 2);
-	if (expected > count) {
+	if (expected > count || expected < TPM_HEADER_SIZE) {
 		size = -EIO;
 		goto out;
 	}
@@ -559,7 +562,7 @@ static int st33zp24_spi_cleanup(struct udevice *dev)
 static int st33zp24_spi_init(struct udevice *dev)
 {
 	struct tpm_chip *chip = dev_get_priv(dev);
-	struct st33zp24_spi_phy *phy = dev_get_platdata(dev);
+	struct st33zp24_spi_phy *phy = dev_get_plat(dev);
 
 	chip->is_open = 1;
 
@@ -667,6 +670,6 @@ U_BOOT_DRIVER(st33zp24_spi_spi) = {
 	.probe  = st33zp24_spi_probe,
 	.remove = st33zp24_spi_remove,
 	.ops = &st33zp24_spi_tpm_ops,
-	.priv_auto_alloc_size = sizeof(struct tpm_chip),
-	.platdata_auto_alloc_size = sizeof(struct st33zp24_spi_phy),
+	.priv_auto	= sizeof(struct tpm_chip),
+	.plat_auto	= sizeof(struct st33zp24_spi_phy),
 };

@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Marvell PHY drivers
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
  * author Andy Fleming
  */
-#include <config.h>
 #include <common.h>
 #include <errno.h>
 #include <phy.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 
 #define PHY_AUTONEGOTIATE_TIMEOUT 5000
 
@@ -104,6 +104,106 @@
 #define MIIM_88E151x_MODE_SGMII		1
 #define MIIM_88E151x_RESET_OFFS		15
 
+static int marvell_read_page(struct phy_device *phydev)
+{
+	return phy_read(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE);
+}
+
+static int marvell_write_page(struct phy_device *phydev, int page)
+{
+	return phy_write(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE, page);
+}
+
+/* Set and/or override some configuration registers based on the
+ * marvell,reg-init property stored in the of_node for the phydev.
+ *
+ * marvell,reg-init = <reg-page reg mask value>,...;
+ *
+ * There may be one or more sets of <reg-page reg mask value>:
+ *
+ * reg-page: which register bank to use.
+ * reg: the register.
+ * mask: if non-zero, ANDed with existing register value.
+ * value: ORed with the masked value and written to the regiser.
+ *
+ */
+static int marvell_of_reg_init(struct phy_device *phydev)
+{
+	const __be32 *prop;
+	int len, i, saved_page, current_page, ret = 0;
+
+	if (!ofnode_valid(phydev->node))
+		return 0;
+
+	prop = ofnode_get_property(phydev->node, "marvell,reg-init", &len);
+	if (!prop)
+		return 0;
+
+	saved_page = marvell_read_page(phydev);
+	if (saved_page < 0)
+		goto err;
+	current_page = saved_page;
+
+	len /= sizeof(*prop);
+	for (i = 0; i < len - 3; i += 4) {
+		u16 page = be32_to_cpup(prop + i);
+		u16 reg = be32_to_cpup(prop + i + 1);
+		u16 mask = be32_to_cpup(prop + i + 2);
+		u16 val_bits = be32_to_cpup(prop + i + 3);
+		int val;
+
+		if (page != current_page) {
+			current_page = page;
+			ret = marvell_write_page(phydev, page);
+			if (ret < 0)
+				goto err;
+		}
+
+		val = 0;
+		if (mask) {
+			val = phy_read(phydev, MDIO_DEVAD_NONE, reg);
+			if (val < 0) {
+				ret = val;
+				goto err;
+			}
+			val &= mask;
+		}
+		val |= val_bits;
+
+		ret = phy_write(phydev, MDIO_DEVAD_NONE, reg, val);
+		if (ret < 0)
+			goto err;
+	}
+
+err:
+	return marvell_write_page(phydev, saved_page);
+}
+
+static int m88e1xxx_phy_extread(struct phy_device *phydev, int addr,
+				int devaddr, int regnum)
+{
+	int oldpage = phy_read(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE);
+	int val;
+
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE, devaddr);
+	val = phy_read(phydev, MDIO_DEVAD_NONE, regnum);
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE, oldpage);
+
+	return val;
+}
+
+static int m88e1xxx_phy_extwrite(struct phy_device *phydev, int addr,
+				 int devaddr, int regnum, u16 val)
+{
+	int oldpage = phy_read(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE);
+
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE, devaddr);
+	phy_write(phydev, MDIO_DEVAD_NONE, regnum, val);
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_MARVELL_PHY_PAGE, oldpage);
+
+	return 0;
+}
+
 /* Marvell 88E1011S */
 static int m88e1011s_config(struct phy_device *phydev)
 {
@@ -117,6 +217,8 @@ static int m88e1011s_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
 	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
+
+	marvell_of_reg_init(phydev);
 
 	genphy_config_aneg(phydev);
 
@@ -134,7 +236,7 @@ static int m88e1xxx_parse_status(struct phy_device *phydev)
 	mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_88E1xxx_PHY_STATUS);
 
 	if ((mii_reg & MIIM_88E1xxx_PHYSTAT_LINK) &&
-		!(mii_reg & MIIM_88E1xxx_PHYSTAT_SPDDONE)) {
+	    !(mii_reg & MIIM_88E1xxx_PHYSTAT_SPDDONE)) {
 		int i = 0;
 
 		puts("Waiting for PHY realtime link");
@@ -150,10 +252,10 @@ static int m88e1xxx_parse_status(struct phy_device *phydev)
 				putc('.');
 			udelay(1000);
 			mii_reg = phy_read(phydev, MDIO_DEVAD_NONE,
-					MIIM_88E1xxx_PHY_STATUS);
+					   MIIM_88E1xxx_PHY_STATUS);
 		}
 		puts(" done\n");
-		udelay(500000);	/* another 500 ms (results in faster booting) */
+		mdelay(500);	/* another 500 ms (results in faster booting) */
 	} else {
 		if (mii_reg & MIIM_88E1xxx_PHYSTAT_LINK)
 			phydev->link = 1;
@@ -201,9 +303,9 @@ static int m88e1111s_config(struct phy_device *phydev)
 
 	if (phy_interface_is_rgmii(phydev)) {
 		reg = phy_read(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR);
+			       MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR);
 		if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-			(phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)) {
+		    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)) {
 			reg |= (MIIM_88E1111_RX_DELAY | MIIM_88E1111_TX_DELAY);
 		} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
 			reg &= ~MIIM_88E1111_TX_DELAY;
@@ -214,10 +316,10 @@ static int m88e1111s_config(struct phy_device *phydev)
 		}
 
 		phy_write(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR, reg);
+			  MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR, reg);
 
 		reg = phy_read(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR);
+			       MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR);
 
 		reg &= ~(MIIM_88E1111_HWCFG_MODE_MASK);
 
@@ -227,51 +329,53 @@ static int m88e1111s_config(struct phy_device *phydev)
 			reg |= MIIM_88E1111_HWCFG_MODE_COPPER_RGMII;
 
 		phy_write(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR, reg);
+			  MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR, reg);
 	}
 
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 		reg = phy_read(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR);
+			       MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_SR);
 
 		reg &= ~(MIIM_88E1111_HWCFG_MODE_MASK);
 		reg |= MIIM_88E1111_HWCFG_MODE_SGMII_NO_CLK;
 		reg |= MIIM_88E1111_HWCFG_FIBER_COPPER_AUTO;
 
 		phy_write(phydev, MDIO_DEVAD_NONE,
-			MIIM_88E1111_PHY_EXT_SR, reg);
+			  MIIM_88E1111_PHY_EXT_SR, reg);
 	}
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RTBI) {
 		reg = phy_read(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR);
+			       MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR);
 		reg |= (MIIM_88E1111_RX_DELAY | MIIM_88E1111_TX_DELAY);
 		phy_write(phydev,
-			MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR, reg);
+			  MDIO_DEVAD_NONE, MIIM_88E1111_PHY_EXT_CR, reg);
 
 		reg = phy_read(phydev, MDIO_DEVAD_NONE,
-			MIIM_88E1111_PHY_EXT_SR);
+			       MIIM_88E1111_PHY_EXT_SR);
 		reg &= ~(MIIM_88E1111_HWCFG_MODE_MASK |
 			MIIM_88E1111_HWCFG_FIBER_COPPER_RES);
 		reg |= 0x7 | MIIM_88E1111_HWCFG_FIBER_COPPER_AUTO;
 		phy_write(phydev, MDIO_DEVAD_NONE,
-			MIIM_88E1111_PHY_EXT_SR, reg);
+			  MIIM_88E1111_PHY_EXT_SR, reg);
 
 		/* soft reset */
 		phy_reset(phydev);
 
 		reg = phy_read(phydev, MDIO_DEVAD_NONE,
-			MIIM_88E1111_PHY_EXT_SR);
+			       MIIM_88E1111_PHY_EXT_SR);
 		reg &= ~(MIIM_88E1111_HWCFG_MODE_MASK |
-			MIIM_88E1111_HWCFG_FIBER_COPPER_RES);
+			 MIIM_88E1111_HWCFG_FIBER_COPPER_RES);
 		reg |= MIIM_88E1111_HWCFG_MODE_COPPER_RTBI |
 			MIIM_88E1111_HWCFG_FIBER_COPPER_AUTO;
 		phy_write(phydev, MDIO_DEVAD_NONE,
-			MIIM_88E1111_PHY_EXT_SR, reg);
+			  MIIM_88E1111_PHY_EXT_SR, reg);
 	}
 
 	/* soft reset */
 	phy_reset(phydev);
+
+	marvell_of_reg_init(phydev);
 
 	genphy_config_aneg(phydev);
 	genphy_restart_aneg(phydev);
@@ -280,10 +384,10 @@ static int m88e1111s_config(struct phy_device *phydev)
 }
 
 /**
- * m88e1518_phy_writebits - write bits to a register
+ * m88e151x_phy_writebits - write bits to a register
  */
-void m88e1518_phy_writebits(struct phy_device *phydev,
-		   u8 reg_num, u16 offset, u16 len, u16 data)
+void m88e151x_phy_writebits(struct phy_device *phydev,
+			    u8 reg_num, u16 offset, u16 len, u16 data)
 {
 	u16 reg, mask;
 
@@ -300,7 +404,7 @@ void m88e1518_phy_writebits(struct phy_device *phydev,
 	phy_write(phydev, MDIO_DEVAD_NONE, reg_num, reg);
 }
 
-static int m88e1518_config(struct phy_device *phydev)
+static int m88e151x_config(struct phy_device *phydev)
 {
 	u16 reg;
 
@@ -327,11 +431,11 @@ static int m88e1518_config(struct phy_device *phydev)
 		phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 18);
 
 		/* In reg 20, write MODE[2:0] = 0x1 (SGMII to Copper) */
-		m88e1518_phy_writebits(phydev, MIIM_88E151x_GENERAL_CTRL,
+		m88e151x_phy_writebits(phydev, MIIM_88E151x_GENERAL_CTRL,
 				       0, 3, MIIM_88E151x_MODE_SGMII);
 
 		/* PHY reset is necessary after changing MODE[2:0] */
-		m88e1518_phy_writebits(phydev, MIIM_88E151x_GENERAL_CTRL,
+		m88e151x_phy_writebits(phydev, MIIM_88E151x_GENERAL_CTRL,
 				       MIIM_88E151x_RESET_OFFS, 1, 1);
 
 		/* Reset page selection */
@@ -357,7 +461,8 @@ static int m88e1518_config(struct phy_device *phydev)
 
 		reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_88E151x_PHY_MSCR);
 		reg &= ~MIIM_88E151x_RGMII_RXTX_DELAY;
-		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII ||
+		    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 			reg |= MIIM_88E151x_RGMII_RXTX_DELAY;
 		else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
 			reg |= MIIM_88E151x_RGMII_RX_DELAY;
@@ -371,37 +476,12 @@ static int m88e1518_config(struct phy_device *phydev)
 	/* soft reset */
 	phy_reset(phydev);
 
+	marvell_of_reg_init(phydev);
+
 	genphy_config_aneg(phydev);
 	genphy_restart_aneg(phydev);
 
 	return 0;
-}
-
-/* Marvell 88E1510 */
-static int m88e1510_config(struct phy_device *phydev)
-{
-	/* Select page 3 */
-	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE,
-		  MIIM_88E1118_PHY_LED_PAGE);
-
-	/* Enable INTn output on LED[2] */
-	m88e1518_phy_writebits(phydev, MIIM_88E151x_LED_TIMER_CTRL,
-			       MIIM_88E151x_INT_EN_OFFS, 1, 1);
-
-	/* Configure LEDs */
-	/* LED[0]:0011 (ACT) */
-	m88e1518_phy_writebits(phydev, MIIM_88E151x_LED_FUNC_CTRL,
-			       MIIM_88E151x_LED0_OFFS, MIIM_88E151x_LED_FLD_SZ,
-			       MIIM_88E151x_LED0_ACT);
-	/* LED[1]:0110 (LINK 100/1000 Mbps) */
-	m88e1518_phy_writebits(phydev, MIIM_88E151x_LED_FUNC_CTRL,
-			       MIIM_88E151x_LED1_OFFS, MIIM_88E151x_LED_FLD_SZ,
-			       MIIM_88E151x_LED1_100_1000_LINK);
-
-	/* Reset page selection */
-	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 0);
-
-	return m88e1518_config(phydev);
 }
 
 /* Marvell 88E1118 */
@@ -417,6 +497,8 @@ static int m88e1118_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x021e);
 	/* Change Page Number */
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 0x0000);
+
+	marvell_of_reg_init(phydev);
 
 	return genphy_config_aneg(phydev);
 }
@@ -440,16 +522,18 @@ static int m88e1121_config(struct phy_device *phydev)
 {
 	int pg;
 
+	marvell_of_reg_init(phydev);
+
 	/* Configure the PHY */
 	genphy_config_aneg(phydev);
 
 	/* Switch the page to access the led register */
 	pg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_88E1121_PHY_PAGE);
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1121_PHY_PAGE,
-			MIIM_88E1121_PHY_LED_PAGE);
+		  MIIM_88E1121_PHY_LED_PAGE);
 	/* Configure leds */
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1121_PHY_LED_CTRL,
-			MIIM_88E1121_PHY_LED_DEF);
+		  MIIM_88E1121_PHY_LED_DEF);
 	/* Restore the page pointer */
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1121_PHY_PAGE, pg);
 
@@ -472,13 +556,15 @@ static int m88e1145_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1145_PHY_CAL_OV, 0xa2da);
 
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1xxx_PHY_SCR,
-			MIIM_88E1xxx_PHY_MDI_X_AUTO);
+		  MIIM_88E1xxx_PHY_MDI_X_AUTO);
 
 	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_88E1145_PHY_EXT_CR);
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 		reg |= MIIM_M88E1145_RGMII_RX_DELAY |
 			MIIM_M88E1145_RGMII_TX_DELAY;
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1145_PHY_EXT_CR, reg);
+
+	marvell_of_reg_init(phydev);
 
 	genphy_config_aneg(phydev);
 
@@ -499,7 +585,7 @@ static int m88e1145_startup(struct phy_device *phydev)
 		return ret;
 
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1145_PHY_LED_CONTROL,
-			MIIM_88E1145_PHY_LED_DIRECT);
+		  MIIM_88E1145_PHY_LED_DIRECT);
 	return m88e1xxx_parse_status(phydev);
 }
 
@@ -512,9 +598,21 @@ static int m88e1149_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x0);
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
+	marvell_of_reg_init(phydev);
+
 	genphy_config_aneg(phydev);
 
 	phy_reset(phydev);
+
+	return 0;
+}
+
+/* Marvell 88E1240 */
+static int m88e1240_config(struct phy_device *phydev)
+{
+	marvell_of_reg_init(phydev);
+
+	genphy_config_aneg(phydev);
 
 	return 0;
 }
@@ -544,6 +642,8 @@ static int m88e1310_config(struct phy_device *phydev)
 
 	/* Ensure to return to page 0 */
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1310_PHY_PAGE, 0x0000);
+
+	marvell_of_reg_init(phydev);
 
 	return genphy_config_aneg(phydev);
 }
@@ -578,6 +678,8 @@ static int m88e1680_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, 25, 0x888c);
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 0x0000);
 	phy_write(phydev, MDIO_DEVAD_NONE,  0, 0x9140);
+
+	marvell_of_reg_init(phydev);
 
 	res = genphy_config_aneg(phydev);
 	if (res < 0)
@@ -661,29 +763,26 @@ static struct phy_driver M88E1149S_driver = {
 	.shutdown = &genphy_shutdown,
 };
 
-static struct phy_driver M88E1510_driver = {
-	.name = "Marvell 88E1510",
-	.uid = 0x1410dd0,
-	.mask = 0xfffffff,
+static struct phy_driver M88E1240_driver = {
+	.name = "Marvell 88E1240",
+	.uid = 0x1410e30,
+	.mask = 0xffffff0,
 	.features = PHY_GBIT_FEATURES,
-	.config = &m88e1510_config,
+	.config = &m88e1240_config,
 	.startup = &m88e1011s_startup,
 	.shutdown = &genphy_shutdown,
 };
 
-/*
- * This supports:
- *  88E1518, uid 0x1410dd1
- *  88E1512, uid 0x1410dd4
- */
-static struct phy_driver M88E1518_driver = {
-	.name = "Marvell 88E1518",
+static struct phy_driver M88E151x_driver = {
+	.name = "Marvell 88E151x",
 	.uid = 0x1410dd0,
-	.mask = 0xffffffa,
+	.mask = 0xffffff0,
 	.features = PHY_GBIT_FEATURES,
-	.config = &m88e1518_config,
+	.config = &m88e151x_config,
 	.startup = &m88e1011s_startup,
 	.shutdown = &genphy_shutdown,
+	.readext = &m88e1xxx_phy_extread,
+	.writeext = &m88e1xxx_phy_extwrite,
 };
 
 static struct phy_driver M88E1310_driver = {
@@ -716,8 +815,8 @@ int phy_marvell_init(void)
 	phy_register(&M88E1118R_driver);
 	phy_register(&M88E1111S_driver);
 	phy_register(&M88E1011S_driver);
-	phy_register(&M88E1510_driver);
-	phy_register(&M88E1518_driver);
+	phy_register(&M88E1240_driver);
+	phy_register(&M88E151x_driver);
 	phy_register(&M88E1680_driver);
 
 	return 0;

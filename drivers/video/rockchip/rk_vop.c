@@ -1,26 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015 Google, Inc
  * Copyright 2014 Rockchip Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <clk.h>
 #include <display.h>
 #include <dm.h>
+#include <dm/device_compat.h>
 #include <edid.h>
+#include <log.h>
 #include <regmap.h>
+#include <reset.h>
 #include <syscon.h>
 #include <video.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
-#include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/edp_rk3288.h>
-#include <asm/arch/vop_rk3288.h>
+#include <asm/arch-rockchip/clock.h>
+#include <asm/arch-rockchip/edp_rk3288.h>
+#include <asm/arch-rockchip/vop_rk3288.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
+#include <efi.h>
+#include <efi_loader.h>
+#include <linux/bitops.h>
+#include <linux/err.h>
 #include <power/regulator.h>
 #include "rk_vop.h"
 
@@ -33,14 +39,16 @@ enum vop_pol {
 	DCLK_INVERT    = 3
 };
 
-static void rkvop_enable(struct rk3288_vop *regs, ulong fbbase,
+static void rkvop_enable(struct udevice *dev, struct rk3288_vop *regs, ulong fbbase,
 			 int fb_bits_per_pixel,
-			 const struct display_timing *edid)
+			 const struct display_timing *edid,
+			 struct reset_ctl *dclk_rst)
 {
 	u32 lb_mode;
 	u32 rgb_mode;
 	u32 hactive = edid->hactive.typ;
 	u32 vactive = edid->vactive.typ;
+	int ret;
 
 	writel(V_ACT_WIDTH(hactive - 1) | V_ACT_HEIGHT(vactive - 1),
 	       &regs->win0_act_info);
@@ -88,6 +96,18 @@ static void rkvop_enable(struct rk3288_vop *regs, ulong fbbase,
 
 	writel(fbbase, &regs->win0_yrgb_mst);
 	writel(0x01, &regs->reg_cfg_done); /* enable reg config */
+
+	ret = reset_assert(dclk_rst);
+	if (ret) {
+		dev_warn(dev, "failed to assert dclk reset (ret=%d)\n", ret);
+		return;
+	}
+	udelay(20);
+
+	ret = reset_deassert(dclk_rst);
+	if (ret)
+		dev_warn(dev, "failed to deassert dclk reset (ret=%d)\n", ret);
+
 }
 
 static void rkvop_set_pin_polarity(struct udevice *dev,
@@ -119,10 +139,12 @@ static void rkvop_enable_output(struct udevice *dev, enum vop_modes mode)
 				V_EDP_OUT_EN(1));
 		break;
 
+#if defined(CONFIG_ROCKCHIP_RK3288)
 	case VOP_MODE_LVDS:
 		clrsetbits_le32(&regs->sys_ctrl, M_ALL_OUT_EN,
 				V_RGB_OUT_EN(1));
 		break;
+#endif
 
 	case VOP_MODE_MIPI:
 		clrsetbits_le32(&regs->sys_ctrl, M_ALL_OUT_EN,
@@ -216,45 +238,93 @@ static void rkvop_mode_set(struct udevice *dev,
  * @fbbase:	Frame buffer address
  * @ep_node:	Device tree node to process - this is the offset of an endpoint
  *		node within the VOP's 'port' list.
- * @return 0 if OK, -ve if something went wrong
+ * Return: 0 if OK, -ve if something went wrong
  */
-static int rk_display_init(struct udevice *dev, ulong fbbase, int ep_node)
+static int rk_display_init(struct udevice *dev, ulong fbbase, ofnode ep_node)
 {
 	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
-	const void *blob = gd->fdt_blob;
 	struct rk_vop_priv *priv = dev_get_priv(dev);
 	int vop_id, remote_vop_id;
 	struct rk3288_vop *regs = priv->regs;
 	struct display_timing timing;
 	struct udevice *disp;
-	int ret, remote, i, offset;
+	int ret;
+	u32 remote_phandle;
 	struct display_plat *disp_uc_plat;
 	struct clk clk;
 	enum video_log2_bpp l2bpp;
+	ofnode remote;
+	const char *compat;
+	struct reset_ctl dclk_rst;
 
-	vop_id = fdtdec_get_int(blob, ep_node, "reg", -1);
-	debug("vop_id=%d\n", vop_id);
-	remote = fdtdec_lookup_phandle(blob, ep_node, "remote-endpoint");
-	if (remote < 0)
+	debug("%s(%s, 0x%lx, %s)\n", __func__,
+	      dev_read_name(dev), fbbase, ofnode_get_name(ep_node));
+
+	ret = ofnode_read_u32(ep_node, "remote-endpoint", &remote_phandle);
+	if (ret)
+		return ret;
+
+	remote = ofnode_get_by_phandle(remote_phandle);
+	if (!ofnode_valid(remote))
 		return -EINVAL;
-	remote_vop_id = fdtdec_get_int(blob, remote, "reg", -1);
+	remote_vop_id = ofnode_read_u32_default(remote, "reg", -1);
 	debug("remote vop_id=%d\n", remote_vop_id);
 
-	for (i = 0, offset = remote; i < 3 && offset > 0; i++)
-		offset = fdt_parent_offset(blob, offset);
-	if (offset < 0) {
-		debug("%s: Invalid remote-endpoint position\n", dev->name);
+	/*
+	 * The remote-endpoint references into a subnode of the encoder
+	 * (i.e. HDMI, MIPI, etc.) with the DTS looking something like
+	 * the following (assume 'hdmi_in_vopl' to be referenced):
+	 *
+	 * hdmi: hdmi@ff940000 {
+	 *   ports {
+	 *     hdmi_in: port {
+	 *       hdmi_in_vopb: endpoint@0 { ... };
+	 *       hdmi_in_vopl: endpoint@1 { ... };
+	 *     }
+	 *   }
+	 * }
+	 *
+	 * The original code had 3 steps of "walking the parent", but
+	 * a much better (as in: less likely to break if the DTS
+	 * changes) way of doing this is to "find the enclosing device
+	 * of UCLASS_DISPLAY".
+	 */
+	while (ofnode_valid(remote)) {
+		remote = ofnode_get_parent(remote);
+		if (!ofnode_valid(remote)) {
+			debug("%s(%s): no UCLASS_DISPLAY for remote-endpoint\n",
+			      __func__, dev_read_name(dev));
+			return -EINVAL;
+		}
+
+		uclass_find_device_by_ofnode(UCLASS_DISPLAY, remote, &disp);
+		if (disp)
+			break;
+	};
+	compat = ofnode_get_property(remote, "compatible", NULL);
+	if (!compat) {
+		debug("%s(%s): Failed to find compatible property\n",
+		      __func__, dev_read_name(dev));
 		return -EINVAL;
 	}
-
-	ret = uclass_find_device_by_of_offset(UCLASS_DISPLAY, offset, &disp);
-	if (ret) {
-		debug("%s: device '%s' display not found (ret=%d)\n", __func__,
-		      dev->name, ret);
-		return ret;
+	if (strstr(compat, "edp")) {
+		vop_id = VOP_MODE_EDP;
+	} else if (strstr(compat, "mipi")) {
+		vop_id = VOP_MODE_MIPI;
+	} else if (strstr(compat, "hdmi")) {
+		vop_id = VOP_MODE_HDMI;
+	} else if (strstr(compat, "cdn-dp")) {
+		vop_id = VOP_MODE_DP;
+	} else if (strstr(compat, "lvds")) {
+		vop_id = VOP_MODE_LVDS;
+	} else {
+		debug("%s(%s): Failed to find vop mode for %s\n",
+		      __func__, dev_read_name(dev), compat);
+		return -EINVAL;
 	}
+	debug("vop_id=%d\n", vop_id);
 
-	disp_uc_plat = dev_get_uclass_platdata(disp);
+	disp_uc_plat = dev_get_uclass_plat(disp);
 	debug("Found device '%s', disp_uc_priv=%p\n", disp->name, disp_uc_plat);
 	if (display_in_use(disp)) {
 		debug("   - device in use\n");
@@ -288,7 +358,9 @@ static int rk_display_init(struct udevice *dev, ulong fbbase, int ep_node)
 	/* Set bitwidth for vop display according to vop mode */
 	switch (vop_id) {
 	case VOP_MODE_EDP:
+#if defined(CONFIG_ROCKCHIP_RK3288)
 	case VOP_MODE_LVDS:
+#endif
 		l2bpp = VIDEO_BPP16;
 		break;
 	case VOP_MODE_HDMI:
@@ -300,7 +372,14 @@ static int rk_display_init(struct udevice *dev, ulong fbbase, int ep_node)
 	}
 
 	rkvop_mode_set(dev, &timing, vop_id);
-	rkvop_enable(regs, fbbase, 1 << l2bpp, &timing);
+
+	ret = reset_get_by_name(dev, "dclk", &dclk_rst);
+	if (ret) {
+		dev_err(dev, "failed to get dclk reset (ret=%d)\n", ret);
+		return ret;
+	}
+
+	rkvop_enable(dev, regs, fbbase, 1 << l2bpp, &timing, &dclk_rst);
 
 	ret = display_enable(disp, 1 << l2bpp, &timing);
 	if (ret)
@@ -333,17 +412,41 @@ void rk_vop_probe_regulators(struct udevice *dev,
 
 int rk_vop_probe(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
-	const void *blob = gd->fdt_blob;
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 	struct rk_vop_priv *priv = dev_get_priv(dev);
 	int ret = 0;
-	int port, node;
+	ofnode port, node;
+	struct reset_ctl ahb_rst;
 
 	/* Before relocation we don't need to do anything */
 	if (!(gd->flags & GD_FLG_RELOC))
 		return 0;
 
-	priv->regs = (struct rk3288_vop *)devfdt_get_addr(dev);
+	ret = reset_get_by_name(dev, "ahb", &ahb_rst);
+	if (ret) {
+		dev_err(dev, "failed to get ahb reset (ret=%d)\n", ret);
+		return ret;
+	}
+
+	ret = reset_assert(&ahb_rst);
+	if (ret) {
+		dev_err(dev, "failed to assert ahb reset (ret=%d)\n", ret);
+	return ret;
+	}
+	udelay(20);
+
+	ret = reset_deassert(&ahb_rst);
+	if (ret) {
+		dev_err(dev, "failed to deassert ahb reset (ret=%d)\n", ret);
+		return ret;
+	}
+
+#if defined(CONFIG_EFI_LOADER)
+	debug("Adding to EFI map %d @ %lx\n", plat->size, plat->base);
+	efi_add_memory_map(plat->base, plat->size, EFI_RESERVED_MEMORY_TYPE);
+#endif
+
+	priv->regs = (struct rk3288_vop *)dev_read_addr(dev);
 
 	/*
 	 * Try all the ports until we find one that works. In practice this
@@ -353,12 +456,16 @@ int rk_vop_probe(struct udevice *dev)
 	 * clock so it is currently not possible to use more than one display
 	 * device simultaneously.
 	 */
-	port = fdt_subnode_offset(blob, dev_of_offset(dev), "port");
-	if (port < 0)
+	port = dev_read_subnode(dev, "port");
+	if (!ofnode_valid(port)) {
+		debug("%s(%s): 'port' subnode not found\n",
+		      __func__, dev_read_name(dev));
 		return -EINVAL;
-	for (node = fdt_first_subnode(blob, port);
-	     node > 0;
-	     node = fdt_next_subnode(blob, node)) {
+	}
+
+	for (node = ofnode_first_subnode(port);
+	     ofnode_valid(node);
+	     node = dev_read_next_subnode(node)) {
 		ret = rk_display_init(dev, plat->base, node);
 		if (ret)
 			debug("Device failed: ret=%d\n", ret);
@@ -372,7 +479,7 @@ int rk_vop_probe(struct udevice *dev)
 
 int rk_vop_bind(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 
 	plat->size = 4 * (CONFIG_VIDEO_ROCKCHIP_MAX_XRES *
 			  CONFIG_VIDEO_ROCKCHIP_MAX_YRES);

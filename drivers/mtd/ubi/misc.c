@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) International Business Machines Corp., 2006
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
 
 /* Here we keep miscellaneous functions which are used all over the UBI code */
 
+#include <log.h>
+#include <malloc.h>
 #include <ubi_uboot.h>
 #include "ubi.h"
 

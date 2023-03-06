@@ -1,11 +1,13 @@
 #
 # (C) Copyright 2019 Rockchip Electronics Co., Ltd
+# Copyright (c) 2022 Edgeble AI Technologies Pvt. Ltd.
 #
-# SPDX-License-Identifier:     GPL-2.0+
+# SPDX-License-Identifier:	GPL-2.0+
 #
 
-ifneq ($(CONFIG_TPL_BUILD)$(CONFIG_TPL_TINY_FRAMEWORK),yy)
+obj-y += rv1126.o
+
+ifndef CONFIG_TPL_BUILD
+obj-y += clk_rv1126.o
 obj-y += syscon_rv1126.o
 endif
-obj-y += clk_rv1126.o
-obj-y += rv1126.o

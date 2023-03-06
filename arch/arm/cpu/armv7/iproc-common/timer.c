@@ -1,14 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Broadcom Corporation.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <div64.h>
+#include <init.h>
+#include <time.h>
 #include <asm/io.h>
 #include <asm/iproc-common/timer.h>
 #include <asm/iproc-common/sysmap.h>
+#include <linux/delay.h>
 
 static inline uint64_t timer_global_read(void)
 {

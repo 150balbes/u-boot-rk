@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Compulab, Ltd.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <hang.h>
+#include <init.h>
 #include <spl.h>
 #include <i2c.h>
 #include <asm/arch/clock.h>
@@ -13,8 +14,6 @@
 #include <power/pmic.h>
 #include <power/tps65218.h>
 #include "board.h"
-
-DECLARE_GLOBAL_DATA_PTR;
 
 const struct dpll_params dpll_mpu  = { 800,  24, 1,  -1, -1, -1, -1 };
 const struct dpll_params dpll_core = { 1000, 24, -1, -1, 10,  8,  4 };
@@ -107,7 +106,7 @@ const struct dpll_params *get_dpll_per_params(void)
 void scale_vcores(void)
 {
 	set_i2c_pin_mux();
-	i2c_init(CONFIG_SYS_OMAP24_I2C_SPEED, CONFIG_SYS_OMAP24_I2C_SLAVE);
+	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
 	if (i2c_probe(TPS65218_CHIP_PM))
 		return;
 
@@ -120,7 +119,7 @@ void sdram_init(void)
 	unsigned long ram_size;
 
 	config_ddr(0, &ioregs_ddr3, NULL, NULL, &ddr3_emif_regs, 0);
-	ram_size = get_ram_size((long int *)CONFIG_SYS_SDRAM_BASE, 0x80000000);
+	ram_size = get_ram_size((long int *)CFG_SYS_SDRAM_BASE, 0x80000000);
 	if (ram_size == 0x80000000 ||
 	    ram_size == 0x40000000 ||
 	    ram_size == 0x20000000)
@@ -128,10 +127,9 @@ void sdram_init(void)
 
 	ddr3_emif_regs.sdram_config = 0x638453B2;
 	config_ddr(0, &ioregs_ddr3, NULL, NULL, &ddr3_emif_regs, 0);
-	ram_size = get_ram_size((long int *)CONFIG_SYS_SDRAM_BASE, 0x80000000);
+	ram_size = get_ram_size((long int *)CFG_SYS_SDRAM_BASE, 0x80000000);
 	if (ram_size == 0x08000000)
 		return;
 
 	hang();
 }
-

@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * From Coreboot northbridge/intel/sandybridge/northbridge.c
  *
  * Copyright (C) 2007-2009 coresystems GmbH
  * Copyright (C) 2011 The Chromium Authors
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <asm/msr.h>
 #include <asm/cpu.h>
 #include <asm/intel_regs.h>
@@ -18,6 +19,7 @@
 #include <asm/arch/pch.h>
 #include <asm/arch/model_206ax.h>
 #include <asm/arch/sandybridge.h>
+#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -33,16 +35,6 @@ int bridge_silicon_revision(struct udevice *dev)
 	bridge_id &= 0xf0;
 	return bridge_id | stepping;
 }
-
-/*
- * Reserve everything between A segment and 1MB:
- *
- * 0xa0000 - 0xbffff: legacy VGA
- * 0xc0000 - 0xcffff: VGA OPROM (needed by kernel)
- * 0xe0000 - 0xfffff: SeaBIOS, if used, otherwise DMI
- */
-static const int legacy_hole_base_k = 0xa0000 / 1024;
-static const int legacy_hole_size_k = 384;
 
 static int get_pcie_bar(struct udevice *dev, u32 *base, u32 *len)
 {
@@ -152,7 +144,7 @@ static void northbridge_init(struct udevice *dev, int rev)
 	 * CPUs with configurable TDP also need power limits set
 	 * in MCHBAR.  Use same values from MSR_PKG_POWER_LIMIT.
 	 */
-	if (cpu_config_tdp_levels()) {
+	if (cpu_ivybridge_config_tdp_levels()) {
 		msr_t msr = msr_read(MSR_PKG_POWER_LIMIT);
 
 		writel(msr.lo, MCHBAR_REG(0x59A0));
@@ -188,6 +180,35 @@ static void sandybridge_setup_northbridge_bars(struct udevice *dev)
 	dm_pci_write_config8(dev, PAM6, 0x33);
 }
 
+/**
+ * sandybridge_init_iommu() - Set up IOMMU so that azalia can be used
+ *
+ * It is not obvious where these values come from. They may be undocumented.
+ */
+static void sandybridge_init_iommu(struct udevice *dev)
+{
+	u32 capid0_a;
+
+	dm_pci_read_config32(dev, 0xe4, &capid0_a);
+	if (capid0_a & (1 << 23)) {
+		log_debug("capid0_a not needed\n");
+		return;
+	}
+
+	/* setup BARs */
+	writel(IOMMU_BASE1 >> 32, MCHBAR_REG(0x5404));
+	writel(IOMMU_BASE1 | 1, MCHBAR_REG(0x5400));
+	writel(IOMMU_BASE2 >> 32, MCHBAR_REG(0x5414));
+	writel(IOMMU_BASE2 | 1, MCHBAR_REG(0x5410));
+
+	/* lock policies */
+	writel(0x80000000, IOMMU_BASE1 + 0xff0);
+
+	/* Enable azalia sound */
+	writel(0x20000000, IOMMU_BASE2 + 0xff0);
+	writel(0xa0000000, IOMMU_BASE2 + 0xff0);
+}
+
 static int bd82x6x_northbridge_early_init(struct udevice *dev)
 {
 	const int chipset_type = SANDYBRIDGE_MOBILE;
@@ -207,6 +228,9 @@ static int bd82x6x_northbridge_early_init(struct udevice *dev)
 	}
 
 	sandybridge_setup_northbridge_bars(dev);
+
+	/* Setup IOMMU BARs */
+	sandybridge_init_iommu(dev);
 
 	/* Device Enable */
 	dm_pci_write_config32(dev, DEVEN, DEVEN_HOST | DEVEN_IGD);

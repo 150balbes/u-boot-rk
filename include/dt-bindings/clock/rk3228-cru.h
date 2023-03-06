@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * (C) Copyright 2017 Rockchip Electronics Co., Ltd.
- *
- * SPDX-License-Identifier:     GPL-2.0+
+ * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
+ * Author: Jeffy Chen <jeffy.chen@rock-chips.com>
  */
 
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK3228_H
@@ -64,12 +64,11 @@
 #define SCLK_WIFI		141
 #define SCLK_OTGPHY0		142
 #define SCLK_OTGPHY1		143
-#define SCLK_DDRC		144
+#define SCLK_HDMI_PHY		144
 
 /* dclk gates */
 #define DCLK_VOP		190
 #define DCLK_HDMI_PHY		191
-#define HDMIPHY			192
 
 /* aclk gates */
 #define ACLK_DMAC		194
@@ -116,7 +115,6 @@
 #define PCLK_HDMI_CTRL		364
 #define PCLK_HDMI_PHY		365
 #define PCLK_GMAC		367
-#define PCLK_ACODECPHY		368
 
 /* hclk gates */
 #define HCLK_I2S0_8CH		442

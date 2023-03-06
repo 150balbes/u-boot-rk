@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Designware DWC2 on-chip full/high speed USB device controllers
  * Copyright (C) 2005 for Samsung Electronics
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __DWC2_UDC_OTG_PRIV__
@@ -84,7 +83,6 @@ struct dwc2_udc {
 	unsigned char usb_address;
 
 	unsigned req_pending:1, req_std:1;
-	unsigned connected:1;
 };
 
 #define ep_is_in(EP) (((EP)->bEndpointAddress&USB_DIR_IN) == USB_DIR_IN)

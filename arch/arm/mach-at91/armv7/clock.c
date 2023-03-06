@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * [origin: Linux kernel linux/arch/arm/mach-at91/clock.c]
  *
@@ -6,11 +7,11 @@
  * Copyright (C) 2009 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  * Copyright (C) 2013 Bo Shen <voice.shen@atmel.com>
  * Copyright (C) 2015 Wenyou Yang <wenyou.yang@atmel.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <asm/global_data.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
@@ -27,7 +28,7 @@ static unsigned long at91_css_to_rate(unsigned long css)
 {
 	switch (css) {
 	case AT91_PMC_MCKR_CSS_SLOW:
-		return CONFIG_SYS_AT91_SLOW_CLOCK;
+		return CFG_SYS_AT91_SLOW_CLOCK;
 	case AT91_PMC_MCKR_CSS_MAIN:
 		return gd->arch.main_clk_rate_hz;
 	case AT91_PMC_MCKR_CSS_PLLA:
@@ -57,7 +58,7 @@ int at91_clock_init(unsigned long main_clock)
 {
 	unsigned freq, mckr;
 	struct at91_pmc *pmc = (struct at91_pmc *)ATMEL_BASE_PMC;
-#ifndef CONFIG_SYS_AT91_MAIN_CLOCK
+#ifndef CFG_SYS_AT91_MAIN_CLOCK
 	unsigned tmp;
 	/*
 	 * When the bootloader initialized the main oscillator correctly,
@@ -70,7 +71,7 @@ int at91_clock_init(unsigned long main_clock)
 			tmp = readl(&pmc->mcfr);
 		} while (!(tmp & AT91_PMC_MCFR_MAINRDY));
 		tmp &= AT91_PMC_MCFR_MAINF_MASK;
-		main_clock = tmp * (CONFIG_SYS_AT91_SLOW_CLOCK / 16);
+		main_clock = tmp * (CFG_SYS_AT91_SLOW_CLOCK / 16);
 	}
 #endif
 	gd->arch.main_clk_rate_hz = main_clock;
@@ -148,6 +149,48 @@ void at91_mck_init(u32 mckr)
 
 	while (!(readl(&pmc->sr) & AT91_PMC_MCKRDY))
 		;
+}
+
+/*
+ * For the Master Clock Controller Register(MCKR), while switching
+ * to a lower clock source, we must switch the clock source first
+ * instead of last. Otherwise, we could end up with too high frequency
+ * on the internal bus and peripherals.
+ */
+void at91_mck_init_down(u32 mckr)
+{
+	struct at91_pmc *pmc = (struct at91_pmc *)ATMEL_BASE_PMC;
+	u32 tmp;
+
+	tmp = readl(&pmc->mckr);
+	tmp &= (~AT91_PMC_MCKR_CSS_MASK);
+	tmp |= (mckr & AT91_PMC_MCKR_CSS_MASK);
+	writel(tmp, &pmc->mckr);
+
+	while (!(readl(&pmc->sr) & AT91_PMC_MCKRDY))
+		;
+
+#ifdef CPU_HAS_H32MXDIV
+	tmp = readl(&pmc->mckr);
+	tmp &= (~AT91_PMC_MCKR_H32MXDIV);
+	tmp |= (mckr & AT91_PMC_MCKR_H32MXDIV);
+	writel(tmp, &pmc->mckr);
+#endif
+
+	tmp = readl(&pmc->mckr);
+	tmp &= (~AT91_PMC_MCKR_PLLADIV_MASK);
+	tmp |= (mckr & AT91_PMC_MCKR_PLLADIV_MASK);
+	writel(tmp, &pmc->mckr);
+
+	tmp = readl(&pmc->mckr);
+	tmp &= (~AT91_PMC_MCKR_MDIV_MASK);
+	tmp |= (mckr & AT91_PMC_MCKR_MDIV_MASK);
+	writel(tmp, &pmc->mckr);
+
+	tmp = readl(&pmc->mckr);
+	tmp &= (~AT91_PMC_MCKR_PRES_MASK);
+	tmp |= (mckr & AT91_PMC_MCKR_PRES_MASK);
+	writel(tmp, &pmc->mckr);
 }
 
 int at91_enable_periph_generated_clk(u32 id, u32 clk_source, u32 div)
@@ -228,7 +271,7 @@ u32 at91_get_periph_generated_clk(u32 id)
 	clk_source = regval & AT91_PMC_PCR_GCKCSS;
 	switch (clk_source) {
 	case AT91_PMC_PCR_GCKCSS_SLOW_CLK:
-		freq = CONFIG_SYS_AT91_SLOW_CLOCK;
+		freq = CFG_SYS_AT91_SLOW_CLOCK;
 		break;
 	case AT91_PMC_PCR_GCKCSS_MAIN_CLK:
 		freq = gd->arch.main_clk_rate_hz;

@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef PBLIMAGE_H
@@ -9,7 +8,8 @@
 
 #define RCW_BYTES	64
 #define RCW_PREAMBLE	0xaa55aa55
-#define RCW_HEADER	0x010e0100
+#define RCW_ARM_HEADER	0x01ee0100
+#define RCW_PPC_HEADER	0x010e0100
 
 struct pbl_header {
 	uint32_t preamble;

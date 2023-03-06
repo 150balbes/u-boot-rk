@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011
  * Stefan Herbrechtsmeier <stefan@herbrechtsmeier.net>
@@ -6,17 +7,19 @@
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
+#include <log.h>
 #include <miiphy.h>
+#include <net.h>
 #include <netdev.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/mpp.h>
 #include <asm/arch/gpio.h>
+#include <asm/global_data.h>
 #include "dns325.h"
 
 DECLARE_GLOBAL_DATA_PTR;

@@ -1,7 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 # Copyright (c) 2015 Stephen Warren
 # Copyright (c) 2015-2016, NVIDIA CORPORATION. All rights reserved.
-#
-# SPDX-License-Identifier: GPL-2.0
 
 # Implementation of pytest run-time hook functions. These are invoked by
 # pytest at certain points during operation, e.g. startup, for each executed
@@ -14,19 +13,23 @@
 # - Implementing custom pytest markers.
 
 import atexit
+import configparser
 import errno
+import filelock
+import io
 import os
 import os.path
+from pathlib import Path
 import pytest
-from _pytest.runner import runtestprotocol
-import ConfigParser
 import re
-import StringIO
+from _pytest.runner import runtestprotocol
 import sys
 
 # Globals: The HTML log file, and the connection to the U-Boot console.
 log = None
 console = None
+
+TEST_PY_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def mkdir_p(path):
     """Create a directory path.
@@ -71,9 +74,58 @@ def pytest_addoption(parser):
         help='U-Boot board identity/instance')
     parser.addoption('--build', default=False, action='store_true',
         help='Compile U-Boot before running tests')
+    parser.addoption('--buildman', default=False, action='store_true',
+        help='Use buildman to build U-Boot (assuming --build is given)')
     parser.addoption('--gdbserver', default=None,
         help='Run sandbox under gdbserver. The argument is the channel '+
         'over which gdbserver should communicate, e.g. localhost:1234')
+
+def run_build(config, source_dir, build_dir, board_type, log):
+    """run_build: Build U-Boot
+
+    Args:
+        config: The pytest configuration.
+        soruce_dir (str): Directory containing source code
+        build_dir (str): Directory to build in
+        board_type (str): board_type parameter (e.g. 'sandbox')
+        log (Logfile): Log file to use
+    """
+    if config.getoption('buildman'):
+        if build_dir != source_dir:
+            dest_args = ['-o', build_dir, '-w']
+        else:
+            dest_args = ['-i']
+        cmds = (['buildman', '--board', board_type] + dest_args,)
+        name = 'buildman'
+    else:
+        if build_dir != source_dir:
+            o_opt = 'O=%s' % build_dir
+        else:
+            o_opt = ''
+        cmds = (
+            ['make', o_opt, '-s', board_type + '_defconfig'],
+            ['make', o_opt, '-s', '-j{}'.format(os.cpu_count())],
+        )
+        name = 'make'
+
+    with log.section(name):
+        runner = log.get_runner(name, sys.stdout)
+        for cmd in cmds:
+            runner.run(cmd, cwd=source_dir)
+        runner.close()
+        log.status_pass('OK')
+
+def pytest_xdist_setupnodes(config, specs):
+    """Clear out any 'done' file from a previous build"""
+    global build_done_file
+    build_dir = config.getoption('build_dir')
+    board_type = config.getoption('board_type')
+    source_dir = os.path.dirname(os.path.dirname(TEST_PY_DIR))
+    if not build_dir:
+        build_dir = source_dir + '/build-' + board_type
+    build_done_file = Path(build_dir) / 'build.done'
+    if build_done_file.exists():
+        os.remove(build_done_file)
 
 def pytest_configure(config):
     """pytest hook: Perform custom initialization at startup time.
@@ -84,13 +136,32 @@ def pytest_configure(config):
     Returns:
         Nothing.
     """
+    def parse_config(conf_file):
+        """Parse a config file, loading it into the ubconfig container
+
+        Args:
+            conf_file: Filename to load (within build_dir)
+
+        Raises
+            Exception if the file does not exist
+        """
+        dot_config = build_dir + '/' + conf_file
+        if not os.path.exists(dot_config):
+            raise Exception(conf_file + ' does not exist; ' +
+                            'try passing --build option?')
+
+        with open(dot_config, 'rt') as f:
+            ini_str = '[root]\n' + f.read()
+            ini_sio = io.StringIO(ini_str)
+            parser = configparser.RawConfigParser()
+            parser.read_file(ini_sio)
+            ubconfig.buildconfig.update(parser.items('root'))
 
     global log
     global console
     global ubconfig
 
-    test_py_dir = os.path.dirname(os.path.abspath(__file__))
-    source_dir = os.path.dirname(os.path.dirname(test_py_dir))
+    source_dir = os.path.dirname(os.path.dirname(TEST_PY_DIR))
 
     board_type = config.getoption('board_type')
     board_type_filename = board_type.replace('-', '_')
@@ -114,27 +185,20 @@ def pytest_configure(config):
     mkdir_p(persistent_data_dir)
 
     gdbserver = config.getoption('gdbserver')
-    if gdbserver and board_type != 'sandbox':
-        raise Exception('--gdbserver only supported with sandbox')
+    if gdbserver and not board_type.startswith('sandbox'):
+        raise Exception('--gdbserver only supported with sandbox targets')
 
     import multiplexed_log
     log = multiplexed_log.Logfile(result_dir + '/test-log.html')
 
     if config.getoption('build'):
-        if build_dir != source_dir:
-            o_opt = 'O=%s' % build_dir
-        else:
-            o_opt = ''
-        cmds = (
-            ['make', o_opt, '-s', board_type + '_defconfig'],
-            ['make', o_opt, '-s', '-j8'],
-        )
-        with log.section('make'):
-            runner = log.get_runner('make', sys.stdout)
-            for cmd in cmds:
-                runner.run(cmd, cwd=source_dir)
-            runner.close()
-            log.status_pass('OK')
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+        with filelock.FileLock(os.path.join(build_dir, 'build.lock')):
+            build_done_file = Path(build_dir) / 'build.done'
+            if (not worker_id or worker_id == 'master' or
+                not build_done_file.exists()):
+                run_build(config, source_dir, build_dir, board_type, log)
+                build_done_file.touch()
 
     class ArbitraryAttributeContainer(object):
         pass
@@ -158,20 +222,15 @@ def pytest_configure(config):
 
     ubconfig.buildconfig = dict()
 
-    for conf_file in ('.config', 'include/autoconf.mk'):
-        dot_config = build_dir + '/' + conf_file
-        if not os.path.exists(dot_config):
-            raise Exception(conf_file + ' does not exist; ' +
-                'try passing --build option?')
+    # buildman -k puts autoconf.mk in the rootdir, so handle this as well
+    # as the standard U-Boot build which leaves it in include/autoconf.mk
+    parse_config('.config')
+    if os.path.exists(build_dir + '/' + 'autoconf.mk'):
+        parse_config('autoconf.mk')
+    else:
+        parse_config('include/autoconf.mk')
 
-        with open(dot_config, 'rt') as f:
-            ini_str = '[root]\n' + f.read()
-            ini_sio = StringIO.StringIO(ini_str)
-            parser = ConfigParser.RawConfigParser()
-            parser.readfp(ini_sio)
-            ubconfig.buildconfig.update(parser.items('root'))
-
-    ubconfig.test_py_dir = test_py_dir
+    ubconfig.test_py_dir = TEST_PY_DIR
     ubconfig.source_dir = source_dir
     ubconfig.build_dir = build_dir
     ubconfig.result_dir = result_dir
@@ -200,8 +259,8 @@ def pytest_configure(config):
         import u_boot_console_exec_attach
         console = u_boot_console_exec_attach.ConsoleExecAttach(log, ubconfig)
 
-re_ut_test_list = re.compile(r'_u_boot_list_2_(dm|env)_test_2_\1_test_(.*)\s*$')
-def generate_ut_subtest(metafunc, fixture_name):
+re_ut_test_list = re.compile(r'[^a-zA-Z0-9_]_u_boot_list_2_ut_(.*)_test_2_(.*)\s*$')
+def generate_ut_subtest(metafunc, fixture_name, sym_path):
     """Provide parametrization for a ut_subtest fixture.
 
     Determines the set of unit tests built into a U-Boot binary by parsing the
@@ -211,12 +270,13 @@ def generate_ut_subtest(metafunc, fixture_name):
     Args:
         metafunc: The pytest test function.
         fixture_name: The fixture name to test.
+        sym_path: Relative path to the symbol file with preceding '/'
+            (e.g. '/u-boot.sym')
 
     Returns:
         Nothing.
     """
-
-    fn = console.config.build_dir + '/u-boot.sym'
+    fn = console.config.build_dir + sym_path
     try:
         with open(fn, 'rt') as f:
             lines = f.readlines()
@@ -229,7 +289,13 @@ def generate_ut_subtest(metafunc, fixture_name):
         m = re_ut_test_list.search(l)
         if not m:
             continue
-        vals.append(m.group(1) + ' ' + m.group(2))
+        suite, name = m.groups()
+
+        # Tests marked with _norun should only be run manually using 'ut -f'
+        if name.endswith('_norun'):
+            continue
+
+        vals.append(f'{suite} {name}')
 
     ids = ['ut_' + s.replace(' ', '_') for s in vals]
     metafunc.parametrize(fixture_name, vals, ids=ids)
@@ -291,10 +357,15 @@ def pytest_generate_tests(metafunc):
     Returns:
         Nothing.
     """
-
     for fn in metafunc.fixturenames:
         if fn == 'ut_subtest':
-            generate_ut_subtest(metafunc, fn)
+            generate_ut_subtest(metafunc, fn, '/u-boot.sym')
+            continue
+        m_subtest = re.match('ut_(.)pl_subtest', fn)
+        if m_subtest:
+            spl_name = m_subtest.group(1)
+            generate_ut_subtest(
+                metafunc, fn, f'/{spl_name}pl/u-boot-{spl_name}pl.sym')
             continue
         generate_config(metafunc, fn)
 
@@ -344,6 +415,7 @@ tests_failed = []
 tests_xpassed = []
 tests_xfailed = []
 tests_skipped = []
+tests_warning = []
 tests_passed = []
 
 def pytest_itemcollected(item):
@@ -380,6 +452,11 @@ def cleanup():
     if log:
         with log.section('Status Report', 'status_report'):
             log.status_pass('%d passed' % len(tests_passed))
+            if tests_warning:
+                log.status_warning('%d passed with warning' % len(tests_warning))
+                for test in tests_warning:
+                    anchor = anchors.get(test, None)
+                    log.status_warning('... ' + test, anchor)
             if tests_skipped:
                 log.status_skipped('%d skipped' % len(tests_skipped))
                 for test in tests_skipped:
@@ -422,19 +499,17 @@ def setup_boardspec(item):
         Nothing.
     """
 
-    mark = item.get_marker('boardspec')
-    if not mark:
-        return
     required_boards = []
-    for board in mark.args:
+    for boards in item.iter_markers('boardspec'):
+        board = boards.args[0]
         if board.startswith('!'):
             if ubconfig.board_type == board[1:]:
-                pytest.skip('board not supported')
+                pytest.skip('board "%s" not supported' % ubconfig.board_type)
                 return
         else:
             required_boards.append(board)
     if required_boards and ubconfig.board_type not in required_boards:
-        pytest.skip('board not supported')
+        pytest.skip('board "%s" not supported' % ubconfig.board_type)
 
 def setup_buildconfigspec(item):
     """Process any 'buildconfigspec' marker for a test.
@@ -450,12 +525,56 @@ def setup_buildconfigspec(item):
         Nothing.
     """
 
-    mark = item.get_marker('buildconfigspec')
-    if not mark:
-        return
-    for option in mark.args:
+    for options in item.iter_markers('buildconfigspec'):
+        option = options.args[0]
         if not ubconfig.buildconfig.get('config_' + option.lower(), None):
-            pytest.skip('.config feature not enabled')
+            pytest.skip('.config feature "%s" not enabled' % option.lower())
+    for options in item.iter_markers('notbuildconfigspec'):
+        option = options.args[0]
+        if ubconfig.buildconfig.get('config_' + option.lower(), None):
+            pytest.skip('.config feature "%s" enabled' % option.lower())
+
+def tool_is_in_path(tool):
+    for path in os.environ["PATH"].split(os.pathsep):
+        fn = os.path.join(path, tool)
+        if os.path.isfile(fn) and os.access(fn, os.X_OK):
+            return True
+    return False
+
+def setup_requiredtool(item):
+    """Process any 'requiredtool' marker for a test.
+
+    Such a marker lists some external tool (binary, executable, application)
+    that the test requires. If tests are being executed on a system that
+    doesn't have the required tool, the test is marked to be skipped.
+
+    Args:
+        item: The pytest test item.
+
+    Returns:
+        Nothing.
+    """
+
+    for tools in item.iter_markers('requiredtool'):
+        tool = tools.args[0]
+        if not tool_is_in_path(tool):
+            pytest.skip('tool "%s" not in $PATH' % tool)
+
+def setup_singlethread(item):
+    """Process any 'singlethread' marker for a test.
+
+    Skip this test if running in parallel.
+
+    Args:
+        item: The pytest test item.
+
+    Returns:
+        Nothing.
+    """
+    for single in item.iter_markers('singlethread'):
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+        if worker_id and worker_id != 'master':
+            pytest.skip('must run single-threaded')
 
 def start_test_section(item):
     anchors[item.name] = log.start_section(item.name)
@@ -476,6 +595,8 @@ def pytest_runtest_setup(item):
     start_test_section(item)
     setup_boardspec(item)
     setup_buildconfigspec(item)
+    setup_requiredtool(item)
+    setup_singlethread(item)
 
 def pytest_runtest_protocol(item, nextitem):
     """pytest hook: Called to execute a test.
@@ -491,7 +612,12 @@ def pytest_runtest_protocol(item, nextitem):
         A list of pytest reports (test result data).
     """
 
+    log.get_and_reset_warning()
+    ihook = item.ihook
+    ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
     reports = runtestprotocol(item, nextitem=nextitem)
+    ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
+    was_warning = log.get_and_reset_warning()
 
     # In pytest 3, runtestprotocol() may not call pytest_runtest_setup() if
     # the test is skipped. That call is required to create the test's section
@@ -502,9 +628,14 @@ def pytest_runtest_protocol(item, nextitem):
         start_test_section(item)
 
     failure_cleanup = False
-    test_list = tests_passed
-    msg = 'OK'
-    msg_log = log.status_pass
+    if not was_warning:
+        test_list = tests_passed
+        msg = 'OK'
+        msg_log = log.status_pass
+    else:
+        test_list = tests_warning
+        msg = 'OK (with warning)'
+        msg_log = log.status_warning
     for report in reports:
         if report.outcome == 'failed':
             if hasattr(report, 'wasxfail'):
@@ -545,7 +676,7 @@ def pytest_runtest_protocol(item, nextitem):
         # is fixed, if this exception still exists, it will then be logged as
         # part of the test's stdout.
         import traceback
-        print 'Exception occurred while logging runtest status:'
+        print('Exception occurred while logging runtest status:')
         traceback.print_exc()
         # FIXME: Can we force a test failure here?
 
@@ -554,4 +685,4 @@ def pytest_runtest_protocol(item, nextitem):
     if failure_cleanup:
         console.cleanup_spawn()
 
-    return reports
+    return True

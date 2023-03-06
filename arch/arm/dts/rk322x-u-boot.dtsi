@@ -1,86 +1,56 @@
-/*
- * (C) Copyright 2018 Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:     GPL-2.0+
- */
+// SPDX-License-Identifier: GPL-2.0+
+
+#include "rockchip-u-boot.dtsi"
 
 / {
-	aliases {
-		mmc0 = &emmc;
-		mmc1 = &sdmmc;
+	bus_intmem@10080000 {
+		compatible = "mmio-sram";
+		reg = <0x10080000 0x9000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x10080000 0x9000>;
+
+		smp-sram@0 {
+			compatible = "rockchip,rk322x-smp-sram";
+			reg = <0x00 0x10>;
+		};
+
+		ddr_sram: ddr-sram@1000 {
+			compatible = "rockchip,rk322x-ddr-sram";
+			reg = <0x1000 0x8000>;
+		};
 	};
 
-	chosen {
-		stdout-path = &uart2;
+	dmc: dmc@11200000 {
+		compatible = "rockchip,rk3228-dmc", "syscon";
+		reg = <0x11200000 0x3fc
+		       0x12000000 0x400>;
+		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
+		rockchip,msch = <&service_msch>;
+		rockchip,sram = <&ddr_sram>;
+		u-boot,dm-pre-reloc;
 	};
-};
 
-&psci {
-	u-boot,dm-pre-reloc;
-	status = "okay";
+	service_msch: syscon@31090000 {
+		compatible = "rockchip,rk3228-msch", "syscon";
+		reg = <0x31090000 0x2000>;
+		u-boot,dm-pre-reloc;
+	};
 };
 
 &cru {
 	u-boot,dm-pre-reloc;
 };
 
-&crypto {
-	u-boot,dm-pre-reloc;
-};
-
-&dmc {
-	u-boot,dm-pre-reloc;
+&emmc {
+	max-frequency = <150000000>;
 };
 
 &grf {
 	u-boot,dm-pre-reloc;
 };
 
-&service_msch {
-	u-boot,dm-pre-reloc;
-};
-
-&emmc {
-	u-boot,dm-spl;
-};
-
-&nandc {
-	u-boot,dm-spl;
-};
-
 &sdmmc {
-	u-boot,dm-spl;
-};
-
-&uart2 {
-	u-boot,dm-spl;
-};
-
-&u2phy0 {
-	u-boot,dm-spl;
-	status = "okay";
-};
-
-&u2phy0_otg {
-	u-boot,dm-spl;
-	status = "okay";
-};
-
-&usb20_otg {
-	u-boot,dm-spl;
-	status = "okay";
-};
-
-&pinctrl {
-	u-boot,dm-spl;
-	status = "okay";
-};
-
-&gpio1 {
-	u-boot,dm-spl;
-};
-
-&gpio3 {
-	u-boot,dm-spl;
-	status = "okay";
+	max-frequency = <150000000>;
 };

@@ -1,15 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014-2015, NVIDIA CORPORATION.  All rights reserved.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #define pr_fmt(fmt) "tegra-xusb-padctl: " fmt
 
 #include <common.h>
 #include <errno.h>
+#include <log.h>
 #include <dm/of_access.h>
 #include <dm/ofnode.h>
+#include <linux/delay.h>
+#include <asm/global_data.h>
 
 #include "../xusb-padctl-common.h"
 

@@ -3,13 +3,16 @@
  * Copyright (C) 2020 Linaro Limited.
  */
 
+#define LOG_CATEGORY UCLASS_SCMI_AGENT
+
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <scmi_agent.h>
 #include <scmi_agent-uclass.h>
+#include <dm/devres.h>
+#include <dm/device_compat.h>
 #include <dm/device-internal.h>
-#include <dm/read.h>
 #include <linux/arm-smccc.h>
 #include <linux/compat.h>
 
@@ -27,10 +30,19 @@ struct scmi_smccc_channel {
 	struct scmi_smt smt;
 };
 
-#ifndef CONFIG_SPL_BUILD
-static int scmi_smccc_process_msg(struct udevice *dev, struct scmi_msg *msg)
+/**
+ * struct scmi_channel - Channel instance referenced in SCMI drivers
+ * @ref: Reference to local channel instance
+ **/
+struct scmi_channel {
+	struct scmi_smccc_channel ref;
+};
+
+static int scmi_smccc_process_msg(struct udevice *dev,
+				  struct scmi_channel *channel,
+				  struct scmi_msg *msg)
 {
-	struct scmi_smccc_channel *chan = dev_get_priv(dev);
+	struct scmi_smccc_channel *chan = &channel->ref;
 	struct arm_smccc_res res;
 	int ret;
 
@@ -49,14 +61,12 @@ static int scmi_smccc_process_msg(struct udevice *dev, struct scmi_msg *msg)
 	return ret;
 }
 
-static int scmi_smccc_probe(struct udevice *dev)
+static int setup_channel(struct udevice *dev, struct scmi_smccc_channel *chan)
 {
-	struct scmi_smccc_channel *chan = dev_get_priv(dev);
 	u32 func_id;
 	int ret;
 
-	func_id = dev_read_u32_default(dev, "arm,smc-id", -ENODATA);
-	if (func_id == -ENODATA) {
+	if (dev_read_u32(dev, "arm,smc-id", &func_id)) {
 		dev_err(dev, "Missing property func-id\n");
 		return -EINVAL;
 	}
@@ -64,31 +74,65 @@ static int scmi_smccc_probe(struct udevice *dev)
 	chan->func_id = func_id;
 
 	ret = scmi_dt_get_smt_buffer(dev, &chan->smt);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to get smt resources: %d\n", ret);
+
+	return ret;
+}
+
+static int scmi_smccc_get_channel(struct udevice *dev,
+				  struct scmi_channel **channel)
+{
+	struct scmi_smccc_channel *base_chan = dev_get_plat(dev);
+	struct scmi_smccc_channel *chan;
+	u32 func_id;
+	int ret;
+
+	if (dev_read_u32(dev, "arm,smc-id", &func_id)) {
+		/* Uses agent base channel */
+		*channel = container_of(base_chan, struct scmi_channel, ref);
+
+		return 0;
+	}
+
+	/* Setup a dedicated channel */
+	chan = calloc(1, sizeof(*chan));
+	if (!chan)
+		return -ENOMEM;
+
+	ret = setup_channel(dev, chan);
+	if (ret) {
+		free(chan);
 		return ret;
 	}
+
+	*channel = container_of(chan, struct scmi_channel, ref);
 
 	return 0;
 }
 
-static const struct scmi_agent_ops scmi_smccc_ops = {
-	.process_msg = scmi_smccc_process_msg,
-};
-#endif
+static int scmi_smccc_of_to_plat(struct udevice *dev)
+{
+	struct scmi_smccc_channel *chan = dev_get_plat(dev);
+
+	return setup_channel(dev, chan);
+}
 
 static const struct udevice_id scmi_smccc_ids[] = {
 	{ .compatible = "arm,scmi-smc" },
 	{ }
 };
 
+static const struct scmi_agent_ops scmi_smccc_ops = {
+	.of_get_channel = scmi_smccc_get_channel,
+	.process_msg = scmi_smccc_process_msg,
+};
+
 U_BOOT_DRIVER(scmi_smccc) = {
 	.name		= "scmi-over-smccc",
 	.id		= UCLASS_SCMI_AGENT,
 	.of_match	= scmi_smccc_ids,
-	.priv_auto_alloc_size = sizeof(struct scmi_smccc_channel),
-#ifndef CONFIG_SPL_BUILD
-	.probe		= scmi_smccc_probe,
+	.plat_auto	= sizeof(struct scmi_smccc_channel),
+	.of_to_plat	= scmi_smccc_of_to_plat,
 	.ops		= &scmi_smccc_ops,
-#endif
 };

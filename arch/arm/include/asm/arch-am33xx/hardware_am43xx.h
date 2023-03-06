@@ -1,15 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * hardware_am43xx.h
  *
  * AM43xx hardware specific header
  *
  * Copyright (C) 2013, Texas Instruments, Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __AM43XX_HARDWARE_AM43XX_H
 #define __AM43XX_HARDWARE_AM43XX_H
+
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
 
 /* Module base addresses */
 

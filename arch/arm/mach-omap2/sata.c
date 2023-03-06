@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI SATA platform driver
  *
  * (C) Copyright 2013
  * Texas Instruments, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -14,6 +13,7 @@
 #include <asm/arch/sata.h>
 #include <sata.h>
 #include <asm/io.h>
+#include <asm/omap_common.h>
 #include "pipe3-phy.h"
 
 static struct pipe3_dpll_map dpll_map_sata[] = {

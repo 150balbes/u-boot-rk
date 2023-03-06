@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013 Oliver Schinagl <oliver@schinagl.nl>
  *
  * X-Powers AXP221 Power Management IC driver
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* Page 0 addresses */
@@ -51,8 +50,10 @@
 #define AXP221_SID		0x20
 
 /* For axp_gpio.c */
+#ifdef CONFIG_AXP221_POWER
 #define AXP_POWER_STATUS		0x00
-#define AXP_POWER_STATUS_VBUS_PRESENT		(1 << 5)
+#define AXP_POWER_STATUS_ALDO_IN		BIT(0)
+#define AXP_POWER_STATUS_VBUS_PRESENT		BIT(5)
 #define AXP_VBUS_IPSOUT			0x30
 #define AXP_VBUS_IPSOUT_DRIVEBUS		(1 << 2)
 #define AXP_MISC_CTRL			0x8f
@@ -64,3 +65,4 @@
 #define AXP_GPIO_CTRL_INPUT			0x02 /* Input */
 #define AXP_GPIO_STATE			0x94
 #define AXP_GPIO_STATE_OFFSET			0
+#endif

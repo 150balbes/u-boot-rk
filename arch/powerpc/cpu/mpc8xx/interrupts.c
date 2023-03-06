@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <irq_func.h>
 #include <mpc8xx.h>
 #include <mpc8xx_irq.h>
+#include <time.h>
 #include <asm/cpm_8xx.h>
 #include <asm/processor.h>
 #include <asm/io.h>
+#include <asm/ptrace.h>
 
 /************************************************************************/
 

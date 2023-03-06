@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Copyright 2000-2002 by Hans Reiser, licensing governed by reiserfs/README
  *
@@ -7,14 +8,14 @@
  *  (C) Copyright 2003 - 2004
  *  Sysgo AG, <www.elinos.com>, Pavel Bartusek <pba@sysgo.com>
  *
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* An implementation for the ReiserFS filesystem ported from GRUB.
  * Some parts of this code (mainly the structures and defines) are
  * from the original reiser fs code, as found in the linux kernel.
  */
+
+#include <compiler.h>
 
 #ifndef __BYTE_ORDER
 #if defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)

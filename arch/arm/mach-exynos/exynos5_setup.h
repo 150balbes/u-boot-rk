@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Machine Specific Values for SMDK5250 board based on EXYNOS5
  *
  * Copyright (C) 2012 Samsung Electronics
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SMDK5250_SETUP_H
@@ -899,7 +898,7 @@ enum {
  *
  * @param mem          Memory timings for this memory type.
  * @param reset         Reset DDR PHY during initialization.
- * @return 0 if ok, SETUP_ERR_... if there is a problem
+ * Return: 0 if ok, SETUP_ERR_... if there is a problem
  */
 int ddr3_mem_ctrl_init(struct mem_timings *mem, int reset);
 
@@ -914,7 +913,7 @@ void lpddr3_mem_ctrl_init(void);
  * @param phy1_con16	Register address for dmc_phy1->phy_con16
  * @param phy0_con17	Register address for dmc_phy0->phy_con17
  * @param phy1_con17	Register address for dmc_phy1->phy_con17
- * @return 0 if ok, -1 on error
+ * Return: 0 if ok, -1 on error
  */
 int dmc_config_zq(struct mem_timings *mem, uint32_t *phy0_con16,
 			uint32_t *phy1_con16, uint32_t *phy0_con17,

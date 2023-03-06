@@ -24,7 +24,6 @@
 #include <rtc.h>
 #include <i2c.h>
 
-#if defined(CONFIG_CMD_DATE)
 /*
  * Reads are always done starting with register 15, which requires some
  * jumping-through-hoops to access the data correctly.
@@ -40,8 +39,8 @@ static unsigned int rtc_debug = DEBUG;
 #define rtc_debug 0	/* gcc will remove all the debug code for us */
 #endif
 
-#ifndef CONFIG_SYS_I2C_RTC_ADDR
-#define CONFIG_SYS_I2C_RTC_ADDR 0x32
+#ifndef CFG_SYS_I2C_RTC_ADDR
+#define CFG_SYS_I2C_RTC_ADDR 0x32
 #endif
 
 #define RS5C372_RAM_SIZE 0x10
@@ -64,7 +63,7 @@ rs5c372_readram(unsigned char *buf, int len)
 {
 	int ret;
 
-	ret = i2c_read(CONFIG_SYS_I2C_RTC_ADDR, 0, 0, buf, len);
+	ret = i2c_read(CFG_SYS_I2C_RTC_ADDR, 0, 0, buf, len);
 	if (ret != 0) {
 		printf("%s: failed to read\n", __FUNCTION__);
 		return ret;
@@ -104,7 +103,7 @@ rs5c372_enable(void)
 	buf[14] = 0; /* reg. 13 */
 	buf[15] = 0; /* reg. 14 */
 	buf[16] = USE_24HOUR_MODE; /* reg. 15 */
-	ret = i2c_write(CONFIG_SYS_I2C_RTC_ADDR, 0, 0, buf, RS5C372_RAM_SIZE+1);
+	ret = i2c_write(CFG_SYS_I2C_RTC_ADDR, 0, 0, buf, RS5C372_RAM_SIZE+1);
 	if (ret != 0) {
 		printf("%s: failed\n", __FUNCTION__);
 		return;
@@ -205,7 +204,7 @@ int rtc_set (struct rtc_time *tmp)
 	memset(buf, 0, sizeof(buf));
 
 	/* only read register 15 */
-	ret = i2c_read(CONFIG_SYS_I2C_RTC_ADDR, 0, 0, buf, 1);
+	ret = i2c_read(CFG_SYS_I2C_RTC_ADDR, 0, 0, buf, 1);
 
 	if (ret == 0) {
 		/* need to save register 15 */
@@ -234,7 +233,7 @@ int rtc_set (struct rtc_time *tmp)
 			printf("WARNING: year should be between 1970 and 2069!\n");
 		buf[7] = bin2bcd(tmp->tm_year % 100);
 
-		ret = i2c_write(CONFIG_SYS_I2C_RTC_ADDR, 0, 0, buf, 8);
+		ret = i2c_write(CFG_SYS_I2C_RTC_ADDR, 0, 0, buf, 8);
 		if (ret != 0) {
 			printf("rs5c372_set_datetime(), i2c_master_send() returned %d\n",ret);
 			return -1;
@@ -247,35 +246,11 @@ int rtc_set (struct rtc_time *tmp)
 }
 
 /*
- * Reset the RTC. We set the date back to 1970-01-01.
+ * Reset the RTC.
  */
 void
 rtc_reset (void)
 {
-	struct rtc_time tmp;
-
 	if (!setup_done)
 		rs5c372_enable();
-
-	if (!setup_done)
-		return;
-
-	tmp.tm_year = 1970;
-	tmp.tm_mon = 1;
-	/* Jan. 1, 1970 was a Thursday */
-	tmp.tm_wday= 4;
-	tmp.tm_mday= 1;
-	tmp.tm_hour = 0;
-	tmp.tm_min = 0;
-	tmp.tm_sec = 0;
-
-	rtc_set(&tmp);
-
-	printf ("RTC:	%4d-%02d-%02d %2d:%02d:%02d UTC\n",
-		tmp.tm_year, tmp.tm_mon, tmp.tm_mday,
-		tmp.tm_hour, tmp.tm_min, tmp.tm_sec);
-
-	return;
 }
-
-#endif

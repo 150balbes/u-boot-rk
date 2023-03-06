@@ -1,9 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2000-2003
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 extra-y	:= start.o
 
@@ -12,17 +10,20 @@ obj-y	+= cache_v7.o cache_v7_asm.o
 obj-y	+= cpu.o cp15.o
 obj-y	+= syslib.o
 
-ifneq ($(CONFIG_SKIP_LOWLEVEL_INIT),y)
+obj-$(CONFIG_SYS_ARM_MPU) += mpu_v7r.o
+
+ifneq ($(CONFIG_SPL_BUILD),y)
+obj-$(CONFIG_EFI_LOADER) += sctlr.o
+obj-$(CONFIG_ARMV7_NONSEC) += exception_level.o
+endif
+
+ifneq ($(CONFIG_$(SPL_)SKIP_LOWLEVEL_INIT),y)
 obj-y	+= lowlevel_init.o
 endif
 
 obj-$(CONFIG_ARM_SMCCC)		+= smccc-call.o
 obj-$(CONFIG_ARMV7_NONSEC)	+= nonsec_virt.o virt-v7.o virt-dt.o
 obj-$(CONFIG_ARMV7_PSCI)	+= psci.o psci-common.o
-
-ifeq ($(CONFIG_SPL_BUILD)$(CONFIG_TPL_BUILD),)
-obj-$(CONFIG_ARM_CPU_SUSPEND)	+= suspend.o sleep.o
-endif
 
 obj-$(CONFIG_IPROC) += iproc-common/
 obj-$(CONFIG_KONA) += kona-common/
@@ -41,3 +42,5 @@ obj-$(CONFIG_RMOBILE) += rmobile/
 obj-$(if $(filter stv0991,$(SOC)),y) += stv0991/
 obj-$(CONFIG_ARCH_SUNXI) += sunxi/
 obj-$(CONFIG_VF610) += vf610/
+obj-$(CONFIG_ARCH_S5P4418) += s5p4418/
+obj-$(CONFIG_ARCH_NEXELL) += s5p-common/

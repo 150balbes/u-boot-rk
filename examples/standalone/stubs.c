@@ -2,6 +2,8 @@
 #include <exports.h>
 #include <linux/compiler.h>
 
+struct cmd_tbl;
+
 #define FO(x) offsetof(struct jt_funcs, x)
 
 #if defined(CONFIG_X86)
@@ -12,7 +14,7 @@
  * from flash memory. The global_data address is passed as argv[-1]
  * to the application program.
  */
-static struct jt_funcs *jt;
+struct jt_funcs *jt;
 gd_t *global_data;
 
 #define EXPORT_FUNC(f, a, x, ...) \
@@ -159,19 +161,29 @@ gd_t *global_data;
 		"	nop\n"				\
 		"	nop\n"				\
 		: : "i"(offsetof(gd_t, jt)), "i"(FO(x)) : "r1", "r2");
-#elif defined(CONFIG_NDS32)
+#elif defined(CONFIG_RISCV)
 /*
- * r16 holds the pointer to the global_data. gp is call clobbered.
- * not support reduced register (16 GPR).
+ * gp holds the pointer to the global_data. t0 is call clobbered.
  */
-#define EXPORT_FUNC(f, a, x, ...) \
+#ifdef CONFIG_ARCH_RV64I
+#define EXPORT_FUNC(f, a, x, ...)	\
 	asm volatile (			\
 "	.globl " #x "\n"		\
 #x ":\n"				\
-"	lwi	$r16, [$gp + (%0)]\n"	\
-"	lwi	$r16, [$r16 + (%1)]\n"	\
-"	jr	$r16\n"			\
-	: : "i"(offsetof(gd_t, jt)), "i"(FO(x)) : "$r16");
+"	ld	t0, %0(gp)\n"		\
+"	ld	t0, %1(t0)\n"		\
+"	jr	t0\n"			\
+	: : "i"(offsetof(gd_t, jt)), "i"(FO(x)) : "t0");
+#else
+#define EXPORT_FUNC(f, a, x, ...)	\
+	asm volatile (			\
+"	.globl " #x "\n"		\
+#x ":\n"				\
+"	lw	t0, %0(gp)\n"		\
+"	lw	t0, %1(t0)\n"		\
+"	jr	t0\n"			\
+	: : "i"(offsetof(gd_t, jt)), "i"(FO(x)) : "t0");
+#endif
 #elif defined(CONFIG_ARC)
 /*
  * r25 holds the pointer to the global_data. r10 is call clobbered.

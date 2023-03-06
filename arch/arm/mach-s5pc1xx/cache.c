@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014 Samsung Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
  * Robert Baldyga <r.baldyga@samsung.com>
  *
  * based on arch/arm/cpu/armv7/omap3/cache.S
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <asm/cache.h>
 
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 void enable_caches(void)
 {
 	dcache_enable();

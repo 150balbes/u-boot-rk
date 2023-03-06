@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -18,6 +17,8 @@
  */
 
 #ifdef __UBOOT__
+#include <log.h>
+#include <malloc.h>
 #include <linux/err.h>
 #endif
 #include "ubifs.h"

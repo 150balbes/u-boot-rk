@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012
  * Dirk Eibach,  Guntermann & Drunck GmbH, dirk.eibach@gdsys.cc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* Parade Technologies Inc. DP501 DisplayPort DVI/HDMI Transmitter */
+
+#ifdef CONFIG_GDSYS_LEGACY_DRIVERS
 
 #include <common.h>
 #include <asm/io.h>
@@ -156,3 +157,5 @@ int dp501_probe(unsigned screen, bool power)
 
 	return 0;
 }
+
+#endif /* CONFIG_GDSYS_LEGACY_DRIVERS */

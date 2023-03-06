@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
@@ -8,12 +9,12 @@
  * IMKO GmbH <www.imko.de>
  *
  * Copyright (C) 2013 DENX Software Engineering, hs@denx.de
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <asm/hardware.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <linux/sizes.h>
 #include <asm/arch/at91_rstc.h>
 #include <watchdog.h>
@@ -41,7 +42,7 @@ void at91_phy_reset(void)
 	/* Wait for end of hardware reset */
 	while (!(readl(&rstc->sr) & AT91_RSTC_SR_NRSTL)) {
 		/* avoid shutdown by watchdog */
-		WATCHDOG_RESET();
+		schedule();
 		mdelay(10);
 
 		/* timeout for not getting stuck in an endless loop */

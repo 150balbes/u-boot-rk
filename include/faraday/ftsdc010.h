@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Faraday FTSDC010 Secure Digital Memory Card Host Controller
  *
  * Copyright (C) 2011 Andes Technology Corporation
  * Macpaul Lin, Andes Technology Corporation <macpaul@andestech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FTSDC010_H
@@ -13,6 +12,7 @@
 #ifndef __ASSEMBLY__
 
 /* sd controller register */
+#include <linux/bitops.h>
 struct ftsdc010_mmc {
 	unsigned int	cmd;		/* 0x00 - command reg		*/
 	unsigned int	argu;		/* 0x04 - argument reg		*/

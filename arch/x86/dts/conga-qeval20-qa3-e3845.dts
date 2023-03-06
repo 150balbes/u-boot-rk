@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014, Bin Meng <bmeng.cn@gmail.com>
  * Copyright (C) 2016 Stefan Roese <sr@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /dts-v1/;
@@ -13,8 +12,11 @@
 
 /include/ "skeleton.dtsi"
 /include/ "serial.dtsi"
+/include/ "reset.dtsi"
 /include/ "rtc.dtsi"
-/include/ "tsc_timer.dtsi"
+
+#include "tsc_timer.dtsi"
+#include "smbios.dtsi"
 
 / {
 	model = "congatec-QEVAL20-QA3-E3845";
@@ -185,8 +187,9 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 					reg = <0>;
+					m25p,fast-read;
 					compatible = "stmicro,n25q064a",
-						"spi-flash";
+						"jedec,spi-nor";
 					memory-map = <0xff800000 0x00800000>;
 					rw-mrc-cache {
 						label = "rw-mrc-cache";

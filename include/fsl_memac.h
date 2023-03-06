@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
  *	Roy Zang <tie-fei.zang@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MEMAC_H__
@@ -255,7 +254,6 @@ struct memac_mdio_controller {
 #define MDIO_CTL_READ		(1 << 15)
 
 #define MDIO_DATA(x)		(x & 0xffff)
-#define MDIO_DATA_BSY		(1 << 31)
 
 struct fsl_enet_mac;
 

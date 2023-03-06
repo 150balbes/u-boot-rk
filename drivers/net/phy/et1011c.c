@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ET1011C PHY driver
  *
  * Derived from Linux kernel driver by Chaithrika U S
  * Copyright (C) 2013, Texas Instruments, Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <config.h>
 #include <phy.h>
@@ -61,7 +60,7 @@ static int et1011c_parse_status(struct phy_device *phydev)
 			  mii_reg |
 			  ET1011C_GMII_INTERFACE |
 			  ET1011C_SYS_CLK_EN |
-#ifdef CONFIG_PHY_ET1011C_TX_CLK_FIX
+#ifdef CFG_PHY_ET1011C_TX_CLK_FIX
 			  ET1011C_TX_CLK_EN |
 #endif
 			  ET1011C_TX_FIFO_DEPTH_16);

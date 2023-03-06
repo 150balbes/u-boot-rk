@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015 Google, Inc
  * Copyright 2014 Rockchip Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_VOP_RK3288_H
@@ -88,12 +87,10 @@ enum {
 
 enum vop_modes {
 	VOP_MODE_EDP = 0,
+	VOP_MODE_MIPI,
 	VOP_MODE_HDMI,
 	VOP_MODE_LVDS,
-	VOP_MODE_MIPI,
-	VOP_MODE_NONE,
-	VOP_MODE_AUTO_DETECT,
-	VOP_MODE_UNKNOWN,
+	VOP_MODE_DP,
 };
 
 /* VOP_VERSION_INFO */

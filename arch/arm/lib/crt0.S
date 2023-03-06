@@ -1,17 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  crt0 - C-runtime startup Code for ARM U-Boot
  *
  *  Copyright (c) 2012  Albert ARIBAUD <albert.u.boot@aribaud.net>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <asm-offsets.h>
 #include <linux/linkage.h>
-#ifdef CONFIG_CPU_V7M
-#include <asm/armv7m.h>
-#endif
+#include <asm/assembler.h>
+#include <system-constants.h>
 
 /*
  * This file handles the target-independent stages of the U-Boot
@@ -61,87 +59,13 @@
  */
 
 /*
- * entry point of crt0 sequence
+ * Macro for clearing BSS during SPL execution. Usually called during the
+ * relocation process for most boards before entering board_init_r(), but
+ * can also be done early before entering board_init_f() on plaforms that
+ * can afford it due to sufficient memory being available early.
  */
 
-ENTRY(_main)
-
-/*
- * Set up initial C runtime environment and call board_init_f(0).
- */
-
-#if defined(CONFIG_TPL_BUILD) && defined(CONFIG_TPL_NEEDS_SEPARATE_STACK)
-	ldr	r0, =(CONFIG_TPL_STACK)
-#elif defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
-	ldr	r0, =(CONFIG_SPL_STACK)
-#else
-	ldr	r0, =(CONFIG_SYS_INIT_SP_ADDR)
-#endif
-	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
-	mov	sp, r0
-	bl	board_init_f_alloc_reserve
-	mov	sp, r0
-	/* set up gd here, outside any C code */
-	mov	r9, r0
-	bl	board_init_f_init_reserve
-	bl	board_init_f_boot_flags
-
-	bl	board_init_f
-
-#if ! defined(CONFIG_SPL_BUILD)
-
-/*
- * Set up intermediate environment (new sp and gd) and call
- * relocate_code(addr_moni). Trick here is that we'll return
- * 'here' but relocated.
- */
-
-	ldr	r0, [r9, #GD_START_ADDR_SP]	/* sp = gd->start_addr_sp */
-	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
-	mov	sp, r0
-	ldr	r9, [r9, #GD_BD]		/* r9 = gd->bd */
-	sub	r9, r9, #GD_SIZE		/* new GD is below bd */
-
-#ifndef CONFIG_SKIP_RELOCATE_UBOOT
-	adr	lr, here
-	ldr	r0, [r9, #GD_RELOC_OFF]		/* r0 = gd->reloc_off */
-	add	lr, lr, r0
-#if defined(CONFIG_CPU_V7M)
-	orr	lr, #1				/* As required by Thumb-only */
-#endif
-	ldr	r0, [r9, #GD_RELOCADDR]		/* r0 = gd->relocaddr */
-	b	relocate_code
-#endif
-here:
-
-/*
- * The "relocate_vectors" is in section: .text.relocate_vectors, if we don't
- * compile "bl	relocate_vectors", there seems something wrong about sections
- * layout(U-Boot code section is quite large, I don't find root cause now),
- * so let's just skip it.
- */
-#ifdef CONFIG_SKIP_RELOCATE_UBOOT
-	b	c_runtime
-#endif
-
-/*
- * now relocate vectors
- */
-	bl	relocate_vectors
-
-c_runtime:
-/* Set up final (full) environment */
-
-	bl	c_runtime_cpu_setup	/* we still call old routine here */
-#endif
-#if !defined(CONFIG_SPL_BUILD) || (defined(CONFIG_SPL_FRAMEWORK) && !defined(CONFIG_TPL_BUILD))
-# ifdef CONFIG_SPL_BUILD
-	/* Use a DRAM stack for the rest of SPL, if requested */
-	bl	spl_relocate_stack_gd
-	cmp	r0, #0
-	movne	sp, r0
-	movne	r9, r0
-# endif
+.macro CLEAR_BSS
 	ldr	r0, =__bss_start	/* this is auto-relocated! */
 
 #ifdef CONFIG_USE_ARCH_MEMSET
@@ -155,13 +79,111 @@ c_runtime:
 	mov	r2, #0x00000000		/* prepare zero to clear BSS */
 
 clbss_l:cmp	r0, r1			/* while not at end of BSS */
-#if defined(CONFIG_CPU_V7M)
-	itt	lo
-#endif
 	strlo	r2, [r0]		/* clear 32-bit BSS word */
 	addlo	r0, r0, #4		/* move to next */
 	blo	clbss_l
 #endif
+.endm
+
+/*
+ * entry point of crt0 sequence
+ */
+
+ENTRY(_main)
+
+/* Call arch_very_early_init before initializing C runtime environment. */
+#if CONFIG_IS_ENABLED(ARCH_VERY_EARLY_INIT)
+	bl	arch_very_early_init
+#endif
+
+/*
+ * Set up initial C runtime environment and call board_init_f(0).
+ */
+
+#if defined(CONFIG_TPL_BUILD) && defined(CONFIG_TPL_NEEDS_SEPARATE_STACK)
+	ldr	r0, =(CONFIG_TPL_STACK)
+#elif defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
+	ldr	r0, =(CONFIG_SPL_STACK)
+#else
+	ldr	r0, =(SYS_INIT_SP_ADDR)
+#endif
+	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
+	mov	sp, r0
+	bl	board_init_f_alloc_reserve
+	mov	sp, r0
+	/* set up gd here, outside any C code */
+	mov	r9, r0
+	bl	board_init_f_init_reserve
+
+#if defined(CONFIG_DEBUG_UART) && CONFIG_IS_ENABLED(SERIAL)
+	bl	debug_uart_init
+#endif
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_EARLY_BSS)
+	CLEAR_BSS
+#endif
+
+	mov	r0, #0
+	bl	board_init_f
+
+#if ! defined(CONFIG_SPL_BUILD)
+
+/*
+ * Set up intermediate environment (new sp and gd) and call
+ * relocate_code(addr_moni). Trick here is that we'll return
+ * 'here' but relocated.
+ */
+
+	ldr	r0, [r9, #GD_START_ADDR_SP]	/* sp = gd->start_addr_sp */
+	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
+	mov	sp, r0
+	ldr	r9, [r9, #GD_NEW_GD]		/* r9 <- gd->new_gd */
+
+	adr	lr, here
+#if defined(CONFIG_POSITION_INDEPENDENT)
+	adr	r0, _main
+	ldr	r1, _start_ofs
+	add	r0, r1
+	ldr	r1, =CONFIG_TEXT_BASE
+	sub	r1, r0
+	add	lr, r1
+#if defined(CONFIG_SYS_RELOC_GD_ENV_ADDR)
+	ldr	r0, [r9, #GD_ENV_ADDR]		/* r0 = gd->env_addr */
+	add	r0, r0, r1
+	str	r0, [r9, #GD_ENV_ADDR]
+#endif
+#endif
+	ldr	r0, [r9, #GD_RELOC_OFF]		/* r0 = gd->reloc_off */
+	add	lr, lr, r0
+#if defined(CONFIG_CPU_V7M)
+	orr	lr, #1				/* As required by Thumb-only */
+#endif
+	ldr	r0, [r9, #GD_RELOCADDR]		/* r0 = gd->relocaddr */
+	b	relocate_code
+here:
+/*
+ * now relocate vectors
+ */
+
+	bl	relocate_vectors
+
+/* Set up final (full) environment */
+
+	bl	c_runtime_cpu_setup	/* we still call old routine here */
+#endif
+#if !defined(CONFIG_SPL_BUILD) || CONFIG_IS_ENABLED(FRAMEWORK)
+
+#if !defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SPL_EARLY_BSS)
+	CLEAR_BSS
+#endif
+
+# ifdef CONFIG_SPL_BUILD
+	/* Use a DRAM stack for the rest of SPL, if requested */
+	bl	spl_relocate_stack_gd
+	cmp	r0, #0
+	movne	sp, r0
+	movne	r9, r0
+# endif
 
 #if ! defined(CONFIG_SPL_BUILD)
 	bl coloured_LED_init
@@ -181,3 +203,6 @@ clbss_l:cmp	r0, r1			/* while not at end of BSS */
 #endif
 
 ENDPROC(_main)
+
+_start_ofs:
+	.word	_start - _main

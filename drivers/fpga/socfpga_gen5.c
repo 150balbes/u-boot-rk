@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (C) 2012 Altera Corporation <www.altera.com>
  * All rights reserved.
- *
- * SPDX-License-Identifier:	BSD-3-Clause
  */
 
 #include <common.h>
@@ -12,14 +11,10 @@
 #include <asm/arch/reset_manager.h>
 #include <asm/arch/system_manager.h>
 
-DECLARE_GLOBAL_DATA_PTR;
-
 #define FPGA_TIMEOUT_CNT	0x1000000
 
 static struct socfpga_fpga_manager *fpgamgr_regs =
 	(struct socfpga_fpga_manager *)SOCFPGA_FPGAMGRREGS_ADDRESS;
-static struct socfpga_system_manager *sysmgr_regs =
-	(struct socfpga_system_manager *)SOCFPGA_SYSMGR_ADDRESS;
 
 /* Set CD ratio */
 static void fpgamgr_set_cd_ratio(unsigned long ratio)
@@ -207,7 +202,7 @@ static int fpgamgr_program_poll_usermode(void)
  */
 int socfpga_load(Altera_desc *desc, const void *rbf_data, size_t rbf_size)
 {
-	unsigned long status;
+	int status;
 
 	if ((uint32_t)rbf_data & 0x3) {
 		puts("FPGA: Unaligned data, realign to 32bit boundary.\n");
@@ -217,7 +212,7 @@ int socfpga_load(Altera_desc *desc, const void *rbf_data, size_t rbf_size)
 	/* Prior programming the FPGA, all bridges need to be shut off */
 
 	/* Disable all signals from hps peripheral controller to fpga */
-	writel(0, &sysmgr_regs->fpgaintfgrp_module);
+	writel(0, socfpga_get_sysmgr_addr() + SYSMGR_GEN5_FPGAINFGRP_MODULE);
 
 	/* Disable all signals from FPGA to HPS SDRAM */
 #define SDR_CTRLGRP_FPGAPORTRST_ADDRESS	0x5080

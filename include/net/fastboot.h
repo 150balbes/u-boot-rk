@@ -1,8 +1,7 @@
-/*
-* Copyright (C) 2016 The Android Open Source Project
-*
-* SPDX-License-Identifier: BSD-2-Clause
-*/
+/* SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (C) 2016 The Android Open Source Project
+ */
 
 #ifndef __NET_FASTBOOT_H__
 #define __NET_FASTBOOT_H__
@@ -16,12 +15,6 @@
  * Wait for incoming fastboot comands.
  */
 void fastboot_start_server(void);
-/**
- * Send an INFO packet during long commands
- *
- * @param msg: String describing the reason for waiting
- */
-void fastboot_send_info(const char*);
 
 /**********************************************************************/
 

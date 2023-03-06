@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Denis Peter, MPL AG Switzerland
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
  * SCSI support.
  */
 #include <common.h>
+#include <blk.h>
 #include <command.h>
 #include <scsi.h>
 
@@ -17,7 +17,8 @@ static int scsi_curr_dev; /* current device */
 /*
  * scsi boot command intepreter. Derived from diskboot
  */
-static int do_scsiboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+static int do_scsiboot(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[])
 {
 	return common_diskboot(cmdtp, "scsi", argc, argv);
 }
@@ -25,7 +26,8 @@ static int do_scsiboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 /*
  * scsi command intepreter
  */
-static int do_scsi(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+static int do_scsi(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	int ret;
 
@@ -48,7 +50,7 @@ static int do_scsi(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		}
 	}
 
-	return blk_common_cmd(argc, argv, IF_TYPE_SCSI, &scsi_curr_dev);
+	return blk_common_cmd(argc, argv, UCLASS_SCSI, &scsi_curr_dev);
 }
 
 U_BOOT_CMD(

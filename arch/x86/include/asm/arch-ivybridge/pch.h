@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2014 Google, Inc
  *
@@ -5,8 +6,6 @@
  *
  * Copyright (C) 2008-2009 coresystems GmbH
  * Copyright (C) 2012 The Chromium OS Authors.  All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _ASM_ARCH_PCH_H
@@ -381,7 +380,7 @@
  * pch_silicon_revision() - Read silicon device ID from the PCH
  *
  * @dev:	PCH device
- * @return silicon device ID
+ * Return: silicon device ID
  */
 int pch_silicon_type(struct udevice *dev);
 

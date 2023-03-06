@@ -5,11 +5,11 @@
 
 #ifndef _ASM_ARCH_SDRAM_PX30_H
 #define _ASM_ARCH_SDRAM_PX30_H
-#include <asm/arch/sdram_common.h>
-#include <asm/arch/sdram_msch.h>
-#include <asm/arch/sdram_pctl_px30.h>
-#include <asm/arch/sdram_phy_px30.h>
-#include <asm/arch/sdram_phy_ron_rtt_px30.h>
+#include <asm/arch-rockchip/sdram_common.h>
+#include <asm/arch-rockchip/sdram_msch.h>
+#include <asm/arch-rockchip/sdram_pctl_px30.h>
+#include <asm/arch-rockchip/sdram_phy_px30.h>
+#include <asm/arch-rockchip/sdram_phy_ron_rtt_px30.h>
 
 #define SR_IDLE				93
 #define PD_IDLE				13
@@ -78,86 +78,6 @@
 #define CRU_CLKSFTRST_CON_BASE		0x300
 #define CRU_CLKSFTRST_CON(i)		(CRU_CLKSFTRST_CON_BASE + ((i) * 4))
 
-u8 ddr_cfg_2_rbc[] = {
-	/*
-	 * [6:4] max row: 13+n
-	 * [3]  bank(0:4bank,1:8bank)
-	 * [2:0]    col(10+n)
-	 */
-	((5 << 4) | (1 << 3) | 0), /* 0 */
-	((5 << 4) | (1 << 3) | 1), /* 1 */
-	((4 << 4) | (1 << 3) | 2), /* 2 */
-	((3 << 4) | (1 << 3) | 3), /* 3 */
-	((2 << 4) | (1 << 3) | 4), /* 4 */
-	((5 << 4) | (0 << 3) | 2), /* 5 */
-	((4 << 4) | (1 << 3) | 2), /* 6 */
-	/*((0<<3)|3),*/	 /* 12 for ddr4 */
-	/*((1<<3)|1),*/  /* 13 B,C exchange for rkvdec */
-};
-
-/*
- * for ddr4 if ddrconfig=7, upctl should set 7 and noc should
- * set to 1 for more efficient.
- * noc ddrconf, upctl addrmap
- * 1  7
- * 2  8
- * 3  9
- * 12 10
- * 5  11
- */
-u8 d4_rbc_2_d3_rbc[] = {
-	1, /* 7 */
-	2, /* 8 */
-	3, /* 9 */
-	12, /* 10 */
-	5, /* 11 */
-};
-
-/*
- * row higher than cs should be disabled by set to 0xf
- * rank addrmap calculate by real cap.
- */
-u32 addrmap[][8] = {
-	/* map0 map1,   map2,       map3,       map4,      map5
-	 * map6,        map7,       map8
-	 * -------------------------------------------------------
-	 * bk2-0       col 5-2     col 9-6    col 11-10   row 11-0
-	 * row 15-12   row 17-16   bg1,0
-	 * -------------------------------------------------------
-	 * 4,3,2       5-2         9-6                    6
-	 *                         3,2
-	 */
-	{0x00060606, 0x00000000, 0x1f1f0000, 0x00001f1f, 0x05050505,
-		0x05050505, 0x00000505, 0x3f3f}, /* 0 */
-	{0x00070707, 0x00000000, 0x1f000000, 0x00001f1f, 0x06060606,
-		0x06060606, 0x06060606, 0x3f3f}, /* 1 */
-	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x07070707,
-		0x07070707, 0x00000f07, 0x3f3f}, /* 2 */
-	{0x00090909, 0x00000000, 0x00000000, 0x00001f00, 0x08080808,
-		0x08080808, 0x00000f0f, 0x3f3f}, /* 3 */
-	{0x000a0a0a, 0x00000000, 0x00000000, 0x00000000, 0x09090909,
-		0x0f090909, 0x00000f0f, 0x3f3f}, /* 4 */
-	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x06060606,
-		0x06060606, 0x00000606, 0x3f3f}, /* 5 */
-	{0x00080808, 0x00000000, 0x00000000, 0x00001f1f, 0x07070707,
-		0x07070707, 0x00000f0f, 0x3f3f}, /* 6 */
-	{0x003f0808, 0x00000006, 0x1f1f0000, 0x00001f1f, 0x06060606,
-		0x06060606, 0x00000606, 0x0600}, /* 7 */
-	{0x003f0909, 0x00000007, 0x1f000000, 0x00001f1f, 0x07070707,
-		0x07070707, 0x00000f07, 0x0700}, /* 8 */
-	{0x003f0a0a, 0x01010100, 0x01010101, 0x00001f1f, 0x08080808,
-		0x08080808, 0x00000f0f, 0x0801}, /* 9 */
-	{0x003f0909, 0x01010100, 0x01010101, 0x00001f1f, 0x07070707,
-		0x07070707, 0x00000f07, 0x3f01}, /* 10 */
-	{0x003f0808, 0x00000007, 0x1f000000, 0x00001f1f, 0x06060606,
-		0x06060606, 0x00000606, 0x3f00}, /* 11 */
-	/* when ddr4 12 map to 10, when ddr3 12 unused */
-	{0x003f0909, 0x01010100, 0x01010101, 0x00001f1f, 0x07070707,
-		0x07070707, 0x00000f07, 0x3f01}, /* 10 */
-	{0x00070706, 0x00000000, 0x1f010000, 0x00001f1f, 0x06060606,
-		0x06060606, 0x00000606, 0x3f3f}, /* 13 */
-};
-
 struct px30_ddr_grf_regs {
 	u32 ddr_grf_con[4];
 	u32 reserved1[(0x20 - 0x10) / 4];
@@ -209,4 +129,6 @@ struct px30_sdram_params {
 	struct ddr_phy_regs phy_regs;
 	struct ddr_phy_skew *skew;
 };
+
+int sdram_init(void);
 #endif

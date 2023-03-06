@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002
  * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
@@ -5,11 +6,9 @@
  * Copyright (C) 2012 Samsung Electronics
  *
  * Based on arch/arm/cpu/armv7/omap-common/u-boot-spl.lds
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
-MEMORY { .sram : ORIGIN = CONFIG_SPL_TEXT_BASE, \
+MEMORY { .sram : ORIGIN = IMAGE_TEXT_BASE, \
 		LENGTH = CONFIG_SPL_MAX_FOOTPRINT }
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
@@ -33,8 +32,8 @@ SECTIONS
 	.data : { *(SORT_BY_ALIGNMENT(.data*)) } >.sram
 	. = ALIGN(4);
 
-	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list*)));
+	__u_boot_list : {
+		KEEP(*(SORT(__u_boot_list*)));
 	} >.sram
 	. = ALIGN(4);
 

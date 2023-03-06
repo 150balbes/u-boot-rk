@@ -1,16 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Wolfgang Denk, DENX Software Engineering, <wd@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <malloc.h>
+#include <asm/cache.h>
 #include <asm/cacheops.h>
-#ifdef CONFIG_MIPS_L2_CACHE
 #include <asm/cm.h>
-#endif
+#include <asm/global_data.h>
+#include <asm/io.h>
 #include <asm/mipsregs.h>
+#include <asm/system.h>
+#include <linux/bug.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -35,7 +39,7 @@ static void probe_l2(void)
 			l2c = read_c0_config5() & MIPS_CONF5_L2C;
 	}
 
-	if (l2c && config_enabled(CONFIG_MIPS_CM)) {
+	if (l2c && IS_ENABLED(CONFIG_MIPS_CM)) {
 		gd->arch.l2_line_size = mips_cm_l2_line_size();
 	} else if (l2c) {
 		/* We don't know how to retrieve L2 config on this system */
@@ -86,7 +90,7 @@ static inline unsigned long scache_line_size(void)
 #ifdef CONFIG_MIPS_L2_CACHE
 	return gd->arch.l2_line_size;
 #else
-	return 0;
+	return CONFIG_SYS_SCACHE_LINE_SIZE;
 #endif
 }
 
@@ -96,13 +100,16 @@ static inline unsigned long scache_line_size(void)
 	const unsigned int cache_ops[] = { ops };			\
 	unsigned int i;							\
 									\
+	if (!lsize)							\
+		break;							\
+									\
 	for (; addr <= aend; addr += lsize) {				\
 		for (i = 0; i < ARRAY_SIZE(cache_ops); i++)		\
 			mips_cache(cache_ops[i], addr);			\
 	}								\
 } while (0)
 
-void flush_cache(ulong start_addr, ulong size)
+void __weak flush_cache(ulong start_addr, ulong size)
 {
 	unsigned long ilsize = icache_line_size();
 	unsigned long dlsize = dcache_line_size();
@@ -116,22 +123,27 @@ void flush_cache(ulong start_addr, ulong size)
 		/* flush I-cache & D-cache simultaneously */
 		cache_loop(start_addr, start_addr + size, ilsize,
 			   HIT_WRITEBACK_INV_D, HIT_INVALIDATE_I);
-		return;
+		goto ops_done;
 	}
 
 	/* flush D-cache */
 	cache_loop(start_addr, start_addr + size, dlsize, HIT_WRITEBACK_INV_D);
 
 	/* flush L2 cache */
-	if (slsize)
-		cache_loop(start_addr, start_addr + size, slsize,
-			   HIT_WRITEBACK_INV_SD);
+	cache_loop(start_addr, start_addr + size, slsize, HIT_WRITEBACK_INV_SD);
 
 	/* flush I-cache */
 	cache_loop(start_addr, start_addr + size, ilsize, HIT_INVALIDATE_I);
+
+ops_done:
+	/* ensure cache ops complete before any further memory accesses */
+	sync();
+
+	/* ensure the pipeline doesn't contain now-invalid instructions */
+	instruction_hazard_barrier();
 }
 
-void flush_dcache_range(ulong start_addr, ulong stop)
+void __weak flush_dcache_range(ulong start_addr, ulong stop)
 {
 	unsigned long lsize = dcache_line_size();
 	unsigned long slsize = scache_line_size();
@@ -143,11 +155,13 @@ void flush_dcache_range(ulong start_addr, ulong stop)
 	cache_loop(start_addr, stop, lsize, HIT_WRITEBACK_INV_D);
 
 	/* flush L2 cache */
-	if (slsize)
-		cache_loop(start_addr, stop, slsize, HIT_WRITEBACK_INV_SD);
+	cache_loop(start_addr, stop, slsize, HIT_WRITEBACK_INV_SD);
+
+	/* ensure cache ops complete before any further memory accesses */
+	sync();
 }
 
-void invalidate_dcache_range(ulong start_addr, ulong stop)
+void __weak invalidate_dcache_range(ulong start_addr, ulong stop)
 {
 	unsigned long lsize = dcache_line_size();
 	unsigned long slsize = scache_line_size();
@@ -157,8 +171,72 @@ void invalidate_dcache_range(ulong start_addr, ulong stop)
 		return;
 
 	/* invalidate L2 cache */
-	if (slsize)
-		cache_loop(start_addr, stop, slsize, HIT_INVALIDATE_SD);
+	cache_loop(start_addr, stop, slsize, HIT_INVALIDATE_SD);
 
 	cache_loop(start_addr, stop, lsize, HIT_INVALIDATE_D);
+
+	/* ensure cache ops complete before any further memory accesses */
+	sync();
 }
+
+int dcache_status(void)
+{
+	unsigned int cca = read_c0_config() & CONF_CM_CMASK;
+	return cca != CONF_CM_UNCACHED;
+}
+
+void dcache_enable(void)
+{
+	puts("Not supported!\n");
+}
+
+void dcache_disable(void)
+{
+	/* change CCA to uncached */
+	change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
+
+	/* ensure the pipeline doesn't contain now-invalid instructions */
+	instruction_hazard_barrier();
+}
+
+#ifdef CONFIG_SYS_NONCACHED_MEMORY
+static unsigned long noncached_start;
+static unsigned long noncached_end;
+static unsigned long noncached_next;
+
+void noncached_set_region(void)
+{
+}
+
+int noncached_init(void)
+{
+	phys_addr_t start, end;
+	size_t size;
+
+	/* If this calculation changes, update board_f.c:reserve_noncached() */
+	end = ALIGN(mem_malloc_start, MMU_SECTION_SIZE) - MMU_SECTION_SIZE;
+	size = ALIGN(CONFIG_SYS_NONCACHED_MEMORY, MMU_SECTION_SIZE);
+	start = end - size;
+
+	debug("mapping memory %pa-%pa non-cached\n", &start, &end);
+
+	noncached_start = start;
+	noncached_end = end;
+	noncached_next = start;
+
+	return 0;
+}
+
+phys_addr_t noncached_alloc(size_t size, size_t align)
+{
+	phys_addr_t next = ALIGN(noncached_next, align);
+
+	if (next >= noncached_end || (noncached_end - next) < size)
+		return 0;
+
+	debug("allocated %zu bytes of uncached memory @%pa\n", size, &next);
+	noncached_next = next + size;
+
+	return CKSEG1ADDR(next);
+}
+#endif /* CONFIG_SYS_NONCACHED_MEMORY */

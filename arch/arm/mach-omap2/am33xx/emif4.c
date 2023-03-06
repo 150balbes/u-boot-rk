@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * emif4.c
  *
  * AM33XX emif4 configuration file
  *
  * Copyright (C) 2011, Texas Instruments, Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -27,26 +26,6 @@ static struct ddr_ctrl *ddrctrl = (struct ddr_ctrl *)DDR_CTRL_ADDR;
 static struct ddr_ctrl *ddrctrl = (struct ddr_ctrl *)DDR_CTRL_ADDR;
 static struct cm_device_inst *cm_device =
 				(struct cm_device_inst *)CM_DEVICE_INST;
-#endif
-
-#ifdef CONFIG_TI814X
-void config_dmm(const struct dmm_lisa_map_regs *regs)
-{
-	struct dmm_lisa_map_regs *hw_lisa_map_regs =
-				(struct dmm_lisa_map_regs *)DMM_BASE;
-
-	enable_dmm_clocks();
-
-	writel(0, &hw_lisa_map_regs->dmm_lisa_map_3);
-	writel(0, &hw_lisa_map_regs->dmm_lisa_map_2);
-	writel(0, &hw_lisa_map_regs->dmm_lisa_map_1);
-	writel(0, &hw_lisa_map_regs->dmm_lisa_map_0);
-
-	writel(regs->dmm_lisa_map_3, &hw_lisa_map_regs->dmm_lisa_map_3);
-	writel(regs->dmm_lisa_map_2, &hw_lisa_map_regs->dmm_lisa_map_2);
-	writel(regs->dmm_lisa_map_1, &hw_lisa_map_regs->dmm_lisa_map_1);
-	writel(regs->dmm_lisa_map_0, &hw_lisa_map_regs->dmm_lisa_map_0);
-}
 #endif
 
 static void config_vtp(int nr)
@@ -95,8 +74,13 @@ void config_ddr(unsigned int pll, const struct ctrl_ioregs *ioregs,
 	writel(DDR_CKE_CTRL_NORMAL, &ddrctrl->ddrckectrl);
 
 	if (emif_sdram_type(regs->sdram_config) == EMIF_SDRAM_TYPE_DDR3)
+#ifndef CONFIG_SPL_RTC_DDR_SUPPORT
 		/* Allow EMIF to control DDR_RESET */
 		writel(0x00000000, &ddrctrl->ddrioctrl);
+#else
+		/* Override EMIF DDR_RESET control */
+		writel(0x80000000, &ddrctrl->ddrioctrl);
+#endif /* CONFIG_SPL_RTC_DDR_SUPPORT */
 #endif
 
 	/* Program EMIF instance */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 Jana Rapava <fermata7@gmail.com>
  * Copyright (C) 2011 CompuLab, Ltd. <www.compulab.co.il>
@@ -10,12 +11,11 @@
  *
  * Original Copyright follow:
  * Copyright (C) 2011 Google, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <usb/ulpi.h>
 
 /* ULPI viewport control bits */
@@ -34,7 +34,7 @@
  */
 static int ulpi_wait(struct ulpi_viewport *ulpi_vp, u32 mask)
 {
-	int timeout = CONFIG_USB_ULPI_TIMEOUT;
+	int timeout = CFG_USB_ULPI_TIMEOUT;
 
 	/* Wait for the bits in mask to become zero. */
 	while (--timeout) {

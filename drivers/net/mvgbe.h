@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
@@ -5,19 +6,10 @@
  *
  * based on - Driver for MV64360X ethernet ports
  * Copyright (C) 2002 rabeeh@galileo.co.il
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MVGBE_H__
 #define __MVGBE_H__
-
-/* PHY_BASE_ADR is board specific and can be configured */
-#if defined (CONFIG_PHY_BASE_ADR)
-#define PHY_BASE_ADR		CONFIG_PHY_BASE_ADR
-#else
-#define PHY_BASE_ADR		0x08	/* default phy base addr */
-#endif
 
 /* Constants */
 #define INT_CAUSE_UNMASK_ALL		0x0007ffff
@@ -31,7 +23,6 @@
 #define RXUQ	0 /* Used Rx queue */
 #define TXUQ	0 /* Used Rx queue */
 
-#define to_mvgbe(_d) container_of(_d, struct mvgbe_device, dev)
 #define MVGBE_REG_WR(adr, val)		writel(val, &adr)
 #define MVGBE_REG_RD(adr)		readl(&adr)
 #define MVGBE_REG_BITS_RESET(adr, val)	writel(readl(&adr) & ~(val), &adr)
@@ -217,6 +208,7 @@
 
 /* SMI register fields */
 #define MVGBE_PHY_SMI_TIMEOUT		10000
+#define MVGBE_PHY_SMI_TIMEOUT_MS	1000
 #define MVGBE_PHY_SMI_DATA_OFFS		0	/* Data */
 #define MVGBE_PHY_SMI_DATA_MASK		(0xffff << MVGBE_PHY_SMI_DATA_OFFS)
 #define MVGBE_PHY_SMI_DEV_ADDR_OFFS	16	/* PHY device address */
@@ -292,17 +284,10 @@
 #define EBAR_TARGET_GUNIT			0x00000007
 
 /* Window attrib */
-#if defined(CONFIG_DOVE)
-#define EBAR_DRAM_CS0				0x00000000
-#define EBAR_DRAM_CS1				0x00000000
-#define EBAR_DRAM_CS2				0x00000000
-#define EBAR_DRAM_CS3				0x00000000
-#else
 #define EBAR_DRAM_CS0				0x00000E00
 #define EBAR_DRAM_CS1				0x00000D00
 #define EBAR_DRAM_CS2				0x00000B00
 #define EBAR_DRAM_CS3				0x00000700
-#endif
 
 /* DRAM Target interface */
 #define EBAR_DRAM_NO_CACHE_COHERENCY		0x00000000
@@ -486,13 +471,22 @@ struct mvgbe_txdesc {
 
 /* port device data struct */
 struct mvgbe_device {
-	struct eth_device dev;
 	struct mvgbe_registers *regs;
 	struct mvgbe_txdesc *p_txdesc;
 	struct mvgbe_rxdesc *p_rxdesc;
 	struct mvgbe_rxdesc *p_rxdesc_curr;
 	u8 *p_rxbuf;
 	u8 *p_aligned_txbuf;
+
+	phy_interface_t phy_interface;
+	unsigned int link;
+	unsigned int duplex;
+	unsigned int speed;
+
+	int init;
+	int phyaddr;
+	struct phy_device *phydev;
+	struct mii_dev *bus;
 };
 
 #endif /* __MVGBE_H__ */

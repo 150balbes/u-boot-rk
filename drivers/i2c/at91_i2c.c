@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Atmel I2C driver.
  *
  * (C) Copyright 2016 Songjun Wu <songjun.wu@atmel.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <malloc.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <common.h>
 #include <clk.h>
@@ -50,6 +51,10 @@ static int at91_i2c_xfer_msg(struct at91_i2c_bus *bus, struct i2c_msg *msg)
 	u32 i;
 	int ret = 0;
 
+	/* if there is no message to send/receive, just exit quietly */
+	if (msg->len == 0)
+		return ret;
+
 	readl(&reg->sr);
 	if (is_read) {
 		writel(TWI_CR_START, &reg->cr);
@@ -72,6 +77,8 @@ static int at91_i2c_xfer_msg(struct at91_i2c_bus *bus, struct i2c_msg *msg)
 
 	} else {
 		writel(msg->buf[0], &reg->thr);
+		ret = at91_wait_for_xfer(bus, TWI_SR_TXRDY);
+
 		for (i = 1; !ret && (i < msg->len); i++) {
 			writel(msg->buf[i], &reg->thr);
 			ret = at91_wait_for_xfer(bus, TWI_SR_TXRDY);
@@ -199,27 +206,6 @@ static int at91_i2c_enable_clk(struct udevice *dev)
 	return 0;
 }
 
-static int at91_i2c_probe_chip(struct udevice *dev, uint chip, uint chip_flags)
-{
-	struct at91_i2c_bus *bus = dev_get_priv(dev);
-	struct at91_i2c_regs *reg = bus->regs;
-	int ret;
-
-	ret = at91_i2c_enable_clk(dev);
-	if (ret)
-		return ret;
-
-	writel(TWI_CR_SWRST, &reg->cr);
-
-	at91_calc_i2c_clock(dev, bus->clock_frequency);
-
-	writel(bus->cwgr_val, &reg->cwgr);
-	writel(TWI_CR_MSEN, &reg->cr);
-	writel(TWI_CR_SVDIS, &reg->cr);
-
-	return 0;
-}
-
 static int at91_i2c_set_bus_speed(struct udevice *dev, unsigned int speed)
 {
 	struct at91_i2c_bus *bus = dev_get_priv(dev);
@@ -238,13 +224,13 @@ int at91_i2c_get_bus_speed(struct udevice *dev)
 	return bus->speed;
 }
 
-static int at91_i2c_ofdata_to_platdata(struct udevice *dev)
+static int at91_i2c_of_to_plat(struct udevice *dev)
 {
 	const void *blob = gd->fdt_blob;
 	struct at91_i2c_bus *bus = dev_get_priv(dev);
 	int node = dev_of_offset(dev);
 
-	bus->regs = (struct at91_i2c_regs *)devfdt_get_addr(dev);
+	bus->regs = dev_read_addr_ptr(dev);
 	bus->pdata = (struct at91_i2c_pdata *)dev_get_driver_data(dev);
 	bus->clock_frequency = fdtdec_get_int(blob, node,
 					      "clock-frequency", 100000);
@@ -254,7 +240,6 @@ static int at91_i2c_ofdata_to_platdata(struct udevice *dev)
 
 static const struct dm_i2c_ops at91_i2c_ops = {
 	.xfer		= at91_i2c_xfer,
-	.probe_chip	= at91_i2c_probe_chip,
 	.set_bus_speed	= at91_i2c_set_bus_speed,
 	.get_bus_speed	= at91_i2c_get_bus_speed,
 };
@@ -320,6 +305,11 @@ static const struct at91_i2c_pdata sama5d2_config = {
 	.clk_offset = 3,
 };
 
+static const struct at91_i2c_pdata sam9x60_config = {
+	.clk_max_div = 7,
+	.clk_offset = 3,
+};
+
 static const struct udevice_id at91_i2c_ids[] = {
 { .compatible = "atmel,at91rm9200-i2c", .data = (long)&at91rm9200_config },
 { .compatible = "atmel,at91sam9260-i2c", .data = (long)&at91sam9260_config },
@@ -329,6 +319,7 @@ static const struct udevice_id at91_i2c_ids[] = {
 { .compatible = "atmel,at91sam9x5-i2c", .data = (long)&at91sam9x5_config },
 { .compatible = "atmel,sama5d4-i2c", .data = (long)&sama5d4_config },
 { .compatible = "atmel,sama5d2-i2c", .data = (long)&sama5d2_config },
+{ .compatible = "microchip,sam9x60-i2c", .data = (long)&sam9x60_config },
 { }
 };
 
@@ -337,8 +328,8 @@ U_BOOT_DRIVER(i2c_at91) = {
 	.id	= UCLASS_I2C,
 	.of_match = at91_i2c_ids,
 	.probe = at91_i2c_probe,
-	.ofdata_to_platdata = at91_i2c_ofdata_to_platdata,
-	.per_child_auto_alloc_size = sizeof(struct dm_i2c_chip),
-	.priv_auto_alloc_size = sizeof(struct at91_i2c_bus),
+	.of_to_plat = at91_i2c_of_to_plat,
+	.per_child_auto	= sizeof(struct dm_i2c_chip),
+	.priv_auto	= sizeof(struct at91_i2c_bus),
 	.ops	= &at91_i2c_ops,
 };

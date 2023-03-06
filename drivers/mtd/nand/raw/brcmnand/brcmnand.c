@@ -17,10 +17,16 @@
 #include <memalign.h>
 #include <nand.h>
 #include <clk.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/completion.h>
 #include <linux/errno.h>
 #include <linux/log2.h>
+#include <linux/mtd/rawnand.h>
 #include <asm/processor.h>
 #include <dm.h>
 
@@ -951,7 +957,7 @@ static struct nand_ecclayout *brcmnand_create_layout(int ecc_level,
 	 */
 	req = DIV_ROUND_UP(ecc_level * 14, 8);
 	if (req >= sas) {
-		dev_err(&host->pdev->dev,
+		dev_err(host->pdev,
 			"error: ECC too large for OOB (ECC bytes %d, spare sector %d)\n",
 			req, sas);
 		return NULL;
@@ -1007,8 +1013,8 @@ static struct nand_ecclayout *brcmstb_choose_ecc_layout(
 
 	layout = brcmnand_create_layout(ecc_level, host);
 	if (!layout) {
-		dev_err(&host->pdev->dev,
-				"no proper ecc_layout for this NAND cfg\n");
+		dev_err(host->pdev,
+			"no proper ecc_layout for this NAND cfg\n");
 		return NULL;
 	}
 
@@ -1051,17 +1057,9 @@ static void brcmnand_wp(struct mtd_info *mtd, int wp)
 					       NAND_CTRL_RDY |
 					       NAND_STATUS_READY |
 					       (wp ? 0 : NAND_STATUS_WP), 0);
-#ifndef __UBOOT__
 		if (ret)
-			dev_err_ratelimited(&host->pdev->dev,
-					    "nand #WP expected %s\n",
-					    wp ? "on" : "off");
-#else
-		if (ret)
-			dev_err(&host->pdev->dev,
-					    "nand #WP expected %s\n",
-					    wp ? "on" : "off");
-#endif /* __UBOOT__ */
+			dev_err(host->pdev, "nand #WP expected %s\n",
+				wp ? "on" : "off");
 	}
 }
 
@@ -1634,7 +1632,7 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 					mtd->oobsize / trans,
 					host->hwcfg.sector_size_1k);
 
-		if (!ret) {
+		if (ret != -EBADMSG) {
 			*err_addr = brcmnand_read_reg(ctrl,
 					BRCMNAND_UNCORR_ADDR) |
 				((u64)(brcmnand_read_reg(ctrl,
@@ -2252,7 +2250,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host, ofnode dn)
 	ret = ofnode_read_s32(dn, "reg", &host->cs);
 #endif
 	if (ret) {
-		dev_err(&pdev->dev, "can't get chip-select\n");
+		dev_err(pdev, "can't get chip-select\n");
 		return -ENXIO;
 	}
 
@@ -2529,10 +2527,7 @@ int brcmnand_probe(struct udevice *dev, struct brcmnand_soc *soc)
 		if (ret)
 			return ret;
 	} else {
-		ret = PTR_ERR(ctrl->clk);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
+		/* Ignore PTR_ERR(ctrl->clk) */
 		ctrl->clk = NULL;
 	}
 
@@ -2711,6 +2706,14 @@ int brcmnand_probe(struct udevice *dev, struct brcmnand_soc *soc)
 	}
 #endif /* __UBOOT__ */
 
+	/* No chip-selects could initialize properly */
+	if (list_empty(&ctrl->host_list)) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return 0;
+
 err:
 #ifndef __UBOOT__
 	clk_disable_unprepare(ctrl->clk);
@@ -2719,7 +2722,6 @@ err:
 		clk_disable(ctrl->clk);
 #endif /* __UBOOT__ */
 	return ret;
-
 }
 EXPORT_SYMBOL_GPL(brcmnand_probe);
 

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 #ifndef _PSC_DEFS_H_
 #define _PSC_DEFS_H_
@@ -95,7 +94,7 @@ static inline u32 boot_set_bitfield(u32 z, u32 f, u32 x, u32 y)
  * Timeout limit on checking PTSTAT. This is the number of times the
  * wait function will be called before giving up.
  */
-#define PSC_PTSTAT_TIMEOUT_LIMIT    100
+#define PSC_PTSTAT_TIMEOUT_LIMIT    100000
 
 u32 psc_get_domain_num(u32 mod_num);
 int psc_enable_module(u32 mod_num);

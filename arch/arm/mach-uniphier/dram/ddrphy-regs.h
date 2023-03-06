@@ -1,15 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * UniPhier DDR PHY registers
  *
  * Copyright (C) 2014      Panasonic Corporation
  * Copyright (C) 2015-2016 Socionext Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef ARCH_DDRPHY_REGS_H
 #define ARCH_DDRPHY_REGS_H
 
+#include <linux/bitops.h>
 #define PHY_REG_SHIFT		2
 
 #define PHY_RIDR		(0x000 << PHY_REG_SHIFT)

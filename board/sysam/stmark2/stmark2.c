@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Board-specific init.
  *
  * (C) Copyright 2017 Angelo Dureghello <angelo@sysam.it>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <init.h>
 #include <spi.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/immap.h>
 #include <mmc.h>
@@ -34,7 +35,7 @@ int dram_init(void)
 	 * Serial Boot: The dram is already initialized in start.S
 	 * only require to return DRAM size
 	 */
-	dramsize = CONFIG_SYS_SDRAM_SIZE * 0x100000;
+	dramsize = CFG_SYS_SDRAM_SIZE * 0x100000;
 
 	gd->ram_size = dramsize;
 

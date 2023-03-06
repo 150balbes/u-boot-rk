@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
  *                        Steven J. Hill <sjhill@realitydiluted.com>
  *		          Thomas Gleixner <tglx@linutronix.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Info:
  *	Contains standard defines and IDs for NAND flash devices
@@ -16,10 +15,13 @@
 
 #include <config.h>
 
+#include <dm/device.h>
+#include <linux/bitops.h>
 #include <linux/compat.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
+#include <asm/cache.h>
 
 struct mtd_info;
 struct nand_chip;
@@ -27,26 +29,24 @@ struct nand_flash_dev;
 struct device_node;
 
 /* Get the flash and manufacturer id and lookup if the type is supported. */
-struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
-					   struct nand_chip *chip,
-					   int *maf_id, int *dev_id,
-					   struct nand_flash_dev *type);
+int nand_detect(struct nand_chip *chip, int *maf_id, int *dev_id,
+		struct nand_flash_dev *type);
 
 /* Scan and identify a NAND device */
-extern int nand_scan(struct mtd_info *mtd, int max_chips);
+int nand_scan(struct mtd_info *mtd, int max_chips);
 /*
  * Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type.
  */
-extern int nand_scan_ident(struct mtd_info *mtd, int max_chips,
+int nand_scan_ident(struct mtd_info *mtd, int max_chips,
 			   struct nand_flash_dev *table);
-extern int nand_scan_tail(struct mtd_info *mtd);
+int nand_scan_tail(struct mtd_info *mtd);
 
 /* Free resources held by the NAND device */
-extern void nand_release(struct mtd_info *mtd);
+void nand_release(struct mtd_info *mtd);
 
 /* Internal helper for board drivers which need to override command function */
-extern void nand_wait_ready(struct mtd_info *mtd);
+void nand_wait_ready(struct mtd_info *mtd);
 
 /*
  * This constant declares the max. oobsize / page, which
@@ -142,6 +142,12 @@ typedef enum {
 	NAND_ECC_HW_OOB_FIRST,
 	NAND_ECC_SOFT_BCH,
 } nand_ecc_modes_t;
+
+enum nand_ecc_algo {
+	NAND_ECC_UNKNOWN,
+	NAND_ECC_HAMMING,
+	NAND_ECC_BCH,
+};
 
 /*
  * Constants for Hardware ECC
@@ -381,26 +387,6 @@ struct onfi_ext_param_page {
 	 */
 } __packed;
 
-struct nand_onfi_vendor_micron {
-	u8 two_plane_read;
-	u8 read_cache;
-	u8 read_unique_id;
-	u8 dq_imped;
-	u8 dq_imped_num_settings;
-	u8 dq_imped_feat_addr;
-	u8 rb_pulldown_strength;
-	u8 rb_pulldown_strength_feat_addr;
-	u8 rb_pulldown_strength_num_settings;
-	u8 otp_mode;
-	u8 otp_page_start;
-	u8 otp_data_prot_addr;
-	u8 otp_num_pages;
-	u8 otp_feat_addr;
-	u8 read_retry_options;
-	u8 reserved[72];
-	u8 param_revision;
-} __packed;
-
 struct jedec_ecc_info {
 	u8 ecc_bits;
 	u8 codeword_size;
@@ -492,6 +478,26 @@ struct nand_hw_control {
 	struct nand_chip *active;
 };
 
+static inline void nand_hw_control_init(struct nand_hw_control *nfc)
+{
+	nfc->active = NULL;
+	spin_lock_init(&nfc->lock);
+	init_waitqueue_head(&nfc->wq);
+}
+
+/* The maximum expected count of bytes in the NAND ID sequence */
+#define NAND_MAX_ID_LEN 8
+
+/**
+ * struct nand_id - NAND id structure
+ * @data: buffer containing the id bytes.
+ * @len: ID length.
+ */
+struct nand_id {
+	u8 data[NAND_MAX_ID_LEN];
+	int len;
+};
+
 /**
  * struct nand_ecc_step_info - ECC step information of ECC engine
  * @stepsize: data bytes per ECC step
@@ -516,9 +522,24 @@ struct nand_ecc_caps {
 	int (*calc_ecc_bytes)(int step_size, int strength);
 };
 
+/* a shorthand to generate struct nand_ecc_caps with only one ECC stepsize */
+#define NAND_ECC_CAPS_SINGLE(__name, __calc, __step, ...)	\
+static const int __name##_strengths[] = { __VA_ARGS__ };	\
+static const struct nand_ecc_step_info __name##_stepinfo = {	\
+	.stepsize = __step,					\
+	.strengths = __name##_strengths,			\
+	.nstrengths = ARRAY_SIZE(__name##_strengths),		\
+};								\
+static const struct nand_ecc_caps __name = {			\
+	.stepinfos = &__name##_stepinfo,			\
+	.nstepinfos = 1,					\
+	.calc_ecc_bytes = __calc,				\
+}
+
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
  * @mode:	ECC mode
+ * @algo:	ECC algorithm
  * @steps:	number of ECC steps per page
  * @size:	data bytes per ECC step
  * @bytes:	ECC bytes per step
@@ -569,6 +590,7 @@ struct nand_ecc_caps {
  */
 struct nand_ecc_ctrl {
 	nand_ecc_modes_t mode;
+	enum nand_ecc_algo algo;
 	int steps;
 	int size;
 	int bytes;
@@ -753,6 +775,17 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
 }
 
 /**
+ * struct nand_manufacturer_ops - NAND Manufacturer operations
+ * @detect: detect the NAND memory organization and capabilities
+ * @init: initialize all vendor specific fields (like the ->read_retry()
+ *	  implementation) if any.
+ */
+struct nand_manufacturer_ops {
+	void (*detect)(struct nand_chip *chip);
+	int (*init)(struct nand_chip *chip);
+};
+
+/**
  * struct nand_chip - NAND Private Flash Chip Data
  * @mtd:		MTD device registered to the MTD framework
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
@@ -853,14 +886,17 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  *			devices.
  * @priv:		[OPTIONAL] pointer to private chip data
  * @write_page:		[REPLACEABLE] High-level page write function
+ * @manufacturer:	[INTERN] Contains manufacturer information
  */
 
 struct nand_chip {
 	struct mtd_info mtd;
+	struct nand_id id;
+
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
 
-	int flash_node;
+	ofnode flash_node;
 
 	uint8_t (*read_byte)(struct mtd_info *mtd);
 	u16 (*read_word)(struct mtd_info *mtd);
@@ -912,11 +948,9 @@ struct nand_chip {
 
 	int onfi_version;
 	int jedec_version;
-#ifdef CONFIG_SYS_NAND_ONFI_DETECTION
 	struct nand_onfi_params	onfi_params;
-#endif
 	struct nand_jedec_params jedec_params;
- 
+
 	struct nand_data_interface *data_interface;
 
 	int read_retries;
@@ -939,7 +973,23 @@ struct nand_chip {
 	struct nand_bbt_descr *badblock_pattern;
 
 	void *priv;
+
+	struct {
+		const struct nand_manufacturer *desc;
+		void *priv;
+	} manufacturer;
 };
+
+static inline void nand_set_flash_node(struct nand_chip *chip,
+				       ofnode node)
+{
+	chip->flash_node = node;
+}
+
+static inline ofnode nand_get_flash_node(struct nand_chip *chip)
+{
+	return chip->flash_node;
+}
 
 static inline struct nand_chip *mtd_to_nand(struct mtd_info *mtd)
 {
@@ -959,6 +1009,17 @@ static inline void *nand_get_controller_data(struct nand_chip *chip)
 static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
 {
 	chip->priv = priv;
+}
+
+static inline void nand_set_manufacturer_data(struct nand_chip *chip,
+					      void *priv)
+{
+	chip->manufacturer.priv = priv;
+}
+
+static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
+{
+	return chip->manufacturer.priv;
 }
 
 /*
@@ -1062,25 +1123,34 @@ struct nand_flash_dev {
 };
 
 /**
- * struct nand_manufacturers - NAND Flash Manufacturer ID Structure
+ * struct nand_manufacturer - NAND Flash Manufacturer ID Structure
  * @name:	Manufacturer name
  * @id:		manufacturer ID code of device.
+ * @ops:	manufacturer operations
 */
-struct nand_manufacturers {
+struct nand_manufacturer {
 	int id;
 	char *name;
+	const struct nand_manufacturer_ops *ops;
 };
 
 extern struct nand_flash_dev nand_flash_ids[];
-extern struct nand_manufacturers nand_manuf_ids[];
+extern struct nand_manufacturer nand_manuf_ids[];
 
-extern int nand_default_bbt(struct mtd_info *mtd);
-extern int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
-extern int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs);
-extern int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
-extern int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
+extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
+extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
+extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
+extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
+extern const struct nand_manufacturer_ops amd_nand_manuf_ops;
+extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
+
+int nand_default_bbt(struct mtd_info *mtd);
+int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
+int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs);
+int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
+int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 			   int allowbbt);
-extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
+int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, uint8_t *buf);
 
 /*
@@ -1174,6 +1244,21 @@ static inline int onfi_get_sync_timing_mode(struct nand_chip *chip)
 	if (!chip->onfi_version)
 		return ONFI_TIMING_MODE_UNKNOWN;
 	return le16_to_cpu(chip->onfi_params.src_sync_timing_mode);
+}
+#else
+static inline int onfi_feature(struct nand_chip *chip)
+{
+	return 0;
+}
+
+static inline int onfi_get_async_timing_mode(struct nand_chip *chip)
+{
+	return ONFI_TIMING_MODE_UNKNOWN;
+}
+
+static inline int onfi_get_sync_timing_mode(struct nand_chip *chip)
+{
+	return ONFI_TIMING_MODE_UNKNOWN;
 }
 #endif
 
@@ -1274,5 +1359,8 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		      bool force_8bit);
 int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		       unsigned int len, bool force_8bit);
+
+/* Default extended ID decoding function */
+void nand_decode_ext_id(struct nand_chip *chip);
 
 #endif /* __LINUX_MTD_RAWNAND_H */

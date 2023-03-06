@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 Thomas Chou <thomas@wytron.com.tw>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
+
+#define LOG_CATEGORY UCLASS_MISC
 
 #include <common.h>
 #include <dm.h>
@@ -25,7 +26,7 @@ int misc_read(struct udevice *dev, int offset, void *buf, int size)
 	return ops->read(dev, offset, buf, size);
 }
 
-int misc_write(struct udevice *dev, int offset, void *buf, int size)
+int misc_write(struct udevice *dev, int offset, const void *buf, int size)
 {
 	const struct misc_ops *ops = device_get_ops(dev);
 
@@ -56,34 +57,20 @@ int misc_call(struct udevice *dev, int msgid, void *tx_msg, int tx_size,
 	return ops->call(dev, msgid, tx_msg, tx_size, rx_msg, rx_size);
 }
 
-struct udevice *misc_get_device_by_capability(u32 capability)
+int misc_set_enabled(struct udevice *dev, bool val)
 {
-	const struct misc_ops *ops;
-	struct udevice *dev;
-	struct uclass *uc;
-	int ret;
-	u32 cap;
+	const struct misc_ops *ops = device_get_ops(dev);
 
-	ret = uclass_get(UCLASS_MISC, &uc);
-	if (ret)
-		return NULL;
+	if (!ops->set_enabled)
+		return -ENOSYS;
 
-	for (uclass_first_device(UCLASS_MISC, &dev);
-	     dev;
-	     uclass_next_device(&dev)) {
-		ops = device_get_ops(dev);
-		if (!ops || !ops->ioctl)
-			continue;
-
-		ret = ops->ioctl(dev, IOCTL_REQ_CAPABILITY, &cap);
-		if (!ret && ((cap & capability) == capability))
-			return dev;
-	}
-
-	return NULL;
+	return ops->set_enabled(dev, val);
 }
 
 UCLASS_DRIVER(misc) = {
 	.id		= UCLASS_MISC,
 	.name		= "misc",
+#if CONFIG_IS_ENABLED(OF_REAL)
+	.post_bind	= dm_scan_fdt_dev,
+#endif
 };

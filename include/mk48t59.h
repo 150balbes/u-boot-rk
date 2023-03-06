@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2001 Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Andreas Heppel <aheppel@sysgo.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,9 +11,9 @@
 
 #if defined(CONFIG_RTC_MK48T59) && defined(CONFIG_CMD_DATE)
 
-#define RTC_PORT_ADDR0		CONFIG_SYS_ISA_IO +  0x70
+#define RTC_PORT_ADDR0		0x70
 #define RTC_PORT_ADDR1		RTC_PORT_ADDR0 +  0x1
-#define RTC_PORT_DATA		CONFIG_SYS_ISA_IO +  0x76
+#define RTC_PORT_DATA		0x76
 
 /* RTC Offsets */
 #define RTC_SECONDS             0x1FF9

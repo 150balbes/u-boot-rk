@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 Intel Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -9,6 +8,7 @@
 #include <syscon.h>
 #include <asm/cpu.h>
 #include <asm/pmu.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 
@@ -113,5 +113,5 @@ U_BOOT_DRIVER(intel_mid_pmu) = {
 	.id		= UCLASS_SYSCON,
 	.of_match	= pmu_mid_match,
 	.probe		= pmu_mid_probe,
-	.priv_auto_alloc_size = sizeof(struct pmu_mid),
+	.priv_auto	= sizeof(struct pmu_mid),
 };

@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017, Bin Meng <bmeng.cn@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/acpi_s3.h>
-#include <asm/acpi_table.h>
+#include <acpi/acpi_s3.h>
+#include <acpi/acpi_table.h>
+#include <asm/acpi.h>
+#include <asm/global_data.h>
 #include <asm/post.h>
 #include <linux/linkage.h>
 

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Copyright (C) 2012 Samsung Electronics
  *  Rajeshwari Shinde <rajeshwari.s@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MAX77686_H_
@@ -155,7 +154,7 @@ enum {
 	OPMODE_ON,
 };
 
-#ifdef CONFIG_POWER
+#if CONFIG_IS_ENABLED(POWER_LEGACY)
 int max77686_set_ldo_voltage(struct pmic *p, int ldo, ulong uV);
 int max77686_set_ldo_mode(struct pmic *p, int ldo, char opmode);
 int max77686_set_buck_voltage(struct pmic *p, int buck, ulong uV);

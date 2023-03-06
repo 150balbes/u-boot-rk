@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
@@ -8,8 +9,6 @@
  *
  * Information and datasheet:
  * http://www.intersil.com/cda/deviceinfo/0,1477,X1205,00.html
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -20,10 +19,9 @@
 
 #include <common.h>
 #include <command.h>
+#include <log.h>
 #include <rtc.h>
 #include <i2c.h>
-
-#if defined(CONFIG_CMD_DATE)
 
 #define CCR_SEC			0
 #define CCR_MIN			1
@@ -79,7 +77,7 @@
 
 static void rtc_write(int reg, u8 val)
 {
-	i2c_write(CONFIG_SYS_I2C_RTC_ADDR, reg, 2, &val, 1);
+	i2c_write(CFG_SYS_I2C_RTC_ADDR, reg, 2, &val, 1);
 }
 
 /*
@@ -91,7 +89,7 @@ int rtc_get(struct rtc_time *tm)
 {
 	u8 buf[8];
 
-	i2c_read(CONFIG_SYS_I2C_RTC_ADDR, X1205_CCR_BASE, 2, buf, 8);
+	i2c_read(CFG_SYS_I2C_RTC_ADDR, X1205_CCR_BASE, 2, buf, 8);
 
 	debug("%s: raw read data - sec=%02x, min=%02x, hr=%02x, "
 	      "mday=%02x, mon=%02x, year=%02x, wday=%02x, y2k=%02x\n",
@@ -161,5 +159,3 @@ void rtc_reset(void)
 	 * Nothing to do
 	 */
 }
-
-#endif

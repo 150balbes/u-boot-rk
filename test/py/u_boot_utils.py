@@ -1,15 +1,19 @@
-# Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
-#
 # SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
 
-# Utility code shared across multiple tests.
+"""
+Utility code shared across multiple tests.
+"""
 
 import hashlib
+import inspect
 import os
 import os.path
-import pytest
+import pathlib
+import signal
 import sys
 import time
+import re
 import pytest
 
 def md5sum_data(data):
@@ -47,7 +51,7 @@ def md5sum_file(fn, max_length=None):
         data = fh.read(*params)
     return md5sum_data(data)
 
-class PersistentRandomFile(object):
+class PersistentRandomFile:
     """Generate and store information about a persistent file containing
     random data."""
 
@@ -120,7 +124,7 @@ def wait_until_open_succeeds(fn):
         An open file handle to the file.
     """
 
-    for i in xrange(100):
+    for i in range(100):
         fh = attempt_to_open_file(fn)
         if fh:
             return fh
@@ -143,7 +147,7 @@ def wait_until_file_open_fails(fn, ignore_errors):
         Nothing.
     """
 
-    for i in xrange(100):
+    for _ in range(100):
         fh = attempt_to_open_file(fn)
         if not fh:
             return
@@ -153,7 +157,7 @@ def wait_until_file_open_fails(fn, ignore_errors):
         return
     raise Exception('File can still be opened')
 
-def run_and_log(u_boot_console, cmd, ignore_errors=False):
+def run_and_log(u_boot_console, cmd, ignore_errors=False, stdin=None):
     """Run a command and log its output.
 
     Args:
@@ -165,6 +169,7 @@ def run_and_log(u_boot_console, cmd, ignore_errors=False):
             will simply return if the command cannot be executed or exits with
             an error code, otherwise an exception will be raised if such
             problems occur.
+        stdin: Input string to pass to the command as stdin (or None)
 
     Returns:
         The output as a string.
@@ -172,7 +177,7 @@ def run_and_log(u_boot_console, cmd, ignore_errors=False):
     if isinstance(cmd, str):
         cmd = cmd.split()
     runner = u_boot_console.log.get_runner(cmd[0], sys.stdout)
-    output = runner.run(cmd, ignore_errors=ignore_errors)
+    output = runner.run(cmd, ignore_errors=ignore_errors, stdin=stdin)
     runner.close()
     return output
 
@@ -191,9 +196,9 @@ def run_and_log_expect_exception(u_boot_console, cmd, retcode, msg):
     try:
         runner = u_boot_console.log.get_runner(cmd[0], sys.stdout)
         runner.run(cmd)
-    except Exception as e:
-        assert(retcode == runner.exit_status)
-        assert(msg in runner.output)
+    except Exception:
+        assert retcode == runner.exit_status
+        assert msg in runner.output
     else:
         raise Exception("Expected an exception with retcode %d message '%s',"
                         "but it was not raised" % (retcode, msg))
@@ -236,4 +241,141 @@ def find_ram_base(u_boot_console):
             ram_base = -1
             raise Exception('Failed to find RAM bank start in `bdinfo`')
 
+    # We don't want ram_base to be zero as some functions test if the given
+    # address is NULL (0). Besides, on some RISC-V targets the low memory
+    # is protected that prevents S-mode U-Boot from access.
+    # Let's add 2MiB then (size of an ARM LPAE/v8 section).
+
+    ram_base += 1024 * 1024 * 2
+
     return ram_base
+
+class PersistentFileHelperCtxMgr(object):
+    """A context manager for Python's "with" statement, which ensures that any
+    generated file is deleted (and hence regenerated) if its mtime is older
+    than the mtime of the Python module which generated it, and gets an mtime
+    newer than the mtime of the Python module which generated after it is
+    generated. Objects of this type should be created by factory function
+    persistent_file_helper rather than directly."""
+
+    def __init__(self, log, filename):
+        """Initialize a new object.
+
+        Args:
+            log: The Logfile object to log to.
+            filename: The filename of the generated file.
+
+        Returns:
+            Nothing.
+        """
+
+        self.log = log
+        self.filename = filename
+
+    def __enter__(self):
+        frame = inspect.stack()[1]
+        module = inspect.getmodule(frame[0])
+        self.module_filename = module.__file__
+        self.module_timestamp = os.path.getmtime(self.module_filename)
+
+        if os.path.exists(self.filename):
+            filename_timestamp = os.path.getmtime(self.filename)
+            if filename_timestamp < self.module_timestamp:
+                self.log.action('Removing stale generated file ' +
+                    self.filename)
+                pathlib.Path(self.filename).unlink()
+
+    def __exit__(self, extype, value, traceback):
+        if extype:
+            try:
+                pathlib.Path(self.filename).unlink()
+            except Exception:
+                pass
+            return
+        logged = False
+        for _ in range(20):
+            filename_timestamp = os.path.getmtime(self.filename)
+            if filename_timestamp > self.module_timestamp:
+                break
+            if not logged:
+                self.log.action(
+                    'Waiting for generated file timestamp to increase')
+                logged = True
+            os.utime(self.filename)
+            time.sleep(0.1)
+
+def persistent_file_helper(u_boot_log, filename):
+    """Manage the timestamps and regeneration of a persistent generated
+    file. This function creates a context manager for Python's "with"
+    statement
+
+    Usage:
+        with persistent_file_helper(u_boot_console.log, filename):
+            code to generate the file, if it's missing.
+
+    Args:
+        u_boot_log: u_boot_console.log.
+        filename: The filename of the generated file.
+
+    Returns:
+        A context manager object.
+    """
+
+    return PersistentFileHelperCtxMgr(u_boot_log, filename)
+
+def crc32(u_boot_console, address, count):
+    """Helper function used to compute the CRC32 value of a section of RAM.
+
+    Args:
+        u_boot_console: A U-Boot console connection.
+        address: Address where data starts.
+        count: Amount of data to use for calculation.
+
+    Returns:
+        CRC32 value
+    """
+
+    bcfg = u_boot_console.config.buildconfig
+    has_cmd_crc32 = bcfg.get('config_cmd_crc32', 'n') == 'y'
+    assert has_cmd_crc32, 'Cannot compute crc32 without CONFIG_CMD_CRC32.'
+    output = u_boot_console.run_command('crc32 %08x %x' % (address, count))
+
+    m = re.search('==> ([0-9a-fA-F]{8})$', output)
+    assert m, 'CRC32 operation failed.'
+
+    return m.group(1)
+
+def waitpid(pid, timeout=60, kill=False):
+    """Wait a process to terminate by its PID
+
+    This is an alternative to a os.waitpid(pid, 0) call that works on
+    processes that aren't children of the python process.
+
+    Args:
+        pid: PID of a running process.
+        timeout: Time in seconds to wait.
+        kill: Whether to forcibly kill the process after timeout.
+
+    Returns:
+        True, if the process ended on its own.
+        False, if the process was killed by this function.
+
+    Raises:
+        TimeoutError, if the process is still running after timeout.
+    """
+    try:
+        for _ in range(timeout):
+            os.kill(pid, 0)
+            time.sleep(1)
+
+        if kill:
+            os.kill(pid, signal.SIGKILL)
+            return False
+
+    except ProcessLookupError:
+        return True
+
+    raise TimeoutError(
+        "Process with PID {} did not terminate after {} seconds."
+        .format(pid, timeout)
+    )

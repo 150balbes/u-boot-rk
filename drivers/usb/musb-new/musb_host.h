@@ -1,17 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MUSB OTG driver host defines
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _MUSB_HOST_H
 #define _MUSB_HOST_H
 #ifdef __UBOOT__
-#include "usb-compat.h"
+#include <linux/usb/usb_urb_compat.h>
 #endif
 
 static inline struct usb_hcd *musb_to_hcd(struct musb *musb)

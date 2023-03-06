@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Faraday FTRTC010 Real Time Clock
  *
  * (C) Copyright 2009 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
+#include <log.h>
 #include <rtc.h>
 #include <asm/io.h>
 
@@ -80,9 +80,9 @@ int rtc_get(struct rtc_time *tmp)
 	debug("%s(): record register: %x\n",
 	      __func__, readl(&rtc->record));
 
-#ifdef CONFIG_FTRTC010_PCLK
+#ifdef CFG_FTRTC010_PCLK
 	now = (ftrtc010_time() + readl(&rtc->record)) / RTC_DIV_COUNT;
-#else /* CONFIG_FTRTC010_EXTCLK */
+#else /* CFG_FTRTC010_EXTCLK */
 	now = ftrtc010_time() + readl(&rtc->record);
 #endif
 

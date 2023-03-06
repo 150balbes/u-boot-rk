@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2009 Industrie Dial Face S.p.A.
  * Luigi 'Comio' Mantellini <luigi.mantellini@idf-hit.com>
  *
  * (C) Copyright 2001
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -17,6 +16,7 @@
 #include <ioports.h>
 #include <ppc_asm.tmpl>
 #include <miiphy.h>
+#include <asm/global_data.h>
 
 #define BB_MII_RELOCATE(v,off) (v += (v?off:0))
 
@@ -106,7 +106,7 @@ int bb_miiphy_buses_num = sizeof(bb_miiphy_buses) /
 			  sizeof(bb_miiphy_buses[0]);
 #endif
 
-void bb_miiphy_init(void)
+int bb_miiphy_init(void)
 {
 	int i;
 
@@ -125,6 +125,8 @@ void bb_miiphy_init(void)
 			bb_miiphy_buses[i].init(&bb_miiphy_buses[i]);
 		}
 	}
+
+	return 0;
 }
 
 static inline struct bb_miiphy_bus *bb_miiphy_getbus(const char *devname)
@@ -232,7 +234,7 @@ static void miiphy_pre(struct bb_miiphy_bus *bus, char read,
  */
 int bb_miiphy_read(struct mii_dev *miidev, int addr, int devad, int reg)
 {
-	short rdreg; /* register working value */
+	unsigned short rdreg; /* register working value */
 	int v;
 	int j; /* counter */
 	struct bb_miiphy_bus *bus;

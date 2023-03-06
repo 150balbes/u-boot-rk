@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
@@ -10,7 +9,7 @@
 #error This driver requires coreboot
 #endif
 
-#include <asm/arch/sysinfo.h>
+#include <asm/cb_sysinfo.h>
 
 struct cbmem_console {
 	u32 buffer_size;

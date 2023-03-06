@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Samsung Electronics
  *
  * Author: InKi Dae <inki.dae@samsung.com>
  * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _DSIM_H
@@ -12,7 +11,6 @@
 
 #include <linux/list.h>
 #include <linux/fb.h>
-#include <lcd.h>
 
 #define PANEL_NAME_SIZE		(32)
 

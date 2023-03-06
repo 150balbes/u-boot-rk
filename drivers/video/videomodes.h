@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2004
  * Pierre Aubert, Staubli Faverges , <p.aubert@staubli.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <edid.h>
-
-#ifndef CONFIG_SYS_DEFAULT_VIDEO_MODE
-#define CONFIG_SYS_DEFAULT_VIDEO_MODE	0x301
-#endif
 
 /* Some mode definitions */
 #define FB_SYNC_HOR_HIGH_ACT	1	/* horizontal sync high active	*/
@@ -93,3 +88,14 @@ int video_get_option_int(const char *options, const char *name, int def);
 
 int video_edid_dtd_to_ctfb_res_modes(struct edid_detailed_timing *t,
 				     struct ctfb_res_modes *mode);
+/**
+ * video_ctfb_mode_to_display_timing() - Convert a ctfb(Cathode Tube Frame
+ *					 Buffer)_res_modes struct to a
+ *					 display_timing struct.
+ *
+ * @mode:	Input ctfb_res_modes structure pointer to be converted
+ *		from
+ * @timing:	Output display_timing structure pointer to be converted to
+ */
+void video_ctfb_mode_to_display_timing(const struct ctfb_res_modes *mode,
+				       struct display_timing *timing);

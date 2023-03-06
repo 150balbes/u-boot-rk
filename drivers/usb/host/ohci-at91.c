@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2006
  * DENX Software Engineering <mk@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-
-#if defined(CONFIG_USB_OHCI_NEW) && defined(CONFIG_SYS_USB_OHCI_CPU_INIT)
-
 #include <asm/arch/clk.h>
 
 int usb_cpu_init(void)
@@ -66,5 +62,3 @@ int usb_cpu_init_fail(void)
 {
 	return usb_cpu_stop();
 }
-
-#endif /* defined(CONFIG_USB_OHCI) && defined(CONFIG_SYS_USB_OHCI_CPU_INIT) */

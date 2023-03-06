@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  *
  * Based on code from coreboot src/soc/intel/broadwell/me_status.c
  */
 
 #include <common.h>
 #include <errno.h>
+#include <log.h>
 #include <asm/arch/me.h>
+#include <linux/delay.h>
 
 static inline void me_read_dword_ptr(struct udevice *dev, void *ptr, int offset)
 {

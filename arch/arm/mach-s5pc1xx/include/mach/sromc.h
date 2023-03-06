@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010 Samsung Electronics
  * Naveen Krishna Ch <ch.naveen@samsung.com>
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  * Note: This file contains the register description for Memory subsystem
- * 	 (SROM, NAND Flash, OneNand, DDR, OneDRAM) on S5PC1XX.
+ *	 (SROM, NAND Flash, OneNand, DDR, OneDRAM) on S5PC1XX.
  *
- * 	 Only SROMC is defined as of now
+ *	 Only SROMC is defined as of now
  */
 
 #ifndef __ASM_ARCH_SROMC_H_

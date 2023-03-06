@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG driver host support
  *
@@ -5,11 +6,11 @@
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
  * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __UBOOT__
+#include <dm/device_compat.h>
+#include <dm/devres.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -21,9 +22,12 @@
 #include <linux/dma-mapping.h>
 #else
 #include <common.h>
+#include <dm.h>
+#include <dm/device_compat.h>
 #include <usb.h>
+#include <linux/bug.h>
+#include <linux/usb/usb_urb_compat.h>
 #include "linux-compat.h"
-#include "usb-compat.h"
 #endif
 
 #include "musb_core.h"

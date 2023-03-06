@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/cpu/armv7/rmobile/pfc-r8a7790.h
  *
  * Copyright (C) 2013 Renesas Electronics Corporation
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #ifndef __PFC_R8A7790_H__
@@ -83,7 +82,7 @@
 	PORT_1(fn, pfx##26, sfx), PORT_1(fn, pfx##27, sfx)
 
 #define CPU_32_PORT0_16(fn, pfx, sfx)				\
-	PORT_10(fn, pfx, sfx), 					\
+	PORT_10(fn, pfx, sfx),					\
 	PORT_1(fn, pfx##10, sfx),PORT_1(fn, pfx##11, sfx),	\
 	PORT_1(fn, pfx##12, sfx), PORT_1(fn, pfx##13, sfx),	\
 	PORT_1(fn, pfx##14, sfx), PORT_1(fn, pfx##15, sfx),	\

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _UNIPHIER_BOOT_DEVICE_H_
@@ -31,6 +30,5 @@ int uniphier_ld20_boot_device_is_usb(u32 pinmon);
 int uniphier_pxs3_boot_device_is_usb(u32 pinmon);
 
 unsigned int uniphier_pxs2_boot_device_fixup(unsigned int mode);
-unsigned int uniphier_ld11_boot_device_fixup(unsigned int mode);
 
 #endif /* _UNIPHIER_BOOT_DEVICE_H_ */

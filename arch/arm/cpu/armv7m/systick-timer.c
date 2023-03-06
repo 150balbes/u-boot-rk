@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ARM Cortex M3/M4/M7 SysTick timer driver
  * (C) Copyright 2017 Renesas Electronics Europe Ltd
@@ -9,8 +10,6 @@
  * Copyright 2015 ATS Advanced Telematics Systems GmbH
  * Copyright 2015 Konsulko Group, Matt Porter <mporter@konsulko.com>
  *
- * SPDX-License-Identifier:     GPL-2.0+
- *
  * The SysTick timer is a 24-bit count down timer. The clock can be either the
  * CPU clock or a reference clock. Since the timer will wrap around very quickly
  * when using the CPU clock, and we do not handle the timer interrupts, it is
@@ -19,11 +18,15 @@
  * The number of reference clock ticks that correspond to 10ms is normally
  * defined in the SysTick Calibration register's TENMS field. However, on some
  * devices this is wrong, so this driver allows the clock rate to be defined
- * using CONFIG_SYS_HZ_CLOCK.
+ * using CFG_SYS_HZ_CLOCK.
  */
 
 #include <common.h>
+#include <init.h>
+#include <time.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
+#include <linux/bitops.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -73,10 +76,10 @@ int timer_init(void)
 
 	/*
 	 * If the TENMS field is inexact or wrong, specify the clock rate using
-	 * CONFIG_SYS_HZ_CLOCK.
+	 * CFG_SYS_HZ_CLOCK.
 	 */
-#if defined(CONFIG_SYS_HZ_CLOCK)
-	gd->arch.timer_rate_hz = CONFIG_SYS_HZ_CLOCK;
+#if defined(CFG_SYS_HZ_CLOCK)
+	gd->arch.timer_rate_hz = CFG_SYS_HZ_CLOCK;
 #else
 	gd->arch.timer_rate_hz = (cal & SYSTICK_CAL_TENMS_MASK) * 100;
 #endif

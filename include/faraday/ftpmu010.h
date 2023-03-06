@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -138,7 +137,7 @@ struct ftpmu010 {
  *  1. FTPMU010_PDLLCR0_HCLKOUTDIS:
  *	Datasheet indicated it starts at bit #21 which was wrong.
  *  2. FTPMU010_PDLLCR0_DLLFRAG:
- * 	Datasheet indicated it has 2 bit which was wrong.
+ *	Datasheet indicated it has 2 bit which was wrong.
  */
 #define FTPMU010_PDLLCR0_HCLKOUTDIS(cr0)	(((cr0) & 0xf) << 20)
 #define FTPMU010_PDLLCR0_DLLFRAG(cr0)		(1 << 19)

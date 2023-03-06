@@ -1,6 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2011 The Chromium OS Authors.
-#
-# SPDX-License-Identifier:	GPL-2.0+
 #
 
 """Terminal utilities
@@ -8,9 +7,9 @@
 This module handles terminal interaction including ANSI color codes.
 """
 
-from __future__ import print_function
-
 import os
+import re
+import shutil
 import sys
 
 # Selection of when we want our output to be colored
@@ -20,6 +19,13 @@ COLOR_IF_TERMINAL, COLOR_ALWAYS, COLOR_NEVER = range(3)
 print_test_mode = False
 print_test_list = []
 
+# The length of the last line printed without a newline
+last_print_len = None
+
+# credit:
+# stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
+ansi_escape = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 class PrintLine:
     """A line of text output
 
@@ -28,16 +34,103 @@ class PrintLine:
         newline: True to output a newline after the text
         colour: Text colour to use
     """
-    def __init__(self, text, newline, colour):
+    def __init__(self, text, colour, newline=True, bright=True):
         self.text = text
         self.newline = newline
         self.colour = colour
+        self.bright = bright
+
+    def __eq__(self, other):
+        return (self.text == other.text and
+                self.newline == other.newline and
+                self.colour == other.colour and
+                self.bright == other.bright)
 
     def __str__(self):
-        return 'newline=%s, colour=%s, text=%s' % (self.newline, self.colour,
-                self.text)
+        return ("newline=%s, colour=%s, bright=%d, text='%s'" %
+                (self.newline, self.colour, self.bright, self.text))
 
-def Print(text='', newline=True, colour=None):
+
+def calc_ascii_len(text):
+    """Calculate the length of a string, ignoring any ANSI sequences
+
+    When displayed on a terminal, ANSI sequences don't take any space, so we
+    need to ignore them when calculating the length of a string.
+
+    Args:
+        text: Text to check
+
+    Returns:
+        Length of text, after skipping ANSI sequences
+
+    >>> col = Color(COLOR_ALWAYS)
+    >>> text = col.build(Color.RED, 'abc')
+    >>> len(text)
+    14
+    >>> calc_ascii_len(text)
+    3
+    >>>
+    >>> text += 'def'
+    >>> calc_ascii_len(text)
+    6
+    >>> text += col.build(Color.RED, 'abc')
+    >>> calc_ascii_len(text)
+    9
+    """
+    result = ansi_escape.sub('', text)
+    return len(result)
+
+def trim_ascii_len(text, size):
+    """Trim a string containing ANSI sequences to the given ASCII length
+
+    The string is trimmed with ANSI sequences being ignored for the length
+    calculation.
+
+    >>> col = Color(COLOR_ALWAYS)
+    >>> text = col.build(Color.RED, 'abc')
+    >>> len(text)
+    14
+    >>> calc_ascii_len(trim_ascii_len(text, 4))
+    3
+    >>> calc_ascii_len(trim_ascii_len(text, 2))
+    2
+    >>> text += 'def'
+    >>> calc_ascii_len(trim_ascii_len(text, 4))
+    4
+    >>> text += col.build(Color.RED, 'ghi')
+    >>> calc_ascii_len(trim_ascii_len(text, 7))
+    7
+    """
+    if calc_ascii_len(text) < size:
+        return text
+    pos = 0
+    out = ''
+    left = size
+
+    # Work through each ANSI sequence in turn
+    for m in ansi_escape.finditer(text):
+        # Find the text before the sequence and add it to our string, making
+        # sure it doesn't overflow
+        before = text[pos:m.start()]
+        toadd = before[:left]
+        out += toadd
+
+        # Figure out how much non-ANSI space we have left
+        left -= len(toadd)
+
+        # Add the ANSI sequence and move to the position immediately after it
+        out += m.group()
+        pos = m.start() + len(m.group())
+
+    # Deal with text after the last ANSI sequence
+    after = text[pos:]
+    toadd = after[:left]
+    out += toadd
+
+    return out
+
+
+def tprint(text='', newline=True, colour=None, limit_to_line=False, bright=True):
     """Handle a line of output to the terminal.
 
     In test mode this is recorded in a list. Otherwise it is output to the
@@ -48,26 +141,41 @@ def Print(text='', newline=True, colour=None):
         newline: True to add a new line at the end of the text
         colour: Colour to use for the text
     """
+    global last_print_len
+
     if print_test_mode:
-        print_test_list.append(PrintLine(text, newline, colour))
+        print_test_list.append(PrintLine(text, colour, newline, bright))
     else:
         if colour:
             col = Color()
-            text = col.Color(colour, text)
-        print(text, end='')
+            text = col.build(colour, text, bright=bright)
         if newline:
-            print()
+            print(text)
+            last_print_len = None
         else:
-            sys.stdout.flush()
+            if limit_to_line:
+                cols = shutil.get_terminal_size().columns
+                text = trim_ascii_len(text, cols)
+            print(text, end='', flush=True)
+            last_print_len = calc_ascii_len(text)
 
-def SetPrintTestMode():
+def print_clear():
+    """Clear a previously line that was printed with no newline"""
+    global last_print_len
+
+    if last_print_len:
+        print('\r%s\r' % (' '* last_print_len), end='', flush=True)
+        last_print_len = None
+
+def set_print_test_mode(enable=True):
     """Go into test mode, where all printing is recorded"""
     global print_test_mode
 
-    print_test_mode = True
+    print_test_mode = enable
+    get_print_test_lines()
 
-def GetPrintTestLines():
-    """Get a list of all lines output through Print()
+def get_print_test_lines():
+    """Get a list of all lines output through tprint()
 
     Returns:
         A list of PrintLine objects
@@ -78,12 +186,12 @@ def GetPrintTestLines():
     print_test_list = []
     return ret
 
-def EchoPrintTestLines():
+def echo_print_test_lines():
     """Print out the text lines collected"""
     for line in print_test_list:
         if line.colour:
             col = Color()
-            print(col.Color(line.colour, line.text), end='')
+            print(col.build(line.colour, line.text), end='')
         else:
             print(line.text, end='')
         if line.newline:
@@ -113,7 +221,7 @@ class Color(object):
         except:
             self._enabled = False
 
-    def Start(self, color, bright=True):
+    def start(self, color, bright=True):
         """Returns a start color code.
 
         Args:
@@ -128,8 +236,8 @@ class Color(object):
             return base % (color + 30)
         return ''
 
-    def Stop(self):
-        """Retruns a stop color code.
+    def stop(self):
+        """Returns a stop color code.
 
         Returns:
           If color is enabled, returns an ANSI color reset sequence,
@@ -139,7 +247,7 @@ class Color(object):
             return self.RESET
         return ''
 
-    def Color(self, color, text, bright=True):
+    def build(self, color, text, bright=True):
         """Returns text with conditionally added color escape sequences.
 
         Keyword arguments:

@@ -1,22 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Faraday USB 2.0 EHCI Controller
  *
  * (C) Copyright 2010 Faraday Technology
  * Dante Su <dantesu@faraday-tech.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <log.h>
 #include <asm/io.h>
 #include <usb.h>
+#include <linux/delay.h>
 #include <usb/fusbh200.h>
 #include <usb/fotg210.h>
 
 #include "ehci.h"
 
-#ifndef CONFIG_USB_EHCI_BASE_LIST
-#define CONFIG_USB_EHCI_BASE_LIST	{ CONFIG_USB_EHCI_BASE }
+#ifndef CFG_USB_EHCI_BASE_LIST
+#define CFG_USB_EHCI_BASE_LIST	{ CONFIG_USB_EHCI_BASE }
 #endif
 
 union ehci_faraday_regs {
@@ -92,7 +93,7 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 	struct ehci_hccr *hccr;
 	struct ehci_hcor *hcor;
 	union ehci_faraday_regs *regs;
-	uint32_t base_list[] = CONFIG_USB_EHCI_BASE_LIST;
+	uint32_t base_list[] = CFG_USB_EHCI_BASE_LIST;
 
 	if (index < 0 || index >= ARRAY_SIZE(base_list))
 		return -1;

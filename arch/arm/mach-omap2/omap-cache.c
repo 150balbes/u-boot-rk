@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * Common functions for OMAP4/5 based boards
@@ -8,12 +9,13 @@
  * Author :
  *	Aneesh V	<aneesh@ti.com>
  *	Steve Sakoman	<steve@sakoman.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <log.h>
 #include <asm/cache.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -39,18 +41,19 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ARMV7_DCACHE_POLICY	DCACHE_WRITEBACK & ~TTB_SECT_XN_MASK
 #endif
 
-#define ARMV7_DOMAIN_CLIENT	1
-#define ARMV7_DOMAIN_MASK	(0x3 << 0)
-
 void enable_caches(void)
 {
-	/* Enable D-cache. I-cache is already enabled in start.S */
+
+	/* Enable I cache if not enabled */
+	if (!icache_status())
+		icache_enable();
+
 	dcache_enable();
 }
 
 void dram_bank_mmu_setup(int bank)
 {
-	bd_t *bd = gd->bd;
+	struct bd_info *bd = gd->bd;
 	int	i;
 
 	u32 start = bd->bi_dram[bank].start >> MMU_SECTION_SHIFT;
@@ -60,18 +63,4 @@ void dram_bank_mmu_setup(int bank)
 	debug("%s: bank: %d\n", __func__, bank);
 	for (i = start; i < end; i++)
 		set_section_dcache(i, ARMV7_DCACHE_POLICY);
-}
-
-void arm_init_domains(void)
-{
-	u32 reg;
-
-	reg = get_dacr();
-	/*
-	* Set DOMAIN to client access so that all permissions
-	* set in pagetables are validated by the mmu.
-	*/
-	reg &= ~ARMV7_DOMAIN_MASK;
-	reg |= ARMV7_DOMAIN_CLIENT;
-	set_dacr(reg);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Adaptive Body Bias programming sequence for OMAP5 family
  *
@@ -5,13 +6,12 @@
  * Texas Instruments, <www.ti.com>
  *
  * Andrii Tseglytskyi <andrii.tseglytskyi@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/omap_common.h>
 #include <asm/io.h>
+#include <linux/bitops.h>
 
 /*
  * Setup LDOVBB for OMAP5.

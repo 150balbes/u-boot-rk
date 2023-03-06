@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2008 - 2013 Tensilica, Inc.
  * (C) Copyright 2014 - 2016 Cadence Design Systems Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -50,7 +49,7 @@ SECTIONS
     RELOCATE1(text);
     RELOCATE1(rodata);
     RELOCATE1(data);
-    RELOCATE1(u_boot_list);
+    RELOCATE_USER1(__u_boot_list);
     __reloc_table_end = ABSOLUTE(.);
   }
 
@@ -74,12 +73,12 @@ SECTIONS
   SECTION_VECTOR(DoubleExceptionVector,text,XCHAL_DOUBLEEXC_VECTOR_VADDR,
 		 FOLLOWING(.DoubleExceptionVector.literal))
 
-  __monitor_start = CONFIG_SYS_TEXT_ADDR;
+  __monitor_start = XTENSA_SYS_TEXT_ADDR;
 
-  SECTION_text(CONFIG_SYS_TEXT_ADDR, FOLLOWING(.DoubleExceptionVector.text))
+  SECTION_text(XTENSA_SYS_TEXT_ADDR, FOLLOWING(.DoubleExceptionVector.text))
   SECTION_rodata(ALIGN(16), FOLLOWING(.text))
   SECTION_u_boot_list(ALIGN(16), FOLLOWING(.rodata))
-  SECTION_data(ALIGN(16), FOLLOWING(.u_boot_list))
+  SECTION_data(ALIGN(16), FOLLOWING(__u_boot_list))
 
   __reloc_end = .;
   __init_end = .;

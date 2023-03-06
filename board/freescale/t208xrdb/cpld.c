@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Freescale T2080RDB board-specific CPLD controlling supports.
  */
@@ -12,14 +11,14 @@
 
 u8 cpld_read(unsigned int reg)
 {
-	void *p = (void *)CONFIG_SYS_CPLD_BASE;
+	void *p = (void *)CFG_SYS_CPLD_BASE;
 
 	return in_8(p + reg);
 }
 
 void cpld_write(unsigned int reg, u8 value)
 {
-	void *p = (void *)CONFIG_SYS_CPLD_BASE;
+	void *p = (void *)CFG_SYS_CPLD_BASE;
 
 	out_8(p + reg, value);
 }
@@ -44,7 +43,7 @@ void cpld_set_defbank(void)
 	CPLD_WRITE(reset_ctl, CPLD_LBMAP_RESET);
 }
 
-int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_cpld(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int rc = 0;
 
