@@ -12,12 +12,19 @@
 
 	chosen {
 		stdout-path = "/serial";
-	};
 
-	alarm_wdt: alarm-wdt {
-		compatible = "sandbox,alarm-wdt";
-		timeout-sec = <5>;
-		u-boot,autostart;
+		fwupd {
+			compatible = "simple-bus";
+			firmware {
+				compatible = "fwupd,vbe-simple";
+				cur-version = "1.2.3";
+				bootloader-version = "2022.01";
+				storage = "mmc1";
+				area-start = <0x0>;
+				area-size = <0x1000000>;
+				skip-offset = <0x8000>;
+			};
+		};
 	};
 
 	audio: audio-codec {
@@ -232,15 +239,10 @@
 
 	reset@1 {
 		compatible = "sandbox,reset";
-		u-boot,dm-pre-proper;
 	};
 
 	rng {
 		compatible = "sandbox,sandbox-rng";
-	};
-
-	scsi {
-		compatible = "sandbox,scsi";
 	};
 
 	sound {
@@ -436,10 +438,6 @@
 
 	sandbox_tee {
 		compatible = "sandbox,tee";
-	};
-
-	thermal {
-		compatible = "sandbox,thermal";
 	};
 };
 

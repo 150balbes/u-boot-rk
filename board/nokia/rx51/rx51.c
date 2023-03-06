@@ -232,7 +232,7 @@ int board_init(void)
 	gpmc_init();
 #if defined(CONFIG_CMD_ONENAND)
 	enable_gpmc_cs_config(gpmc_regs_onenandrx51, &gpmc_cfg->cs[0],
-			      CFG_SYS_ONENAND_BASE, GPMC_SIZE_256M);
+			      CONFIG_SYS_ONENAND_BASE, GPMC_SIZE_256M);
 #endif
 	/* Enable the clks & power */
 	per_clocks_enable();
@@ -561,7 +561,7 @@ static const char keymap[] = {
 	'q',  'o',  'p',  ',', '\b',    0,  'a',  's',
 	'w',  'd',  'f',  'g',  'h',  'j',  'k',  'l',
 	'e',  '.',    0,  '\r',   0,  'z',  'x',  'c',
-	'r',  'v',  'b',  'n',  'm',  ' ',    0,    0,
+	'r',  'v',  'b',  'n',  'm',  ' ',  ' ',    0,
 	't',    0,    0,    0,    0,    0,    0,    0,
 	'y',    0,    0,    0,    0,    0,    0,    0,
 	'u',    0,    0,    0,    0,    0,    0,    0,
@@ -691,10 +691,6 @@ static int rx51_kp_tstc(struct udevice *dev)
 		mods = keys[4] >> 4;
 		keys[4] &= 0x0f;
 
-		/* space key is indicated by two different bits */
-		keys[3] |= (keys[3] & (1 << 6)) >> 1;
-		keys[3] &= ~(1 << 6);
-
 		for (c = 0; c < 8; c++) {
 
 			/* get newly pressed keys only */
@@ -726,7 +722,7 @@ static int rx51_kp_getc(struct udevice *dev)
 {
 	keybuf_head %= KEYBUF_SIZE;
 	while (!rx51_kp_tstc(dev))
-		schedule();
+		WATCHDOG_RESET();
 	return keybuf[keybuf_head++];
 }
 
@@ -795,9 +791,9 @@ U_BOOT_DRVINFOS(rx51_kp) = {
 };
 
 static const struct ns16550_plat rx51_serial = {
-	.base = CFG_SYS_NS16550_COM3,
+	.base = CONFIG_SYS_NS16550_COM3,
 	.reg_shift = 2,
-	.clock = CFG_SYS_NS16550_CLK,
+	.clock = CONFIG_SYS_NS16550_CLK,
 	.fcr = UART_FCR_DEFVAL,
 };
 

@@ -60,19 +60,17 @@ static int scmi_bind_protocols(struct udevice *dev)
 {
 	int ret = 0;
 	ofnode node;
-	const char *name;
 
 	dev_for_each_subnode(node, dev) {
 		struct driver *drv = NULL;
 		u32 protocol_id;
 
-		if (!ofnode_is_enabled(node))
+		if (!ofnode_is_available(node))
 			continue;
 
 		if (ofnode_read_u32(node, "reg", &protocol_id))
 			continue;
 
-		name = ofnode_get_name(node);
 		switch (protocol_id) {
 		case SCMI_PROTOCOL_ID_CLOCK:
 			if (IS_ENABLED(CONFIG_CLK_SCMI))
@@ -102,7 +100,8 @@ static int scmi_bind_protocols(struct udevice *dev)
 			continue;
 		}
 
-		ret = device_bind(dev, drv, name, NULL, node, NULL);
+		ret = device_bind(dev, drv, ofnode_get_name(node), NULL, node,
+				  NULL);
 		if (ret)
 			break;
 	}
@@ -138,7 +137,7 @@ int devm_scmi_of_get_channel(struct udevice *dev, struct scmi_channel **channel)
 		return -ENODEV;
 
 	if (transport_dev_ops(parent)->of_get_channel)
-		return transport_dev_ops(parent)->of_get_channel(parent, channel);
+		return transport_dev_ops(parent)->of_get_channel(dev, channel);
 
 	/* Drivers without a get_channel operator don't need a channel ref */
 	*channel = NULL;

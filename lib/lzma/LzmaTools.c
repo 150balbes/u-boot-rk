@@ -104,7 +104,7 @@ int lzmaBuffToBuffDecompress(unsigned char *outStream, SizeT *uncompressedSize,
     /* Decompress */
     outProcessed = min(outSizeFull, *uncompressedSize);
 
-    schedule();
+    WATCHDOG_RESET();
 
     res = LzmaDecode(
         outStream, &outProcessed,

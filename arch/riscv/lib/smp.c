@@ -27,7 +27,7 @@ static int send_ipi_many(struct ipi_data *ipi, int wait)
 
 	ofnode_for_each_subnode(node, cpus) {
 		/* skip if hart is marked as not available in the device tree */
-		if (!ofnode_is_enabled(node))
+		if (!ofnode_is_available(node))
 			continue;
 
 		/* read hart ID of CPU */
@@ -45,12 +45,10 @@ static int send_ipi_many(struct ipi_data *ipi, int wait)
 			continue;
 		}
 
-#if !CONFIG_IS_ENABLED(XIP)
-#ifdef CONFIG_AVAILABLE_HARTS
+#ifndef CONFIG_XIP
 		/* skip if hart is not available */
 		if (!(gd->arch.available_harts & (1 << reg)))
 			continue;
-#endif
 #endif
 
 		gd->arch.ipi[reg].addr = ipi->addr;

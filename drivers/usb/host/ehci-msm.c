@@ -56,7 +56,7 @@ static int ehci_usb_probe(struct udevice *dev)
 	hcor = (struct ehci_hcor *)((phys_addr_t)hccr +
 			HC_LENGTH(ehci_readl(&(hccr)->cr_capbase)));
 
-	ret = generic_setup_phy(dev, &p->phy, 0);
+	ret = ehci_setup_phy(dev, &p->phy, 0);
 	if (ret)
 		return ret;
 
@@ -81,7 +81,7 @@ static int ehci_usb_remove(struct udevice *dev)
 	/* Stop controller. */
 	clrbits_le32(&ehci->usbcmd, CMD_RUN);
 
-	ret = generic_shutdown_phy(&p->phy);
+	ret = ehci_shutdown_phy(dev, &p->phy);
 	if (ret)
 		return ret;
 

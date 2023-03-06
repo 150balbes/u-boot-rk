@@ -30,7 +30,6 @@ obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_SANDBOX) += bootmeth_sandbox.o
 obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_SCRIPT) += bootmeth_script.o
 ifdef CONFIG_$(SPL_TPL_)BOOTSTD_FULL
 obj-$(CONFIG_$(SPL_TPL_)CMD_BOOTEFI_BOOTMGR) += bootmeth_efi_mgr.o
-obj-$(CONFIG_$(SPL_TPL_)BOOTSTD) += bootflow_menu.o
 endif
 
 obj-$(CONFIG_$(SPL_TPL_)OF_LIBFDT) += image-fdt.o
@@ -48,9 +47,5 @@ ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_SPL_LOAD_FIT) += common_fit.o
 endif
 
-obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE) += expo.o scene.o scene_menu.o
-
-obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE) += vbe.o vbe_request.o
+obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE) += vbe.o
 obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE_SIMPLE) += vbe_simple.o
-obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE_SIMPLE_FW) += vbe_simple_fw.o
-obj-$(CONFIG_$(SPL_TPL_)BOOTMETH_VBE_SIMPLE_OS) += vbe_simple_os.o

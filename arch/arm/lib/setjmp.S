@@ -17,7 +17,7 @@ ENTRY(setjmp)
 	mov  ip, sp
 	stm  a1, {v1-v8, ip, lr}
 	mov  a1, #0
-	ret  lr
+	bx   lr
 ENDPROC(setjmp)
 .popsection
 
@@ -31,6 +31,6 @@ ENTRY(longjmp)
 	bne  1f
 	mov  a1, #1
 1:
-	ret  lr
+	bx   lr
 ENDPROC(longjmp)
 .popsection

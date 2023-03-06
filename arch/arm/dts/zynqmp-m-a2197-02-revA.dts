@@ -463,6 +463,8 @@
 
 &usb0 {
 	status = "okay";
+	xlnx,usb-polarity = <0>;
+	xlnx,usb-reset-mode = <0>;
 };
 
 &dwc3_0 {
@@ -474,6 +476,8 @@
 
 &usb1 {
 	status = "disabled"; /* not at mem board */
+	xlnx,usb-polarity = <0>;
+	xlnx,usb-reset-mode = <0>;
 };
 
 &dwc3_1 {

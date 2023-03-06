@@ -10,7 +10,7 @@
 
 /* Physical memory map */
 
-#define CFG_SYS_SDRAM_BASE		0x40000000
+#define CONFIG_SYS_SDRAM_BASE		0x40000000
 
 /* GUIDs for capsule updatable firmware images */
 #define QEMU_ARM_UBOOT_IMAGE_GUID \
@@ -20,17 +20,6 @@
 #define QEMU_ARM64_UBOOT_IMAGE_GUID \
 	EFI_GUID(0x058b7d83, 0x50d5, 0x4c47, 0xa1, 0x95, \
 		 0x60, 0xd8, 0x6a, 0xd3, 0x41, 0xc4)
-
-/* Try files from QEMU's -kernel/-initrd, through the QEMU firmware device. */
-#define BOOTENV_DEV_QFW(devtypeu, devtypel, instance) \
-	"bootcmd_qfw= " \
-		"if qfw load $kernel_addr_r $ramdisk_addr_r; then " \
-		"  booti $kernel_addr_r $ramdisk_addr_r:$filesize $fdtcontroladdr; " \
-		"  if test $? -eq 1; then " \
-		"    bootz $kernel_addr_r $ramdisk_addr_r:$filesize $fdtcontroladdr; " \
-		"  fi ; " \
-		"fi\0"
-#define BOOTENV_DEV_NAME_QFW(devtypeu, devtypel, instance) "qfw "
 
 /* For timer, QEMU emulates an ARMv7/ARMv8 architected timer */
 
@@ -67,7 +56,6 @@
 #endif
 
 #define BOOT_TARGET_DEVICES(func) \
-	func(QFW, qfw, na) \
 	BOOT_TARGET_USB(func) \
 	BOOT_TARGET_SCSI(func) \
 	BOOT_TARGET_VIRTIO(func) \
@@ -76,7 +64,7 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
 	"fdt_addr=0x40000000\0" \

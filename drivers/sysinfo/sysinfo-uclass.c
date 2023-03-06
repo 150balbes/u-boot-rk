@@ -16,15 +16,7 @@ struct sysinfo_priv {
 
 int sysinfo_get(struct udevice **devp)
 {
-	int ret = uclass_first_device_err(UCLASS_SYSINFO, devp);
-
-	/*
-	 * There is some very dodgy error handling in gazerbeam,
-	 * do not return a device on error.
-	 */
-	if (ret)
-		*devp = NULL;
-	return ret;
+	return uclass_first_device_err(UCLASS_SYSINFO, devp);
 }
 
 int sysinfo_detect(struct udevice *dev)

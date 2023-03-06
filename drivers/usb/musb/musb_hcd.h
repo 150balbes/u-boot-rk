@@ -16,7 +16,9 @@
 extern unsigned char new[];
 #endif
 
-#define MUSB_TIMEOUT 100000
+#ifndef CONFIG_USB_MUSB_TIMEOUT
+# define CONFIG_USB_MUSB_TIMEOUT 100000
+#endif
 
 /* This defines the endpoint number used for control transfers */
 #define MUSB_CONTROL_EP 0

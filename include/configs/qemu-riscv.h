@@ -8,7 +8,9 @@
 
 #include <linux/sizes.h>
 
-#define CFG_SYS_SDRAM_BASE		0x80000000
+#define CONFIG_SYS_SDRAM_BASE		0x80000000
+
+#define CONFIG_STANDALONE_LOAD_ADDR	0x80200000
 
 #define RISCV_MMODE_TIMERBASE		0x2000000
 #define RISCV_MMODE_TIMER_FREQ		1000000
@@ -34,7 +36,7 @@
 #define BOOTENV_DEV_NAME_QEMU(devtypeu, devtypel, instance) \
 	"qemu "
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"fdt_high=0xffffffffffffffff\0" \
 	"initrd_high=0xffffffffffffffff\0" \
 	"kernel_addr_r=0x84000000\0" \

@@ -281,7 +281,7 @@ efi_status_t efi_install_fdt(void *fdt)
 		return EFI_SUCCESS;
 	}
 #else
-	struct bootm_headers img = { 0 };
+	bootm_headers_t img = { 0 };
 	efi_status_t ret;
 
 	if (fdt == EFI_FDT_USE_INTERNAL) {
@@ -394,10 +394,8 @@ static efi_status_t do_bootefi_exec(efi_handle_t handle, void *load_options)
 out:
 	free(load_options);
 
-	if (IS_ENABLED(CONFIG_EFI_LOAD_FILE2_INITRD)) {
-		if (efi_initrd_deregister() != EFI_SUCCESS)
-			log_err("Failed to remove loadfile2 for initrd\n");
-	}
+	if (IS_ENABLED(CONFIG_EFI_LOAD_FILE2_INITRD))
+		efi_initrd_deregister();
 
 	/* Control is returned to U-Boot, disable EFI watchdog */
 	efi_set_watchdog(0);
@@ -494,7 +492,7 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 	efi_handle_t mem_handle = NULL, handle;
 	struct efi_device_path *file_path = NULL;
 	struct efi_device_path *msg_path;
-	efi_status_t ret, ret2;
+	efi_status_t ret;
 	u16 *load_options;
 
 	if (!bootefi_device_path || !bootefi_image_path) {
@@ -511,9 +509,12 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 		 * Make sure that device for device_path exist
 		 * in load_image(). Otherwise, shell and grub will fail.
 		 */
-		ret = efi_install_multiple_protocol_interfaces(&mem_handle,
-							       &efi_guid_device_path,
-							       file_path, NULL);
+		ret = efi_create_handle(&mem_handle);
+		if (ret != EFI_SUCCESS)
+			goto out;
+
+		ret = efi_add_protocol(mem_handle, &efi_guid_device_path,
+				       file_path);
 		if (ret != EFI_SUCCESS)
 			goto out;
 		msg_path = file_path;
@@ -541,11 +542,9 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 	ret = do_bootefi_exec(handle, load_options);
 
 out:
-	ret2 = efi_uninstall_multiple_protocol_interfaces(mem_handle,
-							  &efi_guid_device_path,
-							  file_path, NULL);
+	efi_delete_handle(mem_handle);
 	efi_free_pool(file_path);
-	return (ret != EFI_SUCCESS) ? ret : ret2;
+	return ret;
 }
 
 #ifdef CONFIG_CMD_BOOTEFI_SELFTEST

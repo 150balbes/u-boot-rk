@@ -13,4 +13,3 @@ can be run an UEFI payload.
    uefi.rst
    u-boot_on_efi.rst
    iscsi.rst
-   fwu_updates.rst

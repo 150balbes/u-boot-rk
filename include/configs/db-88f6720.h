@@ -17,7 +17,7 @@
  */
 
 /* I2C */
-#define CFG_I2C_MVTWSI_BASE0		MVEBU_TWSI_BASE
+#define CONFIG_I2C_MVTWSI_BASE0		MVEBU_TWSI_BASE
 
 /* USB/EHCI configuration */
 

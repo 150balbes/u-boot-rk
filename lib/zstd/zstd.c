@@ -13,12 +13,14 @@
 
 int zstd_decompress(struct abuf *in, struct abuf *out)
 {
-	zstd_dctx *ctx;
-	size_t wsize, len;
+	ZSTD_DStream *dstream;
+	ZSTD_inBuffer in_buf;
+	ZSTD_outBuffer out_buf;
 	void *workspace;
+	size_t wsize;
 	int ret;
 
-	wsize = zstd_dctx_workspace_bound();
+	wsize = ZSTD_DStreamWorkspaceBound(abuf_size(in));
 	workspace = malloc(wsize);
 	if (!workspace) {
 		debug("%s: cannot allocate workspace of size %zu\n", __func__,
@@ -26,35 +28,36 @@ int zstd_decompress(struct abuf *in, struct abuf *out)
 		return -ENOMEM;
 	}
 
-	ctx = zstd_init_dctx(workspace, wsize);
-	if (!ctx) {
-		log_err("%s: zstd_init_dctx() failed\n", __func__);
+	dstream = ZSTD_initDStream(abuf_size(in), workspace, wsize);
+	if (!dstream) {
+		log_err("%s: ZSTD_initDStream failed\n", __func__);
 		ret = -EPERM;
 		goto do_free;
 	}
 
-	/*
-	 * Find out how large the frame actually is, there may be junk at
-	 * the end of the frame that zstd_decompress_dctx() can't handle.
-	 */
-	len = zstd_find_frame_compressed_size(abuf_data(in), abuf_size(in));
-	if (zstd_is_error(len)) {
-		log_err("%s: failed to detect compressed size: %d\n", __func__,
-			zstd_get_error_code(len));
-		ret = -EINVAL;
-		goto do_free;
+	in_buf.src = abuf_data(in);
+	in_buf.pos = 0;
+	in_buf.size = abuf_size(in);
+
+	out_buf.dst = abuf_data(out);
+	out_buf.pos = 0;
+	out_buf.size = abuf_size(out);
+
+	while (1) {
+		size_t res;
+
+		res = ZSTD_decompressStream(dstream, &out_buf, &in_buf);
+		if (ZSTD_isError(res)) {
+			ret = ZSTD_getErrorCode(res);
+			log_err("ZSTD_decompressStream error %d\n", ret);
+			goto do_free;
+		}
+
+		if (in_buf.pos >= abuf_size(in) || !res)
+			break;
 	}
 
-	len = zstd_decompress_dctx(ctx, abuf_data(out), abuf_size(out),
-				   abuf_data(in), len);
-	if (zstd_is_error(len)) {
-		log_err("%s: failed to decompress: %d\n", __func__,
-			zstd_get_error_code(len));
-		ret = -EINVAL;
-		goto do_free;
-	}
-
-	ret = len;
+	ret = out_buf.pos;
 do_free:
 	free(workspace);
 	return ret;

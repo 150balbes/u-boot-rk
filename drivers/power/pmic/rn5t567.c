@@ -53,7 +53,6 @@ static struct dm_pmic_ops rn5t567_ops = {
 
 static const struct udevice_id rn5t567_ids[] = {
 	{ .compatible = "ricoh,rn5t567" },
-	{ .compatible = "ricoh,rn5t568" },
 	{ }
 };
 

@@ -8,20 +8,24 @@
 #ifndef __IMX6LOGIC_CONFIG_H
 #define __IMX6LOGIC_CONFIG_H
 
-#define CFG_MXC_UART_BASE   UART1_BASE
+#define CONFIG_MXC_UART_BASE   UART1_BASE
 #define CONSOLE_DEV            "ttymxc0"
+
+#ifdef CONFIG_SPL
+#include "imx6_spl.h"
+#endif
 
 #include "mx6_common.h"
 
 /* MMC Configs */
-#define CFG_SYS_FSL_ESDHC_ADDR      0
-#define CFG_SYS_FSL_USDHC_NUM       2
+#define CONFIG_SYS_FSL_ESDHC_ADDR      0
+#define CONFIG_SYS_FSL_USDHC_NUM       2
 
 
 /* Ethernet Configs */
-#define CFG_FEC_MXC_PHYADDR         0
+#define CONFIG_FEC_MXC_PHYADDR         0
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
 	"bootm_size=0x10000000\0" \
@@ -105,20 +109,21 @@
 
 /* Physical Memory Map */
 #define PHYS_SDRAM                     MMDC0_ARB_BASE_ADDR
-#define CFG_SYS_SDRAM_BASE          PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR       IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE       IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE          PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR       IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE       IRAM_SIZE
 
 /* Environment organization */
 
 /* NAND stuff */
-#define CFG_SYS_NAND_BASE           0x40000000
-#define CFG_SYS_NAND_U_BOOT_START	CONFIG_TEXT_BASE
+#define CONFIG_SYS_MAX_NAND_DEVICE     1
+#define CONFIG_SYS_NAND_BASE           0x40000000
+#define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
 
 /* USB Configs */
 #ifdef CONFIG_CMD_USB
-#define CFG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS		0
+#define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS		0
 #endif
 
 /* Falcon Mode */

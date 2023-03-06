@@ -17,8 +17,8 @@
 #include <asm/ptrace.h>
 
 #ifndef CONFIG_MPC83XX_TIMER
-#ifndef CFG_SYS_WATCHDOG_FREQ
-#define CFG_SYS_WATCHDOG_FREQ (CONFIG_SYS_HZ / 2)
+#ifndef CONFIG_SYS_WATCHDOG_FREQ
+#define CONFIG_SYS_WATCHDOG_FREQ (CONFIG_SYS_HZ / 2)
 #endif
 
 static unsigned decrementer_count; /* count value for 1e6/HZ microseconds */
@@ -80,8 +80,8 @@ void timer_interrupt(struct pt_regs *regs)
 	timestamp++;
 
 #if defined(CONFIG_WATCHDOG) || defined (CONFIG_HW_WATCHDOG)
-	if (CFG_SYS_WATCHDOG_FREQ && (timestamp % (CFG_SYS_WATCHDOG_FREQ)) == 0)
-		schedule();
+	if (CONFIG_SYS_WATCHDOG_FREQ && (timestamp % (CONFIG_SYS_WATCHDOG_FREQ)) == 0)
+		WATCHDOG_RESET ();
 #endif    /* CONFIG_WATCHDOG || CONFIG_HW_WATCHDOG */
 
 #ifdef CONFIG_LED_STATUS

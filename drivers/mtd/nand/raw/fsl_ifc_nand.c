@@ -20,6 +20,10 @@
 #include <linux/errno.h>
 #include <fsl_ifc.h>
 
+#ifndef CONFIG_SYS_FSL_IFC_BANK_COUNT
+#define CONFIG_SYS_FSL_IFC_BANK_COUNT	4
+#endif
+
 #define MAX_BANKS	CONFIG_SYS_FSL_IFC_BANK_COUNT
 #define ERR_BYTE	0xFF /* Value returned for read bytes
 				when read failed */
@@ -776,10 +780,10 @@ static void fsl_ifc_ctrl_init(void)
 	ver = ifc_in32(&ifc_ctrl->regs.gregs->ifc_rev);
 	if (ver >= FSL_IFC_V2_0_0)
 		ifc_ctrl->regs.rregs =
-			(void *)CFG_SYS_IFC_ADDR + IFC_RREGS_64KOFFSET;
+			(void *)CONFIG_SYS_IFC_ADDR + IFC_RREGS_64KOFFSET;
 	else
 		ifc_ctrl->regs.rregs =
-			(void *)CFG_SYS_IFC_ADDR + IFC_RREGS_4KOFFSET;
+			(void *)CONFIG_SYS_IFC_ADDR + IFC_RREGS_4KOFFSET;
 
 	/* clear event registers */
 	ifc_out32(&ifc_ctrl->regs.rregs->ifc_nand.nand_evter_stat, ~0U);
@@ -1049,12 +1053,12 @@ static int fsl_ifc_chip_init(int devnum, u8 *addr)
 	return 0;
 }
 
-#ifndef CFG_SYS_NAND_BASE_LIST
-#define CFG_SYS_NAND_BASE_LIST { CFG_SYS_NAND_BASE }
+#ifndef CONFIG_SYS_NAND_BASE_LIST
+#define CONFIG_SYS_NAND_BASE_LIST { CONFIG_SYS_NAND_BASE }
 #endif
 
 static unsigned long base_address[CONFIG_SYS_MAX_NAND_DEVICE] =
-	CFG_SYS_NAND_BASE_LIST;
+	CONFIG_SYS_NAND_BASE_LIST;
 
 void board_nand_init(void)
 {

@@ -10,20 +10,24 @@
 #include <linux/stringify.h>
 #include <asm/arch/imx-regs.h>
 
+#define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
+
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
+#define CONFIG_SYS_SPL_PTE_RAM_BASE    0x41580000
 
 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
-#define CFG_MALLOC_F_ADDR		0x182000
+#define CONFIG_MALLOC_F_ADDR		0x182000
 /* For RAW image gives a error info not panic */
 
-#define CFG_POWER_PFUZE100_I2C_ADDR 0x08
+#define CONFIG_POWER_PFUZE100
+#define CONFIG_POWER_PFUZE100_I2C_ADDR 0x08
 #endif
 
 /* ENET Config */
 /* ENET1 */
 #if defined(CONFIG_CMD_NET)
-#define CFG_FEC_MXC_PHYADDR          0
+#define CONFIG_FEC_MXC_PHYADDR          0
 #endif
 
 #define BOOT_TARGET_DEVICES(func) \
@@ -34,7 +38,7 @@
 #include <config_distro_bootcmd.h>
 
 /* Initial environment variables */
-#define CFG_EXTRA_ENV_SETTINGS		\
+#define CONFIG_EXTRA_ENV_SETTINGS		\
 	BOOTENV \
 	"scriptaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"kernel_addr_r=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
@@ -50,17 +54,17 @@
 
 /* Link Definitions */
 
-#define CFG_SYS_INIT_RAM_ADDR        0x40000000
-#define CFG_SYS_INIT_RAM_SIZE        0x80000
+#define CONFIG_SYS_INIT_RAM_ADDR        0x40000000
+#define CONFIG_SYS_INIT_RAM_SIZE        0x80000
 
 
-#define CFG_SYS_SDRAM_BASE           0x40000000
+#define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define PHYS_SDRAM                      0x40000000
 #define PHYS_SDRAM_SIZE			0xC0000000 /* 3GB DDR */
 
-#define CFG_MXC_UART_BASE		UART_BASE_ADDR(1)
+#define CONFIG_MXC_UART_BASE		UART_BASE_ADDR(1)
 
-#define CFG_SYS_FSL_USDHC_NUM	2
-#define CFG_SYS_FSL_ESDHC_ADDR       0
+#define CONFIG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_FSL_ESDHC_ADDR       0
 
 #endif

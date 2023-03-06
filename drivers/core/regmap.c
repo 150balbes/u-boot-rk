@@ -4,8 +4,6 @@
  * Written by Simon Glass <sjg@chromium.org>
  */
 
-#define LOG_CATEGORY	LOGC_DM
-
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
@@ -37,22 +35,6 @@ struct regmap_field {
 };
 
 DECLARE_GLOBAL_DATA_PTR;
-
-/**
- * do_range_check() - Control whether range checks are done
- *
- * Returns: true to do range checks, false to skip
- *
- * This is used to reduce code size on SPL where range checks are known not to
- * be needed
- *
- * Add this to the top of the file to enable them: #define LOG_DEBUG
- */
-static inline bool do_range_check(void)
-{
-	return _LOG_DEBUG || !IS_ENABLED(CONFIG_SPL);
-
-}
 
 /**
  * regmap_alloc() - Allocate a regmap with a given number of ranges.
@@ -409,7 +391,7 @@ int regmap_raw_read_range(struct regmap *map, uint range_num, uint offset,
 	struct regmap_range *range;
 	void *ptr;
 
-	if (do_range_check() && range_num >= map->range_count) {
+	if (range_num >= map->range_count) {
 		debug("%s: range index %d larger than range count\n",
 		      __func__, range_num);
 		return -ERANGE;
@@ -417,8 +399,7 @@ int regmap_raw_read_range(struct regmap *map, uint range_num, uint offset,
 	range = &map->ranges[range_num];
 
 	offset <<= map->reg_offset_shift;
-	if (do_range_check() &&
-	    (offset + val_len > range->size || offset + val_len < offset)) {
+	if (offset + val_len > range->size) {
 		debug("%s: offset/size combination invalid\n", __func__);
 		return -ERANGE;
 	}
@@ -557,7 +538,7 @@ int regmap_raw_write_range(struct regmap *map, uint range_num, uint offset,
 	range = &map->ranges[range_num];
 
 	offset <<= map->reg_offset_shift;
-	if (offset + val_len > range->size || offset + val_len < offset) {
+	if (offset + val_len > range->size) {
 		debug("%s: offset/size combination invalid\n", __func__);
 		return -ERANGE;
 	}

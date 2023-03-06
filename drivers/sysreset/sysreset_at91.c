@@ -56,9 +56,16 @@ static struct sysreset_ops at91_sysreset = {
 	.request = at91_sysreset_request,
 };
 
+static const struct udevice_id a91_sysreset_ids[] = {
+	{ .compatible = "atmel,sama5d3-rstc" },
+	{ .compatible = "microchip,sam9x60-rstc" },
+	{ }
+};
+
 U_BOOT_DRIVER(sysreset_at91) = {
 	.id	= UCLASS_SYSRESET,
-	.name	= "at91_sysreset",
+	.name	= "at91_reset",
 	.ops	= &at91_sysreset,
 	.probe  = at91_sysreset_probe,
+	.of_match = a91_sysreset_ids,
 };

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0+ OR MIT */
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2021 NXP
+ * Copyright 2020 NXP
  */
 
 #ifndef __DTS_IMX8ULP_PINFUNC_H

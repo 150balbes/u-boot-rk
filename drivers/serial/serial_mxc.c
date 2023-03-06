@@ -61,11 +61,6 @@
 #define UCR3_AWAKEN	(1<<4)  /* Async wake interrupt enable */
 #define UCR3_REF25	(1<<3)  /* Ref freq 25 MHz */
 #define UCR3_REF30	(1<<2)  /* Ref Freq 30 MHz */
-
-/* imx8 names these bitsfields instead: */
-#define UCR3_DTRDEN	BIT(3)  /* bit not used in this chip */
-#define UCR3_RXDMUXSEL	BIT(2)  /* RXD muxed input selected; 'should always be set' */
-
 #define UCR3_INVT	(1<<1)  /* Inverted Infrared transmission */
 #define UCR3_BPEN	(1<<0)  /* Preset registers enable */
 #define UCR4_CTSTL_32	(32<<10) /* CTS trigger level (32 chars) */
@@ -181,24 +176,16 @@ static void _mxc_serial_setbrg(struct mxc_uart *base, unsigned long clk,
 
 	writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
 	       &base->cr2);
-
-	/*
-	 * setting the baudrate triggers a reset, returning cr3 to its
-	 * reset value but UCR3_RXDMUXSEL "should always be set."
-	 * according to the imx8 reference-manual
-	 */
-	writel(readl(&base->cr3) | UCR3_RXDMUXSEL, &base->cr3);
-
 	writel(UCR1_UARTEN, &base->cr1);
 }
 
 #if !CONFIG_IS_ENABLED(DM_SERIAL)
 
-#ifndef CFG_MXC_UART_BASE
-#error "define CFG_MXC_UART_BASE to use the MXC UART driver"
+#ifndef CONFIG_MXC_UART_BASE
+#error "define CONFIG_MXC_UART_BASE to use the MXC UART driver"
 #endif
 
-#define mxc_base	((struct mxc_uart *)CFG_MXC_UART_BASE)
+#define mxc_base	((struct mxc_uart *)CONFIG_MXC_UART_BASE)
 
 static void mxc_serial_setbrg(void)
 {
@@ -213,7 +200,7 @@ static void mxc_serial_setbrg(void)
 static int mxc_serial_getc(void)
 {
 	while (readl(&mxc_base->ts) & UTS_RXEMPTY)
-		schedule();
+		WATCHDOG_RESET();
 	return (readl(&mxc_base->rxd) & URXD_RX_DATA); /* mask out status from upper word */
 }
 
@@ -227,7 +214,7 @@ static void mxc_serial_putc(const char c)
 
 	/* wait for transmitter to be ready */
 	while (!(readl(&mxc_base->ts) & UTS_TXEMPTY))
-		schedule();
+		WATCHDOG_RESET();
 }
 
 /* Test whether a character is in the RX buffer */
@@ -397,7 +384,7 @@ static inline void _debug_uart_putc(int ch)
 	struct mxc_uart *base = (struct mxc_uart *)CONFIG_VAL(DEBUG_UART_BASE);
 
 	while (!(readl(&base->ts) & UTS_TXEMPTY))
-		schedule();
+		WATCHDOG_RESET();
 
 	writel(ch, &base->txd);
 }

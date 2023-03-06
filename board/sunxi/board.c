@@ -184,6 +184,10 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	return ENVL_UNKNOWN;
 }
 
+#ifdef CONFIG_DM_MMC
+static void mmc_pinmux_setup(int sdc);
+#endif
+
 /* add board specific code here */
 int board_init(void)
 {
@@ -351,7 +355,7 @@ void board_nand_init(void)
 	sunxi_nand_init();
 #endif
 }
-#endif /* CONFIG_NAND_SUNXI */
+#endif
 
 #ifdef CONFIG_MMC
 static void mmc_pinmux_setup(int sdc)
@@ -521,14 +525,9 @@ static void mmc_pinmux_setup(int sdc)
 
 int board_mmc_init(struct bd_info *bis)
 {
-	/*
-	 * The BROM always accesses MMC port 0 (typically an SD card), and
-	 * most boards seem to have such a slot. The others haven't reported
-	 * any problem with unconditionally enabling this in the SPL.
-	 */
 	if (!IS_ENABLED(CONFIG_UART0_PORT_F)) {
-		mmc_pinmux_setup(0);
-		if (!sunxi_mmc_init(0))
+		mmc_pinmux_setup(CONFIG_MMC_SUNXI_SLOT);
+		if (!sunxi_mmc_init(CONFIG_MMC_SUNXI_SLOT))
 			return -1;
 	}
 
@@ -554,7 +553,7 @@ int mmc_get_env_dev(void)
 	}
 }
 #endif
-#endif /* CONFIG_MMC */
+#endif
 
 #ifdef CONFIG_SPL_BUILD
 
@@ -670,7 +669,7 @@ void sunxi_board_init(void)
 	else
 		printf("Failed to set core voltage! Can't set CPU frequency\n");
 }
-#endif /* CONFIG_SPL_BUILD */
+#endif
 
 #ifdef CONFIG_USB_GADGET
 int g_dnl_board_usb_cable_connected(void)
@@ -699,7 +698,7 @@ int g_dnl_board_usb_cable_connected(void)
 
 	return sun4i_usb_phy_vbus_detect(&phy);
 }
-#endif /* CONFIG_USB_GADGET */
+#endif
 
 #ifdef CONFIG_SERIAL_TAG
 void get_board_serial(struct tag_serialnr *serialnr)
@@ -928,6 +927,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 }
 
 #ifdef CONFIG_SPL_LOAD_FIT
+
 static void set_spl_dt_name(const char *name)
 {
 	struct boot_file_head *spl = get_spl_header(SPL_ENV_HEADER_VERSION);
@@ -995,4 +995,4 @@ int board_fit_config_name_match(const char *name)
 
 	return ret;
 }
-#endif /* CONFIG_SPL_LOAD_FIT */
+#endif

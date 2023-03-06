@@ -20,7 +20,7 @@ generic syntax.
 interface
         The interface used to access the partition's device, like ``mmc`` or
         ``scsi``. For a full list of supported interfaces, consult the
-        ``uclass_idname_str`` array in ``drivers/block/blk-uclass.c``
+        ``if_typename_str`` array in ``drivers/block/blk-uclass.c``
 
 devnum
         The device number. This defaults to 0.

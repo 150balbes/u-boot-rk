@@ -8,19 +8,23 @@
 #ifndef __CONFIG_CM_T43_H
 #define __CONFIG_CM_T43_H
 
-#define CFG_MAX_RAM_BANK_SIZE	(2048 << 20)	/* 2GB */
-#define CFG_SYS_TIMERBASE		0x48040000	/* Use Timer2 */
+#define CONFIG_MAX_RAM_BANK_SIZE	(2048 << 20)	/* 2GB */
+#define CONFIG_SYS_TIMERBASE		0x48040000	/* Use Timer2 */
 
 #include <asm/arch/omap.h>
 
 /* Serial support */
-#define CFG_SYS_NS16550_CLK		48000000
-#define CFG_SYS_NS16550_COM1		0x44e09000
+#define CONFIG_SYS_NS16550_SERIAL
+#define CONFIG_SYS_NS16550_CLK		48000000
+#define CONFIG_SYS_NS16550_COM1		0x44e09000
+#if !defined(CONFIG_SPL_DM) || !defined(CONFIG_DM_SERIAL)
+#define CONFIG_SYS_NS16550_REG_SIZE	(-4)
+#endif
 
 /* NAND support */
-#define CFG_SYS_NAND_ECCSIZE		512
-#define CFG_SYS_NAND_ECCBYTES	14
-#define CFG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
+#define CONFIG_SYS_NAND_ECCSIZE		512
+#define CONFIG_SYS_NAND_ECCBYTES	14
+#define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
 					 10, 11, 12, 13, 14, 15, 16, 17, \
 					 18, 19, 20, 21, 22, 23, 24, 25, \
 					 26, 27, 28, 29, 30, 31, 32, 33, \
@@ -28,20 +32,27 @@
 					 42, 43, 44, 45, 46, 47, 48, 49, \
 					 50, 51, 52, 53, 54, 55, 56, 57, }
 
+/* Power */
+#define CONFIG_POWER_TPS65218
+
 /* Enabling L2 Cache */
-#define CFG_SYS_PL310_BASE		0x48242000
+#define CONFIG_SYS_L2_PL310
+#define CONFIG_SYS_PL310_BASE		0x48242000
 
 /*
  * Since SPL did pll and ddr initialization for us,
  * we don't need to do it twice.
  */
 
+#define CONFIG_HSMMC2_8BIT
+
 #include <configs/ti_armv7_omap.h>
+#undef CONFIG_SYS_MONITOR_LEN
 
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x80200000\0" \
 	"fdtaddr=0x81200000\0" \
 	"bootm_size=0x8000000\0" \
@@ -64,6 +75,7 @@
 		"bootz ${loadaddr} - ${fdtaddr}\0"
 
 /* SPL defines. */
+#define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 
 /* EEPROM */
 

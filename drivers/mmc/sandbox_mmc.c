@@ -23,8 +23,6 @@ struct sandbox_mmc_plat {
 #define MMC_CMULT		8 /* 8 because the card is high-capacity */
 #define MMC_BL_LEN_SHIFT	10
 #define MMC_BL_LEN		BIT(MMC_BL_LEN_SHIFT)
-
-/* Granularity of priv->csize - this is 1MB */
 #define SIZE_MULTIPLE		((1 << (MMC_CMULT + 2)) * MMC_BL_LEN)
 
 struct sandbox_mmc_priv {
@@ -43,6 +41,7 @@ static int sandbox_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 				struct mmc_data *data)
 {
 	struct sandbox_mmc_priv *priv = dev_get_priv(dev);
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
 	static ulong erase_start, erase_end;
 
 	switch (cmd->cmdidx) {
@@ -96,15 +95,10 @@ static int sandbox_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 	case SD_CMD_ERASE_WR_BLK_END:
 		erase_end = cmd->cmdarg;
 		break;
-#if CONFIG_IS_ENABLED(MMC_WRITE)
-	case MMC_CMD_ERASE: {
-		struct mmc *mmc = mmc_get_mmc_dev(dev);
-
+	case MMC_CMD_ERASE:
 		memset(&priv->buf[erase_start * mmc->write_bl_len], '\0',
 		       (erase_end - erase_start + 1) * mmc->write_bl_len);
 		break;
-	}
-#endif
 	case SD_CMD_APP_SEND_OP_COND:
 		cmd->response[0] = OCR_BUSY | OCR_HCS;
 		cmd->response[1] = 0;
@@ -183,7 +177,7 @@ static int sandbox_mmc_probe(struct udevice *dev)
 		priv->csize = 0;
 		priv->size = (priv->csize + 1) * SIZE_MULTIPLE; /* 1 MiB */
 
-		priv->buf = calloc(1, priv->size);
+		priv->buf = malloc(priv->size);
 		if (!priv->buf) {
 			log_err("%s: Not enough memory (%x bytes)\n",
 				dev->name, priv->size);

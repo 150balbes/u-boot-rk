@@ -16,8 +16,10 @@
 /*
  * Memory configurations
  */
-#define CFG_SYS_SDRAM_BASE		EMC_DYCS0_BASE
-#define CFG_SYS_SDRAM_SIZE		SZ_128M
+#define CONFIG_SYS_SDRAM_BASE		EMC_DYCS0_BASE
+#define CONFIG_SYS_SDRAM_SIZE		SZ_128M
+
+#define CONFIG_RTC_DS1374
 
 /*
  * U-Boot General Configurations
@@ -27,21 +29,22 @@
  * NAND chip timings for FIXME: which one?
  */
 
-#define CFG_LPC32XX_NAND_MLC_TCEA_DELAY  333333333
-#define CFG_LPC32XX_NAND_MLC_BUSY_DELAY   10000000
-#define CFG_LPC32XX_NAND_MLC_NAND_TA      18181818
-#define CFG_LPC32XX_NAND_MLC_RD_HIGH      31250000
-#define CFG_LPC32XX_NAND_MLC_RD_LOW       45454545
-#define CFG_LPC32XX_NAND_MLC_WR_HIGH      40000000
-#define CFG_LPC32XX_NAND_MLC_WR_LOW       83333333
+#define CONFIG_LPC32XX_NAND_MLC_TCEA_DELAY  333333333
+#define CONFIG_LPC32XX_NAND_MLC_BUSY_DELAY   10000000
+#define CONFIG_LPC32XX_NAND_MLC_NAND_TA      18181818
+#define CONFIG_LPC32XX_NAND_MLC_RD_HIGH      31250000
+#define CONFIG_LPC32XX_NAND_MLC_RD_LOW       45454545
+#define CONFIG_LPC32XX_NAND_MLC_WR_HIGH      40000000
+#define CONFIG_LPC32XX_NAND_MLC_WR_LOW       83333333
 
 /*
  * NAND
  */
 
 /* driver configuration */
-#define CFG_SYS_MAX_NAND_CHIPS 1
-#define CFG_SYS_NAND_BASE MLC_NAND_BASE
+#define CONFIG_SYS_MAX_NAND_DEVICE 1
+#define CONFIG_SYS_MAX_NAND_CHIPS 1
+#define CONFIG_SYS_NAND_BASE MLC_NAND_BASE
 
 /*
  * GPIO
@@ -60,9 +63,10 @@
 /* Use the framework and generic lib */
 /* SPL will use serial */
 /* SPL will load U-Boot from NAND offset 0x40000 */
-/* U-Boot will be 0x40000 bytes, loaded and run at CONFIG_TEXT_BASE */
-#define CFG_SYS_NAND_U_BOOT_START CONFIG_TEXT_BASE
-#define CFG_SYS_NAND_U_BOOT_DST   CONFIG_TEXT_BASE
+/* U-Boot will be 0x40000 bytes, loaded and run at CONFIG_SYS_TEXT_BASE */
+#define CONFIG_SYS_MONITOR_LEN 0x40000 /* actually, MAX size */
+#define CONFIG_SYS_NAND_U_BOOT_START CONFIG_SYS_TEXT_BASE
+#define CONFIG_SYS_NAND_U_BOOT_DST   CONFIG_SYS_TEXT_BASE
 
 /*
  * Include SoC specific configuration

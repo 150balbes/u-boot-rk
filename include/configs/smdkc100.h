@@ -16,7 +16,7 @@
 /* input clock of PLL: SMDKC100 has 12MHz input clock */
 
 /* DRAM Base */
-#define CFG_SYS_SDRAM_BASE		0x30000000
+#define CONFIG_SYS_SDRAM_BASE		0x30000000
 
 /* Text Base */
 
@@ -28,7 +28,7 @@
 				" mem=128M " \
 				" " CONFIG_MTDPARTS_DEFAULT
 
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"updateb=" \
 		"onenand erase 0x0 0x40000;" \
 		"onenand write 0x32008000 0x0 0x40000\0" \
@@ -77,24 +77,26 @@
  */
 
 /* SMDKC100 has 1 banks of DRAM, we use only one in U-Boot */
-#define PHYS_SDRAM_1		CFG_SYS_SDRAM_BASE	/* SDRAM Bank #1 */
+#define PHYS_SDRAM_1		CONFIG_SYS_SDRAM_BASE	/* SDRAM Bank #1 */
 #define PHYS_SDRAM_1_SIZE	(128 << 20)	/* 0x8000000, 128 MB Bank #1 */
 
 /*-----------------------------------------------------------------------
  * FLASH and environment organization
  */
 
+#define CONFIG_SYS_MONITOR_LEN		(256 << 10)	/* 256 KiB */
+
 /*-----------------------------------------------------------------------
  * Boot configuration
  */
 
-#define CFG_SYS_ONENAND_BASE		0xE7100000
+#define CONFIG_SYS_ONENAND_BASE		0xE7100000
 
 /*
  * Ethernet Contoller driver
  */
 #ifdef CONFIG_CMD_NET
-#define CFG_ENV_SROM_BANK   3       /* Select SROM Bank-3 for Ethernet*/
+#define CONFIG_ENV_SROM_BANK   3       /* Select SROM Bank-3 for Ethernet*/
 #endif /* CONFIG_CMD_NET */
 
 #endif	/* __CONFIG_H */

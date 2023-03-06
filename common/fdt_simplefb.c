@@ -8,6 +8,7 @@
 
 #include <common.h>
 #include <dm.h>
+#include <lcd.h>
 #include <fdt_support.h>
 #include <asm/global_data.h>
 #include <linux/libfdt.h>
@@ -21,6 +22,7 @@ static int fdt_simplefb_configure_node(void *blob, int off)
 	int bpix; /* log2 of bits per pixel */
 	const char *name;
 	ulong fb_base;
+#ifdef CONFIG_DM_VIDEO
 	struct video_uc_plat *plat;
 	struct video_priv *uc_priv;
 	struct udevice *dev;
@@ -35,6 +37,12 @@ static int fdt_simplefb_configure_node(void *blob, int off)
 	ysize = uc_priv->ysize;
 	bpix = uc_priv->bpix;
 	fb_base = plat->base;
+#else
+	xsize = lcd_get_pixel_width();
+	ysize = lcd_get_pixel_height();
+	bpix = LCD_BPP;
+	fb_base = gd->fb_base;
+#endif
 	switch (bpix) {
 	case 4: /* VIDEO_BPP16 */
 		name = "r5g6b5";
@@ -82,7 +90,7 @@ int fdt_simplefb_enable_existing_node(void *blob)
 	return fdt_simplefb_configure_node(blob, off);
 }
 
-#if CONFIG_IS_ENABLED(VIDEO)
+#if CONFIG_IS_ENABLED(DM_VIDEO)
 int fdt_simplefb_enable_and_mem_rsv(void *blob)
 {
 	struct fdt_memory mem;

@@ -185,10 +185,12 @@ u_boot_dtsi = $(strip $(u_boot_dtsi_options_debug) \
 
 # Modified for U-Boot
 dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
-		 $(UBOOTINCLUDE)                                         \
 		 -I$(srctree)/arch/$(ARCH)/dts                           \
 		 -I$(srctree)/arch/$(ARCH)/dts/include                   \
+		 -Iinclude                                               \
 		 -I$(srctree)/include                                    \
+		 -I$(srctree)/arch/$(ARCH)/include                       \
+		 -include $(srctree)/include/linux/kconfig.h             \
 		 -D__ASSEMBLY__                                          \
 		 -undef -D__DTS__
 
@@ -425,11 +427,9 @@ cmd_efi_objcopy = $(OBJCOPY) -j .header -j .text -j .sdata -j .data -j \
 $(obj)/%.efi: $(obj)/%_efi.so
 	$(call cmd,efi_objcopy)
 
-KBUILD_EFILDFLAGS = -nostdlib -zexecstack -znocombreloc -znorelro
-KBUILD_EFILDFLAGS += $(call ld-option,--no-warn-rwx-segments)
 quiet_cmd_efi_ld = LD      $@
-cmd_efi_ld = $(LD) $(KBUILD_EFILDFLAGS) -T $(EFI_LDS_PATH) \
-		-shared -Bsymbolic -s $^ -o $@
+cmd_efi_ld = $(LD) -nostdlib -znocombreloc -T $(EFI_LDS_PATH) -shared \
+		-Bsymbolic -znorelro -s $^ -o $@
 
 EFI_LDS_PATH = $(srctree)/arch/$(ARCH)/lib/$(EFI_LDS)
 
@@ -456,8 +456,8 @@ CFLAGS_REMOVE_efi_freestanding.o := $(LTO_CFLAGS)
 # which is pure ASL code. The Intel ASL (ACPI (Advanced Configuration and Power
 # Interface) Source Language compiler (iasl) then converts this ASL code into a
 # C file containing the hex data to build into U-Boot. This file is called
-# dsdt_generated.hex (despite us setting the prefix to .../dsdt_generated.asl.tmp)
-# so must be renamed to dsdt_generated.c for consumption by the build system.
+# dsdt.hex (despite us setting the prefix to .../dsdt.asl.tmp) so must be
+# renamed to dsdt.c for consumption by the build system.
 ASL_TMP = $(patsubst %.c,%.asl.tmp,$@)
 
 quiet_cmd_acpi_c_asl= ASL     $<
@@ -468,9 +468,9 @@ cmd_acpi_c_asl=         \
 		$(if $(KBUILD_VERBOSE:1=), >/dev/null) && \
 	mv $(patsubst %.c,%.hex,$@) $@
 
-$(obj)/dsdt_generated.c:    $(src)/dsdt.asl
+$(obj)/dsdt.c:    $(src)/dsdt.asl
 	$(call cmd,acpi_c_asl)
-	$(Q)sed -i -e "s,dsdt_generated_aml_code,AmlCode," $@
+	$(Q)sed -i -e "s,dsdt_aml_code,AmlCode," $@
 
 # Bzip2
 # ---------------------------------------------------------------------------
@@ -569,11 +569,6 @@ cmd_xzmisc = (cat $(filter-out FORCE,$^) | \
 
 # Additional commands for U-Boot
 #
-# bin2c
-# ---------------------------------------------------------------------------
-quiet_cmd_bin2c = BIN2C   $@
-      cmd_bin2c = $(objtree)/scripts/bin2c $2 < $< > $@
-
 # mkimage
 # ---------------------------------------------------------------------------
 MKIMAGEOUTPUT ?= /dev/null
@@ -588,21 +583,16 @@ cmd_mkimage = $(objtree)/tools/mkimage $(MKIMAGEFLAGS_$(@F)) -d $< $@ \
 # 'u-boot,dm-pre-reloc' property and thus are not needed by SPL. The second
 # pass removes various unused properties from the remaining nodes.
 # The output is typically a much smaller device tree file.
-ifeq ($(CONFIG_VPL_BUILD),y)
-fdtgrep_props := -b u-boot,dm-pre-reloc -b u-boot,dm-vpl
-else
 ifeq ($(CONFIG_TPL_BUILD),y)
 fdtgrep_props := -b u-boot,dm-pre-reloc -b u-boot,dm-tpl
 else
 fdtgrep_props := -b u-boot,dm-pre-reloc -b u-boot,dm-spl
-endif
 endif
 quiet_cmd_fdtgrep = FDTGREP $@
       cmd_fdtgrep = $(objtree)/tools/fdtgrep $(fdtgrep_props) -RT $< \
 		-n /chosen -n /config -O dtb | \
 	$(objtree)/tools/fdtgrep -r -O dtb - -o $@ \
 		-P u-boot,dm-pre-reloc -P u-boot,dm-spl -P u-boot,dm-tpl \
-		 -P u-boot,dm-vpl \
 		$(addprefix -P ,$(subst $\",,$(CONFIG_OF_SPL_REMOVE_PROPS)))
 
 # fdt_rm_props

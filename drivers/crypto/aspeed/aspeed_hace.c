@@ -302,7 +302,7 @@ static int aspeed_hace_digest_wd(struct udevice *dev, enum HASH_ALGO algo,
 				return rc;
 
 			cur += chunk;
-			schedule();
+			WATCHDOG_RESET();
 		}
 	} else {
 		rc = aspeed_hace_update(dev, ctx, ibuf, ilen);

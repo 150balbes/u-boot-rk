@@ -15,7 +15,7 @@ int spl_load_image_ext(struct spl_image_info *spl_image,
 		       const char *filename)
 {
 	s32 err;
-	struct legacy_img_hdr *header;
+	struct image_header *header;
 	loff_t filelen, actlen;
 	struct disk_partition part_info = {};
 
@@ -41,7 +41,7 @@ int spl_load_image_ext(struct spl_image_info *spl_image,
 		puts("spl: ext4fs_open failed\n");
 		goto end;
 	}
-	err = ext4fs_read((char *)header, 0, sizeof(struct legacy_img_hdr), &actlen);
+	err = ext4fs_read((char *)header, 0, sizeof(struct image_header), &actlen);
 	if (err < 0) {
 		puts("spl: ext4fs_read failed\n");
 		goto end;

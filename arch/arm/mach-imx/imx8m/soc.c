@@ -178,7 +178,7 @@ static unsigned int imx8m_find_dram_entry_in_mem_map(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(imx8m_mem_map); i++)
-		if (imx8m_mem_map[i].phys == CFG_SYS_SDRAM_BASE)
+		if (imx8m_mem_map[i].phys == CONFIG_SYS_SDRAM_BASE)
 			return i;
 
 	hang();	/* Entry not found, this must never happen. */
@@ -327,7 +327,7 @@ phys_size_t get_effective_memsize(void)
 	}
 }
 
-phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+ulong board_get_usable_ram_top(ulong total_size)
 {
 	ulong top_addr;
 
@@ -544,16 +544,6 @@ static int imx8m_check_clock(void *ctx, struct event *event)
 }
 EVENT_SPY(EVT_DM_POST_INIT, imx8m_check_clock);
 
-static void imx8m_setup_snvs(void)
-{
-	/* Enable SNVS clock */
-	clock_enable(CCGR_SNVS, 1);
-	/* Initialize glitch detect */
-	writel(SNVS_LPPGDR_INIT, SNVS_BASE_ADDR + SNVS_LPLVDR);
-	/* Clear interrupt status */
-	writel(0xffffffff, SNVS_BASE_ADDR + SNVS_LPSR);
-}
-
 int arch_cpu_init(void)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
@@ -603,8 +593,6 @@ int arch_cpu_init(void)
 		if (readl(&ocotp->ctrl) & 0x200)
 			writel(0x200, &ocotp->ctrl_clr);
 	}
-
-	imx8m_setup_snvs();
 
 	return 0;
 }

@@ -9,7 +9,7 @@
 
 /* High Level Configuration Options */
 
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"sdram_type=SDRAM\0"						\
 	"flash_type=AM29LV160DB\0"					\
 	"loadaddr=0x400000\0"						\
@@ -52,24 +52,31 @@
 		"${ofl_args}; "						\
 		"bootm ${loadaddr} - 0xf00000\0"
 
+#define CONFIG_IPADDR			192.168.0.3
+#define CONFIG_SERVERIP			192.168.0.1
+#define CONFIG_NETMASK			255.0.0.0
+
+#define CONFIG_LOADS_ECHO	1	/* echo on for serial download	*/
+
 /* Miscellaneous configurable options */
 
 /* Definitions for initial stack pointer and data area (in DPRAM) */
-#define CFG_SYS_INIT_RAM_ADDR	(CONFIG_SYS_IMMR + 0x2800)
-#define	CFG_SYS_INIT_RAM_SIZE	(0x2e00 - 0x2800)
+#define CONFIG_SYS_INIT_RAM_ADDR	(CONFIG_SYS_IMMR + 0x2800)
+#define	CONFIG_SYS_INIT_RAM_SIZE	(0x2e00 - 0x2800)
 
-/* RAM configuration (note that CFG_SYS_SDRAM_BASE must be zero) */
-#define	CFG_SYS_SDRAM_BASE		0x00000000
+/* RAM configuration (note that CONFIG_SYS_SDRAM_BASE must be zero) */
+#define	CONFIG_SYS_SDRAM_BASE		0x00000000
 
 /* FLASH organization */
-#define CFG_SYS_FLASH_BASE		CONFIG_TEXT_BASE
+#define CONFIG_SYS_FLASH_BASE		CONFIG_SYS_TEXT_BASE
 
 /*
  * For booting Linux, the board info and command line data
  * have to be in the first 8 MB of memory, since this is
  * the maximum mapped by the Linux kernel during initialization.
  */
-#define	CFG_SYS_BOOTMAPSZ		(8 << 20)
+#define	CONFIG_SYS_BOOTMAPSZ		(8 << 20)
+#define	CONFIG_SYS_MONITOR_LEN		(320 << 10)
 
 /* Environment Configuration */
 
@@ -78,6 +85,7 @@
 /* Ethernet configuration part */
 
 /* NAND configuration part */
-#define CFG_SYS_NAND_BASE		0x0C000000
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
+#define CONFIG_SYS_NAND_BASE		0x0C000000
 
 #endif /* __CONFIG_H */

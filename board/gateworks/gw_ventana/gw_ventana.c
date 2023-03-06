@@ -633,7 +633,8 @@ void setup_board_gpio(int board, struct ventana_board_info *info)
 					       ctrl);
 			gpio_requestf(cfg->gpio_param, "dio%d", i);
 			gpio_direction_input(cfg->gpio_param);
-		} else if (hwconfig_subarg_cmp(arg, "mode", "pwm")) {
+		} else if (hwconfig_subarg_cmp(arg, "mode", "pwm") &&
+			   cfg->pwm_padmux) {
 			if (!cfg->pwm_param) {
 				printf("DIO%d:  Error: pwm config invalid\n",
 				       i);
@@ -1280,8 +1281,3 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	return 0;
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}

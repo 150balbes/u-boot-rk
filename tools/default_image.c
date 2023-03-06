@@ -22,13 +22,12 @@
 #include <u-boot/crc.h>
 #include <imximage.h>
 
-static struct legacy_img_hdr header;
+static image_header_t header;
 
 static int image_check_image_types(uint8_t type)
 {
 	if (((type > IH_TYPE_INVALID) && (type < IH_TYPE_FLATDT)) ||
-	    (type == IH_TYPE_KERNEL_NOLOAD) || (type == IH_TYPE_FIRMWARE_IVT) ||
-	    (type == IH_TYPE_FDT_LEGACY))
+	    (type == IH_TYPE_KERNEL_NOLOAD) || (type == IH_TYPE_FIRMWARE_IVT))
 		return EXIT_SUCCESS;
 	else
 		return EXIT_FAILURE;
@@ -47,15 +46,15 @@ static int image_verify_header(unsigned char *ptr, int image_size,
 	uint32_t len;
 	const unsigned char *data;
 	uint32_t checksum;
-	struct legacy_img_hdr header;
-	struct legacy_img_hdr *hdr = &header;
+	image_header_t header;
+	image_header_t *hdr = &header;
 
 	/*
 	 * create copy of header so that we can blank out the
 	 * checksum field for checking - this can't be done
 	 * on the PROT_READ mapped data.
 	 */
-	memcpy(hdr, ptr, sizeof(struct legacy_img_hdr));
+	memcpy(hdr, ptr, sizeof(image_header_t));
 
 	if (be32_to_cpu(hdr->ih_magic) != IH_MAGIC) {
 		debug("%s: Bad Magic Number: \"%s\" is no valid image\n",
@@ -64,7 +63,7 @@ static int image_verify_header(unsigned char *ptr, int image_size,
 	}
 
 	data = (const unsigned char *)hdr;
-	len  = sizeof(struct legacy_img_hdr);
+	len  = sizeof(image_header_t);
 
 	checksum = be32_to_cpu(hdr->ih_hcrc);
 	hdr->ih_hcrc = cpu_to_be32(0);	/* clear for re-calculation */
@@ -75,8 +74,8 @@ static int image_verify_header(unsigned char *ptr, int image_size,
 		return -FDT_ERR_BADSTATE;
 	}
 
-	data = (const unsigned char *)ptr + sizeof(struct legacy_img_hdr);
-	len  = image_size - sizeof(struct legacy_img_hdr);
+	data = (const unsigned char *)ptr + sizeof(image_header_t);
+	len  = image_size - sizeof(image_header_t) ;
 
 	checksum = be32_to_cpu(hdr->ih_dcrc);
 	if (crc32(0, data, len) != checksum) {
@@ -95,13 +94,13 @@ static void image_set_header(void *ptr, struct stat *sbuf, int ifd,
 	uint32_t imagesize;
 	uint32_t ep;
 	uint32_t addr;
-	int type;
-	struct legacy_img_hdr *hdr = (struct legacy_img_hdr *)ptr;
+
+	image_header_t * hdr = (image_header_t *)ptr;
 
 	checksum = crc32(0,
 			(const unsigned char *)(ptr +
-				sizeof(struct legacy_img_hdr)),
-			sbuf->st_size - sizeof(struct legacy_img_hdr));
+				sizeof(image_header_t)),
+			sbuf->st_size - sizeof(image_header_t));
 
 	time = imagetool_get_source_date(params->cmdname, sbuf->st_mtime);
 	ep = params->ep;
@@ -109,16 +108,11 @@ static void image_set_header(void *ptr, struct stat *sbuf, int ifd,
 
 	if (params->type == IH_TYPE_FIRMWARE_IVT)
 		/* Add size of CSF minus IVT */
-		imagesize = sbuf->st_size - sizeof(struct legacy_img_hdr)
+		imagesize = sbuf->st_size - sizeof(image_header_t)
 			    + 0x2060 - sizeof(flash_header_v2_t);
 
 	else
-		imagesize = sbuf->st_size - sizeof(struct legacy_img_hdr);
-
-	if (params->type == IH_TYPE_FDT_LEGACY)
-		type = IH_TYPE_FLATDT;
-	else
-		type = params->type;
+		imagesize = sbuf->st_size - sizeof(image_header_t);
 
 	if (params->os == IH_OS_TEE) {
 		addr = optee_image_get_load_addr(hdr);
@@ -134,20 +128,20 @@ static void image_set_header(void *ptr, struct stat *sbuf, int ifd,
 	image_set_dcrc(hdr, checksum);
 	image_set_os(hdr, params->os);
 	image_set_arch(hdr, params->arch);
-	image_set_type(hdr, type);
+	image_set_type(hdr, params->type);
 	image_set_comp(hdr, params->comp);
 
 	image_set_name(hdr, params->imagename);
 
 	checksum = crc32(0, (const unsigned char *)hdr,
-				sizeof(struct legacy_img_hdr));
+				sizeof(image_header_t));
 
 	image_set_hcrc(hdr, checksum);
 }
 
 static int image_extract_subimage(void *ptr, struct image_tool_params *params)
 {
-	const struct legacy_img_hdr *hdr = (const struct legacy_img_hdr *)ptr;
+	const image_header_t *hdr = (const image_header_t *)ptr;
 	ulong file_data;
 	ulong file_len;
 
@@ -181,7 +175,7 @@ static int image_extract_subimage(void *ptr, struct image_tool_params *params)
 U_BOOT_IMAGE_TYPE(
 	defimage,
 	"Default Image support",
-	sizeof(struct legacy_img_hdr),
+	sizeof(image_header_t),
 	(void *)&header,
 	image_check_params,
 	image_verify_header,

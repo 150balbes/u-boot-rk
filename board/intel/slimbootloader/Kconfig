@@ -16,7 +16,7 @@ config SYS_SOC
 config SYS_CONFIG_NAME
 	default "slimbootloader"
 
-config TEXT_BASE
+config SYS_TEXT_BASE
 	default 0x00100000
 
 config BOARD_SPECIFIC_OPTIONS

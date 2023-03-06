@@ -26,7 +26,9 @@
  * -The heap is placed below the monitor
  * -The stack is placed below the heap (&grows down).
  */
-#define CFG_SYS_SDRAM_BASE		0xD0000000
-#define CFG_SYS_SDRAM_SIZE		0x08000000
+#define CONFIG_SYS_SDRAM_BASE		0xD0000000
+#define CONFIG_SYS_SDRAM_SIZE		0x08000000
+#define CONFIG_MONITOR_IS_IN_RAM
+#define CONFIG_SYS_MONITOR_LEN		0x80000	/* Reserve 512k */
 
 #endif /* __CONFIG_H */

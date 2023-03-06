@@ -81,15 +81,14 @@ static void outf(int level, const char *fmt, ...)
 static void usage(void)
 {
 	fprintf(stderr,
-		"Usage: proftool [-cmtv] <cmd> <profdata>\n"
+		"Usage: proftool -cds -v3 <cmd> <profdata>\n"
 		"\n"
 		"Commands\n"
 		"   dump-ftrace\t\tDump out textual data in ftrace format\n"
 		"\n"
 		"Options:\n"
-		"   -c <cfg>\tSpecific config file\n"
 		"   -m <map>\tSpecify Systen.map file\n"
-		"   -t <fname>\tSpecify trace data file (from U-Boot 'trace calls')\n"
+		"   -t <trace>\tSpecific trace data file (from U-Boot)\n"
 		"   -v <0-4>\tSpecify verbosity\n");
 	exit(EXIT_FAILURE);
 }
@@ -163,7 +162,7 @@ static int read_data(FILE *fin, void *buff, int size)
 	if (!err)
 		return 1;
 	if (err != size) {
-		error("Cannot read profile file at pos %lx\n", ftell(fin));
+		error("Cannot read profile file at pos %ld\n", ftell(fin));
 		return -1;
 	}
 	return 0;
@@ -496,17 +495,10 @@ static int make_ftrace(void)
 	int missing_count = 0, skip_count = 0;
 	int i;
 
-	printf("# tracer: function\n"
-	      "#\n"
-	      "# entries-in-buffer/entries-written: 140080/250280   #P:4\n"
-	      "#\n"
-	      "#                              _-----=> irqs-off\n"
-	      "#                             / _----=> need-resched\n"
-	      "#                            | / _---=> hardirq/softirq\n"
-	      "#                            || / _--=> preempt-depth\n"
-	      "#                            ||| /     delay\n"
-	      "#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION\n"
-	      "#              | |       |   ||||       |         |\n");
+	printf("# tracer: ftrace\n"
+		"#\n"
+		"#           TASK-PID   CPU#    TIMESTAMP  FUNCTION\n"
+		"#              | |      |          |         |\n");
 	for (i = 0, call = call_list; i < call_count; i++, call++) {
 		struct func_info *func = find_func_by_offset(call->func);
 		ulong time = call->flags & FUNCF_TIMESTAMP_MASK;
@@ -528,7 +520,7 @@ static int make_ftrace(void)
 			continue;
 		}
 
-		printf("%16s-%-5d [000] ....  %lu.%06lu: ", "uboot", 1,
+		printf("%16s-%-5d [01] %lu.%06lu: ", "uboot", 1,
 		       time / 1000000, time % 1000000);
 
 		out_func(call->func, 0, " <- ");
@@ -570,23 +562,23 @@ static int prof_tool(int argc, char *const argv[],
 int main(int argc, char *argv[])
 {
 	const char *map_fname = "System.map";
-	const char *trace_fname = NULL;
-	const char *config_fname = NULL;
+	const char *prof_fname = NULL;
+	const char *trace_config_fname = NULL;
 	int opt;
 
 	verbose = 2;
-	while ((opt = getopt(argc, argv, "c:m:t:v:")) != -1) {
+	while ((opt = getopt(argc, argv, "m:p:t:v:")) != -1) {
 		switch (opt) {
-		case 'c':
-			config_fname = optarg;
-			break;
-
 		case 'm':
 			map_fname = optarg;
 			break;
 
+		case 'p':
+			prof_fname = optarg;
+			break;
+
 		case 't':
-			trace_fname = optarg;
+			trace_config_fname = optarg;
 			break;
 
 		case 'v':
@@ -602,5 +594,6 @@ int main(int argc, char *argv[])
 		usage();
 
 	debug("Debug enabled\n");
-	return prof_tool(argc, argv, trace_fname, map_fname, config_fname);
+	return prof_tool(argc, argv, prof_fname, map_fname,
+			 trace_config_fname);
 }

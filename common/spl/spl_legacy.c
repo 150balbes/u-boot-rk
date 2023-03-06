@@ -16,9 +16,9 @@
 #define LZMA_LEN	(1 << 20)
 
 int spl_parse_legacy_header(struct spl_image_info *spl_image,
-			    const struct legacy_img_hdr *header)
+			    const struct image_header *header)
 {
-	u32 header_size = sizeof(struct legacy_img_hdr);
+	u32 header_size = sizeof(struct image_header);
 
 	/* check uImage header CRC */
 	if (IS_ENABLED(CONFIG_SPL_LEGACY_IMAGE_CRC_CHECK) &&
@@ -67,7 +67,7 @@ int spl_parse_legacy_header(struct spl_image_info *spl_image,
  * following switch/case statement in spl_load_legacy_img() away due to
  * Dead Code Elimination.
  */
-static inline int spl_image_get_comp(const struct legacy_img_hdr *hdr)
+static inline int spl_image_get_comp(const struct image_header *hdr)
 {
 	if (IS_ENABLED(CONFIG_SPL_LZMA))
 		return image_get_comp(hdr);
@@ -77,36 +77,39 @@ static inline int spl_image_get_comp(const struct legacy_img_hdr *hdr)
 
 int spl_load_legacy_img(struct spl_image_info *spl_image,
 			struct spl_boot_device *bootdev,
-			struct spl_load_info *load, ulong offset,
-			struct legacy_img_hdr *hdr)
+			struct spl_load_info *load, ulong header)
 {
 	__maybe_unused SizeT lzma_len;
 	__maybe_unused void *src;
+	struct image_header hdr;
 	ulong dataptr;
 	int ret;
+
+	/* Read header into local struct */
+	load->read(load, header, sizeof(hdr), &hdr);
 
 	/*
 	 * If the payload is compressed, the decompressed data should be
 	 * directly write to its load address.
 	 */
-	if (spl_image_get_comp(hdr) != IH_COMP_NONE)
+	if (spl_image_get_comp(&hdr) != IH_COMP_NONE)
 		spl_image->flags |= SPL_COPY_PAYLOAD_ONLY;
 
-	ret = spl_parse_image_header(spl_image, bootdev, hdr);
+	ret = spl_parse_image_header(spl_image, bootdev, &hdr);
 	if (ret)
 		return ret;
 
 	/* Read image */
-	switch (spl_image_get_comp(hdr)) {
+	switch (spl_image_get_comp(&hdr)) {
 	case IH_COMP_NONE:
-		dataptr = offset;
+		dataptr = header;
 
 		/*
 		 * Image header will be skipped only if SPL_COPY_PAYLOAD_ONLY
 		 * is set
 		 */
 		if (spl_image->flags & SPL_COPY_PAYLOAD_ONLY)
-			dataptr += sizeof(*hdr);
+			dataptr += sizeof(hdr);
 
 		load->read(load, dataptr, spl_image->size,
 			   (void *)(unsigned long)spl_image->load_addr);
@@ -116,7 +119,7 @@ int spl_load_legacy_img(struct spl_image_info *spl_image,
 		lzma_len = LZMA_LEN;
 
 		/* dataptr points to compressed payload  */
-		dataptr = offset + sizeof(*hdr);
+		dataptr = header + sizeof(hdr);
 
 		debug("LZMA: Decompressing %08lx to %08lx\n",
 		      dataptr, spl_image->load_addr);
@@ -140,7 +143,7 @@ int spl_load_legacy_img(struct spl_image_info *spl_image,
 
 	default:
 		debug("Compression method %s is not supported\n",
-		      genimg_get_comp_short_name(image_get_comp(hdr)));
+		      genimg_get_comp_short_name(image_get_comp(&hdr)));
 		return -EINVAL;
 	}
 

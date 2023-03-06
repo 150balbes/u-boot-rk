@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <linux/sizes.h>
 #include <smem.h>
 
 DECLARE_GLOBAL_DATA_PTR;

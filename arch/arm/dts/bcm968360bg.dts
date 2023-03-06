@@ -5,11 +5,11 @@
 
 /dts-v1/;
 
-#include "bcm6856.dtsi"
+#include "bcm68360.dtsi"
 
 / {
-	model = "Broadcom BCM968360BG Reference Board";
-	compatible = "brcm,bcm968360bg", "brcm,bcm6856", "brcm,bcmbca";
+	model = "Broadcom bcm68360bg";
+	compatible = "broadcom,bcm68360bg", "brcm,bcm68360";
 
 	aliases {
 		serial0 = &uart0;

@@ -53,11 +53,9 @@ class Bintool:
     # List of bintools to regard as missing
     missing_list = []
 
-    def __init__(self, name, desc, version_regex=None, version_args='-V'):
+    def __init__(self, name, desc):
         self.name = name
         self.desc = desc
-        self.version_regex = version_regex
-        self.version_args = version_args
 
     @staticmethod
     def find_bintool_class(btype):
@@ -85,6 +83,7 @@ class Bintool:
                 try:
                     # Deal with classes which must be renamed due to conflicts
                     # with Python libraries
+                    class_name = f'Bintoolbtool_{module_name}'
                     module = importlib.import_module('binman.btool.btool_' +
                                                      module_name)
                 except ImportError:
@@ -136,8 +135,6 @@ class Bintool:
         names = [os.path.splitext(os.path.basename(fname))[0]
                  for fname in files]
         names = [name for name in names if name[0] != '_']
-        names = [name[6:] if name.startswith('btool_') else name
-                 for name in names]
         if include_testing:
             names.append('_testing')
         return sorted(names)
@@ -320,7 +317,7 @@ class Bintool:
             return result.stdout
 
     @classmethod
-    def build_from_git(cls, git_repo, make_target, bintool_path, flags=None):
+    def build_from_git(cls, git_repo, make_target, bintool_path):
         """Build a bintool from a git repo
 
         This clones the repo in a temporary directory, builds it with 'make',
@@ -331,7 +328,6 @@ class Bintool:
             make_target (str): Target to pass to 'make' to build the tool
             bintool_path (str): Relative path of the tool in the repo, after
                 build is complete
-            flags (list of str): Flags or variables to pass to make, or None
 
         Returns:
             tuple:
@@ -343,11 +339,8 @@ class Bintool:
         print(f"- clone git repo '{git_repo}' to '{tmpdir}'")
         tools.run('git', 'clone', '--depth', '1', git_repo, tmpdir)
         print(f"- build target '{make_target}'")
-        cmd = ['make', '-C', tmpdir, '-j', f'{multiprocessing.cpu_count()}',
-               make_target]
-        if flags:
-            cmd += flags
-        tools.run(*cmd)
+        tools.run('make', '-C', tmpdir, '-j', f'{multiprocessing.cpu_count()}',
+                  make_target)
         fname = os.path.join(tmpdir, bintool_path)
         if not os.path.exists(fname):
             print(f"- File '{fname}' was not produced")
@@ -471,27 +464,16 @@ binaries. It is fairly easy to create new bintools. Just add a new file to the
         print(f"No method to fetch bintool '{self.name}'")
         return False
 
+    # pylint: disable=R0201
     def version(self):
         """Version handler for a bintool
+
+        This should be implemented by the base class
 
         Returns:
             str: Version string for this bintool
         """
-        if self.version_regex is None:
-            return 'unknown'
-
-        import re
-
-        result = self.run_cmd_result(self.version_args)
-        out = result.stdout.strip()
-        if not out:
-            out = result.stderr.strip()
-        if not out:
-            return 'unknown'
-
-        m_version = re.search(self.version_regex, out)
-        return m_version.group(1) if m_version else out
-
+        return 'unknown'
 
 class BintoolPacker(Bintool):
     """Tool which compression / decompression entry contents
@@ -513,9 +495,9 @@ class BintoolPacker(Bintool):
     """
     def __init__(self, name, compression=None, compress_args=None,
                  decompress_args=None, fetch_package=None,
-                 version_regex=r'(v[0-9.]+)', version_args='-V'):
+                 version_regex=r'(v[0-9.]+)'):
         desc = '%s compression' % (compression if compression else name)
-        super().__init__(name, desc, version_regex, version_args)
+        super().__init__(name, desc)
         if compress_args is None:
             compress_args = ['--compress']
         self.compress_args = compress_args
@@ -525,6 +507,7 @@ class BintoolPacker(Bintool):
         if fetch_package is None:
             fetch_package = name
         self.fetch_package = fetch_package
+        self.version_regex = version_regex
 
     def compress(self, indata):
         """Compress data
@@ -574,3 +557,21 @@ class BintoolPacker(Bintool):
         if method != FETCH_BIN:
             return None
         return self.apt_install(self.fetch_package)
+
+    def version(self):
+        """Version handler
+
+        Returns:
+            str: Version number
+        """
+        import re
+
+        result = self.run_cmd_result('-V')
+        out = result.stdout.strip()
+        if not out:
+            out = result.stderr.strip()
+        if not out:
+            return super().version()
+
+        m_version = re.search(self.version_regex, out)
+        return m_version.group(1) if m_version else out

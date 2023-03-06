@@ -27,7 +27,7 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	ENV_DEVICE_SETTINGS \
 	BOOTENV
 

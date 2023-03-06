@@ -21,34 +21,27 @@ The output may look like:
 ::
 
     => sbi
-    SBI 1.0
-    OpenSBI 1.1
-    Machine:
-      Vendor ID 0
-      Architecture ID 0
-      Implementation ID 0
+    SBI 0.2
+    OpenSBI
     Extensions:
-      Set Timer
-      Console Putchar
-      Console Getchar
-      Clear IPI
-      Send IPI
-      Remote FENCE.I
-      Remote SFENCE.VMA
-      Remote SFENCE.VMA with ASID
-      System Shutdown
+      sbi_set_timer
+      sbi_console_putchar
+      sbi_console_getchar
+      sbi_clear_ipi
+      sbi_send_ipi
+      sbi_remote_fence_i
+      sbi_remote_sfence_vma
+      sbi_remote_sfence_vma_asid
+      sbi_shutdown
       SBI Base Functionality
       Timer Extension
       IPI Extension
       RFENCE Extension
       Hart State Management Extension
-      System Reset Extension
-      Performance Monitoring Unit Extension
 
 The first line indicates the version of the RISC-V SBI specification.
 The second line indicates the implementation.
-The Machine section shows the values of the machine information registers.
-The Extensions section enumerates the implemented SBI extensions.
+The further lines enumerate the implemented extensions.
 
 Configuration
 -------------

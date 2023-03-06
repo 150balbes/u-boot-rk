@@ -40,7 +40,7 @@ And copy the following firmwares to U-Boot folder:
 Build U-Boot
 ============
 $ make imx8qm_mek_defconfig
-$ make
+$ make flash.bin
 
 Flash the binary into the SD card
 =================================

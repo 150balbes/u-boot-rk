@@ -17,9 +17,10 @@
 /*
  * Serial / UART configurations
  */
-#define CFG_SYS_BAUDRATE_TABLE {4800, 9600, 19200, 38400, 57600, 115200}
+#define CONFIG_SYS_NS16550_MEM32
+#define CONFIG_SYS_BAUDRATE_TABLE {4800, 9600, 19200, 38400, 57600, 115200}
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"autoload=no\0" \
 	"bootargs=cma=256M console=ttyS1,115200 root=/dev/mmcblk0p3 rw rootwait\0" \
 	"distro_bootcmd=bridge enable; run bootcmd_mmc\0" \

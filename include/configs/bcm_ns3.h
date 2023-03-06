@@ -9,11 +9,13 @@
 
 #include <linux/sizes.h>
 
+#define CONFIG_HOSTNAME			"NS3"
+
 /* Physical Memory Map */
 #define V2M_BASE			0x80000000
 #define PHYS_SDRAM_1			V2M_BASE
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 
 /*
  * Initial SP before reloaction is placed at end of first DRAM bank,
@@ -24,7 +26,7 @@
 /* 12MB Malloc size */
 
 /* console configuration */
-#define CFG_SYS_NS16550_CLK		25000000
+#define CONFIG_SYS_NS16550_CLK		25000000
 
 /*
  * Increase max uncompressed/gunzip size, keeping size same as EMMC linux
@@ -793,7 +795,7 @@
 	QSPI_FLASH \
 	FLASH_IMAGES
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	ARCH_ENV_SETTINGS
 
 #endif /* __BCM_NS3_H */

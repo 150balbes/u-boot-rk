@@ -172,12 +172,6 @@ Firmware management protocol
 .. kernel-doc:: lib/efi_loader/efi_firmware.c
    :internal:
 
-Driver binding protocol
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: include/efi_driver.h
-   :internal:
-
 Unit testing
 ------------
 

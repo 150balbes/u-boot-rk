@@ -9,7 +9,7 @@ config SYS_BOARD
 config SYS_CONFIG_NAME
 	default "ap152"
 
-config TEXT_BASE
+config SYS_TEXT_BASE
 	default 0x9f000000
 
 endif

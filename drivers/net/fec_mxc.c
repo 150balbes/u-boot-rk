@@ -59,7 +59,7 @@ DECLARE_GLOBAL_DATA_PTR;
  * sending and after receiving.
  */
 #ifdef CONFIG_MX28
-#define CFG_FEC_MXC_SWAP_PACKET
+#define CONFIG_FEC_MXC_SWAP_PACKET
 #endif
 
 #define RXDESC_PER_CACHELINE (ARCH_DMA_MINALIGN/sizeof(struct fec_bd))
@@ -76,7 +76,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #undef DEBUG
 
-#ifdef CFG_FEC_MXC_SWAP_PACKET
+#ifdef CONFIG_FEC_MXC_SWAP_PACKET
 static void swap_packet(uint32_t *packet, int length)
 {
 	int i;
@@ -251,6 +251,9 @@ static int miiphy_restart_aneg(struct eth_device *dev)
 	 * Wake up from sleep if necessary
 	 * Reset PHY, then delay 300ns
 	 */
+#ifdef CONFIG_MX27
+	fec_mdio_write(eth, fec->phy_id, MII_DCOUNTER, 0x00FF);
+#endif
 	fec_mdio_write(eth, fec->phy_id, MII_BMCR, BMCR_RESET);
 	udelay(1000);
 
@@ -268,6 +271,7 @@ static int miiphy_restart_aneg(struct eth_device *dev)
 	return ret;
 }
 
+#ifndef CONFIG_FEC_FIXED_SPEED
 static int miiphy_wait_aneg(struct eth_device *dev)
 {
 	uint32_t start;
@@ -293,6 +297,7 @@ static int miiphy_wait_aneg(struct eth_device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_FEC_FIXED_SPEED */
 #endif
 
 static int fec_rx_task_enable(struct fec_priv *fec)
@@ -534,6 +539,8 @@ static int fec_open(struct udevice *dev)
 		}
 		speed = fec->phydev->speed;
 	}
+#elif CONFIG_FEC_FIXED_SPEED
+	speed = CONFIG_FEC_FIXED_SPEED;
 #else
 	miiphy_wait_aneg(edev);
 	speed = miiphy_speed(edev->name, fec->phy_id);
@@ -685,7 +692,7 @@ static int fecmxc_send(struct udevice *dev, void *packet, int length)
 	 * transmission, the second will be empty and only used to stop the DMA
 	 * engine. We also flush the packet to RAM here to avoid cache trouble.
 	 */
-#ifdef CFG_FEC_MXC_SWAP_PACKET
+#ifdef CONFIG_FEC_MXC_SWAP_PACKET
 	swap_packet((uint32_t *)packet, length);
 #endif
 
@@ -875,7 +882,7 @@ static int fecmxc_recv(struct udevice *dev, int flags, uchar **packetp)
 			invalidate_dcache_range(addr, end);
 
 			/* Fill the buffer and pass it to upper layers */
-#ifdef CFG_FEC_MXC_SWAP_PACKET
+#ifdef CONFIG_FEC_MXC_SWAP_PACKET
 			swap_packet((uint32_t *)addr, frame_length);
 #endif
 
@@ -1071,7 +1078,7 @@ static int device_get_phy_addr(struct fec_priv *priv, struct udevice *dev)
 		return ret;
 	}
 
-	if (!ofnode_is_enabled(phandle_args.node))
+	if (!ofnode_is_available(phandle_args.node))
 		return -ENOENT;
 
 	priv->phy_of_node = phandle_args.node;
@@ -1086,8 +1093,8 @@ static int fec_phy_init(struct fec_priv *priv, struct udevice *dev)
 	int addr;
 
 	addr = device_get_phy_addr(priv, dev);
-#ifdef CFG_FEC_MXC_PHYADDR
-	addr = CFG_FEC_MXC_PHYADDR;
+#ifdef CONFIG_FEC_MXC_PHYADDR
+	addr = CONFIG_FEC_MXC_PHYADDR;
 #endif
 
 	phydev = phy_connect(priv->bus, addr, dev, priv->interface);

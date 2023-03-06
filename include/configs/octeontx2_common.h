@@ -10,14 +10,16 @@
 /** Maximum size of image supported for bootm (and bootable FIT images) */
 
 /** Memory base address */
-#define CFG_SYS_SDRAM_BASE		CONFIG_TEXT_BASE
+#define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_TEXT_BASE
 
 /** Stack starting address */
 
 /** Extra environment settings */
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 					"loadaddr=20080000\0"	\
 					"ethrotate=yes\0"
+
+#define CONFIG_SYS_MMC_MAX_BLK_COUNT	8192
 
 #if defined(CONFIG_MMC_OCTEONTX)
 #define MMC_SUPPORTS_TUNING

@@ -165,7 +165,6 @@ enum {
  *		automatically when the device is removed / unbound
  * @dma_offset: Offset between the physical address space (CPU's) and the
  *		device's bus address space
- * @iommu: IOMMU device associated with this device
  */
 struct udevice {
 	const struct driver *driver;
@@ -194,9 +193,6 @@ struct udevice {
 #endif
 #if CONFIG_IS_ENABLED(DM_DMA)
 	ulong dma_offset;
-#endif
-#if CONFIG_IS_ENABLED(IOMMU)
-	struct udevice *iommu;
 #endif
 };
 
@@ -257,7 +253,7 @@ static inline void dev_bic_flags(struct udevice *dev, u32 bic)
  * @dev:	device to check
  * Return: reference of the device's DT node
  */
-static inline __attribute_const__ ofnode dev_ofnode(const struct udevice *dev)
+static inline ofnode dev_ofnode(const struct udevice *dev)
 {
 #if CONFIG_IS_ENABLED(OF_REAL)
 	return dev->node_;
@@ -277,7 +273,7 @@ static inline __attribute_const__ ofnode dev_ofnode(const struct udevice *dev)
 #define dev_get_dma_offset(_dev)		0
 #endif
 
-static inline __attribute_const__ int dev_of_offset(const struct udevice *dev)
+static inline int dev_of_offset(const struct udevice *dev)
 {
 #if CONFIG_IS_ENABLED(OF_REAL)
 	return ofnode_to_offset(dev_ofnode(dev));
@@ -286,7 +282,7 @@ static inline __attribute_const__ int dev_of_offset(const struct udevice *dev)
 #endif
 }
 
-static inline __attribute_const__ bool dev_has_ofnode(const struct udevice *dev)
+static inline bool dev_has_ofnode(const struct udevice *dev)
 {
 #if CONFIG_IS_ENABLED(OF_REAL)
 	return ofnode_valid(dev_ofnode(dev));

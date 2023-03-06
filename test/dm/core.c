@@ -512,15 +512,23 @@ static int dm_test_leak(struct unit_test_state *uts)
 	int i;
 
 	for (i = 0; i < 2; i++) {
+		struct udevice *dev;
 		int ret;
+		int id;
 
 		dm_leak_check_start(uts);
 
 		ut_assertok(dm_scan_plat(false));
 		ut_assertok(dm_scan_fdt(false));
 
-		ret = uclass_probe_all(UCLASS_TEST);
-		ut_assertok(ret);
+		/* Scanning the uclass is enough to probe all the devices */
+		for (id = UCLASS_ROOT; id < UCLASS_COUNT; id++) {
+			for (ret = uclass_first_device(UCLASS_TEST, &dev);
+			     dev;
+			     ret = uclass_next_device(&dev))
+				;
+			ut_assertok(ret);
+		}
 
 		ut_assertok(dm_leak_check_end(uts));
 	}
@@ -645,7 +653,10 @@ static int dm_test_children(struct unit_test_state *uts)
 	ut_asserteq(2 + NODE_COUNT, dm_testdrv_op_count[DM_TEST_OP_PROBE]);
 
 	/* Probe everything */
-	ret = uclass_probe_all(UCLASS_TEST);
+	for (ret = uclass_first_device(UCLASS_TEST, &dev);
+	     dev;
+	     ret = uclass_next_device(&dev))
+		;
 	ut_assertok(ret);
 
 	ut_asserteq(total, dm_testdrv_op_count[DM_TEST_OP_PROBE]);
@@ -1078,10 +1089,11 @@ static int dm_test_uclass_devices_get(struct unit_test_state *uts)
 	struct udevice *dev;
 	int ret;
 
-	for (ret = uclass_first_device_check(UCLASS_TEST, &dev);
+	for (ret = uclass_first_device(UCLASS_TEST, &dev);
 	     dev;
-	     ret = uclass_next_device_check(&dev)) {
+	     ret = uclass_next_device(&dev)) {
 		ut_assert(!ret);
+		ut_assert(dev);
 		ut_assert(device_active(dev));
 	}
 
@@ -1111,10 +1123,11 @@ static int dm_test_uclass_devices_get_by_name(struct unit_test_state *uts)
 	 * this will fail on checking condition: testdev == finddev, since the
 	 * uclass_get_device_by_name(), returns the first device by given name.
 	*/
-	for (ret = uclass_first_device_check(UCLASS_TEST_FDT, &testdev);
+	for (ret = uclass_first_device(UCLASS_TEST_FDT, &testdev);
 	     testdev;
-	     ret = uclass_next_device_check(&testdev)) {
+	     ret = uclass_next_device(&testdev)) {
 		ut_assertok(ret);
+		ut_assert(testdev);
 		ut_assert(device_active(testdev));
 
 		findret = uclass_get_device_by_name(UCLASS_TEST_FDT,

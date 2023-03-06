@@ -12,23 +12,32 @@
 #include <linux/sizes.h>
 #include "mx6_common.h"
 #include <asm/mach-imx/gpio.h>
+#include "imx6_spl.h"
+
+#ifdef CONFIG_SPL_OS_BOOT
+/* Falcon Mode */
+
+/* Falcon Mode - MMC support: args@1MB kernel@2MB */
+#endif
 
 /* Network support */
 
-#define CFG_FEC_MXC_PHYADDR		0x1
+#define CONFIG_FEC_MXC_PHYADDR		0x1
 
-#define CFG_MXC_UART_BASE		UART6_BASE_ADDR
+#define CONFIG_MXC_UART_BASE		UART6_BASE_ADDR
 
 /* MMC Configs */
-#define CFG_SYS_FSL_ESDHC_ADDR	USDHC1_BASE_ADDR
+#define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC1_BASE_ADDR
 
 /* USB Configs */
-#define CFG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS		0
+#define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS		0
+
+#define CONFIG_USBD_HS
 
 #define DFU_DEFAULT_POLL_TIMEOUT 300
 
-#define CFG_DFU_ENV_SETTINGS \
+#define CONFIG_DFU_ENV_SETTINGS \
 	"dfu_alt_info=" \
 		"spl raw 0x2 0x400;" \
 		"u-boot raw 0x8a 0x400;" \
@@ -45,7 +54,7 @@
 	"bootmenu_2=Boot using PICO-Pi baseboard=" \
 		"setenv fdtfile imx6ul-pico-pi.dtb\0" \
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
 	"splashpos=m,m\0" \
@@ -63,7 +72,7 @@
 	"ramdiskaddr=0x83000000\0" \
 	"scriptaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"mmcautodetect=yes\0" \
-	CFG_DFU_ENV_SETTINGS \
+	CONFIG_DFU_ENV_SETTINGS \
 	"findfdt=" \
 		"if test $fdtfile = ask ; then " \
 			"bootmenu -1; fi;" \
@@ -89,11 +98,13 @@
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
 
-#ifdef CONFIG_VIDEO
+/* environment organization */
+
+#ifdef CONFIG_DM_VIDEO
 #define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
 #endif
 

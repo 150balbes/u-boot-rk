@@ -18,7 +18,11 @@ class Entry_u_boot(Entry_blob):
     to relocate itself at runtime. The binary typically includes a device tree
     blob at the end of it.
 
-    U-Boot can access binman symbols at runtime. See :ref:`binman_fdt`.
+    U-Boot can access binman symbols at runtime. See:
+
+        'Access to binman entry offsets at run time (fdt)'
+
+    in the binman README for more information.
 
     Note that this entry is automatically replaced with u-boot-expanded unless
     --no-expanded is used or the node has a 'no-expanded' property.

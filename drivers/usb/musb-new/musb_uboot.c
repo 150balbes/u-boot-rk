@@ -378,7 +378,7 @@ static struct musb *gadget;
 
 int usb_gadget_handle_interrupts(int index)
 {
-	schedule();
+	WATCHDOG_RESET();
 	if (!gadget || !gadget->isr)
 		return -EINVAL;
 

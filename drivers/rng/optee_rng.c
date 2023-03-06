@@ -11,9 +11,6 @@
 #include <dm/device.h>
 #include <dm/device_compat.h>
 #include <linux/sizes.h>
-#include <tee/optee_service.h>
-
-#define DRIVER_NAME	"optee-rng"
 
 #define TEE_ERROR_HEALTH_TEST_FAIL	0x00000001
 
@@ -37,8 +34,6 @@
 
 #define TA_HWRNG_UUID { 0xab7a617c, 0xb8e7, 0x4d8f, \
 			{ 0x83, 0x01, 0xd0, 0x9b, 0x61, 0x03, 0x6b, 0x64 } }
-
-OPTEE_SERVICE_DRIVER(optee_rng, TA_HWRNG_UUID, DRIVER_NAME);
 
 /** open_session_ta_hwrng() - Open session with hwrng Trusted App
  *
@@ -182,7 +177,7 @@ static const struct dm_rng_ops optee_rng_ops = {
 };
 
 U_BOOT_DRIVER(optee_rng) = {
-	.name = DRIVER_NAME,
+	.name = "optee-rng",
 	.id = UCLASS_RNG,
 	.ops = &optee_rng_ops,
 	.probe = optee_rng_probe,

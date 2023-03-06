@@ -422,9 +422,6 @@ compute_lowest_common_dimm_parameters(const unsigned int ctrl_num,
 					dimm_params[i].mpart);
 #endif
 			}
-#ifndef CONFIG_SPL_BUILD
-			puts("       ");
-#endif
 		}
 	}
 

@@ -242,7 +242,7 @@ static int sh_mmcif_multi_read(struct sh_mmcif_host *host,
 		for (i = 0; i < blocksize / 4; i++)
 			*p++ = sh_mmcif_read(&host->regs->ce_data);
 
-		schedule();
+		WATCHDOG_RESET();
 	}
 	return 0;
 }
@@ -309,7 +309,7 @@ static int sh_mmcif_multi_write(struct sh_mmcif_host *host,
 		for (i = 0; i < blocksize / 4; i++)
 			sh_mmcif_write(*p++, &host->regs->ce_data);
 
-		schedule();
+		WATCHDOG_RESET();
 	}
 	return 0;
 }
@@ -523,7 +523,7 @@ static int sh_mmcif_send_cmd_common(struct sh_mmcif_host *host,
 {
 	int ret;
 
-	schedule();
+	WATCHDOG_RESET();
 
 	switch (cmd->cmdidx) {
 	case MMC_CMD_APP_CMD:

@@ -120,10 +120,10 @@ int lists_bind_drivers(struct udevice *parent, bool pre_reloc_only)
 		int ret;
 
 		ret = bind_drivers_pass(parent, pre_reloc_only);
-		if (!result || result == -EAGAIN)
-			result = ret;
-		if (ret != -EAGAIN)
+		if (!ret)
 			break;
+		if (ret != -EAGAIN && !result)
+			result = ret;
 	}
 
 	return result;
@@ -222,7 +222,6 @@ int lists_bind_fdt(struct udevice *parent, ofnode node, struct udevice **devp,
 		log_debug("   - attempt to match compatible string '%s'\n",
 			  compat);
 
-		id = NULL;
 		for (entry = driver; entry != driver + n_ents; entry++) {
 			if (drv) {
 				if (drv != entry)
@@ -251,8 +250,7 @@ int lists_bind_fdt(struct udevice *parent, ofnode node, struct udevice **devp,
 				  entry->name, entry->of_match->compatible,
 				  id->compatible);
 		ret = device_bind_with_driver_data(parent, entry, name,
-						   id ? id->data : 0, node,
-						   &dev);
+						   id->data, node, &dev);
 		if (ret == -ENODEV) {
 			log_debug("Driver '%s' refuses to bind\n", entry->name);
 			continue;

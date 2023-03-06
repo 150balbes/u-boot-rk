@@ -11,10 +11,10 @@
 #include <asm/arch-rockchip/hardware.h>
 #include <linux/sizes.h>
 
-#define CFG_SYS_SDRAM_BASE		0
+#define CONFIG_SYS_SDRAM_BASE		0
 #define SDRAM_MAX_SIZE			0xff000000
 
-#define CFG_IRAM_BASE		0xff8c0000
+#define CONFIG_IRAM_BASE		0xff8c0000
 
 #define ENV_MEM_LAYOUT_SETTINGS \
 	"scriptaddr=0x00500000\0" \
@@ -25,7 +25,7 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"fdtfile=" CONFIG_DEFAULT_DEVICE_TREE ".dtb\0" \
 	ENV_MEM_LAYOUT_SETTINGS	\
 	BOOTENV

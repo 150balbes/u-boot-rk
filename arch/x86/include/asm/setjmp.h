@@ -34,9 +34,7 @@ struct jmp_buf_data {
 
 #endif
 
-typedef struct jmp_buf_data jmp_buf[1];
-
-int setjmp(jmp_buf env);
-void longjmp(jmp_buf env, int val);
+int setjmp(struct jmp_buf_data *jmp_buf);
+void longjmp(struct jmp_buf_data *jmp_buf, int val);
 
 #endif

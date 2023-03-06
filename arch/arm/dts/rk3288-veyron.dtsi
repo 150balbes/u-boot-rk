@@ -560,6 +560,10 @@
 	status = "okay";
 };
 
+&hdmi_audio {
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 };

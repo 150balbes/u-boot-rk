@@ -39,8 +39,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define VF610_I2C_REGSHIFT	0
 
 #define I2C_EARLY_INIT_INDEX		0
-#ifdef CFG_SYS_I2C_IFDR_DIV
-#define I2C_IFDR_DIV_CONSERVATIVE	CFG_SYS_I2C_IFDR_DIV
+#ifdef CONFIG_SYS_I2C_IFDR_DIV
+#define I2C_IFDR_DIV_CONSERVATIVE	CONFIG_SYS_I2C_IFDR_DIV
 #else
 #define I2C_IFDR_DIV_CONSERVATIVE	0x7e
 #endif
@@ -199,7 +199,7 @@ static int wait_for_sr_state(struct mxc_i2c_bus *i2c_bus, unsigned state)
 		}
 		if ((sr & (state >> 8)) == (unsigned char)state)
 			return sr;
-		schedule();
+		WATCHDOG_RESET();
 		elapsed = get_timer(start_time);
 		if (elapsed > (CONFIG_SYS_HZ / 10))	/* .1 seconds */
 			break;
@@ -447,7 +447,7 @@ int i2c_idle_bus(struct mxc_i2c_bus *i2c_bus)
 		sda = dm_gpio_get_value(sda_gpio);
 		if ((sda & scl) == 1)
 			break;
-		schedule();
+		WATCHDOG_RESET();
 		elapsed = get_timer(start_time);
 		if (elapsed > (CONFIG_SYS_HZ / 5)) {	/* .2 seconds */
 			ret = -EBUSY;

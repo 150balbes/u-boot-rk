@@ -112,6 +112,7 @@
 #define applet_name "hush"
 #include "standalone.h"
 #define hush_main main
+#undef CONFIG_FEATURE_SH_FANCY_PROMPT
 #define BB_BANNER
 #endif
 #endif
@@ -1901,7 +1902,7 @@ static int run_list_real(struct pipe *pi)
 			last_return_code = -rcode - 2;
 			return -2;	/* exit */
 		}
-		last_return_code = rcode;
+		last_return_code=(rcode == 0) ? 0 : 1;
 #endif
 #ifndef __U_BOOT__
 		pi->num_progs = save_num_progs; /* restore number of programs */
@@ -3211,15 +3212,7 @@ static int parse_stream_outer(struct in_str *inp, int flag)
 					printf("exit not allowed from main input shell.\n");
 					continue;
 				}
-				/*
-				 * DANGER
-				 * Return code -2 is special in this context,
-				 * it indicates exit from inner pipe instead
-				 * of return code itself, the return code is
-				 * stored in 'last_return_code' variable!
-				 * DANGER
-				 */
-				return -2;
+				break;
 			}
 			if (code == -1)
 			    flag_repeat = 0;
@@ -3256,9 +3249,9 @@ int parse_string_outer(const char *s, int flag)
 #endif	/* __U_BOOT__ */
 {
 	struct in_str input;
-	int rcode;
 #ifdef __U_BOOT__
 	char *p = NULL;
+	int rcode;
 	if (!s)
 		return 1;
 	if (!*s)
@@ -3270,12 +3263,11 @@ int parse_string_outer(const char *s, int flag)
 		setup_string_in_str(&input, p);
 		rcode = parse_stream_outer(&input, flag);
 		free(p);
-		return rcode == -2 ? last_return_code : rcode;
+		return rcode;
 	} else {
 #endif
 	setup_string_in_str(&input, s);
-	rcode = parse_stream_outer(&input, flag);
-	return rcode == -2 ? last_return_code : rcode;
+	return parse_stream_outer(&input, flag);
 #ifdef __U_BOOT__
 	}
 #endif
@@ -3295,7 +3287,7 @@ int parse_file_outer(void)
 	setup_file_in_str(&input);
 #endif
 	rcode = parse_stream_outer(&input, FLAG_PARSE_SEMICOLON);
-	return rcode == -2 ? last_return_code : rcode;
+	return rcode;
 }
 
 #ifdef __U_BOOT__

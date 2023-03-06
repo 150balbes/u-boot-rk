@@ -111,8 +111,3 @@ ulong msm_set_rate(struct clk *clk, ulong rate)
 		return 0;
 	}
 }
-
-int msm_enable(struct clk *clk)
-{
-	return 0;
-}

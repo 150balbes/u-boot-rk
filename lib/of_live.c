@@ -97,10 +97,6 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
 		char *fn;
 
 		fn = (char *)np + sizeof(*np);
-		if (new_format) {
-			np->name = pathp;
-			has_name = 1;
-		}
 		np->full_name = fn;
 		if (new_format) {
 			/* rebuild full path for new format */
@@ -206,8 +202,7 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
 	}
 	if (!dryrun) {
 		*prev_pp = NULL;
-		if (!has_name)
-			np->name = of_get_property(np, "name", NULL);
+		np->name = of_get_property(np, "name", NULL);
 		np->type = of_get_property(np, "device_type", NULL);
 
 		if (!np->name)

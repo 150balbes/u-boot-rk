@@ -929,7 +929,6 @@ U_BOOT_DRVINFO(spl_test) = {
         self._check_strings(HEADER + '''
 struct dtd_source {
 \tstruct phandle_2_arg clocks[4];
-\tunsigned char	phandle_name_offset[13];
 };
 struct dtd_target {
 \tfdt32_t\t\tintval;
@@ -982,8 +981,6 @@ static struct dtd_source dtv_phandle_source = {
 \t\t\t{0, {11}},
 \t\t\t{1, {12, 13}},
 \t\t\t{4, {}},},
-\t.phandle_name_offset	= {0x0, 0x0, 0x0, 0x3, 0x66, 0x72, 0x65, 0x64,
-\t\t0x0, 0x0, 0x0, 0x0, 0x7b},
 };
 U_BOOT_DRVINFO(phandle_source) = {
 \t.name\t\t= "source",

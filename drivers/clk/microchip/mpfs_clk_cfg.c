@@ -117,7 +117,8 @@ static struct mpfs_cfg_hw_clock mpfs_cfg_clks[] = {
 	CLK_CFG(CLK_AHB, "clk_ahb", 4, 2, mpfs_div_ahb_table, 0),
 };
 
-int mpfs_clk_register_cfgs(void __iomem *base, struct clk *parent)
+int mpfs_clk_register_cfgs(void __iomem *base, u32 clk_rate,
+			   const char *parent_name)
 {
 	int ret;
 	int i, id, num_clks;
@@ -128,9 +129,9 @@ int mpfs_clk_register_cfgs(void __iomem *base, struct clk *parent)
 	for (i = 0; i < num_clks; i++) {
 		hw = &mpfs_cfg_clks[i].hw;
 		mpfs_cfg_clks[i].sys_base = base;
-		mpfs_cfg_clks[i].prate = clk_get_rate(parent);
+		mpfs_cfg_clks[i].prate = clk_rate;
 		name = mpfs_cfg_clks[i].cfg.name;
-		ret = clk_register(hw, MPFS_CFG_CLOCK, name, parent->dev->name);
+		ret = clk_register(hw, MPFS_CFG_CLOCK, name, parent_name);
 		if (ret)
 			ERR_PTR(ret);
 		id = mpfs_cfg_clks[i].cfg.id;

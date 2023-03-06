@@ -8,7 +8,14 @@
 #ifndef _NX__DISPLAY_DEV_H_
 #define _NX__DISPLAY_DEV_H_
 
+#if !defined(CONFIG_DM_VIDEO) && defined(CONFIG_LCD)
+#include <lcd.h>
+#endif
+
 struct nx_display_dev {
+#if !defined(CONFIG_DM_VIDEO) && defined(CONFIG_LCD)
+	vidinfo_t *panel_info;
+#endif
 	unsigned long base;
 	int module;
 	struct dp_sync_info sync;

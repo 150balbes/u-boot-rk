@@ -168,8 +168,7 @@ static int dwmci_data_transfer(struct dwmci_host *host, struct mmc_data *data)
 			if (data->flags == MMC_DATA_READ &&
 			    (mask & (DWMCI_INTMSK_RXDR | DWMCI_INTMSK_DTO))) {
 				dwmci_writel(host, DWMCI_RINTSTS,
-					     mask & (DWMCI_INTMSK_RXDR |
-						     DWMCI_INTMSK_DTO));
+					     DWMCI_INTMSK_RXDR | DWMCI_INTMSK_DTO);
 				while (size) {
 					ret = dwmci_fifo_ready(host,
 							DWMCI_FIFO_EMPTY,
@@ -530,6 +529,7 @@ static int dwmci_init(struct mmc *mmc)
 	if (host->board_init)
 		host->board_init(host);
 
+//	dwmci_writel(host, DWMCI_PWREN, 1);
 	dwmci_writel(host, DWMCI_PWREN, 0);
 
 	if (!dwmci_wait_reset(host, DWMCI_RESET_ALL)) {

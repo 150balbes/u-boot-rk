@@ -19,16 +19,14 @@
  * The variables here must be stored in the data section since they are used
  * before the bss section is available.
  */
-#if !CONFIG_IS_ENABLED(XIP)
+#ifndef CONFIG_XIP
 u32 hart_lottery __section(".data") = 0;
 
-#ifdef CONFIG_AVAILABLE_HARTS
 /*
  * The main hart running U-Boot has acquired available_harts_lock until it has
  * finished initialization of global data.
  */
 u32 available_harts_lock = 1;
-#endif
 #endif
 
 static inline bool supports_extension(char ext)
@@ -36,7 +34,6 @@ static inline bool supports_extension(char ext)
 #ifdef CONFIG_CPU
 	struct udevice *dev;
 	char desc[32];
-	int i;
 
 	uclass_find_first_device(UCLASS_CPU, &dev);
 	if (!dev) {
@@ -44,16 +41,9 @@ static inline bool supports_extension(char ext)
 		return false;
 	}
 	if (!cpu_get_desc(dev, desc, sizeof(desc))) {
-		/*
-		 * skip the first 4 characters (rv32|rv64) and
-		 * check until underscore
-		 */
-		for (i = 4; i < sizeof(desc); i++) {
-			if (desc[i] == '_' || desc[i] == '\0')
-				break;
-			if (desc[i] == ext)
-				return true;
-		}
+		/* skip the first 4 characters (rv32|rv64) */
+		if (strchr(desc + 4, ext))
+			return true;
 	}
 
 	return false;

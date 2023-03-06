@@ -1,29 +1,25 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2022 Marek Vasut <marex@denx.de>
- *
- * DHCOM iMX8MP variant:
- * DHCM-iMX8ML8-C160-R409-F1638-SPI16-GE-CAN2-SD-RTC-WBTA-ADC-T-RGB-CSI2-HS-I-01D2
- * DHCOM PCB number: 660-100 or newer
- * PDK2 PCB number: 516-400 or newer
  */
 
 /dts-v1/;
 
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/net/qca-ar803x.h>
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 #include "imx8mp-dhcom-som.dtsi"
 
 / {
 	model = "DH electronics i.MX8M Plus DHCOM Premium Developer Kit (2)";
-	compatible = "dh,imx8mp-dhcom-pdk2", "dh,imx8mp-dhcom-som",
-		     "fsl,imx8mp";
+	compatible = "dh,imx8mp-dhcom-pdk2", "fsl,imx8mp";
 
 	chosen {
 		stdout-path = &uart1;
 	};
 
 	gpio-keys {
+		#size-cells = <0>;
 		compatible = "gpio-keys";
 
 		button-0 {
@@ -66,7 +62,7 @@
 	led {
 		compatible = "gpio-leds";
 
-		led-0 {
+		led-5 {
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
@@ -75,7 +71,7 @@
 			pinctrl-names = "default";
 		};
 
-		led-1 {
+		led-6 {
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
@@ -84,7 +80,7 @@
 			pinctrl-names = "default";
 		};
 
-		led-2 {
+		led-7 {
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
@@ -93,7 +89,7 @@
 			pinctrl-names = "default";
 		};
 
-		led-3 {
+		led-8 {
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
@@ -122,11 +118,10 @@
 	mdio {
 		ethphypdk: ethernet-phy@7 { /* KSZ 9021 */
 			compatible = "ethernet-phy-ieee802.3-c22";
-			pinctrl-0 = <&pinctrl_ethphy1>;
-			pinctrl-names = "default";
 			interrupt-parent = <&gpio4>;
 			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-			max-speed = <100>;
+			pinctrl-0 = <&pinctrl_ethphy1>;
+			pinctrl-names = "default";
 			reg = <7>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
@@ -143,6 +138,7 @@
 			txd2-skew-ps = <0>;
 			txd3-skew-ps = <0>;
 			txen-skew-ps = <0>;
+			max-speed = <100>;
 		};
 	};
 };
@@ -153,16 +149,4 @@
 
 &usb3_1 {
 	fsl,over-current-active-low;
-};
-
-&iomuxc {
-	/*
-	 * GPIO_A,B,C,D are connected to buttons.
-	 * GPIO_E,F,H,I are connected to LEDs.
-	 * GPIO_M is connected to CLKOUT2.
-	 */
-	pinctrl-0 = <&pinctrl_hog_base
-		     &pinctrl_dhcom_g &pinctrl_dhcom_j
-		     &pinctrl_dhcom_k &pinctrl_dhcom_l
-		     &pinctrl_dhcom_int>;
 };

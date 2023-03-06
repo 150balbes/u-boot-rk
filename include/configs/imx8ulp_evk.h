@@ -9,10 +9,11 @@
 #include <linux/sizes.h>
 #include <asm/arch/imx-regs.h>
 
-#define CFG_SYS_UBOOT_BASE	(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
+#define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
+#define CONFIG_SYS_UBOOT_BASE	(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
 
 #ifdef CONFIG_SPL_BUILD
-#define CFG_MALLOC_F_ADDR		0x22040000
+#define CONFIG_MALLOC_F_ADDR		0x22040000
 
 
 #endif
@@ -21,7 +22,7 @@
 #if defined(CONFIG_FEC_MXC)
 #define PHY_ANEG_TIMEOUT		20000
 
-#define CFG_FEC_MXC_PHYADDR		1
+#define CONFIG_FEC_MXC_PHYADDR		1
 #endif
 
 #ifdef CONFIG_DISTRO_DEFAULTS
@@ -34,7 +35,7 @@
 #endif
 
 /* Initial environment variables */
-#define CFG_EXTRA_ENV_SETTINGS		\
+#define CONFIG_EXTRA_ENV_SETTINGS		\
 	BOOTENV \
 	"scriptaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"kernel_addr_r=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
@@ -50,11 +51,11 @@
 
 /* Link Definitions */
 
-#define CFG_SYS_INIT_RAM_ADDR	0x80000000
-#define CFG_SYS_INIT_RAM_SIZE	0x80000
+#define CONFIG_SYS_INIT_RAM_ADDR	0x80000000
+#define CONFIG_SYS_INIT_RAM_SIZE	0x80000
 
 
-#define CFG_SYS_SDRAM_BASE		0x80000000
+#define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM			0x80000000
 #define PHYS_SDRAM_SIZE			0x80000000 /* 2GB DDR */
 

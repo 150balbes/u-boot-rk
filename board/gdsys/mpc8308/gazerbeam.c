@@ -49,10 +49,8 @@ int board_early_init_r(void)
 	int mc = 0;
 	int con = 0;
 
-	if (sysinfo_get(&sysinfo)) {
+	if (sysinfo_get(&sysinfo))
 		puts("Could not find sysinfo information device.\n");
-		sysinfo = NULL;
-	}
 
 	/* Initialize serdes */
 	uclass_get_device_by_phandle(UCLASS_MISC, sysinfo, "serdes", &serdes);
@@ -94,10 +92,8 @@ int checksysinfo(void)
 	int mc = 0;
 	int con = 0;
 
-	if (sysinfo_get(&sysinfo)) {
+	if (sysinfo_get(&sysinfo))
 		puts("Could not find sysinfo information device.\n");
-		sysinfo = NULL;
-	}
 
 	sysinfo_get_int(sysinfo, BOARD_MULTICHANNEL, &mc);
 	sysinfo_get_int(sysinfo, BOARD_VARIANT, &con);
@@ -134,10 +130,8 @@ int last_stage_init(void)
 	struct udevice *tpm;
 	int ret;
 
-	if (sysinfo_get(&sysinfo)) {
+	if (sysinfo_get(&sysinfo))
 		puts("Could not find sysinfo information device.\n");
-		sysinfo = NULL;
-	}
 
 	if (sysinfo) {
 		int res = sysinfo_get_int(sysinfo, BOARD_HWVERSION,

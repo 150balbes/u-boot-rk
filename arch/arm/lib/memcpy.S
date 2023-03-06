@@ -59,7 +59,7 @@
 #endif
 ENTRY(memcpy)
 		cmp	r0, r1
-		reteq	lr
+		bxeq	lr
 
 		enter	r4, lr
 
@@ -148,7 +148,7 @@ ENTRY(memcpy)
 		str1b	r0, ip, cs, abort=21f
 
 		exit	r4, lr
-		ret	lr
+		bx	lr
 
 9:		rsb	ip, ip, #4
 		cmp	ip, #2
@@ -258,7 +258,7 @@ ENTRY(memcpy)
 
 	.macro	copy_abort_end
 	ldmfd	sp!, {r4, lr}
-	ret	lr
+	bx	lr
 	.endm
 
 ENDPROC(memcpy)

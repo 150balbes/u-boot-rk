@@ -81,13 +81,13 @@ static int mxs_flash_full_ident(struct mtd_info *mtd)
 {
 	int nand_maf_id, nand_dev_id;
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	int ret;
+	struct nand_flash_dev *type;
 
-	ret = nand_detect(chip, &nand_maf_id, &nand_dev_id, NULL);
+	type = nand_get_flash_type(mtd, chip, &nand_maf_id, &nand_dev_id, NULL);
 
-	if (ret) {
+	if (IS_ERR(type)) {
 		chip->select_chip(mtd, -1);
-		return ret;
+		return PTR_ERR(type);
 	}
 
 	return 0;
@@ -257,7 +257,7 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *dst)
 	while (block <= lastblock && size > 0) {
 		if (!is_badblock(mtd, mtd->erasesize * block, 1)) {
 			/* Skip bad blocks */
-			while (page < nand_page_per_block && size) {
+			while (page < nand_page_per_block) {
 				int curr_page = nand_page_per_block * block + page;
 
 				if (mxs_read_page_ecc(mtd, page_buf, curr_page) < 0) {

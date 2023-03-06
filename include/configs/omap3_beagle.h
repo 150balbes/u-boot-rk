@@ -20,16 +20,17 @@
 
 /* NAND */
 #if defined(CONFIG_MTD_RAW_NAND)
-#define CFG_SYS_FLASH_BASE		NAND_BASE
-#define CFG_SYS_NAND_ECCPOS          {2, 3, 4, 5, 6, 7, 8, 9,\
+#define CONFIG_SYS_FLASH_BASE		NAND_BASE
+#define CONFIG_SYS_MAX_NAND_DEVICE      1
+#define CONFIG_SYS_NAND_ECCPOS          {2, 3, 4, 5, 6, 7, 8, 9,\
                                          10, 11, 12, 13}
-#define CFG_SYS_NAND_ECCSIZE         512
-#define CFG_SYS_NAND_ECCBYTES        3
+#define CONFIG_SYS_NAND_ECCSIZE         512
+#define CONFIG_SYS_NAND_ECCBYTES        3
 /* NAND: SPL falcon mode configs */
 #endif /* CONFIG_MTD_RAW_NAND */
 
 /* Enable Multi Bus support for I2C */
-#define CFG_I2C_MULTI_BUS
+#define CONFIG_I2C_MULTI_BUS
 
 /* DSS Support */
 
@@ -73,7 +74,7 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	MEM_LAYOUT_ENV_SETTINGS \
 	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
 	"fdt_high=0xffffffff\0" \

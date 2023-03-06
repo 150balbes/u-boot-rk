@@ -168,24 +168,23 @@ static void _lpuart_serial_setbrg(struct udevice *dev,
 static int _lpuart_serial_getc(struct lpuart_serial_plat *plat)
 {
 	struct lpuart_fsl *base = plat->reg;
-	if (!(__raw_readb(&base->us1) & (US1_RDRF | US1_OR)))
-		return -EAGAIN;
+	while (!(__raw_readb(&base->us1) & (US1_RDRF | US1_OR)))
+		WATCHDOG_RESET();
 
 	barrier();
 
 	return __raw_readb(&base->ud);
 }
 
-static int _lpuart_serial_putc(struct lpuart_serial_plat *plat,
+static void _lpuart_serial_putc(struct lpuart_serial_plat *plat,
 				const char c)
 {
 	struct lpuart_fsl *base = plat->reg;
 
-	if (!(__raw_readb(&base->us1) & US1_TDRE))
-		return -EAGAIN;
+	while (!(__raw_readb(&base->us1) & US1_TDRE))
+		WATCHDOG_RESET();
 
 	__raw_writeb(c, &base->ud);
-	return 0;
 }
 
 /* Test whether a character is in the RX buffer */
@@ -329,9 +328,10 @@ static int _lpuart32_serial_getc(struct lpuart_serial_plat *plat)
 	u32 stat, val;
 
 	lpuart_read32(plat->flags, &base->stat, &stat);
-	if ((stat & STAT_RDRF) == 0) {
+	while ((stat & STAT_RDRF) == 0) {
 		lpuart_write32(plat->flags, &base->stat, STAT_FLAGS);
-		return -EAGAIN;
+		WATCHDOG_RESET();
+		lpuart_read32(plat->flags, &base->stat, &stat);
 	}
 
 	lpuart_read32(plat->flags, &base->data, &val);
@@ -343,18 +343,25 @@ static int _lpuart32_serial_getc(struct lpuart_serial_plat *plat)
 	return val & 0x3ff;
 }
 
-static int _lpuart32_serial_putc(struct lpuart_serial_plat *plat,
+static void _lpuart32_serial_putc(struct lpuart_serial_plat *plat,
 				  const char c)
 {
 	struct lpuart_fsl_reg32 *base = plat->reg;
 	u32 stat;
 
-	lpuart_read32(plat->flags, &base->stat, &stat);
-	if (!(stat & STAT_TDRE))
-		return -EAGAIN;
+	if (c == '\n')
+		serial_putc('\r');
+
+	while (true) {
+		lpuart_read32(plat->flags, &base->stat, &stat);
+
+		if ((stat & STAT_TDRE))
+			break;
+
+		WATCHDOG_RESET();
+	}
 
 	lpuart_write32(plat->flags, &base->data, c);
-	return 0;
 }
 
 /* Test whether a character is in the RX buffer */
@@ -449,9 +456,11 @@ static int lpuart_serial_putc(struct udevice *dev, const char c)
 	struct lpuart_serial_plat *plat = dev_get_plat(dev);
 
 	if (is_lpuart32(dev))
-		return _lpuart32_serial_putc(plat, c);
+		_lpuart32_serial_putc(plat, c);
+	else
+		_lpuart_serial_putc(plat, c);
 
-	return _lpuart_serial_putc(plat, c);
+	return 0;
 }
 
 static int lpuart_serial_pending(struct udevice *dev, bool input)

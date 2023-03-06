@@ -11,7 +11,10 @@
 /* uArchitecture specifics */
 
 /* Serial Info */
-#define CFG_SYS_NS16550_CLK		0x03b9aca0
-#define CFG_SYS_NS16550_COM1		0x18000300
+/* no padding */
+#define CONFIG_SYS_NS16550_REG_SIZE	1
+
+#define CONFIG_SYS_NS16550_CLK		0x03b9aca0
+#define CONFIG_SYS_NS16550_COM1		0x18000300
 
 #endif /* __ARCH_CONFIGS_H */

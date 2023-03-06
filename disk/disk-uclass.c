@@ -27,7 +27,8 @@ int part_create_block_devices(struct udevice *blk_dev)
 	struct udevice *dev;
 	int ret;
 
-	if (!CONFIG_IS_ENABLED(PARTITIONS) || !blk_enabled())
+	if (!CONFIG_IS_ENABLED(PARTITIONS) ||
+	    !CONFIG_IS_ENABLED(HAVE_BLOCK_DEVICE))
 		return 0;
 
 	if (device_get_uclass_id(blk_dev) != UCLASS_BLK)
@@ -65,7 +66,7 @@ int part_create_block_devices(struct udevice *blk_dev)
 	return 0;
 }
 
-static ulong part_blk_read(struct udevice *dev, lbaint_t start,
+static ulong blk_part_read(struct udevice *dev, lbaint_t start,
 			   lbaint_t blkcnt, void *buffer)
 {
 	struct udevice *parent;
@@ -88,7 +89,7 @@ static ulong part_blk_read(struct udevice *dev, lbaint_t start,
 	return ops->read(parent, start, blkcnt, buffer);
 }
 
-static ulong part_blk_write(struct udevice *dev, lbaint_t start,
+static ulong blk_part_write(struct udevice *dev, lbaint_t start,
 			    lbaint_t blkcnt, const void *buffer)
 {
 	struct udevice *parent;
@@ -111,7 +112,7 @@ static ulong part_blk_write(struct udevice *dev, lbaint_t start,
 	return ops->write(parent, start, blkcnt, buffer);
 }
 
-static ulong part_blk_erase(struct udevice *dev, lbaint_t start,
+static ulong blk_part_erase(struct udevice *dev, lbaint_t start,
 			    lbaint_t blkcnt)
 {
 	struct udevice *parent;
@@ -135,9 +136,9 @@ static ulong part_blk_erase(struct udevice *dev, lbaint_t start,
 }
 
 static const struct blk_ops blk_part_ops = {
-	.read	= part_blk_read,
-	.write	= part_blk_write,
-	.erase	= part_blk_erase,
+	.read	= blk_part_read,
+	.write	= blk_part_write,
+	.erase	= blk_part_erase,
 };
 
 U_BOOT_DRIVER(blk_partition) = {
@@ -151,34 +152,34 @@ U_BOOT_DRIVER(blk_partition) = {
  */
 static struct blk_desc *dev_get_blk(struct udevice *dev)
 {
-	struct blk_desc *desc;
+	struct blk_desc *block_dev;
 
 	switch (device_get_uclass_id(dev)) {
 	/*
 	 * We won't support UCLASS_BLK with dev_* interfaces.
 	 */
 	case UCLASS_PARTITION:
-		desc = dev_get_uclass_plat(dev_get_parent(dev));
+		block_dev = dev_get_uclass_plat(dev_get_parent(dev));
 		break;
 	default:
-		desc = NULL;
+		block_dev = NULL;
 		break;
 	}
 
-	return desc;
+	return block_dev;
 }
 
-unsigned long disk_blk_read(struct udevice *dev, lbaint_t start,
-			    lbaint_t blkcnt, void *buffer)
+unsigned long dev_read(struct udevice *dev, lbaint_t start,
+		       lbaint_t blkcnt, void *buffer)
 {
-	struct blk_desc *desc;
+	struct blk_desc *block_dev;
 	const struct blk_ops *ops;
 	struct disk_part *part;
 	lbaint_t start_in_disk;
 	ulong blks_read;
 
-	desc = dev_get_blk(dev);
-	if (!desc)
+	block_dev = dev_get_blk(dev);
+	if (!block_dev)
 		return -ENOSYS;
 
 	ops = blk_get_ops(dev);
@@ -191,51 +192,51 @@ unsigned long disk_blk_read(struct udevice *dev, lbaint_t start,
 		start_in_disk += part->gpt_part_info.start;
 	}
 
-	if (blkcache_read(desc->uclass_id, desc->devnum, start_in_disk, blkcnt,
-			  desc->blksz, buffer))
+	if (blkcache_read(block_dev->if_type, block_dev->devnum,
+			  start_in_disk, blkcnt, block_dev->blksz, buffer))
 		return blkcnt;
 	blks_read = ops->read(dev, start, blkcnt, buffer);
 	if (blks_read == blkcnt)
-		blkcache_fill(desc->uclass_id, desc->devnum, start_in_disk,
-			      blkcnt, desc->blksz, buffer);
+		blkcache_fill(block_dev->if_type, block_dev->devnum,
+			      start_in_disk, blkcnt, block_dev->blksz, buffer);
 
 	return blks_read;
 }
 
-unsigned long disk_blk_write(struct udevice *dev, lbaint_t start,
-			     lbaint_t blkcnt, const void *buffer)
+unsigned long dev_write(struct udevice *dev, lbaint_t start,
+			lbaint_t blkcnt, const void *buffer)
 {
-	struct blk_desc *desc;
+	struct blk_desc *block_dev;
 	const struct blk_ops *ops;
 
-	desc = dev_get_blk(dev);
-	if (!desc)
+	block_dev = dev_get_blk(dev);
+	if (!block_dev)
 		return -ENOSYS;
 
 	ops = blk_get_ops(dev);
 	if (!ops->write)
 		return -ENOSYS;
 
-	blkcache_invalidate(desc->uclass_id, desc->devnum);
+	blkcache_invalidate(block_dev->if_type, block_dev->devnum);
 
 	return ops->write(dev, start, blkcnt, buffer);
 }
 
-unsigned long disk_blk_erase(struct udevice *dev, lbaint_t start,
-			     lbaint_t blkcnt)
+unsigned long dev_erase(struct udevice *dev, lbaint_t start,
+			lbaint_t blkcnt)
 {
-	struct blk_desc *desc;
+	struct blk_desc *block_dev;
 	const struct blk_ops *ops;
 
-	desc = dev_get_blk(dev);
-	if (!desc)
+	block_dev = dev_get_blk(dev);
+	if (!block_dev)
 		return -ENOSYS;
 
 	ops = blk_get_ops(dev);
 	if (!ops->erase)
 		return -ENOSYS;
 
-	blkcache_invalidate(desc->uclass_id, desc->devnum);
+	blkcache_invalidate(block_dev->if_type, block_dev->devnum);
 
 	return ops->erase(dev, start, blkcnt);
 }

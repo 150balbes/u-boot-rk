@@ -33,9 +33,6 @@
 
 					atf-bl31 {
 					};
-					hash {
-						algo = "sha256";
-					};
 				};
 
 				@tee-SEQ {
@@ -50,9 +47,6 @@
 					fit,data;
 
 					tee-os {
-					};
-					hash-1 {
-						algo = "sha256";
 					};
 				};
 			};

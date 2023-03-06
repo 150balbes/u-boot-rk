@@ -10,7 +10,7 @@
 #include <ppc_defs.h>
 #include <asm/cache.h>
 
-#if CFG_POST & CFG_SYS_POST_CPU
+#if CONFIG_POST & CONFIG_SYS_POST_CPU
 
 /* void cpu_post_exec_02 (ulong *code, ulong op1, ulong op2); */
 	.global	cpu_post_exec_02

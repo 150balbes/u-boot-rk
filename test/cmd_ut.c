@@ -14,46 +14,20 @@
 static int do_ut_all(struct cmd_tbl *cmdtp, int flag, int argc,
 		     char *const argv[]);
 
-static int do_ut_info(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[]);
-
 int cmd_ut_category(const char *name, const char *prefix,
 		    struct unit_test *tests, int n_ents,
 		    int argc, char *const argv[])
 {
-	const char *test_insert = NULL;
-	int runs_per_text = 1;
-	bool force_run = false;
 	int ret;
 
-	while (argc > 1 && *argv[1] == '-') {
-		const char *str = argv[1];
-
-		switch (str[1]) {
-		case 'r':
-			runs_per_text = dectoul(str + 2, NULL);
-			break;
-		case 'f':
-			force_run = true;
-			break;
-		case 'I':
-			test_insert = str + 2;
-			break;
-		}
-		argv++;
-		argc--;
-	}
-
 	ret = ut_run_list(name, prefix, tests, n_ents,
-			  argc > 1 ? argv[1] : NULL, runs_per_text, force_run,
-			  test_insert);
+			  argc > 1 ? argv[1] : NULL);
 
 	return ret ? CMD_RET_FAILURE : 0;
 }
 
 static struct cmd_tbl cmd_ut_sub[] = {
 	U_BOOT_CMD_MKENT(all, CONFIG_SYS_MAXARGS, 1, do_ut_all, "", ""),
-	U_BOOT_CMD_MKENT(info, 1, 1, do_ut_info, "", ""),
 #ifdef CONFIG_BOOTSTD
 	U_BOOT_CMD_MKENT(bootstd, CONFIG_SYS_MAXARGS, 1, do_ut_bootstd,
 			 "", ""),
@@ -65,12 +39,8 @@ static struct cmd_tbl cmd_ut_sub[] = {
 #if defined(CONFIG_UT_ENV)
 	U_BOOT_CMD_MKENT(env, CONFIG_SYS_MAXARGS, 1, do_ut_env, "", ""),
 #endif
-	U_BOOT_CMD_MKENT(exit, CONFIG_SYS_MAXARGS, 1, do_ut_exit, "", ""),
 #ifdef CONFIG_CMD_FDT
 	U_BOOT_CMD_MKENT(fdt, CONFIG_SYS_MAXARGS, 1, do_ut_fdt, "", ""),
-#endif
-#ifdef CONFIG_CONSOLE_TRUETYPE
-	U_BOOT_CMD_MKENT(font, CONFIG_SYS_MAXARGS, 1, do_ut_font, "", ""),
 #endif
 #ifdef CONFIG_UT_OPTEE
 	U_BOOT_CMD_MKENT(optee, CONFIG_SYS_MAXARGS, 1, do_ut_optee, "", ""),
@@ -85,7 +55,7 @@ static struct cmd_tbl cmd_ut_sub[] = {
 	U_BOOT_CMD_MKENT(log, CONFIG_SYS_MAXARGS, 1, do_ut_log, "", ""),
 #endif
 	U_BOOT_CMD_MKENT(mem, CONFIG_SYS_MAXARGS, 1, do_ut_mem, "", ""),
-#if defined(CONFIG_SANDBOX) && defined(CONFIG_CMD_SETEXPR)
+#ifdef CONFIG_CMD_SETEXPR
 	U_BOOT_CMD_MKENT(setexpr, CONFIG_SYS_MAXARGS, 1, do_ut_setexpr, "",
 			 ""),
 #endif
@@ -129,15 +99,6 @@ static int do_ut_all(struct cmd_tbl *cmdtp, int flag, int argc,
 	return any_fail;
 }
 
-static int do_ut_info(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[])
-{
-	printf("Test suites: %d\n", (int)ARRAY_SIZE(cmd_ut_sub));
-	printf("Total tests: %d\n", (int)UNIT_TEST_ALL_COUNT());
-
-	return 0;
-}
-
 static int do_ut(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	struct cmd_tbl *cp;
@@ -159,65 +120,53 @@ static int do_ut(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 #ifdef CONFIG_SYS_LONGHELP
 static char ut_help_text[] =
-	"[-r] [-f] [<suite>] - run unit tests\n"
-	"   -r<runs>   Number of times to run each test\n"
-	"   -f         Force 'manual' tests to run as well\n"
-	"   <suite>    Test suite to run, or all\n"
-	"\n"
-	"\nOptions for <suite>:"
-	"\nall - execute all enabled tests"
-	"\ninfo - show info about tests"
-#ifdef CONFIG_CMD_ADDRMAP
-	"\naddrmap - very basic test of addrmap command"
-#endif
+	"all - execute all enabled tests\n"
 #ifdef CONFIG_SANDBOX
-	"\nbloblist - bloblist implementation"
+	"ut bloblist - Test bloblist implementation\n"
+	"ut compression - Test compressors and bootm decompression\n"
 #endif
 #ifdef CONFIG_BOOTSTD
-	"\nbootstd - standard boot implementation"
-#endif
-#ifdef CONFIG_SANDBOX
-	"\ncompression - compressors and bootm decompression"
+	"ut bootstd - Test standard boot implementation\n"
 #endif
 #ifdef CONFIG_UT_DM
-	"\ndm - driver model"
+	"ut dm [test-name]\n"
 #endif
 #ifdef CONFIG_UT_ENV
-	"\nenv - environment"
+	"ut env [test-name]\n"
 #endif
 #ifdef CONFIG_CMD_FDT
-	"\nfdt - fdt command"
-#endif
-#ifdef CONFIG_CONSOLE_TRUETYPE
-	"\nut font - font command"
-#endif
-#ifdef CONFIG_CMD_LOADM
-	"\nloadm - loadm command parameters and loading memory blob"
+	"ut fdt [test-name] - test of the fdt command\n"
 #endif
 #ifdef CONFIG_UT_LIB
-	"\nlib - library functions"
+	"ut lib [test-name] - test library functions\n"
 #endif
 #ifdef CONFIG_UT_LOG
-	"\nlog - logging functions"
+	"ut log [test-name] - test logging functions\n"
 #endif
-	"\nmem - memory-related commands"
+	"ut mem [test-name] - test memory-related commands\n"
 #ifdef CONFIG_UT_OPTEE
-	"\noptee - test OP-TEE"
+	"ut optee [test-name]\n"
 #endif
 #ifdef CONFIG_UT_OVERLAY
-	"\noverlay - device tree overlays"
+	"ut overlay [test-name]\n"
 #endif
-	"\nprint  - printing things to the console"
-	"\nsetexpr - setexpr command"
+	"ut print [test-name]  - test printing\n"
+	"ut setexpr [test-name] - test setexpr command\n"
 #ifdef CONFIG_SANDBOX
-	"\nstr - basic test of string functions"
+	"ut str - Basic test of string functions\n"
 #endif
 #ifdef CONFIG_UT_TIME
-	"\ntime - very basic test of time functions"
+	"ut time - Very basic test of time functions\n"
 #endif
 #if defined(CONFIG_UT_UNICODE) && \
 	!defined(CONFIG_SPL_BUILD) && !defined(API_BUILD)
-	"\nunicode - Unicode functions"
+	"ut unicode [test-name] - test Unicode functions\n"
+#endif
+#ifdef CONFIG_CMD_ADDRMAP
+	"ut addrmap - Very basic test of addrmap command\n"
+#endif
+#ifdef CONFIG_CMD_LOADM
+	"ut loadm [test-name]- test of parameters and load memory blob\n"
 #endif
 	;
 #endif /* CONFIG_SYS_LONGHELP */

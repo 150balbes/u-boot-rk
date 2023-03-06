@@ -35,6 +35,7 @@ struct fel_stash {
 	uint32_t cpsr;
 	uint32_t sctlr;
 	uint32_t vbar;
+	uint32_t cr;
 };
 
 struct fel_stash fel_stash __section(".data");
@@ -64,7 +65,7 @@ static struct mm_region sunxi_mem_map[] = {
 };
 struct mm_region *mem_map = sunxi_mem_map;
 
-phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+ulong board_get_usable_ram_top(ulong total_size)
 {
 	/* Some devices (like the EMAC) have a 32-bit DMA limit. */
 	if (gd->ram_top > (1ULL << 32))
@@ -72,7 +73,7 @@ phys_size_t board_get_usable_ram_top(phys_size_t total_size)
 
 	return gd->ram_top;
 }
-#endif /* CONFIG_ARM64 */
+#endif
 
 #ifdef CONFIG_SPL_BUILD
 static int gpio_init(void)
@@ -146,10 +147,6 @@ static int gpio_init(void)
 	sunxi_gpio_set_cfgpin(SUNXI_GPH(12), SUN9I_GPH_UART0);
 	sunxi_gpio_set_cfgpin(SUNXI_GPH(13), SUN9I_GPH_UART0);
 	sunxi_gpio_set_pull(SUNXI_GPH(13), SUNXI_GPIO_PULL_UP);
-#elif CONFIG_CONS_INDEX == 2 && defined(CONFIG_MACH_SUNIV)
-	sunxi_gpio_set_cfgpin(SUNXI_GPA(2), SUNIV_GPE_UART0);
-	sunxi_gpio_set_cfgpin(SUNXI_GPA(3), SUNIV_GPE_UART0);
-	sunxi_gpio_set_pull(SUNXI_GPA(3), SUNXI_GPIO_PULL_UP);
 #elif CONFIG_CONS_INDEX == 2 && defined(CONFIG_MACH_SUN5I)
 	sunxi_gpio_set_cfgpin(SUNXI_GPG(3), SUN5I_GPG_UART1);
 	sunxi_gpio_set_cfgpin(SUNXI_GPG(4), SUN5I_GPG_UART1);
@@ -195,7 +192,7 @@ static int spl_board_load_image(struct spl_image_info *spl_image,
 	return 0;
 }
 SPL_LOAD_IMAGE_METHOD("FEL", 0, BOOT_DEVICE_BOARD, spl_board_load_image);
-#endif /* CONFIG_SPL_BUILD */
+#endif
 
 #define SUNXI_INVALID_BOOT_SOURCE	-1
 
@@ -362,9 +359,8 @@ __weak void sunxi_sram_init(void)
 static bool sunxi_valid_emmc_boot(struct mmc *mmc)
 {
 	struct blk_desc *bd = mmc_get_blk_desc(mmc);
-	u32 *buffer = (void *)(uintptr_t)CONFIG_TEXT_BASE;
+	uint32_t *buffer = (void *)(uintptr_t)CONFIG_SYS_TEXT_BASE;
 	struct boot_file_head *egon_head = (void *)buffer;
-	struct toc0_main_info *toc0_info = (void *)buffer;
 	int bootpart = EXT_CSD_EXTRACT_BOOT_PART(mmc->part_config);
 	uint32_t spl_size, emmc_checksum, chksum = 0;
 	ulong count;
@@ -391,17 +387,11 @@ static bool sunxi_valid_emmc_boot(struct mmc *mmc)
 
 	/* Read the first block to do some sanity checks on the eGON header. */
 	count = blk_dread(bd, 0, 1, buffer);
-	if (count != 1)
-		return false;
-
-	if (sunxi_egon_valid(egon_head))
-		spl_size = egon_head->length;
-	else if (sunxi_toc0_valid(toc0_info))
-		spl_size = toc0_info->length;
-	else
+	if (count != 1 || !sunxi_egon_valid(egon_head))
 		return false;
 
 	/* Read the rest of the SPL now we know it's halfway sane. */
+	spl_size = buffer[4];
 	count = blk_dread(bd, 1, DIV_ROUND_UP(spl_size, bd->blksz) - 1,
 			  buffer + bd->blksz / 4);
 
@@ -463,7 +453,7 @@ void board_init_f(ulong dummy)
 #endif
 	sunxi_board_init();
 }
-#endif /* CONFIG_SPL_BUILD */
+#endif
 
 #if !CONFIG_IS_ENABLED(SYSRESET)
 void reset_cpu(void)
@@ -496,9 +486,9 @@ void reset_cpu(void)
 	while (1) { }
 #endif
 }
-#endif /* CONFIG_SYSRESET */
+#endif
 
-#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF) && defined(CONFIG_CPU_V7A)
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF) && !defined(CONFIG_ARM64)
 void enable_caches(void)
 {
 	/* Enable D-cache. I-cache is already enabled in start.S */

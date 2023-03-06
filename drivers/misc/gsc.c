@@ -77,7 +77,7 @@ enum {
 	GSC_SC_RST_CAUSE_MAX		= 10,
 };
 
-#if CONFIG_IS_ENABLED(DM_I2C)
+#if (IS_ENABLED(CONFIG_DM_I2C))
 
 struct gsc_priv {
 	int gscver;

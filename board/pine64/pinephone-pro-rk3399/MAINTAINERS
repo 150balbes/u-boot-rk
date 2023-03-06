@@ -1,4 +1,4 @@
-PINEPHONE_PRO
+PINEBOOK_PRO
 M:	Peter Robinson <pbrobinson@gmail.com>
 S:	Maintained
 F:	board/pine64/rk3399-pinephone-pro/

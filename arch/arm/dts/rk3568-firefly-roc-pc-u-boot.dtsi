@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * (C) Copyright 2021 Rockchip Electronics Co., Ltd
+ */
+
+#include "rk3568-u-boot.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart2;
+		u-boot,spl-boot-order = "same-as-spl", &spi_nor, &sdhci, &sdmmc0;
+	};
+};
+
+&gmac1 {
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&gmac1_clkin>;
+	status = "disabled";
+};
+
+&sfc {
+	spi_nor: flash@0 {
+		u-boot,dm-spl;
+	};
+};
+
+&usb_host0_ehci {
+	vbus-supply = <&vcc5v0_host>;
+};
+
+&usb_host0_ohci {
+	vbus-supply = <&vcc5v0_host>;
+};
+
+&uart2 {
+	clock-frequency = <24000000>;
+	u-boot,dm-spl;
+	status = "okay";
+};

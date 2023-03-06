@@ -50,17 +50,6 @@ int bootmeth_read_bootflow(struct udevice *dev, struct bootflow *bflow)
 	return ops->read_bootflow(dev, bflow);
 }
 
-int bootmeth_set_bootflow(struct udevice *dev, struct bootflow *bflow,
-			  char *buf, int size)
-{
-	const struct bootmeth_ops *ops = bootmeth_get_ops(dev);
-
-	if (!ops->set_bootflow)
-		return -ENOSYS;
-
-	return ops->set_bootflow(dev, bflow, buf, size);
-}
-
 int bootmeth_boot(struct udevice *dev, struct bootflow *bflow)
 {
 	const struct bootmeth_ops *ops = bootmeth_get_ops(dev);
@@ -88,7 +77,10 @@ int bootmeth_get_bootflow(struct udevice *dev, struct bootflow *bflow)
 
 	if (!ops->read_bootflow)
 		return -ENOSYS;
-	bootflow_init(bflow, NULL, dev);
+	memset(bflow, '\0', sizeof(*bflow));
+	bflow->dev = NULL;
+	bflow->method = dev;
+	bflow->state = BOOTFLOWST_BASE;
 
 	return ops->read_bootflow(dev, bflow);
 }
@@ -301,35 +293,11 @@ int bootmeth_try_file(struct bootflow *bflow, struct blk_desc *desc,
 	return 0;
 }
 
-static int alloc_file(const char *fname, uint size, void **bufp)
+int bootmeth_alloc_file(struct bootflow *bflow, uint size_limit, uint align)
 {
 	loff_t bytes_read;
 	ulong addr;
 	char *buf;
-	int ret;
-
-	buf = malloc(size + 1);
-	if (!buf)
-		return log_msg_ret("buf", -ENOMEM);
-	addr = map_to_sysmem(buf);
-
-	ret = fs_read(fname, addr, 0, size, &bytes_read);
-	if (ret) {
-		free(buf);
-		return log_msg_ret("read", ret);
-	}
-	if (size != bytes_read)
-		return log_msg_ret("bread", -EINVAL);
-	buf[size] = '\0';
-
-	*bufp = buf;
-
-	return 0;
-}
-
-int bootmeth_alloc_file(struct bootflow *bflow, uint size_limit, uint align)
-{
-	void *buf;
 	uint size;
 	int ret;
 
@@ -338,48 +306,21 @@ int bootmeth_alloc_file(struct bootflow *bflow, uint size_limit, uint align)
 	if (size > size_limit)
 		return log_msg_ret("chk", -E2BIG);
 
-	ret = alloc_file(bflow->fname, bflow->size, &buf);
-	if (ret)
-		return log_msg_ret("all", ret);
+	buf = memalign(align, size + 1);
+	if (!buf)
+		return log_msg_ret("buf", -ENOMEM);
+	addr = map_to_sysmem(buf);
 
+	ret = fs_read(bflow->fname, addr, 0, 0, &bytes_read);
+	if (ret) {
+		free(buf);
+		return log_msg_ret("read", ret);
+	}
+	if (size != bytes_read)
+		return log_msg_ret("bread", -EINVAL);
+	buf[size] = '\0';
 	bflow->state = BOOTFLOWST_READY;
 	bflow->buf = buf;
-
-	return 0;
-}
-
-int bootmeth_alloc_other(struct bootflow *bflow, const char *fname,
-			 void **bufp, uint *sizep)
-{
-	struct blk_desc *desc = NULL;
-	char path[200];
-	loff_t size;
-	void *buf;
-	int ret;
-
-	snprintf(path, sizeof(path), "%s%s", bflow->subdir, fname);
-	log_debug("trying: %s\n", path);
-
-	if (bflow->blk)
-		desc = dev_get_uclass_plat(bflow->blk);
-
-	ret = setup_fs(bflow, desc);
-	if (ret)
-		return log_msg_ret("fs", ret);
-
-	ret = fs_size(path, &size);
-	log_debug("   %s - err=%d\n", path, ret);
-
-	ret = setup_fs(bflow, desc);
-	if (ret)
-		return log_msg_ret("fs", ret);
-
-	ret = alloc_file(path, size, &buf);
-	if (ret)
-		return log_msg_ret("all", ret);
-
-	*bufp = buf;
-	*sizep = size;
 
 	return 0;
 }

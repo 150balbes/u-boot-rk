@@ -11,10 +11,10 @@
 
 #include <configs/aspeed-common.h>
 
-#define CFG_SYS_UBOOT_BASE		CONFIG_TEXT_BASE
+#define CONFIG_SYS_UBOOT_BASE		CONFIG_SYS_TEXT_BASE
 
 /* Misc */
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	""
 
 #endif	/* __CONFIG_H */

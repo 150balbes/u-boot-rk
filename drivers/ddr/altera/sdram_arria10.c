@@ -671,7 +671,7 @@ static int of_sdram_firewall_setup(const void *blob)
 
 int ddr_calibration_sequence(void)
 {
-	schedule();
+	WATCHDOG_RESET();
 
 	/* Check to see if SDRAM cal was success */
 	if (sdram_startup()) {
@@ -681,7 +681,7 @@ int ddr_calibration_sequence(void)
 
 	puts("DDRCAL: Success\n");
 
-	schedule();
+	WATCHDOG_RESET();
 
 	/* initialize the MMR register */
 	sdram_mmr_init();

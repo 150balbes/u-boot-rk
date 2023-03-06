@@ -15,22 +15,22 @@
 /* Machine config */
 
 /* MMC */
-#define CFG_SYS_FSL_USDHC_NUM	3
-#define CFG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
+#define CONFIG_SYS_FSL_USDHC_NUM	3
+#define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
 
 /* RAM */
 #define PHYS_SDRAM_1			MMDC0_ARB_BASE_ADDR
 #define PHYS_SDRAM_2			MMDC1_ARB_BASE_ADDR
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
 
 /* Serial console */
-#define CFG_MXC_UART_BASE		UART4_BASE
+#define CONFIG_MXC_UART_BASE		UART4_BASE
 
 /* Environment */
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
 	"fdt_addr_r=0x18000000\0" \
@@ -128,20 +128,27 @@
 #include <config_distro_bootcmd.h>
 
 /* NAND */
-#define CFG_SYS_NAND_BASE		0x40000000
+#define CONFIG_SYS_NAND_BASE		0x40000000
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
 /* APBH DMA is required for NAND support */
 
 /* Ethernet */
-#define CFG_FEC_MXC_PHYADDR		0
+#define CONFIG_FEC_MXC_PHYADDR		0
 
 /* USB */
-#define CFG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS		0
+#define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS		0
 
 /* Boot */
-#define CFG_SYS_BOOTMAPSZ	        (8 << 20)
+#define CONFIG_SYS_BOOTMAPSZ	        (8 << 20)
 
 /* misc */
+
+/* SPL */
+#include "imx6_spl.h"
+
+/* Display */
+#define CONFIG_IMX_HDMI
 
 /* EEPROM */
 

@@ -30,7 +30,6 @@ static uchar **receive_buffer;
 static size_t *receive_lengths;
 static int rx_packet_idx;
 static int rx_packet_num;
-static struct efi_net_obj *netobj;
 
 /*
  * The notification function of this event is called in every timer cycle
@@ -661,16 +660,10 @@ void efi_net_set_dhcp_ack(void *pkt, int len)
 {
 	int maxsize = sizeof(*dhcp_ack);
 
-	if (!dhcp_ack) {
+	if (!dhcp_ack)
 		dhcp_ack = malloc(maxsize);
-		if (!dhcp_ack)
-			return;
-	}
-	memset(dhcp_ack, 0, maxsize);
-	memcpy(dhcp_ack, pkt, min(len, maxsize));
 
-	if (netobj)
-		netobj->pxe_mode.dhcp_ack = *dhcp_ack;
+	memcpy(dhcp_ack, pkt, min(len, maxsize));
 }
 
 /**
@@ -860,6 +853,7 @@ static efi_status_t EFIAPI efi_pxe_base_code_set_packets(
  */
 efi_status_t efi_net_register(void)
 {
+	struct efi_net_obj *netobj = NULL;
 	efi_status_t r;
 	int i;
 
@@ -988,7 +982,6 @@ failure_to_add_protocol:
 	return r;
 out_of_resources:
 	free(netobj);
-	netobj = NULL;
 	free(transmit_buffer);
 	if (receive_buffer)
 		for (i = 0; i < ETH_PACKETS_BATCH_RECV; i++)

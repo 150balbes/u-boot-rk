@@ -122,7 +122,7 @@ struct mtd_oob_region {
  * @ecc: function returning an ECC region in the OOB area.
  *	 Should return -ERANGE if %section exceeds the total number of
  *	 ECC sections.
- * @rfree: function returning a free region in the OOB area.
+ * @free: function returning a free region in the OOB area.
  *	  Should return -ERANGE if %section exceeds the total number of
  *	  free sections.
  */

@@ -128,7 +128,7 @@ static efi_status_t efi_init_capsule(void)
 {
 	efi_status_t ret = EFI_SUCCESS;
 
-	if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)) {
+	if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_UPDATE)) {
 		ret = efi_set_variable_int(u"CapsuleMax",
 					   &efi_guid_capsule_report,
 					   EFI_VARIABLE_READ_ONLY |
@@ -175,15 +175,16 @@ static efi_status_t efi_init_os_indications(void)
 }
 
 /**
- * efi_init_early() - handle initialization at early stage
+ * __efi_init_early() - handle initialization at early stage
  *
- * expected to be called in board_init_r().
+ * This function is called in efi_init_obj_list() only if
+ * !CONFIG_EFI_SETUP_EARLY.
  *
  * Return:	status code
  */
-int efi_init_early(void)
+static efi_status_t __efi_init_early(void)
 {
-	efi_status_t ret;
+	efi_status_t ret = EFI_SUCCESS;
 
 	/* Allow unaligned memory access */
 	allow_unaligned();
@@ -197,17 +198,30 @@ int efi_init_early(void)
 	if (ret != EFI_SUCCESS)
 		goto out;
 
-	/* Initialize EFI driver uclass */
-	ret = efi_driver_init();
-	if (ret != EFI_SUCCESS)
-		goto out;
-
-	return 0;
+	ret = efi_disk_init();
 out:
-	/* never re-init UEFI subsystem */
-	efi_obj_list_initialized = ret;
+	return ret;
+}
 
-	return -1;
+/**
+ * efi_init_early() - handle initialization at early stage
+ *
+ * external version of __efi_init_early(); expected to be called in
+ * board_init_r().
+ *
+ * Return:	status code
+ */
+int efi_init_early(void)
+{
+	efi_status_t ret;
+
+	ret = __efi_init_early();
+	if (ret != EFI_SUCCESS) {
+		/* never re-init UEFI subsystem */
+		efi_obj_list_initialized = ret;
+		return -1;
+	}
+	return 0;
 }
 
 /**
@@ -222,6 +236,12 @@ efi_status_t efi_init_obj_list(void)
 	/* Initialize once only */
 	if (efi_obj_list_initialized != OBJ_LIST_NOT_INITIALIZED)
 		return efi_obj_list_initialized;
+
+	if (!IS_ENABLED(CONFIG_EFI_SETUP_EARLY)) {
+		ret = __efi_init_early();
+		if (ret != EFI_SUCCESS)
+			goto out;
+	}
 
 	/* Set up console modes */
 	efi_setup_console_size();
@@ -299,18 +319,23 @@ efi_status_t efi_init_obj_list(void)
 	if (ret != EFI_SUCCESS)
 		goto out;
 
+	/* Initialize EFI driver uclass */
+	ret = efi_driver_init();
+	if (ret != EFI_SUCCESS)
+		goto out;
+
 	if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)) {
 		ret = efi_load_capsule_drivers();
 		if (ret != EFI_SUCCESS)
 			goto out;
 	}
 
-	if (IS_ENABLED(CONFIG_VIDEO)) {
-		ret = efi_gop_register();
-		if (ret != EFI_SUCCESS)
-			goto out;
-	}
-#ifdef CONFIG_NETDEVICES
+#if defined(CONFIG_LCD) || defined(CONFIG_DM_VIDEO)
+	ret = efi_gop_register();
+	if (ret != EFI_SUCCESS)
+		goto out;
+#endif
+#ifdef CONFIG_NET
 	ret = efi_net_register();
 	if (ret != EFI_SUCCESS)
 		goto out;

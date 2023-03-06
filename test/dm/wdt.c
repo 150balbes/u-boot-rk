@@ -4,7 +4,6 @@
  */
 
 #include <common.h>
-#include <cyclic.h>
 #include <dm.h>
 #include <wdt.h>
 #include <asm/gpio.h>
@@ -131,7 +130,7 @@ static int dm_test_wdt_watchdog_reset(struct unit_test_state *uts)
 	/* Neither device should be "started", so watchdog_reset() should be a no-op. */
 	reset_count = state->wdt.reset_count;
 	val = sandbox_gpio_get_value(gpio, offset);
-	cyclic_run();
+	watchdog_reset();
 	ut_asserteq(reset_count, state->wdt.reset_count);
 	ut_asserteq(val, sandbox_gpio_get_value(gpio, offset));
 
@@ -141,19 +140,19 @@ static int dm_test_wdt_watchdog_reset(struct unit_test_state *uts)
 
 	/* Make sure both devices have just been pinged. */
 	timer_test_add_offset(100);
-	cyclic_run();
+	watchdog_reset();
 	reset_count = state->wdt.reset_count;
 	val = sandbox_gpio_get_value(gpio, offset);
 
 	/* The gpio watchdog should be pinged, the sandbox one not. */
 	timer_test_add_offset(30);
-	cyclic_run();
+	watchdog_reset();
 	ut_asserteq(reset_count, state->wdt.reset_count);
 	ut_asserteq(!val, sandbox_gpio_get_value(gpio, offset));
 
 	/* After another ~30ms, both devices should get pinged. */
 	timer_test_add_offset(30);
-	cyclic_run();
+	watchdog_reset();
 	ut_asserteq(reset_count + 1, state->wdt.reset_count);
 	ut_asserteq(val, sandbox_gpio_get_value(gpio, offset));
 

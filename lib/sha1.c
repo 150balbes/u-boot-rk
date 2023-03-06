@@ -344,7 +344,7 @@ void sha1_csum_wd(const unsigned char *input, unsigned int ilen,
 			chunk = chunk_sz;
 		sha1_update (&ctx, curr, chunk);
 		curr += chunk;
-		schedule();
+		WATCHDOG_RESET ();
 	}
 #else
 	sha1_update (&ctx, input, ilen);

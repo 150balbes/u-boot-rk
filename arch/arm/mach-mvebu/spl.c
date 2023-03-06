@@ -340,6 +340,8 @@ void board_init_f(ulong dummy)
 
 	preloader_console_init();
 
+	timer_init();
+
 	/* Armada 375 does not support SerDes and DDR3 init yet */
 #if !defined(CONFIG_ARMADA_375)
 	/* First init the serdes PHY's */

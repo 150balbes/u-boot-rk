@@ -56,9 +56,9 @@ out:
 	return BOOT_DEVICE_RAM;
 }
 
-struct legacy_img_hdr *spl_get_load_buffer(ssize_t offset, size_t size)
+struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
 {
-	return (struct legacy_img_hdr *)(CONFIG_SYS_LOAD_ADDR);
+	return (struct image_header *)(CONFIG_SYS_LOAD_ADDR);
 }
 
 #ifdef CONFIG_SPL_OS_BOOT

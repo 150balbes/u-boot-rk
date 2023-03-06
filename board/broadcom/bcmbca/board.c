@@ -30,6 +30,6 @@ int print_cpuinfo(void)
 	return 0;
 }
 
-__weak void reset_cpu(void)
+void reset_cpu(ulong addr)
 {
 }

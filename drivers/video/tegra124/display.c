@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <display.h>
 #include <edid.h>
+#include <lcd.h>
 #include <log.h>
 #include <part.h>
 #include <video.h>

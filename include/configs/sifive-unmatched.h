@@ -11,7 +11,9 @@
 
 #include <linux/sizes.h>
 
-#define CFG_SYS_SDRAM_BASE		0x80000000
+#define CONFIG_SYS_SDRAM_BASE		0x80000000
+
+#define CONFIG_STANDALONE_LOAD_ADDR	0x80200000
 
 /* Environment options */
 
@@ -34,7 +36,7 @@
 	"name=loader2,size=4MB,type=${type_guid_gpt_loader2};" \
 	"name=system,size=-,bootable,type=${type_guid_gpt_system};"
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"kernel_addr_r=0x84000000\0" \
 	"kernel_comp_addr_r=0x88000000\0" \
 	"kernel_comp_size=0x4000000\0" \
@@ -48,5 +50,7 @@
 	"partitions=" PARTS_DEFAULT "\0" \
 	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
 	BOOTENV
+
+#define CONFIG_SYS_EEPROM_BUS_NUM		0
 
 #endif /* __SIFIVE_UNMATCHED_H */

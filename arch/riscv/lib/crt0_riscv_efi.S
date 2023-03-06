@@ -16,23 +16,12 @@
 #define LOAD_LONG(reg, idx)	ld	reg, (idx*SIZE_LONG)(sp)
 #define PE_MACHINE	IMAGE_FILE_MACHINE_RISCV64
 #define PE_MAGIC    IMAGE_NT_OPTIONAL_HDR64_MAGIC
-#define IMG_CHARACTERISTICS \
-	(IMAGE_FILE_EXECUTABLE_IMAGE | \
-	 IMAGE_FILE_LINE_NUMS_STRIPPED | \
-	 IMAGE_FILE_LOCAL_SYMS_STRIPPED | \
-	 IMAGE_FILE_LARGE_ADDRESS_AWARE | \
-	 IMAGE_FILE_DEBUG_STRIPPED)
 #else
 #define SIZE_LONG	4
 #define SAVE_LONG(reg, idx)	sw	reg, (idx*SIZE_LONG)(sp)
 #define LOAD_LONG(reg, idx)	lw	reg, (idx*SIZE_LONG)(sp)
 #define PE_MACHINE	IMAGE_FILE_MACHINE_RISCV32
 #define PE_MAGIC    IMAGE_NT_OPTIONAL_HDR32_MAGIC
-#define IMG_CHARACTERISTICS \
-	(IMAGE_FILE_EXECUTABLE_IMAGE | \
-	 IMAGE_FILE_LINE_NUMS_STRIPPED | \
-	 IMAGE_FILE_LOCAL_SYMS_STRIPPED | \
-	 IMAGE_FILE_DEBUG_STRIPPED)
 #endif
 
 
@@ -58,7 +47,11 @@ coff_header:
 	.long	0				/* PointerToSymbolTable */
 	.long	0				/* NumberOfSymbols */
 	.short	section_table - optional_header	/* SizeOfOptionalHeader */
-	.short	IMG_CHARACTERISTICS		/* Characteristics */
+	/* Characteristics */
+	.short	(IMAGE_FILE_EXECUTABLE_IMAGE | \
+		 IMAGE_FILE_LINE_NUMS_STRIPPED | \
+		 IMAGE_FILE_LOCAL_SYMS_STRIPPED | \
+		 IMAGE_FILE_DEBUG_STRIPPED)
 optional_header:
 	.short	PE_MAGIC			/* PE32(+) format */
 	.byte	0x02				/* MajorLinkerVersion */

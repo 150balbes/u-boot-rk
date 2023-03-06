@@ -293,7 +293,7 @@ void sha256_csum_wd(const unsigned char *input, unsigned int ilen,
 			chunk = chunk_sz;
 		sha256_update(&ctx, curr, chunk);
 		curr += chunk;
-		schedule();
+		WATCHDOG_RESET();
 	}
 #else
 	sha256_update(&ctx, input, ilen);

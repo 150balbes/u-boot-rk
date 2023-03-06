@@ -31,7 +31,11 @@ $(warning Put custom psu_init_gpl.c/h to board/xilinx/zynqmp/custom_hw_platform/
 endif
 endif
 
-obj-$(CONFIG_$(SPL_)ZYNQMP_PSU_INIT_ENABLED) += $(init-objs)
+ifdef_any_of = $(filter-out undefined,$(foreach v,$(1),$(origin $(v))))
+
+ifneq ($(call ifdef_any_of, CONFIG_ZYNQMP_PSU_INIT_ENABLED CONFIG_SPL_BUILD),)
+obj-y += $(init-objs)
+endif
 
 ifdef CONFIG_SPL_BUILD
 ifneq ($(CONFIG_ZYNQMP_SPL_PM_CFG_OBJ_FILE),"")

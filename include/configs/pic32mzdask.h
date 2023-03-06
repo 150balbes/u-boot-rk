@@ -13,17 +13,21 @@
 /*--------------------------------------------
  * CPU configuration
  */
+/* CPU Timer rate */
+#define CONFIG_SYS_MIPS_TIMER_FREQ	100000000
 
 /*----------------------------------------------------------------------
  * Memory Layout
  */
 /* Initial RAM for temporary stack, global data */
-#define CFG_SYS_INIT_RAM_SIZE	0x10000
-#define CFG_SYS_INIT_RAM_ADDR	\
-	(CONFIG_SYS_SRAM_BASE + CONFIG_SYS_SRAM_SIZE - CFG_SYS_INIT_RAM_SIZE)
+#define CONFIG_SYS_INIT_RAM_SIZE	0x10000
+#define CONFIG_SYS_INIT_RAM_ADDR	\
+	(CONFIG_SYS_SRAM_BASE + CONFIG_SYS_SRAM_SIZE - CONFIG_SYS_INIT_RAM_SIZE)
 
 /* SDRAM Configuration (for final code, data, stack, heap) */
-#define CFG_SYS_SDRAM_BASE		0x88000000
+#define CONFIG_SYS_SDRAM_BASE		0x88000000
+
+#define CONFIG_SYS_MONITOR_LEN		(192 << 10)
 
 /* Memory Test */
 
@@ -52,7 +56,7 @@
 	"fdt_addr_r=0x89d00000\0"				\
 	"scriptaddr=0x88300000\0"				\
 
-#define CFG_LEGACY_BOOTCMD_ENV					\
+#define CONFIG_LEGACY_BOOTCMD_ENV					\
 	"legacy_bootcmd= "						\
 		"if load mmc 0 ${scriptaddr} uEnv.txt; then "		\
 			"env import -tr ${scriptaddr} ${filesize}; "	\
@@ -69,9 +73,9 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 	MEM_LAYOUT_ENV_SETTINGS		\
-	CFG_LEGACY_BOOTCMD_ENV	\
+	CONFIG_LEGACY_BOOTCMD_ENV	\
 	BOOTENV
 
 #endif	/* __PIC32MZDASK_CONFIG_H */

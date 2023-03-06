@@ -14,7 +14,11 @@
 #include <asm/mach-imx/gpio.h>
 
 /* Timer settings */
-#define CFG_SC_TIMER_CLK 8000000 /* 8Mhz */
+#define CONFIG_MXC_GPT_HCLK
+#define CONFIG_SC_TIMER_CLK 8000000 /* 8Mhz */
+
+/* Enable iomux-lpsr support */
+#define CONFIG_IOMUX_LPSR
 
 /* Miscellaneous configurable options */
 

@@ -93,10 +93,10 @@
 		};
 	};
 
-	gpio-keys {
+	r-gpio-keys {
 		compatible = "gpio-keys";
 
-		key-power {
+		power {
 			label = "power";
 			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
@@ -125,7 +125,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc 1>;
 		clock-names = "ext_clock";
 	};
 };

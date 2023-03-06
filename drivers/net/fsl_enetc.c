@@ -22,8 +22,6 @@
 
 #define ENETC_DRIVER_NAME	"enetc_eth"
 
-static int enetc_remove(struct udevice *dev);
-
 /*
  * sets the MAC address in IERB registers, this setting is persistent and
  * carried over to Linux.
@@ -146,7 +144,7 @@ static int enetc_init_sgmii(struct udevice *dev)
 	if (!enetc_has_imdio(dev))
 		return 0;
 
-	if (priv->uclass_id == PHY_INTERFACE_MODE_2500BASEX)
+	if (priv->if_type == PHY_INTERFACE_MODE_2500BASEX)
 		is2500 = true;
 
 	/*
@@ -221,7 +219,7 @@ static void enetc_setup_mac_iface(struct udevice *dev,
 	struct enetc_priv *priv = dev_get_priv(dev);
 	u32 if_mode;
 
-	switch (priv->uclass_id) {
+	switch (priv->if_type) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
@@ -278,14 +276,14 @@ static void enetc_start_pcs(struct udevice *dev)
 		return;
 	}
 
-	priv->uclass_id = dev_read_phy_mode(dev);
-	if (priv->uclass_id == PHY_INTERFACE_MODE_NA) {
+	priv->if_type = dev_read_phy_mode(dev);
+	if (priv->if_type == PHY_INTERFACE_MODE_NA) {
 		enetc_dbg(dev,
 			  "phy-mode property not found, defaulting to SGMII\n");
-		priv->uclass_id = PHY_INTERFACE_MODE_SGMII;
+		priv->if_type = PHY_INTERFACE_MODE_SGMII;
 	}
 
-	switch (priv->uclass_id) {
+	switch (priv->if_type) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_2500BASEX:
 		enetc_init_sgmii(dev);
@@ -321,9 +319,8 @@ static int enetc_config_phy(struct udevice *dev)
 static int enetc_probe(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
-	int res;
 
-	if (ofnode_valid(dev_ofnode(dev)) && !ofnode_is_enabled(dev_ofnode(dev))) {
+	if (ofnode_valid(dev_ofnode(dev)) && !ofnode_is_available(dev_ofnode(dev))) {
 		enetc_dbg(dev, "interface disabled\n");
 		return -ENODEV;
 	}
@@ -353,10 +350,7 @@ static int enetc_probe(struct udevice *dev)
 
 	enetc_start_pcs(dev);
 
-	res = enetc_config_phy(dev);
-	if(res)
-		enetc_remove(dev);
-	return res;
+	return enetc_config_phy(dev);
 }
 
 /*

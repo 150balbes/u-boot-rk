@@ -13,9 +13,11 @@
 /*
  * NS16550 Configuration
  */
-#define CFG_SYS_NS16550_CLK		CFG_SYS_TCLK
-#if !CONFIG_IS_ENABLED(DM_SERIAL)
-#define CFG_SYS_NS16550_COM1		MV_UART_CONSOLE_BASE
+#define CONFIG_SYS_NS16550_SERIAL
+#define CONFIG_SYS_NS16550_CLK		CONFIG_SYS_TCLK
+#if !defined(CONFIG_DM_SERIAL)
+#define CONFIG_SYS_NS16550_REG_SIZE	(-4)
+#define CONFIG_SYS_NS16550_COM1		MV_UART_CONSOLE_BASE
 #endif
 
 /*
@@ -25,6 +27,7 @@
  */
 
 /* NAND */
+#define CONFIG_SYS_MAX_NAND_DEVICE 1
 
 #define BBT_CUSTOM_SCAN
 #define BBT_CUSTOM_SCAN_PAGE 0
@@ -32,6 +35,8 @@
 
 /* SPI NOR flash default params, used by sf commands */
 
+#define MTDIDS_DEFAULT			"nand0=nand"
+#define MTDPARTS_DEFAULT		"mtdparts=nand:240M(user),8M(errlog),8M(nand-bbt)"
 #define MTDPARTS_MTDOOPS		"errlog"
 
 /* Partition support */
@@ -47,8 +52,11 @@
 #include <asm/arch/config.h>
 
 /* Keep device tree and initrd in low memory so the kernel can access them */
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 	"fdt_high=0x10000000\0"		\
 	"initrd_high=0x10000000\0"
+
+#define CONFIG_UBI_PART			user
+#define CONFIG_UBIFS_VOLUME		user
 
 #endif /* _CONFIG_X530_H */

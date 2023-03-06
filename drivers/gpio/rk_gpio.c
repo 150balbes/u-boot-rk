@@ -118,7 +118,7 @@ static int rockchip_gpio_get_function(struct udevice *dev, unsigned offset)
 }
 
 /* Simple SPL interface to GPIOs */
-#ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_SPL_BUILD) && !defined(CONFIG_ROCKCHIP_GPIO_V2)
 
 enum {
 	PULL_NONE_1V8 = 0,

@@ -880,7 +880,7 @@ int dwc_ahsata_scan(struct udevice *dev)
 	device_find_first_child(dev, &blk);
 	if (!blk) {
 		ret = blk_create_devicef(dev, "dwc_ahsata_blk", "blk",
-					 UCLASS_AHCI, -1, 512, 0, &blk);
+					 IF_TYPE_SATA, -1, 512, 0, &blk);
 		if (ret) {
 			debug("Can't create device\n");
 			return ret;

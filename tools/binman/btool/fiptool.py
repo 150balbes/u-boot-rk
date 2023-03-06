@@ -49,7 +49,7 @@ class Bintoolfiptool(bintool.Bintool):
         https://trustedfirmware-a.readthedocs.io/en/latest/getting_started/tools-build.html?highlight=fiptool#building-and-using-the-fip-tool
     """
     def __init__(self, name):
-        super().__init__(name, 'Manipulate ATF FIP files', r'^(.*)$', 'version')
+        super().__init__(name, 'Manipulate ATF FIP files')
 
     def info(self, fname):
         """Get info on a FIP image
@@ -112,3 +112,12 @@ class Bintoolfiptool(bintool.Bintool):
             'fiptool',
             'tools/fiptool/fiptool')
         return result
+
+    def version(self):
+        """Version handler for fiptool
+
+        Returns:
+            str: Version number of fiptool
+        """
+        out = self.run_cmd('version').strip()
+        return out or super().version()

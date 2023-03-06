@@ -38,9 +38,6 @@ const char *const type_name[] = {
 
 	/* fdt hooks */
 	"ft_fixup",
-
-	/* main loop events */
-	"main_loop",
 };
 
 _Static_assert(ARRAY_SIZE(type_name) == EVT_COUNT, "event type_name size");
@@ -123,7 +120,7 @@ int event_notify(enum event_t type, void *data, int size)
 
 	ret = notify_static(&event);
 	if (ret)
-		return log_msg_ret("sta", ret);
+		return log_msg_ret("dyn", ret);
 
 	if (CONFIG_IS_ENABLED(EVENT_DYNAMIC)) {
 		ret = notify_dynamic(&event);

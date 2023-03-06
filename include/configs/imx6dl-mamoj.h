@@ -20,7 +20,7 @@
 /* Environment in MMC */
 #endif
 
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 	"scriptaddr=0x14000000\0"	\
 	"fdt_addr_r=0x13000000\0"	\
 	"kernel_addr_r=0x10008000\0"	\
@@ -35,16 +35,16 @@
 #include <config_distro_bootcmd.h>
 
 /* UART */
-#define CFG_MXC_UART_BASE		UART3_BASE
+#define CONFIG_MXC_UART_BASE		UART3_BASE
 
 /* MMC */
 
 /* Ethernet */
-#define CFG_FEC_MXC_PHYADDR		1
+#define CONFIG_FEC_MXC_PHYADDR		1
 
 /* USB */
-#define CFG_MXC_USB_PORTSC			(PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS			0
+#define CONFIG_MXC_USB_PORTSC			(PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS			0
 
 /* Falcon */
 
@@ -55,8 +55,11 @@
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+
+/* SPL */
+#include "imx6_spl.h"
 
 #endif /* __IMX6DL_MAMOJ_CONFIG_H */

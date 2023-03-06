@@ -16,11 +16,11 @@
  * Map U-Boot config options to Linux ones
  */
 #ifdef CONFIG_OMAP34XX
-#define CFG_SOC_OMAP3430
+#define CONFIG_SOC_OMAP3430
 #endif
 
 #ifdef CONFIG_OMAP44XX
-#define CFG_ARCH_OMAP4
+#define CONFIG_ARCH_OMAP4
 #endif
 
 #endif /* __LINUX_COMPAT_H__ */

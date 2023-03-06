@@ -22,11 +22,10 @@ $(BUILDDIR)/linker_lists.h.rst: ${API}/linker_lists.h ${PARSER} $(SRC_DIR)/linke
 
 # Media build rules
 
-.PHONY: all html texinfo epub xml latex
+.PHONY: all html epub xml latex
 
 all: $(IMGDOT) $(BUILDDIR) ${TARGETS}
 html: all
-texinfo: all
 epub: all
 xml: all
 latex: $(IMGPDF) all

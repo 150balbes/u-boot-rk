@@ -17,10 +17,8 @@ sys.path.insert(1, os.path.join(our_path, '../tools'))
 from binman import elf
 from patman import tools
 
-# A typical symbol looks like this:
-#   _u_boot_list_2_evspy_info_2_EVT_MISC_INIT_F_3_sandbox_misc_init_f
 PREFIX = '_u_boot_list_2_evspy_info_2_'
-RE_EVTYPE = re.compile('%s(.*)_3_.*' % PREFIX)
+RE_EVTYPE = re.compile('%s(.*)' % PREFIX)
 
 def show_sym(fname, data, endian, evtype, sym):
     """Show information about an evspy entry
@@ -107,6 +105,8 @@ def main(argv):
     parser = ArgumentParser(epilog=epilog)
     parser.add_argument('elf', type=str, help='ELF file to decode')
     parser.add_argument('-e', '--endian', type=str, default='auto',
+                        help='Big-endian image')
+    parser.add_argument('-t', '--test', action='store_true',
                         help='Big-endian image')
     args = parser.parse_args(argv)
     show_event_spy_list(args.elf, args.endian)

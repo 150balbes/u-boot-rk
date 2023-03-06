@@ -52,7 +52,7 @@ int set_km_env(void)
 	char envval[16];
 	char *p;
 
-	pnvramaddr = CFG_SYS_SDRAM_BASE + gd->ram_size -
+	pnvramaddr = CONFIG_SYS_SDRAM_BASE + gd->ram_size -
 		CONFIG_KM_RESERVED_PRAM - CONFIG_KM_PHRAM - CONFIG_KM_PNVRAM;
 	sprintf(envval, "0x%x", pnvramaddr);
 	env_set("pnvramaddr", envval);
@@ -65,7 +65,7 @@ int set_km_env(void)
 		CONFIG_KM_PNVRAM) / 0x400;
 	env_set_ulong("pram", pram);
 
-	varaddr = CFG_SYS_SDRAM_BASE + gd->ram_size -
+	varaddr = CONFIG_SYS_SDRAM_BASE + gd->ram_size -
 		CONFIG_KM_RESERVED_PRAM - CONFIG_KM_PHRAM;
 	env_set_hex("varaddr", varaddr);
 	sprintf(envval, "0x%x", varaddr);
@@ -116,7 +116,7 @@ void check_for_uboot_update(void)
 			}
 		}
 		printf("Check update: starting factory image @%08x ...\n",
-		       CONFIG_TEXT_BASE);
+		       CONFIG_SYS_TEXT_BASE);
 	} else if (IS_ENABLED(CONFIG_PG_WCOM_UBOOT_UPDATE)) {
 		/*
 		 * When running in field updated u-boot, make sure that
@@ -124,7 +124,7 @@ void check_for_uboot_update(void)
 		 */
 		WARN_ON(bootcount > CONFIG_BOOTCOUNT_BOOTLIMIT);
 		printf("Check update: updated u-boot starting @%08x ...\n",
-		       CONFIG_TEXT_BASE);
+		       CONFIG_SYS_TEXT_BASE);
 	}
 }
 #endif

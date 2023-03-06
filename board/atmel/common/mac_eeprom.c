@@ -56,7 +56,7 @@ int at91_set_eth1addr(int offset)
 		return ret;
 
 	/* attempt to obtain a second eeprom device */
-	ret = uclass_next_device_err(&dev);
+	ret = uclass_next_device(&dev);
 	if (ret)
 		return ret;
 

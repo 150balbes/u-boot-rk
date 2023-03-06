@@ -10,7 +10,7 @@
 	};
 };
 
-&soc {
+&{/soc@0} {
 	u-boot,dm-pre-reloc;
 	u-boot,dm-spl;
 };
@@ -113,7 +113,7 @@
 					type = "standalone";
 					arch = "arm64";
 					compression = "none";
-					load = <CONFIG_TEXT_BASE>;
+					load = <CONFIG_SYS_TEXT_BASE>;
 
 					uboot_blob: blob-ext {
 						filename = "u-boot-nodtb.bin";

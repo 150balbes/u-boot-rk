@@ -37,8 +37,6 @@
 		i2c0 = "/i2c@0";
 		mmc0 = "/mmc0";
 		mmc1 = "/mmc1";
-		mmc2 = "/mmc2";
-		mmc3 = "/mmc3";
 		pci0 = &pci0;
 		pci1 = &pci1;
 		pci2 = &pci2;
@@ -66,7 +64,7 @@
 		osd0 = "/osd";
 	};
 
-	binman: binman {
+	binman {
 	};
 
 	config {
@@ -80,7 +78,6 @@
 	};
 
 	bootstd {
-		u-boot,dm-vpl;
 		compatible = "u-boot,boot-std";
 
 		filename-prefixes = "/", "/boot/";
@@ -92,50 +89,6 @@
 
 		efi {
 			compatible = "u-boot,distro-efi";
-		};
-
-		theme {
-			font-size = <30>;
-		};
-
-		/*
-		 * This is used for the VBE OS-request tests. A FAT filesystem
-		 * created in a partition with the VBE information appearing
-		 * before the parititon starts
-		 */
-		firmware0 {
-			u-boot,dm-vpl;
-			compatible = "fwupd,vbe-simple";
-			storage = "mmc1";
-			skip-offset = <0x200>;
-			area-start = <0x400>;
-			area-size = <0x1000>;
-			state-offset = <0x400>;
-			state-size = <0x40>;
-			version-offset = <0x800>;
-			version-size = <0x100>;
-		};
-
-		/*
-		 * This is used for the VBE VPL tests. The MMC device holds the
-		 * binman image.bin file. The test progresses through each phase
-		 * of U-Boot, loading each in turn from MMC.
-		 *
-		 * Note that the test enables this node (and mmc3) before
-		 * running U-Boot
-		 */
-		firmware1 {
-			u-boot,dm-vpl;
-			status = "disabled";
-			compatible = "fwupd,vbe-simple";
-			storage = "mmc3";
-			skip-offset = <0x400000>;
-			area-start = <0>;
-			area-size = <0xe00000>;
-			state-offset = <0xdffc00>;
-			state-size = <0x40>;
-			version-offset = <0xdffe00>;
-			version-size = <0x100>;
 		};
 	};
 
@@ -280,8 +233,6 @@
 		test5-gpios = <&gpio_a 19>;
 
 		bool-value;
-		int8-value = /bits/ 8 <0x12>;
-		int16-value = /bits/ 16 <0x1234>;
 		int-value = <1234>;
 		uint-value = <(-1234)>;
 		int64-value = /bits/ 64 <0x1111222233334444>;
@@ -699,10 +650,6 @@
 		};
 	};
 
-	fpga {
-		compatible = "sandbox,fpga";
-	};
-
 	pinctrl-gpio {
 		compatible = "sandbox,pinctrl-gpio";
 
@@ -979,10 +926,6 @@
 		};
 	};
 
-	memory-controller {
-		compatible = "sandbox,memory";
-	};
-
 	misc-test {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -1005,23 +948,8 @@
 	};
 
 	/* This is used for the fastboot tests */
-	mmc0: mmc0 {
+	mmc0 {
 		compatible = "sandbox,mmc";
-	};
-
-	/* This is used for VBE VPL tests */
-	mmc3 {
-		status = "disabled";
-		compatible = "sandbox,mmc";
-		filename = "image.bin";
-		non-removable;
-	};
-
-	/* This is used for bootstd bootmenu tests */
-	mmc4 {
-		status = "disabled";
-		compatible = "sandbox,mmc";
-		filename = "mmc4.img";
 	};
 
 	pch {
@@ -1036,8 +964,6 @@
 		#size-cells = <2>;
 		ranges = <0x02000000 0 0x10000000 0x10000000 0 0x2000000
 				0x01000000 0 0x20000000 0x20000000 0 0x2000>;
-		iommu-map = <0x0010 &iommu 0 1>;
-		iommu-map-mask = <0xfffffff8>;
 		pci@0,0 {
 			compatible = "pci-generic";
 			reg = <0x0000 0 0 0 0>;
@@ -1193,12 +1119,10 @@
 
 	reset@0 {
 		compatible = "sandbox,warm-reset";
-		u-boot,dm-pre-proper;
 	};
 
 	reset@1 {
 		compatible = "sandbox,reset";
-		u-boot,dm-pre-proper;
 	};
 
 	resetc: reset-ctl {
@@ -1230,11 +1154,6 @@
 	panel {
 		compatible = "simple-panel";
 		backlight = <&backlight 0 100>;
-	};
-
-	scsi {
-		compatible = "sandbox,scsi";
-		sandbox,filepath = "scsi.img";
 	};
 
 	smem@0 {
@@ -1468,6 +1387,21 @@
 			compatible = "denx,u-boot-fdt-test";
 			reg = <9 1>;
 		};
+
+		fwupd {
+			compatible = "simple-bus";
+			firmware0 {
+				compatible = "fwupd,vbe-simple";
+				storage = "mmc1";
+				area-start = <0x400>;
+				area-size = <0x1000>;
+				skip-offset = <0x200>;
+				state-offset = <0x400>;
+				state-size = <0x40>;
+				version-offset = <0x800>;
+				version-size = <0x100>;
+			};
+		};
 	};
 
 	translation-test@8000 {
@@ -1529,16 +1463,10 @@
 
 	sandbox_virtio1 {
 		compatible = "sandbox,virtio1";
-		virtio-type = <4>;	/* rng */
 	};
 
 	sandbox_virtio2 {
 		compatible = "sandbox,virtio2";
-	};
-
-	sandbox-virtio-blk {
-		compatible = "sandbox,virtio1";
-		virtio-type = <2>;	/* block */
 	};
 
 	sandbox_scmi {
@@ -1755,20 +1683,7 @@
 			compatible = "sandbox,regmap_test";
 		};
 	};
-
-	thermal {
-		compatible = "sandbox,thermal";
-	};
-
-	fwu-mdata {
-		compatible = "u-boot,fwu-mdata-gpt";
-		fwu-mdata-store = <&mmc0>;
-	};
 };
 
 #include "sandbox_pmic.dtsi"
 #include "cros-ec-keyboard.dtsi"
-
-#ifdef CONFIG_SANDBOX_VPL
-#include "sandbox_vpl.dtsi"
-#endif

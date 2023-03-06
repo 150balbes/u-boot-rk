@@ -11,14 +11,16 @@ config EFI_LOADER
 	# We need EFI_STUB_32BIT to be set on x86_32 with EFI_STUB
 	depends on !EFI_STUB || !X86 || X86_64 || EFI_STUB_32BIT
 	depends on BLK
+	depends on DM_ETH || !NET
 	depends on !EFI_APP
 	default y if !ARM || SYS_CPU = armv7 || SYS_CPU = armv8
 	select CHARSET
-	# We need to send DM events, dynamically, in the EFI block driver
 	select DM_EVENT
+	select EVENT
 	select EVENT_DYNAMIC
 	select LIB_UUID
 	imply PARTITION_UUIDS
+	select HAVE_BLOCK_DEVICE
 	select REGEX
 	imply FAT
 	imply FAT_WRITE
@@ -40,6 +42,10 @@ config CMD_BOOTEFI_BOOTMGR
 	  Select this option if you want to select the UEFI binary to be booted
 	  via UEFI variables Boot####, BootOrder, and BootNext. This enables the
 	  'bootefi bootmgr' command.
+
+config EFI_SETUP_EARLY
+	bool
+	default y
 
 choice
 	prompt "Store for non-volatile UEFI variables"
@@ -124,15 +130,6 @@ config EFI_SET_TIME
 	  Provide the SetTime() runtime service at boottime. This service
 	  can be used by an EFI application to adjust the real time clock.
 
-config EFI_SCROLL_ON_CLEAR_SCREEN
-	bool "Avoid overwriting previous output on clear screen"
-	help
-	  Instead of erasing the screen content when the console screen should
-	  be cleared, emit blank new lines so that previous output is scrolled
-	  out of sight rather than overwritten. On serial consoles this allows
-	  to capture complete boot logs (except for interactive menus etc.)
-	  and can ease debugging related issues.
-
 config EFI_HAVE_CAPSULE_SUPPORT
 	bool
 
@@ -165,6 +162,7 @@ config EFI_IGNORE_OSINDICATIONS
 config EFI_CAPSULE_ON_DISK_EARLY
 	bool "Initiate capsule-on-disk at U-Boot boottime"
 	depends on EFI_CAPSULE_ON_DISK
+	select EFI_SETUP_EARLY
 	help
 	  Normally, without this option enabled, capsules will be
 	  executed only at the first time of invoking one of efi command.
@@ -393,8 +391,8 @@ config EFI_ECPT
 	help
 	  Enabling this option created the ECPT UEFI table.
 
-config EFI_EBBR_2_1_CONFORMANCE
-	bool "Add the EBBRv2.1 conformance entry to the ECPT table"
+config EFI_EBBR_2_0_CONFORMANCE
+	bool "Add the EBBRv2.0 conformance entry to the ECPT table"
 	depends on EFI_ECPT
 	depends on EFI_LOADER_HII
 	depends on EFI_RISCV_BOOT_PROTOCOL || !RISCV
@@ -402,7 +400,7 @@ config EFI_EBBR_2_1_CONFORMANCE
 	depends on EFI_UNICODE_COLLATION_PROTOCOL2
 	default y
 	help
-	  Enabling this option adds the EBBRv2.1 conformance entry to the ECPT UEFI table.
+	  Enabling this option adds the EBBRv2.0 conformance entry to the ECPT UEFI table.
 
 config EFI_RISCV_BOOT_PROTOCOL
 	bool "RISCV_EFI_BOOT_PROTOCOL support"

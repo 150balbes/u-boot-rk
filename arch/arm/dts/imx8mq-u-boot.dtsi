@@ -10,23 +10,23 @@
 
 };
 
-&soc {
+&{/soc@0} {
 	u-boot,dm-spl;
 };
 
-&aips1 {
+&{/soc@0/bus@30000000} {
 	u-boot,dm-spl;
 };
 
-&aips2 {
+&{/soc@0/bus@30400000} {
 	u-boot,dm-spl;
 };
 
-&aips3 {
+&{/soc@0/bus@30800000} {
 	u-boot,dm-spl;
 };
 
-&aips4 {
+&{/soc@0/bus@32c00000} {
 	u-boot,dm-spl;
 };
 
@@ -105,7 +105,7 @@
 					arch = "arm64";
 					compression = "none";
 					description = "U-Boot (64-bit)";
-					load = <CONFIG_TEXT_BASE>;
+					load = <CONFIG_SYS_TEXT_BASE>;
 					type = "standalone";
 
 					uboot-blob {

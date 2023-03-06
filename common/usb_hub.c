@@ -47,7 +47,7 @@
 #define HUB_SHORT_RESET_TIME	20
 #define HUB_LONG_RESET_TIME	200
 
-#define HUB_DEBOUNCE_TIMEOUT	CONFIG_USB_HUB_DEBOUNCE_TIMEOUT
+#define HUB_DEBOUNCE_TIMEOUT	1000
 
 #define PORT_OVERCURRENT_MAX_SCAN_COUNT		3
 
@@ -168,7 +168,7 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	int i;
 	struct usb_device *dev;
 	unsigned pgood_delay = hub->desc.bPwrOn2PwrGood * 2;
-	const char __maybe_unused *env;
+	const char *env;
 
 	dev = hub->pusb_dev;
 
@@ -193,12 +193,10 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	 * but allow this time to be increased via env variable as some
 	 * devices break the spec and require longer warm-up times
 	 */
-#if CONFIG_IS_ENABLED(ENV_SUPPORT)
 	env = env_get("usb_pgood_delay");
 	if (env)
 		pgood_delay = max(pgood_delay,
 			          (unsigned)simple_strtol(env, NULL, 0));
-#endif
 	debug("pgood_delay=%dms\n", pgood_delay);
 
 	/*

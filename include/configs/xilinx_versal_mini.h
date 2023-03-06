@@ -10,11 +10,11 @@
 #ifndef __CONFIG_VERSAL_MINI_H
 #define __CONFIG_VERSAL_MINI_H
 
-#define CFG_EXTRA_ENV_SETTINGS
+#define CONFIG_EXTRA_ENV_SETTINGS
 
 #include <configs/xilinx_versal.h>
 
 /* Undef unneeded configs */
-#undef CFG_EXTRA_ENV_SETTINGS
+#undef CONFIG_EXTRA_ENV_SETTINGS
 
 #endif /* __CONFIG_VERSAL_MINI_H */

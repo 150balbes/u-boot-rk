@@ -6,7 +6,6 @@ ifdef CONFIG_ARM64
 
 obj-$(CONFIG_ARMADA_3700) += armada3700/
 obj-$(CONFIG_ARMADA_8K) += armada8k/
-obj-$(CONFIG_ALLEYCAT_5) += alleycat5/
 obj-y += arm64-common.o
 
 else # CONFIG_ARM64
@@ -16,6 +15,10 @@ ifdef CONFIG_ARCH_KIRKWOOD
 obj-y	= dram.o
 obj-y	+= gpio.o
 obj-y	+= mbus.o
+
+ifndef CONFIG_TIMER
+obj-y	+= timer.o
+endif
 
 else # CONFIG_ARCH_KIRKWOOD
 
@@ -94,6 +97,7 @@ $(obj)/kwbimage.cfg: $(src)/kwbimage.cfg.in include/autoconf.mk \
 endif # CONFIG_SPL_BUILD
 obj-y	+= gpio.o
 obj-y	+= mbus.o
+obj-y	+= timer.o
 obj-$(CONFIG_SPL_BUILD) += spl.o
 obj-$(CONFIG_SPL_BUILD) += lowlevel_spl.o
 

@@ -94,25 +94,11 @@ long get_ram_size(long *base, long maxsize)
 
 phys_size_t __weak get_effective_memsize(void)
 {
-	phys_size_t ram_size = gd->ram_size;
-
-#ifdef CONFIG_MPC85xx
-	/*
-	 * Check for overflow and limit ram size to some representable value.
-	 * It is required that ram_base + ram_size must be representable by
-	 * phys_size_t type and must be aligned by direct access, therefore
-	 * calculate it from last 4kB sector which should work as alignment
-	 * on any platform.
-	 */
-	if (gd->ram_base + ram_size < gd->ram_base)
-		ram_size = ((phys_size_t)~0xfffULL) - gd->ram_base;
-#endif
-
-#ifndef CFG_MAX_MEM_MAPPED
-	return ram_size;
+#ifndef CONFIG_VERY_BIG_RAM
+	return gd->ram_size;
 #else
 	/* limit stack to what we can reasonable map */
-	return ((ram_size > CFG_MAX_MEM_MAPPED) ?
-		CFG_MAX_MEM_MAPPED : ram_size);
+	return ((gd->ram_size > CONFIG_MAX_MEM_MAPPED) ?
+		CONFIG_MAX_MEM_MAPPED : gd->ram_size);
 #endif
 }

@@ -89,11 +89,11 @@ static struct rom_extended_boot_data bootdata __section(".data");
 static void store_boot_info_from_rom(void)
 {
 	bootindex = *(u32 *)(CONFIG_SYS_K3_BOOT_PARAM_TABLE_INDEX);
-	memcpy(&bootdata, (uintptr_t *)ROM_EXTENDED_BOOT_DATA_INFO,
+	memcpy(&bootdata, (uintptr_t *)ROM_ENTENDED_BOOT_DATA_INFO,
 	       sizeof(struct rom_extended_boot_data));
 }
 
-void k3_spl_init(void)
+void board_init_f(ulong dummy)
 {
 	struct udevice *dev;
 	int ret;
@@ -154,17 +154,6 @@ void k3_spl_init(void)
 
 	/* Output System Firmware version info */
 	k3_sysfw_print_ver();
-}
-
-bool check_rom_loaded_sysfw(void)
-{
-	return is_rom_loaded_sysfw(&bootdata);
-}
-
-void k3_mem_init(void)
-{
-	struct udevice *dev;
-	int ret;
 
 	if (IS_ENABLED(CONFIG_TARGET_J721S2_R5_EVM)) {
 		ret = uclass_get_device_by_name(UCLASS_MISC, "msmc", &dev);
@@ -175,7 +164,7 @@ void k3_mem_init(void)
 		if (ret)
 			panic("DRAM 0 init failed: %d\n", ret);
 
-		ret = uclass_next_device_err(&dev);
+		ret = uclass_next_device(&dev);
 		if (ret)
 			panic("DRAM 1 init failed: %d\n", ret);
 	}

@@ -602,7 +602,7 @@ static void versal_get_clock_info(void)
 	}
 }
 
-static int versal_clock_setup(void)
+int versal_clock_setup(void)
 {
 	int ret;
 
@@ -657,9 +657,7 @@ static int versal_clk_probe(struct udevice *dev)
 	if (ret < 0)
 		return -EINVAL;
 
-	ret = versal_clock_setup();
-	if (ret < 0)
-		return ret;
+	versal_clock_setup();
 
 	priv->clk = clock;
 
@@ -741,7 +739,6 @@ static struct clk_ops versal_clk_ops = {
 
 static const struct udevice_id versal_clk_ids[] = {
 	{ .compatible = "xlnx,versal-clk" },
-	{ .compatible = "xlnx,versal-net-clk" },
 	{ }
 };
 

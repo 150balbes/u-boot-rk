@@ -218,6 +218,6 @@
 	};
 };
 
-&timers5 {
+&timer5 {
 	u-boot,dm-pre-reloc;
 };

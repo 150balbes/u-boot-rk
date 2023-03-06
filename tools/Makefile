@@ -25,6 +25,7 @@
 # Enable all the config-independent tools
 ifneq ($(HOST_TOOLS_ALL),)
 CONFIG_ARCH_KIRKWOOD = y
+CONFIG_LCD_LOGO = y
 CONFIG_CMD_LOADS = y
 CONFIG_CMD_NET = y
 CONFIG_XWAY_SWAP_BYTES = y
@@ -36,20 +37,22 @@ endif
 subdir-$(HOST_TOOLS_ALL) += gdb
 
 # Merge all the different vars for envcrc into one
+ENVCRC-$(CONFIG_ENV_IS_EMBEDDED) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_EEPROM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_FLASH) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_ONENAND) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NAND) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NVRAM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_SPI_FLASH) = y
-BUILD_ENVCRC ?= $(ENVCRC-y)
+CONFIG_BUILD_ENVCRC ?= $(ENVCRC-y)
 
 hostprogs-$(CONFIG_SPL_GENERATE_ATMEL_PMECC_HEADER) += atmel_pmecc_params
 
+hostprogs-$(CONFIG_LCD_LOGO) += bmp_logo
 hostprogs-$(CONFIG_VIDEO_LOGO) += bmp_logo
 HOSTCFLAGS_bmp_logo.o := -pedantic
 
-hostprogs-$(BUILD_ENVCRC) += envcrc
+hostprogs-$(CONFIG_BUILD_ENVCRC) += envcrc
 envcrc-objs := envcrc.o lib/crc32.o env/embedded.o lib/sha1.o
 
 hostprogs-$(CONFIG_CMD_NET) += gen_eth_addr
@@ -71,9 +74,7 @@ mkenvimage-objs := mkenvimage.o os_support.o lib/crc32.o
 hostprogs-y += dumpimage mkimage
 hostprogs-$(CONFIG_TOOLS_LIBCRYPTO) += fit_info fit_check_sign
 
-ifneq ($(CONFIG_CMD_BOOTEFI_SELFTEST)$(CONFIG_FWU_MDATA_GPT_BLK),)
-hostprogs-y += file2include
-endif
+hostprogs-$(CONFIG_CMD_BOOTEFI_SELFTEST) += file2include
 
 FIT_OBJS-y := fit_common.o fit_image.o image-host.o boot/image-fit.o
 FIT_SIG_OBJS-$(CONFIG_TOOLS_LIBCRYPTO) := image-sig-host.o boot/image-fit-sig.o
@@ -146,7 +147,6 @@ dumpimage-mkimage-objs := aisimage.o \
 			gpimage.o \
 			gpimage-common.o \
 			mtk_image.o \
-			mtk_nand_headers.o \
 			$(ECDSA_OBJS-y) \
 			$(RSA_OBJS-y) \
 			$(AES_OBJS-y)
@@ -274,13 +274,11 @@ clean-dirs := lib common
 
 always := $(hostprogs-y)
 
-# Host tool to dump the currently configured default environment,
-# build it on demand, i.e. not add it to 'always'.
-hostprogs-y += printinitialenv
-
 # Generated LCD/video logo
 LOGO_H = $(objtree)/include/bmp_logo.h
 LOGO_DATA_H = $(objtree)/include/bmp_logo_data.h
+LOGO-$(CONFIG_LCD_LOGO) += $(LOGO_H)
+LOGO-$(CONFIG_LCD_LOGO) += $(LOGO_DATA_H)
 LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_H)
 LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_DATA_H)
 
@@ -317,7 +315,7 @@ __build:	$(LOGO-y)
 $(LOGO_H):	$(obj)/bmp_logo $(LOGO_BMP)
 	$(obj)/bmp_logo --gen-info $(LOGO_BMP) > $@
 
-ifeq ($(CONFIG_VIDEO),y)
+ifeq ($(CONFIG_DM_VIDEO),y)
 $(LOGO_DATA_H):	$(obj)/bmp_logo $(LOGO_BMP)
 	$(obj)/bmp_logo --gen-bmp $(LOGO_BMP) > $@
 else

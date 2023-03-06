@@ -383,7 +383,7 @@ static int fpgamgr_program_poll_cd(void)
 			printf("nstatus == 0 while waiting for condone\n");
 			return -EPERM;
 		}
-		schedule();
+		WATCHDOG_RESET();
 	}
 
 	if (i == FPGA_TIMEOUT_CNT)
@@ -534,7 +534,7 @@ static void get_rbf_image_info(struct rbf_info *rbf, u16 *buffer)
 		rbf->section = unknown;
 		break;
 
-		schedule();
+		WATCHDOG_RESET();
 	}
 }
 
@@ -555,14 +555,14 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 	/* Load image header into buffer */
 	ret = request_firmware_into_buf(dev,
 					fpga_loadfs->fpga_fsinfo->filename,
-					buffer_p, sizeof(struct legacy_img_hdr),
+					buffer_p, sizeof(struct image_header),
 					0);
 	if (ret < 0) {
 		debug("FPGA: Failed to read image header from flash.\n");
 		return -ENOENT;
 	}
 
-	if (image_get_magic((struct legacy_img_hdr *)buffer_p) != FDT_MAGIC) {
+	if (image_get_magic((struct image_header *)buffer_p) != FDT_MAGIC) {
 		debug("FPGA: No FDT magic was found.\n");
 		return -EBADF;
 	}
@@ -635,7 +635,7 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 				break;
 			}
 		}
-		schedule();
+		WATCHDOG_RESET();
 	}
 
 	if (!fpga_node_name) {
@@ -777,20 +777,42 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 {
 	struct fpga_loadfs_info fpga_loadfs;
 	struct udevice *dev;
-	int status, ret;
+	int status, ret, size;
 	u32 buffer = (uintptr_t)buf;
 	size_t buffer_sizebytes = bsize;
 	size_t buffer_sizebytes_ori = bsize;
 	size_t total_sizeof_image = 0;
 	ofnode node;
+	const fdt32_t *phandle_p;
+	u32 phandle;
 
 	node = get_fpga_mgr_ofnode(ofnode_null());
-	if (!ofnode_valid(node)) {
+
+	if (ofnode_valid(node)) {
+		phandle_p = ofnode_get_property(node, "firmware-loader", &size);
+		if (!phandle_p) {
+			node = ofnode_path("/chosen");
+			if (!ofnode_valid(node)) {
+				debug("FPGA: /chosen node was not found.\n");
+				return -ENOENT;
+			}
+
+			phandle_p = ofnode_get_property(node, "firmware-loader",
+						       &size);
+			if (!phandle_p) {
+				debug("FPGA: firmware-loader property was not");
+				debug(" found.\n");
+				return -ENOENT;
+			}
+		}
+	} else {
 		debug("FPGA: FPGA manager node was not found.\n");
 		return -ENOENT;
 	}
 
-	ret = get_fs_loader(&dev);
+	phandle = fdt32_to_cpu(*phandle_p);
+	ret = uclass_get_device_by_phandle_id(UCLASS_FS_FIRMWARE_LOADER,
+					     phandle, &dev);
 	if (ret)
 		return ret;
 
@@ -857,7 +879,7 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 
 		total_sizeof_image += buffer_sizebytes_ori;
 
-		schedule();
+		WATCHDOG_RESET();
 	}
 	wait_for_fifo_empty();
 

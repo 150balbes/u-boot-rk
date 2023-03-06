@@ -25,8 +25,8 @@
  */
 
 /* I2C */
-#define CFG_I2C_MVTWSI_BASE0		MVEBU_TWSI_BASE
-#define CFG_I2C_MVTWSI_BASE1		MVEBU_TWSI1_BASE
+#define CONFIG_I2C_MVTWSI_BASE0		MVEBU_TWSI_BASE
+#define CONFIG_I2C_MVTWSI_BASE1		MVEBU_TWSI1_BASE
 
 /* USB/EHCI configuration */
 
@@ -35,7 +35,7 @@
 #define PHY_ANEG_TIMEOUT	8000	/* PHY needs a longer aneg time */
 
 /* Keep device tree and initrd in lower memory so the kernel can access them */
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 	"fdt_high=0x10000000\0"		\
 	"initrd_high=0x10000000\0"
 
@@ -68,6 +68,6 @@
 /* Defines for SPL */
 
 /* Enable DDR support in SPL (DDR3 training from Marvell bin_hdr) */
-#define CFG_SYS_SDRAM_SIZE		SZ_2G
+#define CONFIG_SYS_SDRAM_SIZE		SZ_2G
 
 #endif /* _CONFIG_THEADORABLE_H */

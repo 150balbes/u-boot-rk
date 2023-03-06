@@ -27,8 +27,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if !CONFIG_IS_ENABLED(DM_SERIAL)
-static volatile unsigned char *const port[] = CFG_PL01x_PORTS;
+#ifndef CONFIG_DM_SERIAL
+
+static volatile unsigned char *const port[] = CONFIG_PL01x_PORTS;
 static enum pl01x_type pl01x_type __section(".data");
 static struct pl01x_regs *base_regs __section(".data");
 #define NUM_PORTS (sizeof(port)/sizeof(port[0]))
@@ -69,7 +70,7 @@ static int pl01x_getc(struct pl01x_regs *regs)
 
 static int pl01x_tstc(struct pl01x_regs *regs)
 {
-	schedule();
+	WATCHDOG_RESET();
 	return !(readl(&regs->fr) & UART_PL01x_FR_RXFE);
 }
 
@@ -185,14 +186,14 @@ static int pl01x_generic_setbrg(struct pl01x_regs *regs, enum pl01x_type type,
 	return 0;
 }
 
-#if !CONFIG_IS_ENABLED(DM_SERIAL)
+#ifndef CONFIG_DM_SERIAL
 static void pl01x_serial_init_baud(int baudrate)
 {
 	int clock = 0;
 
 #if defined(CONFIG_PL011_SERIAL)
 	pl01x_type = TYPE_PL011;
-	clock = CFG_PL011_CLOCK;
+	clock = CONFIG_PL011_CLOCK;
 #endif
 	base_regs = (struct pl01x_regs *)port[CONFIG_CONS_INDEX];
 
@@ -226,7 +227,7 @@ static int pl01x_serial_getc(void)
 		int ch = pl01x_getc(base_regs);
 
 		if (ch == -EAGAIN) {
-			schedule();
+			WATCHDOG_RESET();
 			continue;
 		}
 
@@ -246,9 +247,9 @@ static void pl01x_serial_setbrg(void)
 	 * crap in console
 	 */
 	while (!(readl(&base_regs->fr) & UART_PL01x_FR_TXFE))
-		schedule();
+		WATCHDOG_RESET();
 	while (readl(&base_regs->fr) & UART_PL01x_FR_BUSY)
-		schedule();
+		WATCHDOG_RESET();
 	pl01x_serial_init_baud(gd->baudrate);
 }
 
@@ -272,7 +273,11 @@ __weak struct serial_device *default_serial_console(void)
 {
 	return &pl01x_serial_drv;
 }
-#else
+
+#endif /* nCONFIG_DM_SERIAL */
+
+#ifdef CONFIG_DM_SERIAL
+
 int pl01x_serial_setbrg(struct udevice *dev, int baudrate)
 {
 	struct pl01x_serial_plat *plat = dev_get_plat(dev);
@@ -338,8 +343,8 @@ static const struct udevice_id pl01x_serial_id[] ={
 	{}
 };
 
-#ifndef CFG_PL011_CLOCK
-#define CFG_PL011_CLOCK 0
+#ifndef CONFIG_PL011_CLOCK
+#define CONFIG_PL011_CLOCK 0
 #endif
 
 int pl01x_serial_of_to_plat(struct udevice *dev)
@@ -354,7 +359,7 @@ int pl01x_serial_of_to_plat(struct udevice *dev)
 		return -EINVAL;
 
 	plat->base = addr;
-	plat->clock = dev_read_u32_default(dev, "clock", CFG_PL011_CLOCK);
+	plat->clock = dev_read_u32_default(dev, "clock", CONFIG_PL011_CLOCK);
 	ret = clk_get_by_index(dev, 0, &clk);
 	if (!ret) {
 		ret = clk_enable(&clk);

@@ -149,8 +149,8 @@ static int set_px_corepll(unsigned long corepll)
 	return 1;
 }
 
-#ifndef CFG_SYS_PIXIS_VCFGEN0_ENABLE
-#define CFG_SYS_PIXIS_VCFGEN0_ENABLE		0x1C
+#ifndef CONFIG_SYS_PIXIS_VCFGEN0_ENABLE
+#define CONFIG_SYS_PIXIS_VCFGEN0_ENABLE		0x1C
 #endif
 
 /* Tell the PIXIS where to find the COREPLL, MPXPLL, SYSCLK values
@@ -159,7 +159,7 @@ static int set_px_corepll(unsigned long corepll)
  * or various other PIXIS registers to determine the values for COREPLL,
  * MPXPLL, and SYSCLK.
  *
- * CFG_SYS_PIXIS_VCFGEN0_ENABLE is the value to write to the PIXIS_VCFGEN0
+ * CONFIG_SYS_PIXIS_VCFGEN0_ENABLE is the value to write to the PIXIS_VCFGEN0
  * register that tells the pixis to use the various PIXIS register.
  */
 static void read_from_px_regs(int set)
@@ -167,18 +167,18 @@ static void read_from_px_regs(int set)
 	u8 tmp = in_8(pixis_base + PIXIS_VCFGEN0);
 
 	if (set)
-		tmp = tmp | CFG_SYS_PIXIS_VCFGEN0_ENABLE;
+		tmp = tmp | CONFIG_SYS_PIXIS_VCFGEN0_ENABLE;
 	else
-		tmp = tmp & ~CFG_SYS_PIXIS_VCFGEN0_ENABLE;
+		tmp = tmp & ~CONFIG_SYS_PIXIS_VCFGEN0_ENABLE;
 
 	out_8(pixis_base + PIXIS_VCFGEN0, tmp);
 }
 
-/* CFG_SYS_PIXIS_VBOOT_ENABLE is the value to write to the PX_VCFGEN1
+/* CONFIG_SYS_PIXIS_VBOOT_ENABLE is the value to write to the PX_VCFGEN1
  * register that tells the pixis to use the PX_VBOOT[LBMAP] register.
  */
-#ifndef CFG_SYS_PIXIS_VBOOT_ENABLE
-#define CFG_SYS_PIXIS_VBOOT_ENABLE	0x04
+#ifndef CONFIG_SYS_PIXIS_VBOOT_ENABLE
+#define CONFIG_SYS_PIXIS_VBOOT_ENABLE	0x04
 #endif
 
 /* Configure the source of the boot location
@@ -194,14 +194,14 @@ static void read_from_px_regs_altbank(int set)
 	u8 tmp = in_8(pixis_base + PIXIS_VCFGEN1);
 
 	if (set)
-		tmp = tmp | CFG_SYS_PIXIS_VBOOT_ENABLE;
+		tmp = tmp | CONFIG_SYS_PIXIS_VBOOT_ENABLE;
 	else
-		tmp = tmp & ~CFG_SYS_PIXIS_VBOOT_ENABLE;
+		tmp = tmp & ~CONFIG_SYS_PIXIS_VBOOT_ENABLE;
 
 	out_8(pixis_base + PIXIS_VCFGEN1, tmp);
 }
 
-/* CFG_SYS_PIXIS_VBOOT_MASK contains the bits to set in VBOOT register that
+/* CONFIG_SYS_PIXIS_VBOOT_MASK contains the bits to set in VBOOT register that
  * tells the PIXIS what the alternate flash bank is.
  *
  * Note that it's not really a mask.  It contains the actual LBMAP bits that
@@ -209,8 +209,8 @@ static void read_from_px_regs_altbank(int set)
  * primary bank has these bits set to 0, and the alternate bank has these
  * bits set to 1.
  */
-#ifndef CFG_SYS_PIXIS_VBOOT_MASK
-#define CFG_SYS_PIXIS_VBOOT_MASK	(0x40)
+#ifndef CONFIG_SYS_PIXIS_VBOOT_MASK
+#define CONFIG_SYS_PIXIS_VBOOT_MASK	(0x40)
 #endif
 
 /* Tell the PIXIS to boot from the default flash bank
@@ -220,7 +220,7 @@ static void read_from_px_regs_altbank(int set)
  */
 static void clear_altbank(void)
 {
-	clrbits_8(pixis_base + PIXIS_VBOOT, CFG_SYS_PIXIS_VBOOT_MASK);
+	clrbits_8(pixis_base + PIXIS_VBOOT, CONFIG_SYS_PIXIS_VBOOT_MASK);
 }
 
 /* Tell the PIXIS to boot from the alternate flash bank
@@ -230,7 +230,7 @@ static void clear_altbank(void)
  */
 static void set_altbank(void)
 {
-	setbits_8(pixis_base + PIXIS_VBOOT, CFG_SYS_PIXIS_VBOOT_MASK);
+	setbits_8(pixis_base + PIXIS_VBOOT, CONFIG_SYS_PIXIS_VBOOT_MASK);
 }
 
 /* Reset the board with watchdog disabled.
@@ -280,6 +280,79 @@ U_BOOT_CMD(
 	"Disable watchdog timer",
 	""
 );
+
+#ifdef CONFIG_PIXIS_SGMII_CMD
+
+/* Enable or disable SGMII mode for a TSEC
+ */
+static int pixis_set_sgmii(struct cmd_tbl *cmdtp, int flag, int argc,
+			   char *const argv[])
+{
+	int which_tsec = -1;
+	unsigned char mask;
+	unsigned char switch_mask;
+
+	if ((argc > 2) && (strcmp(argv[1], "all") != 0))
+		which_tsec = simple_strtoul(argv[1], NULL, 0);
+
+	switch (which_tsec) {
+#ifdef CONFIG_TSEC1
+	case 1:
+		mask = PIXIS_VSPEED2_TSEC1SER;
+		switch_mask = PIXIS_VCFGEN1_TSEC1SER;
+		break;
+#endif
+#ifdef CONFIG_TSEC2
+	case 2:
+		mask = PIXIS_VSPEED2_TSEC2SER;
+		switch_mask = PIXIS_VCFGEN1_TSEC2SER;
+		break;
+#endif
+#ifdef CONFIG_TSEC3
+	case 3:
+		mask = PIXIS_VSPEED2_TSEC3SER;
+		switch_mask = PIXIS_VCFGEN1_TSEC3SER;
+		break;
+#endif
+#ifdef CONFIG_TSEC4
+	case 4:
+		mask = PIXIS_VSPEED2_TSEC4SER;
+		switch_mask = PIXIS_VCFGEN1_TSEC4SER;
+		break;
+#endif
+	default:
+		mask = PIXIS_VSPEED2_MASK;
+		switch_mask = PIXIS_VCFGEN1_MASK;
+		break;
+	}
+
+	/* Toggle whether the switches or FPGA control the settings */
+	if (!strcmp(argv[argc - 1], "switch"))
+		clrbits_8(pixis_base + PIXIS_VCFGEN1, switch_mask);
+	else
+		setbits_8(pixis_base + PIXIS_VCFGEN1, switch_mask);
+
+	/* If it's not the switches, enable or disable SGMII, as specified */
+	if (!strcmp(argv[argc - 1], "on"))
+		clrbits_8(pixis_base + PIXIS_VSPEED2, mask);
+	else if (!strcmp(argv[argc - 1], "off"))
+		setbits_8(pixis_base + PIXIS_VSPEED2, mask);
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	pixis_set_sgmii, CONFIG_SYS_MAXARGS, 1, pixis_set_sgmii,
+	"pixis_set_sgmii"
+	" - Enable or disable SGMII mode for a given TSEC \n",
+	"\npixis_set_sgmii [TSEC num] <on|off|switch>\n"
+	"    TSEC num: 1,2,3,4 or 'all'.  'all' is default.\n"
+	"    on - enables SGMII\n"
+	"    off - disables SGMII\n"
+	"    switch - use switch settings"
+);
+
+#endif
 
 /*
  * This function takes the non-integral cpu:mpx pll ratio

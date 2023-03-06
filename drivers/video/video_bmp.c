@@ -229,16 +229,6 @@ static void video_splash_align_axis(int *axis, unsigned long panel_size,
 	*axis = max(0, (int)axis_alignment);
 }
 
-void video_bmp_get_info(void *bmp_image, ulong *widthp, ulong *heightp,
-			uint *bpixp)
-{
-	struct bmp_image *bmp = bmp_image;
-
-	*widthp = get_unaligned_le32(&bmp->header.width);
-	*heightp = get_unaligned_le32(&bmp->header.height);
-	*bpixp = get_unaligned_le16(&bmp->header.bit_count);
-}
-
 int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 		      bool align)
 {
@@ -263,7 +253,9 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 		return -EINVAL;
 	}
 
-	video_bmp_get_info(bmp, &width, &height, &bmp_bpix);
+	width = get_unaligned_le32(&bmp->header.width);
+	height = get_unaligned_le32(&bmp->header.height);
+	bmp_bpix = get_unaligned_le16(&bmp->header.bit_count);
 	hdr_size = get_unaligned_le16(&bmp->header.size);
 	debug("hdr_size=%d, bmp_bpix=%d\n", hdr_size, bmp_bpix);
 	palette = (void *)bmp + 14 + hdr_size;
@@ -291,7 +283,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	    !(bmp_bpix == 24 && bpix == 16) &&
 	    !(bmp_bpix == 24 && bpix == 32)) {
 		printf("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
-		       bpix, colours);
+		       bpix, get_unaligned_le16(&bmp->header.bit_count));
 		return -EPERM;
 	}
 
@@ -337,7 +329,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 			byte_width = width;
 
 		for (i = 0; i < height; ++i) {
-			schedule();
+			WATCHDOG_RESET();
 			for (j = 0; j < width; j++) {
 				write_pix8(fb, bpix, eformat, palette, bmap);
 				bmap++;
@@ -350,7 +342,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	case 16:
 		if (IS_ENABLED(CONFIG_BMP_16BPP)) {
 			for (i = 0; i < height; ++i) {
-				schedule();
+				WATCHDOG_RESET();
 				for (j = 0; j < width; j++) {
 					*fb++ = *bmap++;
 					*fb++ = *bmap++;

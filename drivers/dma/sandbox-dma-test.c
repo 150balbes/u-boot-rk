@@ -39,9 +39,9 @@ struct sandbox_dma_dev {
 };
 
 static int sandbox_dma_transfer(struct udevice *dev, int direction,
-				dma_addr_t dst, dma_addr_t src, size_t len)
+				void *dst, void *src, size_t len)
 {
-	memcpy((void *)dst, (void *)src, len);
+	memcpy(dst, src, len);
 
 	return 0;
 }

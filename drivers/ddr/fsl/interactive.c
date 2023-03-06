@@ -27,9 +27,9 @@
 /* Option parameter Structures */
 struct options_string {
 	const char *option_name;
-	u32 offset : 9;
-	u32 size : 4;
-	u32 printhex : 1;
+	size_t offset;
+	unsigned int size;
+	const char printhex;
 };
 
 static unsigned int picos_to_mhz(unsigned int picos)

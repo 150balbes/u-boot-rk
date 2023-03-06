@@ -27,7 +27,6 @@
 #define IOMUXC_GPR_BASE_ADDR	0x30340000
 #define OCOTP_BASE_ADDR		0x30350000
 #define ANATOP_BASE_ADDR	0x30360000
-#define SNVS_BASE_ADDR		0x30370000
 #define CCM_BASE_ADDR		0x30380000
 #define SRC_BASE_ADDR		0x30390000
 #define GPC_BASE_ADDR		0x303A0000
@@ -44,14 +43,10 @@
 #define I2C3_BASE_ADDR		0x30A40000
 #define I2C4_BASE_ADDR		0x30A50000
 #define UART4_BASE_ADDR		0x30A60000
-#ifdef CONFIG_IMX8MP
-#define I2C5_BASE_ADDR          0x30AD0000
-#define I2C6_BASE_ADDR          0x30AE0000
-#endif
 #define USDHC1_BASE_ADDR	0x30B40000
 #define USDHC2_BASE_ADDR	0x30B50000
 #define QSPI0_AMBA_BASE     0x08000000
-#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MP)
+#ifdef CONFIG_IMX8MM
 #define USDHC3_BASE_ADDR	0x30B60000
 #endif
 #define UART_BASE_ADDR(n)	(			\
@@ -91,12 +86,12 @@
 #define CAAM_ARB_BASE_ADDR              (0x00100000)
 #define CAAM_ARB_END_ADDR               (0x00107FFF)
 #define CAAM_IPS_BASE_ADDR              (0x30900000)
-#define CFG_SYS_FSL_SEC_OFFSET       (0)
-#define CFG_SYS_FSL_SEC_ADDR         (CAAM_IPS_BASE_ADDR + \
-					 CFG_SYS_FSL_SEC_OFFSET)
-#define CFG_SYS_FSL_JR0_OFFSET       (0x1000)
-#define CFG_SYS_FSL_JR0_ADDR         (CFG_SYS_FSL_SEC_ADDR + \
-					 CFG_SYS_FSL_JR0_OFFSET)
+#define CONFIG_SYS_FSL_SEC_OFFSET       (0)
+#define CONFIG_SYS_FSL_SEC_ADDR         (CAAM_IPS_BASE_ADDR + \
+					 CONFIG_SYS_FSL_SEC_OFFSET)
+#define CONFIG_SYS_FSL_JR0_OFFSET       (0x1000)
+#define CONFIG_SYS_FSL_JR0_ADDR         (CONFIG_SYS_FSL_SEC_ADDR + \
+					 CONFIG_SYS_FSL_JR0_OFFSET)
 #if !defined(__ASSEMBLY__)
 #include <asm/types.h>
 #include <linux/bitops.h>
@@ -117,10 +112,6 @@
 #define SRC_DDR1_RCR_PHY_RESET_MASK	BIT(2)
 #define SRC_DDR1_RCR_CORE_RESET_N_MASK	BIT(1)
 #define SRC_DDR1_RCR_PRESET_N_MASK	BIT(0)
-
-#define SNVS_LPSR			0x4c
-#define SNVS_LPLVDR			0x64
-#define SNVS_LPPGDR_INIT		0x41736166
 
 struct iomuxc_gpr_base_regs {
 	u32 gpr[47];

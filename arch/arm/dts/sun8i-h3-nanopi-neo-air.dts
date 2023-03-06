@@ -127,7 +127,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc 1>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_vcc3v3>;
 		vddio-supply = <&reg_vcc3v3>;

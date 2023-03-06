@@ -21,23 +21,8 @@
 #include <errno.h>
 #include <dm/ofnode.h>
 
-#define ENV_MMC_INVALID_OFFSET ((s64)-1)
-
-#if defined(CONFIG_ENV_MMC_USE_DT)
-/* ENV offset is invalid when not defined in Device Tree */
-#define ENV_MMC_OFFSET		ENV_MMC_INVALID_OFFSET
-#define ENV_MMC_OFFSET_REDUND	ENV_MMC_INVALID_OFFSET
-
-#else
-/* Default ENV offset when not defined in Device Tree */
-#define ENV_MMC_OFFSET		CONFIG_ENV_OFFSET
-
-#if defined(CONFIG_ENV_OFFSET_REDUND)
-#define ENV_MMC_OFFSET_REDUND	CONFIG_ENV_OFFSET_REDUND
-#else
-#define ENV_MMC_OFFSET_REDUND	ENV_MMC_INVALID_OFFSET
-#endif
-#endif
+#define __STR(X) #X
+#define STR(X) __STR(X)
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -50,7 +35,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #if (defined(CONFIG_SYS_REDUNDAND_ENVIRONMENT) && \
      (CONFIG_SYS_MMC_ENV_PART == 1) && \
      (CONFIG_ENV_OFFSET == CONFIG_ENV_OFFSET_REDUND))
-#define ENV_MMC_HWPART_REDUND	1
+#define ENV_MMC_HWPART_REDUND
 #endif
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)
@@ -71,18 +56,8 @@ static inline int mmc_offset_try_partition(const char *str, int copy, s64 *val)
 		if (ret < 0)
 			return ret;
 
-		if (str && !strncmp((const char *)info.name, str, sizeof(info.name)))
+		if (!strncmp((const char *)info.name, str, sizeof(info.name)))
 			break;
-#ifdef CONFIG_PARTITION_TYPE_GUID
-		if (!str) {
-			const efi_guid_t env_guid = PARTITION_U_BOOT_ENVIRONMENT;
-			efi_guid_t type_guid;
-
-			uuid_str_to_bin(info.type_guid, type_guid.b, UUID_STR_FORMAT_GUID);
-			if (!memcmp(&env_guid, &type_guid, sizeof(efi_guid_t)))
-				break;
-		}
-#endif
 	}
 
 	/* round up to info.blksz */
@@ -117,34 +92,28 @@ static inline s64 mmc_offset(int copy)
 		err = mmc_offset_try_partition(str, copy, &val);
 		if (!err)
 			return val;
-		debug("env partition '%s' not found (%d)", str, err);
 	}
 
-	/* try the GPT partition with "U-Boot ENV" TYPE GUID */
-	if (IS_ENABLED(CONFIG_PARTITION_TYPE_GUID)) {
-		err = mmc_offset_try_partition(NULL, copy, &val);
-		if (!err)
-			return val;
-	}
-
-	defvalue = ENV_MMC_OFFSET;
+	defvalue = CONFIG_ENV_OFFSET;
 	propname = dt_prop.offset;
 
-	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT) && copy) {
-		defvalue = ENV_MMC_OFFSET_REDUND;
+#if defined(CONFIG_ENV_OFFSET_REDUND)
+	if (copy) {
+		defvalue = CONFIG_ENV_OFFSET_REDUND;
 		propname = dt_prop.offset_redund;
 	}
-
+#endif
 	return ofnode_conf_read_int(propname, defvalue);
 }
 #else
 static inline s64 mmc_offset(int copy)
 {
-	s64 offset = ENV_MMC_OFFSET;
+	s64 offset = CONFIG_ENV_OFFSET;
 
-	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT) && copy)
-		offset = ENV_MMC_OFFSET_REDUND;
-
+#if defined(CONFIG_ENV_OFFSET_REDUND)
+	if (copy)
+		offset = CONFIG_ENV_OFFSET_REDUND;
+#endif
 	return offset;
 }
 #endif
@@ -152,11 +121,6 @@ static inline s64 mmc_offset(int copy)
 __weak int mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr)
 {
 	s64 offset = mmc_offset(copy);
-
-	if (offset == ENV_MMC_INVALID_OFFSET) {
-		printf("Invalid ENV offset in MMC, copy=%d\n", copy);
-		return -ENOENT;
-	}
 
 	if (offset < 0)
 		offset += mmc->capacity;
@@ -179,30 +143,14 @@ static int mmc_set_env_part(struct mmc *mmc, uint part)
 	int dev = mmc_get_env_dev();
 	int ret = 0;
 
-	ret = blk_select_hwpart_devnum(UCLASS_MMC, dev, part);
+	ret = blk_select_hwpart_devnum(IF_TYPE_MMC, dev, part);
 	if (ret)
 		puts("MMC partition switch failed\n");
 
 	return ret;
 }
-
-static bool mmc_set_env_part_init(struct mmc *mmc)
-{
-	env_mmc_orig_hwpart = mmc_get_blk_desc(mmc)->hwpart;
-	if (mmc_set_env_part(mmc, mmc_get_env_part(mmc)))
-		return false;
-
-	return true;
-}
-
-static int mmc_set_env_part_restore(struct mmc *mmc)
-{
-	return mmc_set_env_part(mmc, env_mmc_orig_hwpart);
-}
 #else
 static inline int mmc_set_env_part(struct mmc *mmc, uint part) {return 0; };
-static bool mmc_set_env_part_init(struct mmc *mmc) {return true; }
-static inline int mmc_set_env_part_restore(struct mmc *mmc) {return 0; };
 #endif
 
 static const char *init_mmc_for_env(struct mmc *mmc)
@@ -219,7 +167,8 @@ static const char *init_mmc_for_env(struct mmc *mmc)
 	if (mmc_init(mmc))
 		return "MMC init failed";
 #endif
-	if (!mmc_set_env_part_init(mmc))
+	env_mmc_orig_hwpart = mmc_get_blk_desc(mmc)->hwpart;
+	if (mmc_set_env_part(mmc, mmc_get_env_part(mmc)))
 		return "MMC partition switch failed";
 
 	return NULL;
@@ -227,7 +176,11 @@ static const char *init_mmc_for_env(struct mmc *mmc)
 
 static void fini_mmc_for_env(struct mmc *mmc)
 {
-	mmc_set_env_part_restore(mmc);
+#ifdef CONFIG_SYS_MMC_ENV_PART
+	int dev = mmc_get_env_dev();
+
+	blk_select_hwpart_devnum(IF_TYPE_MMC, dev, env_mmc_orig_hwpart);
+#endif
 }
 
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_SPL_BUILD)
@@ -264,20 +217,21 @@ static int env_mmc_save(void)
 	if (ret)
 		goto fini;
 
-	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT)) {
-		if (gd->env_valid == ENV_VALID)
-			copy = 1;
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	if (gd->env_valid == ENV_VALID)
+		copy = 1;
 
-		if (IS_ENABLED(ENV_MMC_HWPART_REDUND)) {
-			ret = mmc_set_env_part(mmc, copy + 1);
-			if (ret)
-				goto fini;
-		}
+#ifdef ENV_MMC_HWPART_REDUND
+	ret = mmc_set_env_part(mmc, copy + 1);
+	if (ret)
+		goto fini;
+#endif
 
-		if (mmc_get_env_addr(mmc, copy, &offset)) {
-			ret = 1;
-			goto fini;
-		}
+#endif
+
+	if (mmc_get_env_addr(mmc, copy, &offset)) {
+		ret = 1;
+		goto fini;
 	}
 
 	printf("Writing to %sMMC(%d)... ", copy ? "redundant " : "", dev);
@@ -289,12 +243,12 @@ static int env_mmc_save(void)
 
 	ret = 0;
 
-	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT))
-		gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID : ENV_REDUND;
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID : ENV_REDUND;
+#endif
 
 fini:
 	fini_mmc_for_env(mmc);
-
 	return ret;
 }
 
@@ -338,22 +292,22 @@ static int env_mmc_erase(void)
 	printf("\n");
 	ret = erase_env(mmc, CONFIG_ENV_SIZE, offset);
 
-	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT)) {
-		copy = 1;
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	copy = 1;
 
-		if (IS_ENABLED(ENV_MMC_HWPART_REDUND)) {
-			ret = mmc_set_env_part(mmc, copy + 1);
-			if (ret)
-				goto fini;
-		}
+#ifdef ENV_MMC_HWPART_REDUND
+	ret = mmc_set_env_part(mmc, copy + 1);
+	if (ret)
+		goto fini;
+#endif
 
-		if (mmc_get_env_addr(mmc, copy, &offset)) {
-			ret = CMD_RET_FAILURE;
-			goto fini;
-		}
-
-		ret |= erase_env(mmc, CONFIG_ENV_SIZE, offset);
+	if (mmc_get_env_addr(mmc, copy, &offset)) {
+		ret = CMD_RET_FAILURE;
+		goto fini;
 	}
+
+	ret |= erase_env(mmc, CONFIG_ENV_SIZE, offset);
+#endif
 
 fini:
 	fini_mmc_for_env(mmc);
@@ -375,14 +329,10 @@ static inline int read_env(struct mmc *mmc, unsigned long size,
 	return (n == blk_cnt) ? 0 : -1;
 }
 
-#if defined(ENV_IS_EMBEDDED)
+#ifdef CONFIG_ENV_OFFSET_REDUND
 static int env_mmc_load(void)
 {
-	return 0;
-}
-#elif defined(CONFIG_SYS_REDUNDAND_ENVIRONMENT)
-static int env_mmc_load(void)
-{
+#if !defined(ENV_IS_EMBEDDED)
 	struct mmc *mmc;
 	u32 offset1, offset2;
 	int read1_fail = 0, read2_fail = 0;
@@ -409,19 +359,19 @@ static int env_mmc_load(void)
 		goto fini;
 	}
 
-	if (IS_ENABLED(ENV_MMC_HWPART_REDUND)) {
-		ret = mmc_set_env_part(mmc, 1);
-		if (ret)
-			goto fini;
-	}
+#ifdef ENV_MMC_HWPART_REDUND
+	ret = mmc_set_env_part(mmc, 1);
+	if (ret)
+		goto fini;
+#endif
 
 	read1_fail = read_env(mmc, CONFIG_ENV_SIZE, offset1, tmp_env1);
 
-	if (IS_ENABLED(ENV_MMC_HWPART_REDUND)) {
-		ret = mmc_set_env_part(mmc, 2);
-		if (ret)
-			goto fini;
-	}
+#ifdef ENV_MMC_HWPART_REDUND
+	ret = mmc_set_env_part(mmc, 2);
+	if (ret)
+		goto fini;
+#endif
 
 	read2_fail = read_env(mmc, CONFIG_ENV_SIZE, offset2, tmp_env2);
 
@@ -434,11 +384,13 @@ err:
 	if (ret)
 		env_set_default(errmsg, 0);
 
+#endif
 	return ret;
 }
-#else /* ! CONFIG_SYS_REDUNDAND_ENVIRONMENT */
+#else /* ! CONFIG_ENV_OFFSET_REDUND */
 static int env_mmc_load(void)
 {
+#if !defined(ENV_IS_EMBEDDED)
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
 	struct mmc *mmc;
 	u32 offset;
@@ -477,10 +429,10 @@ fini:
 err:
 	if (ret)
 		env_set_default(errmsg, 0);
-
+#endif
 	return ret;
 }
-#endif /* CONFIG_SYS_REDUNDAND_ENVIRONMENT */
+#endif /* CONFIG_ENV_OFFSET_REDUND */
 
 U_BOOT_ENV_LOCATION(mmc) = {
 	.location	= ENVL_MMC,

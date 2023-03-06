@@ -83,7 +83,6 @@ static int do_load_serial(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("## Switch baudrate to %d bps and press ENTER ...\n",
 			load_baudrate);
 		udelay(50000);
-		flush();
 		gd->baudrate = load_baudrate;
 		serial_setbrg();
 		udelay(50000);
@@ -127,7 +126,6 @@ static int do_load_serial(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("## Switch baudrate to %d bps and press ESC ...\n",
 			current_baudrate);
 		udelay(50000);
-		flush();
 		gd->baudrate = current_baudrate;
 		serial_setbrg();
 		udelay(50000);
@@ -319,7 +317,6 @@ int do_save_serial(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("## Switch baudrate to %d bps and press ESC ...\n",
 			(int)current_baudrate);
 		udelay(50000);
-		flush();
 		gd->baudrate = current_baudrate;
 		serial_setbrg();
 		udelay(50000);
@@ -474,7 +471,6 @@ static int do_load_serial_bin(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("## Switch baudrate to %d bps and press ENTER ...\n",
 			load_baudrate);
 		udelay(50000);
-		flush();
 		gd->baudrate = load_baudrate;
 		serial_setbrg();
 		udelay(50000);
@@ -537,7 +533,6 @@ static int do_load_serial_bin(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("## Switch baudrate to %d bps and press ESC ...\n",
 			current_baudrate);
 		udelay(50000);
-		flush();
 		gd->baudrate = current_baudrate;
 		serial_setbrg();
 		udelay(50000);

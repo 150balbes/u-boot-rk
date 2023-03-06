@@ -22,7 +22,6 @@ from patman import tools
 
 settings_data = '''
 # Buildman settings file
-[global]
 
 [toolchain]
 
@@ -206,16 +205,13 @@ class TestFunctional(unittest.TestCase):
 
         self._test_branch = TEST_BRANCH
 
-        # Set to True to report missing blobs
-        self._missing = False
-
         # Avoid sending any output and clear all terminal output
         terminal.set_print_test_mode()
         terminal.get_print_test_lines()
 
     def tearDown(self):
         shutil.rmtree(self._base_dir)
-        shutil.rmtree(self._output_dir)
+        #shutil.rmtree(self._output_dir)
 
     def setupToolchains(self):
         self._toolchains = toolchain.Toolchains()
@@ -253,7 +249,7 @@ class TestFunctional(unittest.TestCase):
     def testFullHelp(self):
         command.test_result = None
         result = self._RunBuildman('-H')
-        help_file = os.path.join(self._buildman_dir, 'README.rst')
+        help_file = os.path.join(self._buildman_dir, 'README')
         # Remove possible extraneous strings
         extra = '::::::::::::::\n' + help_file + '\n::::::::::::::\n'
         gothelp = result.stdout.replace(extra, '')
@@ -264,7 +260,7 @@ class TestFunctional(unittest.TestCase):
     def testHelp(self):
         command.test_result = None
         result = self._RunBuildman('-h')
-        help_file = os.path.join(self._buildman_dir, 'README.rst')
+        help_file = os.path.join(self._buildman_dir, 'README')
         self.assertTrue(len(result.stdout) > 1000)
         self.assertEqual(0, len(result.stderr))
         self.assertEqual(0, result.return_code)
@@ -428,21 +424,10 @@ class TestFunctional(unittest.TestCase):
                     out_dir = arg[2:]
             fname = os.path.join(cwd or '', out_dir, 'u-boot')
             tools.write_file(fname, b'U-Boot')
-
-            # Handle missing blobs
-            if self._missing:
-                if 'BINMAN_ALLOW_MISSING=1' in args:
-                    stderr = '''+Image 'main-section' is missing external blobs and is non-functional: intel-descriptor intel-ifwi intel-fsp-m intel-fsp-s intel-vbt
-Image 'main-section' has faked external blobs and is non-functional: descriptor.bin fsp_m.bin fsp_s.bin vbt.bin
-
-Some images are invalid'''
-                else:
-                    stderr = "binman: Filename 'fsp.bin' not found in input path"
-            elif type(commit) is not str:
+            if type(commit) is not str:
                 stderr = self._error.get((brd.target, commit.sequence))
-
             if stderr:
-                return command.CommandResult(return_code=2, stderr=stderr)
+                return command.CommandResult(return_code=1, stderr=stderr)
             return command.CommandResult(return_code=0)
 
         # Not handled, so abort
@@ -636,90 +621,3 @@ Some images are invalid'''
         self.assertIn(
             'Thread exception (use -T0 to run without threads): test exception',
             stdout.getvalue())
-
-    def testBlobs(self):
-        """Test handling of missing blobs"""
-        self._missing = True
-
-        board0_dir = os.path.join(self._output_dir, 'current', 'board0')
-        errfile = os.path.join(board0_dir, 'err')
-        logfile = os.path.join(board0_dir, 'log')
-
-        # We expect failure when there are missing blobs
-        result = self._RunControl('board0', '-o', self._output_dir)
-        self.assertEqual(100, result)
-        self.assertTrue(os.path.exists(os.path.join(board0_dir, 'done')))
-        self.assertTrue(os.path.exists(errfile))
-        self.assertIn(b"Filename 'fsp.bin' not found in input path",
-                      tools.read_file(errfile))
-
-    def testBlobsAllowMissing(self):
-        """Allow missing blobs - still failure but a different exit code"""
-        self._missing = True
-        result = self._RunControl('board0', '-o', self._output_dir, '-M',
-                                  clean_dir=True)
-        self.assertEqual(101, result)
-        board0_dir = os.path.join(self._output_dir, 'current', 'board0')
-        errfile = os.path.join(board0_dir, 'err')
-        self.assertTrue(os.path.exists(errfile))
-        self.assertIn(b'Some images are invalid', tools.read_file(errfile))
-
-    def testBlobsWarning(self):
-        """Allow missing blobs and ignore warnings"""
-        self._missing = True
-        result = self._RunControl('board0', '-o', self._output_dir, '-MW')
-        self.assertEqual(0, result)
-        board0_dir = os.path.join(self._output_dir, 'current', 'board0')
-        errfile = os.path.join(board0_dir, 'err')
-        self.assertIn(b'Some images are invalid', tools.read_file(errfile))
-
-    def testBlobSettings(self):
-        """Test with no settings"""
-        self.assertEqual(False,
-                         control.get_allow_missing(False, False, 1, False))
-        self.assertEqual(True,
-                         control.get_allow_missing(True, False, 1, False))
-        self.assertEqual(False,
-                         control.get_allow_missing(True, True, 1, False))
-
-    def testBlobSettingsAlways(self):
-        """Test the 'always' policy"""
-        bsettings.SetItem('global', 'allow-missing', 'always')
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 1, False))
-        self.assertEqual(False,
-                         control.get_allow_missing(False, True, 1, False))
-
-    def testBlobSettingsBranch(self):
-        """Test the 'branch' policy"""
-        bsettings.SetItem('global', 'allow-missing', 'branch')
-        self.assertEqual(False,
-                         control.get_allow_missing(False, False, 1, False))
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 1, True))
-        self.assertEqual(False,
-                         control.get_allow_missing(False, True, 1, True))
-
-    def testBlobSettingsMultiple(self):
-        """Test the 'multiple' policy"""
-        bsettings.SetItem('global', 'allow-missing', 'multiple')
-        self.assertEqual(False,
-                         control.get_allow_missing(False, False, 1, False))
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 2, False))
-        self.assertEqual(False,
-                         control.get_allow_missing(False, True, 2, False))
-
-    def testBlobSettingsBranchMultiple(self):
-        """Test the 'branch multiple' policy"""
-        bsettings.SetItem('global', 'allow-missing', 'branch multiple')
-        self.assertEqual(False,
-                         control.get_allow_missing(False, False, 1, False))
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 1, True))
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 2, False))
-        self.assertEqual(True,
-                         control.get_allow_missing(False, False, 2, True))
-        self.assertEqual(False,
-                         control.get_allow_missing(False, True, 2, True))

@@ -20,6 +20,8 @@
 #include "part_mac.h"
 #include <part.h>
 
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
+
 /* stdlib.h causes some compatibility problems; should fixe these! -- wd */
 #ifndef __ldiv_t_defined
 typedef struct {
@@ -245,3 +247,4 @@ U_BOOT_PART_TYPE(mac) = {
 	.print		= part_print_mac,
 	.test		= part_test_mac,
 };
+#endif

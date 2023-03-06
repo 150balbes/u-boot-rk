@@ -5,6 +5,7 @@
  */
 
 #include <common.h>
+#include <lcd.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/funcmux.h>

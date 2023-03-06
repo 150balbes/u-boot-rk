@@ -1,6 +1,5 @@
 RPI BOARD
 M:	Matthias Brugger <mbrugger@suse.com>
-M:	Peter Robinson <pbrobinson@gmail.com>
 S:	Maintained
 F:	board/raspberrypi/rpi/
 F:	include/configs/rpi.h

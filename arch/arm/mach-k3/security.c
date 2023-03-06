@@ -18,7 +18,6 @@
 #include <mach/spl.h>
 #include <spl.h>
 #include <asm/arch/sys_proto.h>
-#include <linux/dma-mapping.h>
 
 #include "common.h"
 
@@ -48,6 +47,7 @@ void ti_secure_image_post_process(void **p_image, size_t *p_size)
 	u32 image_size;
 	int ret;
 
+	image_addr = (uintptr_t)*p_image;
 	image_size = *p_size;
 
 	if (!image_size)
@@ -80,11 +80,12 @@ void ti_secure_image_post_process(void **p_image, size_t *p_size)
 		return;
 	}
 
-	/* Clean out image so it can be seen by system firmware */
-	image_addr = dma_map_single(*p_image, *p_size, DMA_BIDIRECTIONAL);
-
 	debug("Authenticating image at address 0x%016llx\n", image_addr);
 	debug("Authenticating image of size %d bytes\n", image_size);
+
+	flush_dcache_range((unsigned long)image_addr,
+			   ALIGN((unsigned long)image_addr + image_size,
+				 ARCH_DMA_MINALIGN));
 
 	/* Authenticate image */
 	ret = proc_ops->proc_auth_boot_image(ti_sci, &image_addr, &image_size);
@@ -93,9 +94,10 @@ void ti_secure_image_post_process(void **p_image, size_t *p_size)
 		hang();
 	}
 
-	/* Invalidate any stale lines over data written by system firmware */
 	if (image_size)
-		dma_unmap_single(image_addr, image_size, DMA_BIDIRECTIONAL);
+		invalidate_dcache_range((unsigned long)image_addr,
+					ALIGN((unsigned long)image_addr +
+					      image_size, ARCH_DMA_MINALIGN));
 
 	/*
 	 * The image_size returned may be 0 when the authentication process has

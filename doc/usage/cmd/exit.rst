@@ -37,6 +37,4 @@ executed.
 Return value
 ------------
 
-$? is default set to 0 (true). In case zero or positive integer parameter
-is passed to the command, the return value is the parameter value. In case
-negative integer parameter is passed to the command, the return value is 0.
+$? is always set to 0 (true).

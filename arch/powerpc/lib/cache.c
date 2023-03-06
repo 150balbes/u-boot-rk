@@ -13,7 +13,7 @@ static ulong maybe_watchdog_reset(ulong flushed)
 {
 	flushed += CONFIG_SYS_CACHELINE_SIZE;
 	if (flushed >= CONFIG_CACHE_FLUSH_WATCHDOG_THRESHOLD) {
-		schedule();
+		WATCHDOG_RESET();
 		flushed = 0;
 	}
 	return flushed;

@@ -6,7 +6,6 @@
 # Normal rules (sorted alphabetically)
 #
 .*
-!.checkpatch.conf
 *.a
 *.asn1.[ch]
 *.bin

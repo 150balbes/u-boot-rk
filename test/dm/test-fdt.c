@@ -392,10 +392,10 @@ DM_TEST(dm_test_fdt_offset,
 	UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT | UT_TESTF_FLAT_TREE);
 
 /**
- * Test various error conditions with uclass_first_device(),
- * uclass_next_device(), and uclass_probe_all()
+ * Test various error conditions with uclass_first_device() and
+ * uclass_next_device()
  */
-static int dm_test_first_next_device_probeall(struct unit_test_state *uts)
+static int dm_test_first_next_device(struct unit_test_state *uts)
 {
 	struct dm_testprobe_pdata *pdata;
 	struct udevice *dev, *parent = NULL;
@@ -403,12 +403,13 @@ static int dm_test_first_next_device_probeall(struct unit_test_state *uts)
 	int ret;
 
 	/* There should be 4 devices */
-	for (uclass_first_device(UCLASS_TEST_PROBE, &dev), count = 0;
+	for (ret = uclass_first_device(UCLASS_TEST_PROBE, &dev), count = 0;
 	     dev;
-	     uclass_next_device(&dev)) {
+	     ret = uclass_next_device(&dev)) {
 		count++;
 		parent = dev_get_parent(dev);
 		}
+	ut_assertok(ret);
 	ut_asserteq(4, count);
 
 	/* Remove them and try again, with an error on the second one */
@@ -416,45 +417,20 @@ static int dm_test_first_next_device_probeall(struct unit_test_state *uts)
 	pdata = dev_get_plat(dev);
 	pdata->probe_err = -ENOMEM;
 	device_remove(parent, DM_REMOVE_NORMAL);
-	for (ret = uclass_first_device_check(UCLASS_TEST_PROBE, &dev),
-		count = 0;
-	     dev;
-	     ret = uclass_next_device_check(&dev)) {
-		if (!ret)
-			count++;
-		else
-			ut_asserteq(-ENOMEM, ret);
-		parent = dev_get_parent(dev);
-		}
-	ut_asserteq(3, count);
+	ut_assertok(uclass_first_device(UCLASS_TEST_PROBE, &dev));
+	ut_asserteq(-ENOMEM, uclass_next_device(&dev));
+	ut_asserteq_ptr(dev, NULL);
 
 	/* Now an error on the first one */
 	ut_assertok(uclass_get_device(UCLASS_TEST_PROBE, 0, &dev));
 	pdata = dev_get_plat(dev);
 	pdata->probe_err = -ENOENT;
 	device_remove(parent, DM_REMOVE_NORMAL);
-	for (uclass_first_device(UCLASS_TEST_PROBE, &dev), count = 0;
-	     dev;
-	     uclass_next_device(&dev)) {
-		count++;
-		parent = dev_get_parent(dev);
-		}
-	ut_asserteq(2, count);
-
-	/* Now that broken devices are set up test probe_all */
-	device_remove(parent, DM_REMOVE_NORMAL);
-	/* There are broken devices so an error should be returned */
-	ut_assert(uclass_probe_all(UCLASS_TEST_PROBE) < 0);
-	/* but non-error device should be probed nonetheless */
-	ut_assertok(uclass_get_device(UCLASS_TEST_PROBE, 2, &dev));
-	ut_assert(dev_get_flags(dev) & DM_FLAG_ACTIVATED);
-	ut_assertok(uclass_get_device(UCLASS_TEST_PROBE, 3, &dev));
-	ut_assert(dev_get_flags(dev) & DM_FLAG_ACTIVATED);
+	ut_asserteq(-ENOENT, uclass_first_device(UCLASS_TEST_PROBE, &dev));
 
 	return 0;
 }
-DM_TEST(dm_test_first_next_device_probeall,
-	UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT);
+DM_TEST(dm_test_first_next_device, UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT);
 
 /* Test iteration through devices in a uclass */
 static int dm_test_uclass_foreach(struct unit_test_state *uts)
@@ -592,7 +568,7 @@ static int dm_test_fdt_translation(struct unit_test_state *uts)
 	ut_asserteq_str("dev@2,200", dev->name);
 	ut_asserteq(0xA000, dev_read_addr(dev));
 
-	/* No translation for buses with #size-cells == 0 */
+	/* No translation for busses with #size-cells == 0 */
 	ut_assertok(uclass_find_device_by_seq(UCLASS_TEST_DUMMY, 3, &dev));
 	ut_asserteq_str("dev@42", dev->name);
 	ut_asserteq(0x42, dev_read_addr(dev));
@@ -839,8 +815,6 @@ DM_TEST(dm_test_first_child, UT_TESTF_SCAN_PDATA | UT_TESTF_SCAN_FDT);
 static int dm_test_read_int(struct unit_test_state *uts)
 {
 	struct udevice *dev;
-	u8 val8;
-	u16 val16;
 	u32 val32;
 	s32 sval;
 	uint val;
@@ -848,23 +822,6 @@ static int dm_test_read_int(struct unit_test_state *uts)
 
 	ut_assertok(uclass_first_device_err(UCLASS_TEST_FDT, &dev));
 	ut_asserteq_str("a-test", dev->name);
-
-	ut_assertok(dev_read_u8(dev, "int8-value", &val8));
-	ut_asserteq(0x12, val8);
-
-	ut_asserteq(-EINVAL, dev_read_u8(dev, "missing", &val8));
-	ut_asserteq(6, dev_read_u8_default(dev, "missing", 6));
-
-	ut_asserteq(0x12, dev_read_u8_default(dev, "int8-value", 6));
-
-	ut_assertok(dev_read_u16(dev, "int16-value", &val16));
-	ut_asserteq(0x1234, val16);
-
-	ut_asserteq(-EINVAL, dev_read_u16(dev, "missing", &val16));
-	ut_asserteq(6, dev_read_u16_default(dev, "missing", 6));
-
-	ut_asserteq(0x1234, dev_read_u16_default(dev, "int16-value", 6));
-
 	ut_assertok(dev_read_u32(dev, "int-value", &val32));
 	ut_asserteq(1234, val32);
 

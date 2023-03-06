@@ -3,16 +3,7 @@
  * Copyright 2021 NXP
  */
 
-/ {
-	mu@27020000 {
-		compatible = "fsl,imx8ulp-mu";
-		reg = <0 0x27020000 0 0x10000>;
-		status = "okay";
-		u-boot,dm-spl;
-	};
-};
-
-&soc {
+&{/soc@0} {
 	u-boot,dm-spl;
 };
 
@@ -29,6 +20,10 @@
 };
 
 &pinctrl_lpuart5 {
+	u-boot,dm-spl;
+};
+
+&s400_mu {
 	u-boot,dm-spl;
 };
 

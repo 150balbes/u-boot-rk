@@ -2,8 +2,8 @@
 
 #include <asm/io.h>
 
-#define PIPE_GRF_BASE_ADDR    0xfdc50000
-#define PIPE_GRF_USB3OTG0_CON1    (0x104)
+#define PIPE_GRF_BASE_ADDR	0xfdc50000
+#define PIPE_GRF_USB3OTG0_CON1	(0x104)
 
 int rk_board_late_init(void)
 {

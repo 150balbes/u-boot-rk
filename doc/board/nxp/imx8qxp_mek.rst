@@ -50,7 +50,7 @@ Build U-Boot
 .. code-block:: bash
 
   $ make imx8qxp_mek_defconfig
-  $ make
+  $ make flash.bin
 
 Flash the binary into the SD card
 ---------------------------------

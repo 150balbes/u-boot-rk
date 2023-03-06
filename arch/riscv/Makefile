@@ -5,21 +5,14 @@
 
 ifeq ($(CONFIG_ARCH_RV64I),y)
 	ARCH_BASE = rv64im
-	ABI_BASE = lp64
+	ABI = lp64
 endif
 ifeq ($(CONFIG_ARCH_RV32I),y)
 	ARCH_BASE = rv32im
-	ABI_BASE = ilp32
+	ABI = ilp32
 endif
 ifeq ($(CONFIG_RISCV_ISA_A),y)
 	ARCH_A = a
-endif
-ifeq ($(CONFIG_RISCV_ISA_F),y)
-	ARCH_F = f
-endif
-ifeq ($(CONFIG_RISCV_ISA_D),y)
-	ARCH_D = d
-	ABI_D = d
 endif
 ifeq ($(CONFIG_RISCV_ISA_C),y)
 	ARCH_C = c
@@ -31,18 +24,7 @@ ifeq ($(CONFIG_CMODEL_MEDANY),y)
 	CMODEL = medany
 endif
 
-
-RISCV_MARCH = $(ARCH_BASE)$(ARCH_A)$(ARCH_F)$(ARCH_D)$(ARCH_C)
-ABI = $(ABI_BASE)$(ABI_D)
-
-# Newer binutils versions default to ISA spec version 20191213 which moves some
-# instructions from the I extension to the Zicsr and Zifencei extensions.
-toolchain-need-zicsr-zifencei := $(call cc-option-yn, -mabi=$(ABI) -march=$(RISCV_MARCH)_zicsr_zifencei)
-ifeq ($(toolchain-need-zicsr-zifencei),y)
-	RISCV_MARCH := $(RISCV_MARCH)_zicsr_zifencei
-endif
-
-ARCH_FLAGS = -march=$(RISCV_MARCH) -mabi=$(ABI) \
+ARCH_FLAGS = -march=$(ARCH_BASE)$(ARCH_A)$(ARCH_C) -mabi=$(ABI) \
 	     -mcmodel=$(CMODEL)
 
 PLATFORM_CPPFLAGS	+= $(ARCH_FLAGS)

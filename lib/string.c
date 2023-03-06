@@ -206,20 +206,16 @@ size_t strlcat(char *dest, const char *src, size_t size)
  * @cs: One string
  * @ct: Another string
  */
-int strcmp(const char *cs, const char *ct)
+int strcmp(const char * cs,const char * ct)
 {
-	int ret;
+	register signed char __res;
 
 	while (1) {
-		unsigned char a = *cs++;
-		unsigned char b = *ct++;
-
-		ret = a - b;
-		if (ret || !b)
+		if ((__res = *cs - *ct++) != 0 || !*cs++)
 			break;
 	}
 
-	return ret;
+	return __res;
 }
 #endif
 
@@ -230,20 +226,17 @@ int strcmp(const char *cs, const char *ct)
  * @ct: Another string
  * @count: The maximum number of bytes to compare
  */
-int strncmp(const char *cs, const char *ct, size_t count)
+int strncmp(const char * cs,const char * ct,size_t count)
 {
-	int ret = 0;
+	register signed char __res = 0;
 
-	while (count--) {
-		unsigned char a = *cs++;
-		unsigned char b = *ct++;
-
-		ret = a - b;
-		if (ret || !b)
+	while (count) {
+		if ((__res = *cs - *ct++) != 0 || !*cs++)
 			break;
+		count--;
 	}
 
-	return ret;
+	return __res;
 }
 #endif
 

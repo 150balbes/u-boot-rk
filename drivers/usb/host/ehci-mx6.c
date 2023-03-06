@@ -70,8 +70,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define UCMD_RESET		(1 << 1) /* controller reset */
 
 /* If this is not defined, assume MX6/MX7/MX8M SoC default */
-#ifndef CFG_MXC_USB_PORTSC
-#define CFG_MXC_USB_PORTSC	(PORT_PTS_UTMI | PORT_PTS_PTW)
+#ifndef CONFIG_MXC_USB_PORTSC
+#define CONFIG_MXC_USB_PORTSC	(PORT_PTS_UTMI | PORT_PTS_PTW)
 #endif
 
 /* Base address for this IP block is 0x02184800 */
@@ -411,7 +411,7 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 		return 0;
 
 	setbits_le32(&ehci->usbmode, CM_HOST);
-	writel(CFG_MXC_USB_PORTSC, &ehci->portsc);
+	writel(CONFIG_MXC_USB_PORTSC, &ehci->portsc);
 	setbits_le32(&ehci->portsc, USB_EN);
 
 	mdelay(10);
@@ -454,7 +454,7 @@ static u32 mx6_portsc(enum usb_phy_interface phy_type)
 	case USBPHY_INTERFACE_MODE_HSIC:
 		return PORT_PTS_HSIC;
 	default:
-		return CFG_MXC_USB_PORTSC;
+		return CONFIG_MXC_USB_PORTSC;
 	}
 }
 
@@ -726,7 +726,7 @@ static int ehci_usb_probe(struct udevice *dev)
 	mdelay(10);
 
 #if defined(CONFIG_PHY)
-	ret = generic_setup_phy(dev, &priv->phy, 0);
+	ret = ehci_setup_phy(dev, &priv->phy, 0);
 	if (ret)
 		goto err_regulator;
 #endif
@@ -743,7 +743,7 @@ static int ehci_usb_probe(struct udevice *dev)
 
 err_phy:
 #if defined(CONFIG_PHY)
-	generic_shutdown_phy(&priv->phy);
+	ehci_shutdown_phy(dev, &priv->phy);
 err_regulator:
 #endif
 #if CONFIG_IS_ENABLED(DM_REGULATOR)
@@ -767,7 +767,7 @@ int ehci_usb_remove(struct udevice *dev)
 	ehci_deregister(dev);
 
 #if defined(CONFIG_PHY)
-	generic_shutdown_phy(&priv->phy);
+	ehci_shutdown_phy(dev, &priv->phy);
 #endif
 
 #if CONFIG_IS_ENABLED(DM_REGULATOR)

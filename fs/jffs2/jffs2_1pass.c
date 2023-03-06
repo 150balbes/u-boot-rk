@@ -1523,7 +1523,7 @@ jffs2_1pass_build_lists(struct part_info * part)
 
 		/* Set buf_size to maximum length */
 		buf_size = DEFAULT_EMPTY_SCAN_SIZE;
-		schedule();
+		WATCHDOG_RESET();
 
 #ifdef CONFIG_JFFS2_SUMMARY
 		buf_len = sizeof(*sm);

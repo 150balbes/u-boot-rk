@@ -7,6 +7,8 @@
 #define _ROCKCHIP_COMMON_H_
 #include <linux/sizes.h>
 
+#define CONFIG_SYS_NS16550_MEM32
+
 /* ((CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - 64) * 512) */
 
 #ifndef CONFIG_SPL_BUILD
@@ -58,21 +60,19 @@
 
 #ifdef CONFIG_ROCKCHIP_RK3399
 #define BOOT_TARGET_DEVICES(func) \
+	BOOT_TARGET_USB(func) \
 	BOOT_TARGET_MMC(func) \
 	BOOT_TARGET_NVME(func) \
 	BOOT_TARGET_SCSI(func) \
-	BOOT_TARGET_USB(func) \
 	BOOT_TARGET_PXE(func) \
 	BOOT_TARGET_DHCP(func) \
 	BOOT_TARGET_SF(func)
-#define BOOT_TARGETS	"mmc1 mmc0 nvme scsi usb pxe dhcp spi"
 #else
 #define BOOT_TARGET_DEVICES(func) \
-	BOOT_TARGET_MMC(func) \
 	BOOT_TARGET_USB(func) \
+	BOOT_TARGET_MMC(func) \
 	BOOT_TARGET_PXE(func) \
 	BOOT_TARGET_DHCP(func)
-#define BOOT_TARGETS	"mmc1 mmc0 usb pxe dhcp"
 #endif
 
 #ifdef CONFIG_ARM64

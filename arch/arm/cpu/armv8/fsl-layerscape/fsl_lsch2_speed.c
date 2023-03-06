@@ -20,12 +20,16 @@ DECLARE_GLOBAL_DATA_PTR;
 
 void get_sys_info(struct sys_info *sys_info)
 {
-	struct ccsr_gur __iomem *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 /* rcw_tmp is needed to get FMAN clock, or to get cluster group A
  * mux 2 clock for LS1043A/LS1046A.
  */
-	__maybe_unused u32 rcw_tmp;
-	struct ccsr_clk *clk = (void *)(CFG_SYS_FSL_CLK_ADDR);
+#if defined(CONFIG_SYS_DPAA_FMAN) || \
+	    defined(CONFIG_ARCH_LS1046A) || \
+	    defined(CONFIG_ARCH_LS1043A)
+	u32 rcw_tmp;
+#endif
+	struct ccsr_clk *clk = (void *)(CONFIG_SYS_FSL_CLK_ADDR);
 	unsigned int cpu;
 	const u8 core_cplx_pll[8] = {
 		[0] = 0,	/* CC1 PPL / 1 */
@@ -48,11 +52,10 @@ void get_sys_info(struct sys_info *sys_info)
 	unsigned long cluster_clk;
 
 	sys_info->freq_systembus = sysclk;
-#ifdef CONFIG_CLUSTER_CLK_FREQ
-	cluster_clk = CONFIG_CLUSTER_CLK_FREQ;
-#else
-	cluster_clk = get_board_sys_clk();
+#ifndef CONFIG_CLUSTER_CLK_FREQ
+#define CONFIG_CLUSTER_CLK_FREQ	get_board_sys_clk()
 #endif
+	cluster_clk = CONFIG_CLUSTER_CLK_FREQ;
 
 #if defined(CONFIG_DYNAMIC_DDR_CLK_FREQ) || defined(CONFIG_STATIC_DDR_CLK_FREQ)
 	sys_info->freq_ddrbus = get_board_ddr_clk();
@@ -93,7 +96,7 @@ void get_sys_info(struct sys_info *sys_info)
 
 #define HWA_CGA_M1_CLK_SEL	0xe0000000
 #define HWA_CGA_M1_CLK_SHIFT	29
-#if defined(CONFIG_SYS_DPAA_FMAN) && !defined(CONFIG_SPL_BUILD)
+#ifdef CONFIG_SYS_DPAA_FMAN
 	rcw_tmp = in_be32(&gur->rcwsr[7]);
 	switch ((rcw_tmp & HWA_CGA_M1_CLK_SEL) >> HWA_CGA_M1_CLK_SHIFT) {
 	case 2:

@@ -20,7 +20,7 @@ int common_diskboot(struct cmd_tbl *cmdtp, const char *intf, int argc,
 	ulong cnt;
 	struct disk_partition info;
 #if defined(CONFIG_LEGACY_IMAGE_FORMAT)
-	struct legacy_img_hdr *hdr;
+	image_header_t *hdr;
 #endif
 	struct blk_desc *dev_desc;
 
@@ -68,7 +68,7 @@ int common_diskboot(struct cmd_tbl *cmdtp, const char *intf, int argc,
 	switch (genimg_get_format((void *) addr)) {
 #if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY:
-		hdr = (struct legacy_img_hdr *)addr;
+		hdr = (image_header_t *) addr;
 
 		bootstage_mark(BOOTSTAGE_ID_IDE_FORMAT);
 

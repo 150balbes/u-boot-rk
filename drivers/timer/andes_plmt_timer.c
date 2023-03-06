@@ -56,7 +56,7 @@ static int andes_plmt_probe(struct udevice *dev)
 }
 
 static const struct udevice_id andes_plmt_ids[] = {
-	{ .compatible = "andestech,plmt0" },
+	{ .compatible = "riscv,plmt0" },
 	{ }
 };
 

@@ -15,11 +15,12 @@
 
 /*
  * U-Boot compatibility bit, define empty UNWIND() macro as, since we
- * do not support stack unwinding to make all of the functions available
- * without diverging from Linux code.
+ * do not support stack unwinding and define CONFIG_AEABI to make all
+ * of the functions available without diverging from Linux code.
  */
 #ifdef __UBOOT__
 #define UNWIND(x...)
+#define CONFIG_AEABI
 #endif
 
 .macro ARM_DIV_BODY dividend, divisor, result, curbit
@@ -313,6 +314,8 @@ UNWIND(.fnend)
 ENDPROC(__modsi3)
 .popsection
 
+#ifdef CONFIG_AEABI
+
 .pushsection .text.__aeabi_uidivmod, "ax"
 ENTRY(__aeabi_uidivmod)
 UNWIND(.fnstart)
@@ -345,6 +348,8 @@ UNWIND(.fnend)
 ENDPROC(__aeabi_idivmod)
 .popsection
 
+#endif
+
 .pushsection .text.Ldiv0, "ax"
 Ldiv0:
 UNWIND(.fnstart)
@@ -372,7 +377,7 @@ ENTRY(__gnu_thumb1_case_sqi)
 	lsls	r1, r1, #1
 	add	lr, lr, r1
 	pop	{r1}
-	ret	lr
+	bx	lr
 ENDPROC(__gnu_thumb1_case_sqi)
 .popsection
 
@@ -386,7 +391,7 @@ ENTRY(__gnu_thumb1_case_uqi)
 	lsls	r1, r1, #1
 	add	lr, lr, r1
 	pop	{r1}
-	ret	lr
+	bx	lr
 ENDPROC(__gnu_thumb1_case_uqi)
 .popsection
 
@@ -401,7 +406,7 @@ ENTRY(__gnu_thumb1_case_shi)
 	lsls	r1, r1, #1
 	add	lr, lr, r1
 	pop	{r0, r1}
-	ret	lr
+	bx	lr
 ENDPROC(__gnu_thumb1_case_shi)
 .popsection
 
@@ -416,7 +421,7 @@ ENTRY(__gnu_thumb1_case_uhi)
 	lsls	r1, r1, #1
 	add	lr, lr, r1
 	pop	{r0, r1}
-	ret	lr
+	bx	lr
 ENDPROC(__gnu_thumb1_case_uhi)
 .popsection
 #endif

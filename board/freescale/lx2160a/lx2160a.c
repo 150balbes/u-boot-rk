@@ -57,9 +57,9 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct pl01x_serial_plat serial0 = {
 #if CONFIG_CONS_INDEX == 0
-	.base = CFG_SYS_SERIAL0,
+	.base = CONFIG_SYS_SERIAL0,
 #elif CONFIG_CONS_INDEX == 1
-	.base = CFG_SYS_SERIAL1,
+	.base = CONFIG_SYS_SERIAL1,
 #else
 #error "Unsupported console index value."
 #endif
@@ -72,7 +72,7 @@ U_BOOT_DRVINFO(nxp_serial0) = {
 };
 
 static struct pl01x_serial_plat serial1 = {
-	.base = CFG_SYS_SERIAL1,
+	.base = CONFIG_SYS_SERIAL1,
 	.type = TYPE_PL011,
 };
 
@@ -180,7 +180,7 @@ void esdhc_dspi_status_fixup(void *blob)
 	const char dspi1_path[] = "/soc/spi@2110000";
 	const char dspi2_path[] = "/soc/spi@2120000";
 
-	struct ccsr_gur __iomem *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 	u32 sdhc1_base_pmux;
 	u32 sdhc2_base_pmux;
 	u32 iic5_pmux;
@@ -385,7 +385,7 @@ static void esdhc_adapter_card_ident(void)
 int config_board_mux(void)
 {
 	u8 reg11, reg5, reg13;
-	struct ccsr_gur __iomem *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 	u32 sdhc1_base_pmux;
 	u32 sdhc2_base_pmux;
 	u32 iic5_pmux;

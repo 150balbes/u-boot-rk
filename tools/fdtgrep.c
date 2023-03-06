@@ -712,19 +712,15 @@ int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len)
 
 	/* Loop until we have read everything */
 	buf = malloc(bufsize);
-	if (!buf) {
-		close(fd);
+	if (!buf)
 		return -ENOMEM;
-	}
 	do {
 		/* Expand the buffer to hold the next chunk */
 		if (offset == bufsize) {
 			bufsize *= 2;
 			buf = realloc(buf, bufsize);
-			if (!buf) {
-				close(fd);
+			if (!buf)
 				return -ENOMEM;
-			}
 		}
 
 		ret = read(fd, &buf[offset], bufsize - offset);

@@ -11,10 +11,14 @@ Configuration options
 
 	CONFIG_USB_OHCI_NEW: enable the new OHCI driver
 
-	CFG_SYS_USB_OHCI_REGS_BASE: defines the base address of the OHCI
+	CONFIG_SYS_USB_OHCI_REGS_BASE: defines the base address of the OHCI
 				registers
 
 	CONFIG_SYS_USB_OHCI_SLOT_NAME: slot name
+
+	CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS: maximal number of ports of the
+				     root hub.
+
 
 Endianness issues
 ------------------

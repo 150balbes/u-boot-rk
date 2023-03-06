@@ -732,6 +732,7 @@ static int fsl_elbc_chip_init(int devnum, u8 *addr, struct udevice *dev)
 	nand->bbt_md = &bbt_mirror_descr;
 
 	/* set up nand options */
+	nand->options = NAND_NO_SUBPAGE_WRITE;
 	nand->bbt_options = NAND_BBT_USE_FLASH;
 
 	nand->controller = &elbc_ctrl->controller;
@@ -819,12 +820,12 @@ static int fsl_elbc_chip_init(int devnum, u8 *addr, struct udevice *dev)
 
 #ifndef CONFIG_NAND_FSL_ELBC_DT
 
-#ifndef CFG_SYS_NAND_BASE_LIST
-#define CFG_SYS_NAND_BASE_LIST { CFG_SYS_NAND_BASE }
+#ifndef CONFIG_SYS_NAND_BASE_LIST
+#define CONFIG_SYS_NAND_BASE_LIST { CONFIG_SYS_NAND_BASE }
 #endif
 
 static unsigned long base_address[CONFIG_SYS_MAX_NAND_DEVICE] =
-	CFG_SYS_NAND_BASE_LIST;
+	CONFIG_SYS_NAND_BASE_LIST;
 
 void board_nand_init(void)
 {
@@ -838,7 +839,7 @@ void board_nand_init(void)
 
 static int fsl_elbc_nand_probe(struct udevice *dev)
 {
-	return fsl_elbc_chip_init(0, dev_read_addr_ptr(dev), dev);
+	return fsl_elbc_chip_init(0, (void *)dev_read_addr(dev), dev);
 }
 
 static const struct udevice_id fsl_elbc_nand_dt_ids[] = {

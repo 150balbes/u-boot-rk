@@ -251,7 +251,7 @@ int gzwrite(unsigned char *src, int len,
 				puts("abort\n");
 				goto out;
 			}
-			schedule();
+			WATCHDOG_RESET();
 		} while (s.avail_out == 0);
 		/* done when inflate() says it's done */
 	} while (r != Z_STREAM_END);

@@ -53,8 +53,8 @@ static int arc_serial_putc(struct udevice *dev, const char c)
 	struct arc_serial_plat *plat = dev_get_plat(dev);
 	struct arc_serial_regs *const regs = plat->reg;
 
-	if (!(readb(&regs->status) & UART_TXEMPTY))
-		return -EAGAIN;
+	while (!(readb(&regs->status) & UART_TXEMPTY))
+		;
 
 	writeb(c, &regs->data);
 
@@ -83,8 +83,8 @@ static int arc_serial_getc(struct udevice *dev)
 	struct arc_serial_plat *plat = dev_get_plat(dev);
 	struct arc_serial_regs *const regs = plat->reg;
 
-	if (!arc_serial_tstc(regs))
-		return -EAGAIN;
+	while (!arc_serial_tstc(regs))
+		;
 
 	/* Check for overflow errors */
 	if (readb(&regs->status) & UART_OVERFLOW_ERR)

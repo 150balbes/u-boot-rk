@@ -57,14 +57,14 @@ static int fdt_offset(const void *fit)
 
 void *locate_dtb_in_fit(const void *fit)
 {
-	struct legacy_img_hdr *header;
+	struct image_header *header;
 	int size;
 	int ret;
 
 	size = fdt_totalsize(fit);
 	size = (size + 3) & ~3;
 
-	header = (struct legacy_img_hdr *)fit;
+	header = (struct image_header *)fit;
 
 	if (image_get_magic(header) != FDT_MAGIC) {
 		debug("No FIT image appended to U-boot\n");

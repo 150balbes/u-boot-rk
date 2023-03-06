@@ -325,6 +325,7 @@ err:
 	return ret;
 }
 
+#ifdef CONFIG_DM_VIDEO
 int vesa_setup_video_priv(struct vesa_mode_info *vesa,
 			  struct video_priv *uc_priv,
 			  struct video_uc_plat *plat)
@@ -397,3 +398,4 @@ int vesa_setup_video(struct udevice *dev, int (*int15_handler)(void))
 
 	return 0;
 }
+#endif

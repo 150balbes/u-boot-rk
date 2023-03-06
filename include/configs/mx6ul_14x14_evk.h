@@ -15,22 +15,25 @@
 
 #define is_mx6ul_9x9_evk()	CONFIG_IS_ENABLED(TARGET_MX6UL_9X9_EVK)
 
-#define CFG_MXC_UART_BASE		UART1_BASE
+/* SPL options */
+#include "imx6_spl.h"
+
+#define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /* MMC Configs */
 #ifdef CONFIG_FSL_USDHC
-#define CFG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
+#define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
 
 /* NAND pin conflicts with usdhc2 */
 #ifdef CONFIG_NAND_MXS
-#define CFG_SYS_FSL_USDHC_NUM	1
+#define CONFIG_SYS_FSL_USDHC_NUM	1
 #else
-#define CFG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_FSL_USDHC_NUM	2
 #endif
 
 #endif
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
 	"console=ttymxc0\0" \
@@ -108,25 +111,25 @@
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
 
 /* environment organization */
 
 /* USB Configs */
 #ifdef CONFIG_CMD_USB
-#define CFG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS   0
+#define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS   0
 #endif
 
 #ifdef CONFIG_CMD_NET
-#define CFG_FEC_ENET_DEV		1
+#define CONFIG_FEC_ENET_DEV		1
 
-#if (CFG_FEC_ENET_DEV == 0)
-#define CFG_FEC_MXC_PHYADDR          0x2
-#elif (CFG_FEC_ENET_DEV == 1)
-#define CFG_FEC_MXC_PHYADDR		0x1
+#if (CONFIG_FEC_ENET_DEV == 0)
+#define CONFIG_FEC_MXC_PHYADDR          0x2
+#elif (CONFIG_FEC_ENET_DEV == 1)
+#define CONFIG_FEC_MXC_PHYADDR		0x1
 #endif
 #endif
 

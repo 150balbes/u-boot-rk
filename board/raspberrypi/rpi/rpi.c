@@ -11,6 +11,7 @@
 #include <fdt_support.h>
 #include <fdt_simplefb.h>
 #include <init.h>
+#include <lcd.h>
 #include <memalign.h>
 #include <mmc.h>
 #include <asm/gpio.h>
@@ -334,7 +335,7 @@ static void set_fdt_addr(void)
 /*
  * Prevent relocation from stomping on a firmware provided FDT blob.
  */
-phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+unsigned long board_get_usable_ram_top(unsigned long total_size)
 {
 	if ((gd->ram_top - fw_dtb_pointer) > SZ_64M)
 		return gd->ram_top;

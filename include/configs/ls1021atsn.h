@@ -6,8 +6,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#define CFG_SYS_INIT_RAM_ADDR	OCRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	OCRAM_SIZE
+#define CONFIG_SYS_INIT_RAM_ADDR	OCRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	OCRAM_SIZE
 
 /* XHCI Support - enabled by default */
 
@@ -38,21 +38,50 @@
 #define SDRAM_CFG2_FRC_SR		0x80000000
 #define SDRAM_CFG_BI			0x00000001
 
+#ifdef CONFIG_SD_BOOT
+#ifdef CONFIG_NXP_ESBC
+#define CONFIG_U_BOOT_HDR_SIZE		(16 << 10)
+#endif /* ifdef CONFIG_NXP_ESBC */
+
+#ifdef CONFIG_U_BOOT_HDR_SIZE
+/*
+ * HDR would be appended at end of image and copied to DDR along
+ * with U-Boot image. Here u-boot max. size is 512K. So if binary
+ * size increases then increase this size in case of secure boot as
+ * it uses raw U-Boot image instead of FIT image.
+ */
+#define CONFIG_SYS_MONITOR_LEN		(0x100000 + CONFIG_U_BOOT_HDR_SIZE)
+#else
+#define CONFIG_SYS_MONITOR_LEN		0x100000
+#endif /* ifdef CONFIG_U_BOOT_HDR_SIZE */
+#endif
+
 #define PHYS_SDRAM			0x80000000
 #define PHYS_SDRAM_SIZE			(1u * 1024 * 1024 * 1024)
 
-#define CFG_SYS_DDR_SDRAM_BASE	0x80000000UL
-#define CFG_SYS_SDRAM_BASE		CFG_SYS_DDR_SDRAM_BASE
+#define CONFIG_SYS_DDR_SDRAM_BASE	0x80000000UL
+#define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 
 /* Serial Port */
-#define CFG_SYS_NS16550_CLK		get_serial_clock()
+#define CONFIG_SYS_NS16550_SERIAL
+#ifndef CONFIG_DM_SERIAL
+#define CONFIG_SYS_NS16550_REG_SIZE	1
+#endif
+#define CONFIG_SYS_NS16550_CLK		get_serial_clock()
 
 /* I2C */
+
+/* EEPROM */
+#define CONFIG_SYS_I2C_EEPROM_NXID
+#define CONFIG_SYS_EEPROM_BUS_NUM	0
 
 /* PCIe */
 #define FSL_PCIE_COMPAT			"fsl,ls1021a-pcie"
 
+#define CONFIG_HWCONFIG
 #define HWCONFIG_BUFFER_SIZE		256
+
+#define CONFIG_FSL_DEVICE_DISABLE
 
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 0) \
@@ -60,7 +89,7 @@
 	func(DHCP, dhcp, na)
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"bootargs=root=/dev/ram0 rw console=ttyS0,115200\0"		\
 	"initrd_high=0xffffffff\0"					\
 	"kernel_addr=0x61000000\0"					\
@@ -123,7 +152,9 @@
 		"bootm $load_addr#$board\0"
 
 /* Miscellaneous configurable options */
-#define CFG_SYS_BOOTMAPSZ		(256 << 20)
+#define CONFIG_SYS_BOOTMAPSZ		(256 << 20)
+
+#define CONFIG_LS102XA_STREAM_ID
 
 /* Environment */
 

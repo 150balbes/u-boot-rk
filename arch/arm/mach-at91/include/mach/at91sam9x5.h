@@ -162,7 +162,7 @@
 #endif
 
 /* Timer */
-#define CFG_SYS_TIMER_COUNTER	0xfffffe3c
+#define CONFIG_SYS_TIMER_COUNTER	0xfffffe3c
 
 /*
  * Other misc defines

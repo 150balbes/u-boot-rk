@@ -84,6 +84,7 @@
 				reg = <0xf0014000 0x160>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				#interrupt-cells = <1>;
 				u-boot,dm-pre-reloc;
 
 				main: mainck {
@@ -798,13 +799,18 @@
 				status = "disabled";
 			};
 
-			pioA: pinctrl@fc038000 {
-				compatible = "atmel,sama5d2-pinctrl";
+			pioA: gpio@fc038000 {
+				compatible = "atmel,sama5d2-gpio";
 				reg = <0xfc038000 0x600>;
 				clocks = <&pioA_clk>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				u-boot,dm-pre-reloc;
+
+				pinctrl {
+					compatible = "atmel,sama5d2-pinctrl";
+					u-boot,dm-pre-reloc;
+				};
 			};
 		};
 	};

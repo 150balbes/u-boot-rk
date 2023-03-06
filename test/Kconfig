@@ -1,8 +1,3 @@
-config POST
-	bool "Power On Self Test support"
-	help
-	  See doc/README.POST for more details
-
 menuconfig UNIT_TEST
 	bool "Unit tests"
 	help
@@ -69,7 +64,7 @@ endif
 config UT_COMPRESSION
 	bool "Unit test for compression"
 	depends on UNIT_TEST
-	depends on CMDLINE && GZIP_COMPRESSED && BZIP2 && LZMA && LZO && LZ4 && ZSTD
+	depends on CMDLINE && GZIP_COMPRESSED && BZIP2 && LZMA && LZO && LZ4
 	default y
 	help
 	  Enables tests for compression and decompression routines for simple

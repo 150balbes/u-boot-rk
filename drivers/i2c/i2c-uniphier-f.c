@@ -130,12 +130,12 @@ static int wait_for_irq(struct uniphier_fi2c_priv *priv, u32 flags,
 	if (irq & I2C_INT_AL) {
 		dev_dbg(priv->dev, "error: arbitration lost\n");
 		*stop = false;
-		return -EDEADLK;
+		return ret;
 	}
 
 	if (irq & I2C_INT_NA) {
 		dev_dbg(priv->dev, "error: no answer\n");
-		return -ENODATA;
+		return ret;
 	}
 
 	return 0;

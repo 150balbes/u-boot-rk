@@ -3,12 +3,12 @@
  * (C) Copyright 2021 Rockchip Electronics Co., Ltd
  */
 
-#include "rk356x-u-boot.dtsi"
+#include "rk3568-u-boot.dtsi"
 
 / {
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = "same-as-spl", &spi_nor, &sdmmc0, &sdhci;
+		u-boot,spl-boot-order = "same-as-spl", &spi_nor, &sdhci, &sdmmc0;
 	};
 };
 

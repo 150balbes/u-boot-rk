@@ -74,6 +74,11 @@
 	status = "okay";
 };
 
+&sdmmc0 {
+	status = "okay";
+	max-frequency = <52000000>;
+};
+
 &uart2 {
 	status = "okay";
 };

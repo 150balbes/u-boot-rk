@@ -32,6 +32,6 @@
 	u-boot,dm-spl;
 };
 
-&gpio_ptc {
+&gpio0 {
 	u-boot,dm-spl;
 };

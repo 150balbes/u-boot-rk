@@ -8,14 +8,14 @@
 
 #include <linux/sizes.h>
 
-#define CFG_SYS_SDRAM_BASE		0x10000000
-#define CFG_SYS_SDRAM_SIZE		SZ_16M
+#define CONFIG_SYS_SDRAM_BASE		0x10000000
+#define CONFIG_SYS_SDRAM_SIZE		SZ_16M
 
 /*
  * Environment
  */
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"upgrade_image=u-boot.bin\0" \
 	"upgrade=emsdp rom unlock && " \
 		"fatload mmc 0 ${loadaddr} ${upgrade_image} && " \

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * (C) Copyright 2019 - 2022, Xilinx, Inc.
- * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
+ * (C) Copyright 2019 - 2020 Xilinx, Inc.
  */
 
 #include <common.h>
@@ -61,6 +60,9 @@ u8 fru_checksum(u8 *addr, u8 len)
 static int fru_check_type_len(u8 type_len, u8 language, u8 *type)
 {
 	int len;
+
+	if (type_len == FRU_TYPELEN_EOF)
+		return -EINVAL;
 
 	*type = (type_len & FRU_TYPELEN_CODE_MASK) >> FRU_TYPELEN_TYPE_SHIFT;
 
@@ -170,16 +172,9 @@ static int fru_parse_board(unsigned long addr)
 {
 	u8 i, type;
 	int len;
-	u8 *data, *term, *limit, *next_addr, *eof;
+	u8 *data, *term, *limit;
 
 	memcpy(&fru_data.brd.ver, (void *)addr, 6);
-
-	/*
-	 * eof marks the last data byte (without checksum). That's why checksum
-	 * is address length - 1 and last data byte is length - 2.
-	 */
-	eof = (u8 *)(fru_data.brd.len * 8 + addr - 2);
-
 	addr += 6;
 	data = (u8 *)&fru_data.brd.manufacturer_type_len;
 
@@ -189,21 +184,10 @@ static int fru_parse_board(unsigned long addr)
 	for (i = 0; ; i++, data += FRU_BOARD_MAX_LEN) {
 		len = fru_check_type_len(*(u8 *)addr, fru_data.brd.lang_code,
 					 &type);
-		next_addr = (u8 *)addr + 1;
-
-		if ((u8 *)addr >= eof) {
-			debug("Reach EOF record: addr %lx, eof %lx\n", addr,
-			      (unsigned long)eof);
-			break;
-		}
-
 		/*
-		 * Stop capture if the type is ASCII and valid field length
-		 * is 1 (0xc1) and next FRU data is less than 0x20 (space " ")
-		 * or it is 0x7f (delete 'DEL').
+		 * Stop cature if it end of fields
 		 */
-		if (type == FRU_TYPELEN_TYPE_ASCII8 && len == 1	&&
-		    (*next_addr < 0x20 || *next_addr == 0x7F))
+		if (len == -EINVAL)
 			break;
 
 		/* Stop when amount of chars is more then fields to record */
@@ -255,12 +239,8 @@ static int fru_parse_multirec(unsigned long addr)
 
 		if (mrc.rec_type == FRU_MULTIREC_TYPE_OEM) {
 			struct fru_multirec_mac *mac = (void *)addr + hdr_len;
-			u32 type = FRU_DUT_MACID;
 
-			if (CONFIG_IS_ENABLED(FRU_SC))
-				type = FRU_SC_MACID;
-
-			if (mac->ver == type) {
+			if (mac->ver == FRU_DUT_MACID) {
 				mac_len = mrc.len - FRU_MULTIREC_MAC_OFFSET;
 				memcpy(&fru_data.mac.macid, mac->macid, mac_len);
 			}
@@ -348,11 +328,9 @@ static int fru_display_board(struct fru_board_data *brd, int verbose)
 	for (u8 i = 0; i < (sizeof(boardinfo) / sizeof(*boardinfo)); i++) {
 		len = fru_check_type_len(*data++, brd->lang_code,
 					 &type);
-
-		/* Empty record has no len/type filled */
-		if (!len) {
-			debug("%s not found\n", boardinfo[i]);
-			continue;
+		if (len == -EINVAL) {
+			printf("**** EOF for Board Area ****\n");
+			break;
 		}
 
 		if (type <= FRU_TYPELEN_TYPE_ASCII8 &&
@@ -361,6 +339,11 @@ static int fru_display_board(struct fru_board_data *brd, int verbose)
 			debug("Type code: %s\n", typecode[type]);
 		else
 			debug("Type code: %s\n", typecode[type + 1]);
+
+		if (!len) {
+			debug("%s not found\n", boardinfo[i]);
+			continue;
+		}
 
 		switch (type) {
 		case FRU_TYPELEN_TYPE_BINARY:

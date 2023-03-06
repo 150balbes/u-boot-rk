@@ -16,7 +16,6 @@
 
 #include <common.h>
 #include <dm.h>
-#include <errno.h>
 #include <log.h>
 #include <w1.h>
 #include <w1-eeprom.h>
@@ -36,10 +35,15 @@ int w1_bus_find_dev(const struct udevice *bus, u64 id, struct udevice
 {
 	struct udevice *dev;
 	u8 family = id & 0xff;
+	int ret;
 
-	for (uclass_first_device(UCLASS_W1_EEPROM, &dev);
-		dev;
+	for (ret = uclass_first_device(UCLASS_W1_EEPROM, &dev);
+		!ret && dev;
 		uclass_next_device(&dev)) {
+		if (ret || !dev) {
+			debug("cannot find w1 eeprom dev\n");
+			return -ENODEV;
+		}
 
 		if (dev_get_driver_data(dev) == family) {
 			*devp = dev;
@@ -178,25 +182,24 @@ static int w1_enumerate(struct udevice *bus)
 int w1_get_bus(int busnum, struct udevice **busp)
 {
 	int ret, i = 0;
+
 	struct udevice *dev;
 
-	for (ret = uclass_first_device_check(UCLASS_W1, &dev);
-			dev;
-			ret = uclass_next_device_check(&dev), i++) {
+	for (ret = uclass_first_device(UCLASS_W1, &dev);
+	     dev && !ret;
+	     ret = uclass_next_device(&dev), i++) {
 		if (i == busnum) {
-			if (ret) {
-				debug("Cannot probe w1 bus %d: %d (%s)\n",
-				      busnum, ret, errno_str(ret));
-				return ret;
-			}
 			*busp = dev;
 			return 0;
 		}
 	}
 
-	debug("Cannot find w1 bus %d\n", busnum);
+	if (!ret) {
+		debug("Cannot find w1 bus %d\n", busnum);
+		ret = -ENODEV;
+	}
 
-	return -ENODEV;
+	return ret;
 }
 
 u8 w1_get_device_family(struct udevice *dev)

@@ -34,8 +34,6 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 	case SD3_BOOT:
 	case MMC3_BOOT:
 		return BOOT_DEVICE_MMC2;
-	case USB_BOOT:
-		return BOOT_DEVICE_BOARD;
 	default:
 		return BOOT_DEVICE_NONE;
 	}
@@ -44,6 +42,11 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 static void spl_dram_init(void)
 {
 	ddr_init(&dram_timing);
+}
+
+void spl_board_init(void)
+{
+	debug("Normal Boot\n");
 }
 
 #ifdef CONFIG_SPL_LOAD_FIT

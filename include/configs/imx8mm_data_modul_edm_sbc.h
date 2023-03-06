@@ -10,31 +10,33 @@
 #include <linux/stringify.h>
 #include <asm/arch/imx-regs.h>
 
+#define CONFIG_SYS_MONITOR_LEN		SZ_1M
+
 #ifdef CONFIG_SPL_BUILD
-#define CFG_MALLOC_F_ADDR		0x930000
+#define CONFIG_MALLOC_F_ADDR		0x930000
 
 /* For RAW image gives a error info not panic */
 
 #endif
 
 /* Link Definitions */
-#define CFG_SYS_INIT_RAM_ADDR	0x40000000
-#define CFG_SYS_INIT_RAM_SIZE	0x200000
+#define CONFIG_SYS_INIT_RAM_ADDR	0x40000000
+#define CONFIG_SYS_INIT_RAM_SIZE	0x200000
 
-#define CFG_SYS_SDRAM_BASE		0x40000000
+#define CONFIG_SYS_SDRAM_BASE		0x40000000
 #define PHYS_SDRAM			0x40000000
 #define PHYS_SDRAM_SIZE			0x40000000 /* Minimum 1 GiB DDR */
 
-#define CFG_MXC_UART_BASE		UART3_BASE_ADDR
+#define CONFIG_MXC_UART_BASE		UART3_BASE_ADDR
 
 /* PHY needs a longer autonegotiation timeout after reset */
 #define PHY_ANEG_TIMEOUT		20000
 
 /* USDHC */
-#define CFG_SYS_FSL_USDHC_NUM	2
-#define CFG_SYS_FSL_ESDHC_ADDR	0
+#define CONFIG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"altbootcmd=setenv devpart 2 && run bootcmd ; reset\0"		\
 	"bootlimit=3\0"							\
 	"devtype=mmc\0"							\

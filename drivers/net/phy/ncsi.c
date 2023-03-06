@@ -9,7 +9,6 @@
 #include <log.h>
 #include <malloc.h>
 #include <phy.h>
-#include <net.h>
 #include <net/ncsi.h>
 #include <net/ncsi-pkt.h>
 #include <asm/unaligned.h>

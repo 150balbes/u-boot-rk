@@ -17,6 +17,8 @@
 
 /* commands to include */
 
+#define CONFIG_ROOTPATH		"/opt/eldk"
+
 /* Clock Defines */
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
@@ -31,21 +33,22 @@
  /* Physical Memory Map */
 #define PHYS_DRAM_1			0x80000000	/* DRAM Bank #1 */
 
-#define CFG_SYS_SDRAM_BASE		PHYS_DRAM_1
+#define CONFIG_SYS_SDRAM_BASE		PHYS_DRAM_1
  /* Platform/Board specific defs */
-#define CFG_SYS_TIMERBASE		0x48040000	/* Use Timer2 */
+#define CONFIG_SYS_TIMERBASE		0x48040000	/* Use Timer2 */
 
 /* NS16550 Configuration */
-#define CFG_SYS_NS16550_CLK		(48000000)
-#define CFG_SYS_NS16550_COM1		0x44e09000
-#define CFG_SYS_NS16550_COM4		0x481a6000
+#define CONFIG_SYS_NS16550_SERIAL
+#define CONFIG_SYS_NS16550_CLK		(48000000)
+#define CONFIG_SYS_NS16550_COM1		0x44e09000
+#define CONFIG_SYS_NS16550_COM4		0x481a6000
 
 
 /* I2C Configuration */
 
 /* Defines for SPL */
 
-#define CFG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
+#define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
 					 10, 11, 12, 13, 14, 15, 16, 17, \
 					 18, 19, 20, 21, 22, 23, 24, 25, \
 					 26, 27, 28, 29, 30, 31, 32, 33, \
@@ -53,10 +56,14 @@
 					 42, 43, 44, 45, 46, 47, 48, 49, \
 					 50, 51, 52, 53, 54, 55, 56, 57, }
 
-#define CFG_SYS_NAND_ECCSIZE		512
-#define CFG_SYS_NAND_ECCBYTES	14
+#define CONFIG_SYS_NAND_ECCSIZE		512
+#define CONFIG_SYS_NAND_ECCBYTES	14
 
-#define	CFG_SYS_NAND_U_BOOT_START	CONFIG_TEXT_BASE
+#define CONFIG_SYS_NAND_ECCSTEPS	4
+#define	CONFIG_SYS_NAND_ECCTOTAL	(CONFIG_SYS_NAND_ECCBYTES * \
+						CONFIG_SYS_NAND_ECCSTEPS)
+
+#define	CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
 
 /*
  * 1MB into the SDRAM to allow for SPL's bss at the beginning of SDRAM
@@ -69,6 +76,9 @@
  * Since SPL did pll and ddr initialization for us,
  * we don't need to do it twice.
  */
+
+/* USB DRACO ID as default */
+#define CONFIG_USBD_HS
 
 /* USB Device Firmware Update support */
 #define DFU_MANIFEST_POLL_TIMEOUT	25000
@@ -196,7 +206,7 @@
 	"kernel_b part 0 8;" \
 	"rootfs partubi 0 10"
 
-#define CFG_ENV_SETTINGS_NAND_V1 \
+#define CONFIG_ENV_SETTINGS_NAND_V1 \
 	"nand_active_ubi_vol=rootfs_a\0" \
 	"nand_active_ubi_vol_A=rootfs_a\0" \
 	"nand_active_ubi_vol_B=rootfs_b\0" \
@@ -229,7 +239,7 @@
 		"${nand_img_size}; bootm ${kloadaddr}\0" \
 	COMMON_ENV_NAND_CMDS
 
-#define CFG_ENV_SETTINGS_V1 \
+#define CONFIG_ENV_SETTINGS_V1 \
 		COMMON_ENV_SETTINGS \
 	"net_args=run bootargs_defaults;" \
 		"mtdparts default;" \
@@ -273,7 +283,7 @@
 	"u-boot.env1 part 0 7;" \
 	"rootfs partubi 0 9" \
 
-#define CFG_ENV_SETTINGS_NAND_V2 \
+#define CONFIG_ENV_SETTINGS_NAND_V2 \
 	"nand_active_ubi_vol=rootfs_a\0" \
 	"rootfs_name=rootfs\0" \
 	"kernel_name=uImage\0"\
@@ -306,7 +316,7 @@
 		"bootm ${kloadaddr} - ${loadaddr}\0" \
 	COMMON_ENV_NAND_CMDS
 
-#define CFG_ENV_SETTINGS_V2 \
+#define CONFIG_ENV_SETTINGS_V2 \
 		COMMON_ENV_SETTINGS \
 	"net_args=run bootargs_defaults;" \
 		"mtdparts default;" \
@@ -355,9 +365,11 @@
 
  */
 
-#define CFG_SYS_NAND_BASE		(0x08000000)	/* physical address */
+#define CONFIG_SYS_NAND_BASE		(0x08000000)	/* physical address */
 							/* to access nand at */
 							/* CS0 */
+#define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of NAND
+							   devices */
 #endif
 
 #endif	/* ! __CONFIG_SIEMENS_AM33X_COMMON_H */

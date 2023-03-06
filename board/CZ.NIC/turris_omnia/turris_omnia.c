@@ -549,9 +549,8 @@ static void handle_reset_button(void)
 	env_set_ulong("omnia_reset", reset_status);
 
 	if (reset_status) {
-		const char * const vars[3] = {
+		const char * const vars[2] = {
 			"bootcmd",
-			"bootdelay",
 			"distro_bootcmd",
 		};
 
@@ -559,7 +558,7 @@ static void handle_reset_button(void)
 		 * Set the above envs to their default values, in case the user
 		 * managed to break them.
 		 */
-		env_set_default_vars(3, (char * const *)vars, 0);
+		env_set_default_vars(2, (char * const *)vars, 0);
 
 		/* Ensure bootcmd_rescue is used by distroboot */
 		env_set("boot_targets", "rescue");
@@ -654,7 +653,7 @@ static void initialize_switch(void)
 	ctrl[1] = EXT_CTL_nRES_LAN;
 	err = omnia_mcu_write(CMD_EXT_CONTROL, ctrl, sizeof(ctrl));
 
-	mdelay(50);
+	mdelay(10);
 
 	/* Change RGMII pins back to RGMII mode */
 
@@ -964,15 +963,19 @@ int board_late_init(void)
 
 int show_board_info(void)
 {
-	char serial[17];
+	u32 version_num, serial_num;
 	int err;
 
-	err = turris_atsha_otp_get_serial_number(serial);
+	err = turris_atsha_otp_get_serial_number(&version_num, &serial_num);
 	printf("Model: Turris Omnia\n");
 	printf("  MCU type: %s\n", omnia_get_mcu_type());
 	printf("  MCU version: %s\n", omnia_get_mcu_version());
 	printf("  RAM size: %i MiB\n", omnia_get_ram_size_gb() * 1024);
-	printf("  Serial Number: %s\n", !err ? serial : "unknown");
+	if (err)
+		printf("  Serial Number: unknown\n");
+	else
+		printf("  Serial Number: %08X%08X\n", be32_to_cpu(version_num),
+		       be32_to_cpu(serial_num));
 
 	return 0;
 }
@@ -980,7 +983,6 @@ int show_board_info(void)
 int misc_init_r(void)
 {
 	turris_atsha_otp_init_mac_addresses(1);
-	turris_atsha_otp_init_serial_number();
 	return 0;
 }
 

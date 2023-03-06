@@ -12,13 +12,17 @@
 
 /* we don't have secure memory unless we have a BL31 */
 #ifndef CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT
-#undef CFG_SYS_MEM_RESERVE_SECURE
+#undef CONFIG_SYS_MEM_RESERVE_SECURE
 #endif
 
-#define CFG_SYS_DDR_SDRAM_BASE	0x80000000
-#define CFG_SYS_FSL_DDR_SDRAM_BASE_PHY	0
-#define CFG_SYS_SDRAM_BASE		CFG_SYS_DDR_SDRAM_BASE
-#define CFG_SYS_DDR_BLOCK2_BASE	0x2080000000ULL
+/* DDR */
+#define CONFIG_MEM_INIT_VALUE		0xdeadbeef
+
+#define CONFIG_VERY_BIG_RAM
+#define CONFIG_SYS_DDR_SDRAM_BASE	0x80000000
+#define CONFIG_SYS_FSL_DDR_SDRAM_BASE_PHY	0
+#define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
+#define CONFIG_SYS_DDR_BLOCK2_BASE	0x2080000000ULL
 
 /* early stack pointer */
 
@@ -28,12 +32,16 @@
 /* generic timer */
 
 /* early heap for SPL DM */
-#define CFG_MALLOC_F_ADDR		CFG_SYS_FSL_OCRAM_BASE
+#define CONFIG_MALLOC_F_ADDR		CONFIG_SYS_FSL_OCRAM_BASE
 
 /* serial port */
-#define CFG_SYS_NS16550_CLK          (get_bus_freq(0) / 2)
+#define CONFIG_SYS_NS16550_CLK          (get_bus_freq(0) / 2)
+
+#define COUNTER_FREQUENCY_REAL		(get_board_sys_clk() / 4)
 
 /* SPL */
+
+#define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
 
 /* GUID for capsule updatable firmware image */
 #define KONTRON_SL28_FIT_IMAGE_GUID \
@@ -61,7 +69,7 @@
 	func(PXE, pxe, 0)
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"env_addr=0x203e0004\0" \
 	"envload=env import -d -b ${env_addr}\0" \
 	"install_rcw=source 20200000\0" \

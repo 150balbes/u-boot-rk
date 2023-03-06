@@ -9,7 +9,7 @@
 #include <asm/arch-fsl-layerscape/fsl_portals.h>
 
 #ifdef CONFIG_SYS_DPAA_QBMAN
-struct qportal_info qp_info[CFG_SYS_QMAN_NUM_PORTALS] = {
+struct qportal_info qp_info[CONFIG_SYS_QMAN_NUM_PORTALS] = {
 	SET_QP_INFO(FSL_DPAA1_STREAM_ID_END, 0),
 	SET_QP_INFO(FSL_DPAA1_STREAM_ID_END, 0),
 	SET_QP_INFO(FSL_DPAA1_STREAM_ID_END, 0),
@@ -58,7 +58,7 @@ struct icid_id_table icid_tbl[] = {
 
 int icid_tbl_sz = ARRAY_SIZE(icid_tbl);
 
-#if defined(CONFIG_SYS_DPAA_FMAN) && !defined(CONFIG_SPL_BUILD)
+#ifdef CONFIG_SYS_DPAA_FMAN
 struct fman_icid_id_table fman_icid_tbl[] = {
 	/* port id, icid */
 	SET_FMAN_ICID_ENTRY(0x02, FSL_DPAA1_STREAM_ID_END),

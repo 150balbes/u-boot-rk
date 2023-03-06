@@ -7,7 +7,6 @@
 
 #include <common.h>
 #include <clk.h>
-#include <clk-uclass.h>
 #include <div64.h>
 #include <dm.h>
 #include <fdtdec.h>
@@ -18,7 +17,6 @@
 #include <usb.h>
 #include <asm/io.h>
 #include <dm/device_compat.h>
-#include <dm/lists.h>
 #include <dm/of_access.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
@@ -73,9 +71,6 @@
 #define PLL_FVCO		2880	 /* in MHz */
 #define PLL_INFF_MIN_RATE	19200000 /* in Hz */
 #define PLL_INFF_MAX_RATE	38400000 /* in Hz */
-
-/* USBPHYC_CLK48 */
-#define USBPHYC_CLK48_FREQ	48000000 /* in Hz */
 
 enum boosting_vals {
 	BOOST_1000_UA = 1000,
@@ -149,7 +144,6 @@ struct stm32_usbphyc {
 		bool init;
 		bool powered;
 	} phys[MAX_PHYS];
-	int n_pll_cons;
 };
 
 static void stm32_usbphyc_get_pll_params(u32 clk_rate,
@@ -209,6 +203,18 @@ static int stm32_usbphyc_pll_init(struct stm32_usbphyc *usbphyc)
 	return 0;
 }
 
+static bool stm32_usbphyc_is_init(struct stm32_usbphyc *usbphyc)
+{
+	int i;
+
+	for (i = 0; i < MAX_PHYS; i++) {
+		if (usbphyc->phys[i].init)
+			return true;
+	}
+
+	return false;
+}
+
 static bool stm32_usbphyc_is_powered(struct stm32_usbphyc *usbphyc)
 {
 	int i;
@@ -221,17 +227,18 @@ static bool stm32_usbphyc_is_powered(struct stm32_usbphyc *usbphyc)
 	return false;
 }
 
-static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
+static int stm32_usbphyc_phy_init(struct phy *phy)
 {
+	struct stm32_usbphyc *usbphyc = dev_get_priv(phy->dev);
+	struct stm32_usbphyc_phy *usbphyc_phy = usbphyc->phys + phy->id;
 	bool pllen = readl(usbphyc->base + STM32_USBPHYC_PLL) & PLLEN ?
 		     true : false;
 	int ret;
 
-	/* Check if one consumer has already configured the pll */
-	if (pllen && usbphyc->n_pll_cons) {
-		usbphyc->n_pll_cons++;
-		return 0;
-	}
+	dev_dbg(phy->dev, "phy ID = %lu\n", phy->id);
+	/* Check if one phy port has already configured the pll */
+	if (pllen && stm32_usbphyc_is_init(usbphyc))
+		goto initialized;
 
 	if (usbphyc->vdda1v1) {
 		ret = regulator_set_enable(usbphyc->vdda1v1, true);
@@ -262,19 +269,23 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 	if (!(readl(usbphyc->base + STM32_USBPHYC_PLL) & PLLEN))
 		return -EIO;
 
-	usbphyc->n_pll_cons++;
+initialized:
+	usbphyc_phy->init = true;
 
 	return 0;
 }
 
-static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
+static int stm32_usbphyc_phy_exit(struct phy *phy)
 {
+	struct stm32_usbphyc *usbphyc = dev_get_priv(phy->dev);
+	struct stm32_usbphyc_phy *usbphyc_phy = usbphyc->phys + phy->id;
 	int ret;
 
-	usbphyc->n_pll_cons--;
+	dev_dbg(phy->dev, "phy ID = %lu\n", phy->id);
+	usbphyc_phy->init = false;
 
-	/* Check if other consumer requires pllen */
-	if (usbphyc->n_pll_cons)
+	/* Check if other phy port requires pllen */
+	if (stm32_usbphyc_is_init(usbphyc))
 		return 0;
 
 	clrbits_le32(usbphyc->base + STM32_USBPHYC_PLL, PLLEN);
@@ -301,42 +312,6 @@ static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 	}
 
 	return 0;
-}
-
-static int stm32_usbphyc_phy_init(struct phy *phy)
-{
-	struct stm32_usbphyc *usbphyc = dev_get_priv(phy->dev);
-	struct stm32_usbphyc_phy *usbphyc_phy = usbphyc->phys + phy->id;
-	int ret;
-
-	dev_dbg(phy->dev, "phy ID = %lu\n", phy->id);
-	if (usbphyc_phy->init)
-		return 0;
-
-	ret = stm32_usbphyc_pll_enable(usbphyc);
-	if (ret)
-		return log_ret(ret);
-
-	usbphyc_phy->init = true;
-
-	return 0;
-}
-
-static int stm32_usbphyc_phy_exit(struct phy *phy)
-{
-	struct stm32_usbphyc *usbphyc = dev_get_priv(phy->dev);
-	struct stm32_usbphyc_phy *usbphyc_phy = usbphyc->phys + phy->id;
-	int ret;
-
-	dev_dbg(phy->dev, "phy ID = %lu\n", phy->id);
-	if (!usbphyc_phy->init)
-		return 0;
-
-	ret = stm32_usbphyc_pll_disable(usbphyc);
-
-	usbphyc_phy->init = false;
-
-	return log_ret(ret);
 }
 
 static int stm32_usbphyc_phy_power_on(struct phy *phy)
@@ -375,7 +350,7 @@ static int stm32_usbphyc_phy_power_off(struct phy *phy)
 		return 0;
 
 	if (usbphyc_phy->vbus) {
-		ret = regulator_set_enable_if_allowed(usbphyc_phy->vbus, false);
+		ret = regulator_set_enable(usbphyc_phy->vbus, false);
 		if (ret)
 			return ret;
 	}
@@ -523,16 +498,6 @@ static const struct phy_ops stm32_usbphyc_phy_ops = {
 	.of_xlate = stm32_usbphyc_of_xlate,
 };
 
-static int stm32_usbphyc_bind(struct udevice *dev)
-{
-	int ret;
-
-	ret = device_bind_driver_to_node(dev, "stm32-usbphyc-clk", "ck_usbo_48m",
-					 dev_ofnode(dev), NULL);
-
-	return log_ret(ret);
-}
-
 static int stm32_usbphyc_probe(struct udevice *dev)
 {
 	struct stm32_usbphyc *usbphyc = dev_get_priv(dev);
@@ -626,70 +591,6 @@ U_BOOT_DRIVER(stm32_usb_phyc) = {
 	.id = UCLASS_PHY,
 	.of_match = stm32_usbphyc_of_match,
 	.ops = &stm32_usbphyc_phy_ops,
-	.bind = stm32_usbphyc_bind,
 	.probe = stm32_usbphyc_probe,
 	.priv_auto	= sizeof(struct stm32_usbphyc),
-};
-
-struct stm32_usbphyc_clk {
-	bool enable;
-};
-
-static ulong stm32_usbphyc_clk48_get_rate(struct clk *clk)
-{
-	return USBPHYC_CLK48_FREQ;
-}
-
-static int stm32_usbphyc_clk48_enable(struct clk *clk)
-{
-	struct stm32_usbphyc_clk *usbphyc_clk = dev_get_priv(clk->dev);
-	struct stm32_usbphyc *usbphyc;
-	int ret;
-
-	if (usbphyc_clk->enable)
-		return 0;
-
-	usbphyc = dev_get_priv(clk->dev->parent);
-
-	/* ck_usbo_48m is generated by usbphyc PLL */
-	ret = stm32_usbphyc_pll_enable(usbphyc);
-	if (ret)
-		return ret;
-
-	usbphyc_clk->enable = true;
-
-	return 0;
-}
-
-static int stm32_usbphyc_clk48_disable(struct clk *clk)
-{
-	struct stm32_usbphyc_clk *usbphyc_clk = dev_get_priv(clk->dev);
-	struct stm32_usbphyc *usbphyc;
-	int ret;
-
-	if (!usbphyc_clk->enable)
-		return 0;
-
-	usbphyc = dev_get_priv(clk->dev->parent);
-
-	ret = stm32_usbphyc_pll_disable(usbphyc);
-	if (ret)
-		return ret;
-
-	usbphyc_clk->enable = false;
-
-	return 0;
-}
-
-const struct clk_ops usbphyc_clk48_ops = {
-	.get_rate = stm32_usbphyc_clk48_get_rate,
-	.enable = stm32_usbphyc_clk48_enable,
-	.disable = stm32_usbphyc_clk48_disable,
-};
-
-U_BOOT_DRIVER(stm32_usb_phyc_clk) = {
-	.name = "stm32-usbphyc-clk",
-	.id = UCLASS_CLK,
-	.ops = &usbphyc_clk48_ops,
-	.priv_auto = sizeof(struct stm32_usbphyc_clk),
 };

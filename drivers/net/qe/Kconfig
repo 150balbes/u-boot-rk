@@ -4,5 +4,6 @@
 
 config QE_UEC
 	bool "NXP QE UEC Ethernet controller"
+	depends on DM_ETH
 	help
 	  This driver supports the NXP QE UEC ethernet controller

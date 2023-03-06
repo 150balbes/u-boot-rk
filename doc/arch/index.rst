@@ -11,7 +11,7 @@ Architecture-specific doc
    m68k
    mips
    nios2
-   sandbox/index
+   sandbox
    sh
    x86
    xtensa

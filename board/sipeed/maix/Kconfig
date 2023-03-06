@@ -15,7 +15,7 @@ config SYS_CPU
 config SYS_CONFIG_NAME
 	default "sipeed-maix"
 
-config TEXT_BASE
+config SYS_TEXT_BASE
 	default 0x80000000
 
 config DEFAULT_DEVICE_TREE

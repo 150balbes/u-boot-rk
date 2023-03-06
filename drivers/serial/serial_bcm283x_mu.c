@@ -114,7 +114,7 @@ static int bcm283x_mu_serial_pending(struct udevice *dev, bool input)
 	lsr = readl(&regs->lsr);
 
 	if (input) {
-		schedule();
+		WATCHDOG_RESET();
 		return (lsr & BCM283X_MU_LSR_RX_READY) ? 1 : 0;
 	} else {
 		return (lsr & BCM283X_MU_LSR_TX_IDLE) ? 0 : 1;
@@ -147,7 +147,7 @@ static bool bcm283x_is_serial_muxed(void)
 	int serial_gpio = 15;
 	struct udevice *dev;
 
-	if (uclass_first_device_err(UCLASS_PINCTRL, &dev))
+	if (uclass_first_device(UCLASS_PINCTRL, &dev) || !dev)
 		return false;
 
 	if (pinctrl_get_gpio_mux(dev, 0, serial_gpio) != BCM2835_GPIO_ALT5)

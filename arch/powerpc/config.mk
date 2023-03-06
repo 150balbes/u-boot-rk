@@ -3,6 +3,7 @@
 # (C) Copyright 2000-2010
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
 
+CONFIG_STANDALONE_LOAD_ADDR ?= 0x40000
 LDFLAGS_FINAL += --gc-sections
 LDFLAGS_FINAL += --bss-plt
 PLATFORM_RELFLAGS += -fpic -mrelocatable -ffunction-sections \

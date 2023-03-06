@@ -200,10 +200,10 @@ int eeprom_write(unsigned dev_addr, unsigned offset,
 	return ret;
 }
 
-static long parse_numeric_param(char *str)
+static int parse_numeric_param(char *str)
 {
 	char *endptr;
-	long value = simple_strtol(str, &endptr, 16);
+	int value = simple_strtol(str, &endptr, 16);
 
 	return (*endptr != '\0') ? -1 : value;
 }

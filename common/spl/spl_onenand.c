@@ -18,7 +18,7 @@
 static int spl_onenand_load_image(struct spl_image_info *spl_image,
 				  struct spl_boot_device *bootdev)
 {
-	struct legacy_img_hdr *header;
+	struct image_header *header;
 	int ret;
 
 	debug("spl: onenand\n");

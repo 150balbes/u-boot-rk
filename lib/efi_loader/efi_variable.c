@@ -334,11 +334,9 @@ efi_status_t efi_set_variable_int(const u16 *variable_name,
 	else
 		ret = EFI_SUCCESS;
 
-	/*
-	 * Write non-volatile EFI variables to file
-	 * TODO: check if a value change has occured to avoid superfluous writes
-	 */
-	if (attributes & EFI_VARIABLE_NON_VOLATILE)
+	/* Write non-volatile EFI variables to file */
+	if (attributes & EFI_VARIABLE_NON_VOLATILE &&
+	    ret == EFI_SUCCESS && efi_obj_list_initialized == EFI_SUCCESS)
 		efi_var_to_file();
 
 	return EFI_SUCCESS;
@@ -427,9 +425,6 @@ efi_status_t efi_init_variables(void)
 	if (ret != EFI_SUCCESS)
 		return ret;
 
-	ret = efi_var_from_file();
-	if (ret != EFI_SUCCESS)
-		return ret;
 	if (IS_ENABLED(CONFIG_EFI_VARIABLES_PRESEED)) {
 		ret = efi_var_restore((struct efi_var_file *)
 				      __efi_var_file_begin, true);
@@ -437,6 +432,9 @@ efi_status_t efi_init_variables(void)
 			log_err("Invalid EFI variable seed\n");
 	}
 
+	ret = efi_var_from_file();
+	if (ret != EFI_SUCCESS)
+		return ret;
 
 	return efi_init_secure_state();
 }

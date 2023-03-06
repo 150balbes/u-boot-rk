@@ -102,7 +102,7 @@ static int mt7620_serial_putc(struct udevice *dev, const char ch)
 	writel(ch, &plat->regs->thr);
 
 	if (ch == '\n')
-		schedule();
+		WATCHDOG_RESET();
 
 	return 0;
 }

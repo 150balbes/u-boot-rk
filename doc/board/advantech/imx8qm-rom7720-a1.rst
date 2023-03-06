@@ -57,7 +57,8 @@ Build U-Boot
      $ export ATF_LOAD_ADDR=0x80000000
      $ export BL33_LOAD_ADDR=0x80020000
      $ make imx8qm_rom7720_a1_4G_defconfig
-     $ make
+     $ make u-boot.bin
+     $ make flash.bin
 
 Flash the binary into the SD card
 ---------------------------------
