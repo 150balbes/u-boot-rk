@@ -6,6 +6,18 @@ config TARGET_EVB_RK3568
 	help
 	  RK3568 EVB is a evaluation board for Rockchp RK3568.
 
+config TARGET_ROC_PC_RK3566
+	bool "Firefly Station M2 RK3566"
+	help
+	  Station M2 RK3566 is a development board from Firefly
+	  on the Rockchip RK3566 SoC.
+
+config TARGET_PINENOTE_RK3566
+	bool "Pinenote RK3566 E-Ink Linux Tablet"
+	help
+	  Pinenote RK3566 is a E-Ink tablet from Pine64
+	  on the Rockchip RK3566 SoC.
+
 config TARGET_QUARTZ64_A_RK3566
 	bool "PINE64 Quartz64 Model A"
 	help
@@ -52,6 +64,8 @@ config SYS_MALLOC_F_LEN
 	default 0x2000
 
 source "board/rockchip/evb_rk3568/Kconfig"
+source "board/firefly/roc-pc-rk3566/Kconfig"
+source "board/pine64/pinenote-rk3566/Kconfig"
 source "board/pine64/quartz64-a-rk3566/Kconfig"
 source "board/pine64/quartz64-b-rk3566/Kconfig"
 source "board/pine64/soquartz-blade-rk3566/Kconfig"

@@ -25,11 +25,11 @@
 };
 
 &usb_host0_ehci {
-	vbus-supply = <&vcc5v0_usb30_host>;
+	vbus-supply = <&vcc5v0_host>;
 };
 
 &usb_host0_ohci {
-	vbus-supply = <&vcc5v0_usb30_host>;
+	vbus-supply = <&vcc5v0_host>;
 };
 
 &uart2 {
