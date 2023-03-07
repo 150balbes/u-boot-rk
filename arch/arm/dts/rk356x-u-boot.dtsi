@@ -42,6 +42,7 @@
 	status = "okay";
 };
 
+/*
 &usb2phy0_grf {
 	u-boot,dm-pre-reloc;
 	status = "okay";
@@ -96,6 +97,7 @@
 	u-boot,dm-spl;
 	status = "okay";
 };
+*/
 
 &sdhci {
 	u-boot,dm-spl;
@@ -107,6 +109,7 @@
 	status = "okay";
 };
 
+/*
 &sfc {
 	u-boot,dm-spl;
 };
@@ -126,3 +129,4 @@
 &pipe_phy_grf1{
 	u-boot,dm-pre-reloc;
 };
+*/
