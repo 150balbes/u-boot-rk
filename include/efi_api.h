@@ -21,7 +21,7 @@
 #include <pe.h>
 
 /* UEFI spec version 2.9 */
-#define EFI_SPECIFICATION_VERSION (2 << 16 | 90)
+#define EFI_SPECIFICATION_VERSION (2 << 16 | 100)
 
 /* Types and defines for EFI CreateEvent */
 enum efi_timer_delay {
@@ -232,7 +232,7 @@ enum efi_reset_type {
 
 #define EFI_CONFORMANCE_PROFILES_TABLE_VERSION 1
 
-#define EFI_CONFORMANCE_PROFILE_EBBR_2_0_GUID \
+#define EFI_CONFORMANCE_PROFILE_EBBR_2_1_GUID \
 	EFI_GUID(0xcce33c35, 0x74ac, 0x4087, 0xbc, 0xe7, \
 		 0x8b, 0x29, 0xb0, 0x2e, 0xeb, 0x27)
 
@@ -512,6 +512,16 @@ struct efi_system_table {
 	efi_uintn_t nr_tables;
 	struct efi_configuration_table *tables;
 };
+
+/**
+ * efi_main() - entry point of EFI applications
+ *
+ * @image_handle:	handle with the Loaded Image Protocol
+ * @systab:		pointer to the system table
+ * Return:		status code
+ */
+efi_status_t EFIAPI efi_main(efi_handle_t image_handle,
+			     struct efi_system_table *systab);
 
 #define EFI_LOADED_IMAGE_PROTOCOL_GUID \
 	EFI_GUID(0x5b1b31a1, 0x9562, 0x11d2, \
@@ -817,7 +827,7 @@ struct efi_simple_text_output_protocol {
 
 struct efi_input_key {
 	u16 scan_code;
-	s16 unicode_char;
+	u16 unicode_char;
 };
 
 #define EFI_SHIFT_STATE_INVALID		0x00000000

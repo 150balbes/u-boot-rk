@@ -40,6 +40,7 @@ void set_working_fdt_addr(ulong addr)
 {
 	void *buf;
 
+	printf("Working FDT set to %lx\n", addr);
 	buf = map_sysmem(addr, 0);
 	working_fdt = buf;
 	env_set_hex("fdtaddr", addr);
@@ -48,11 +49,30 @@ void set_working_fdt_addr(ulong addr)
 /*
  * Get a value from the fdt and format it to be set in the environment
  */
-static int fdt_value_env_set(const void *nodep, int len, const char *var)
+static int fdt_value_env_set(const void *nodep, int len,
+			     const char *var, int index)
 {
-	if (is_printable_string(nodep, len))
-		env_set(var, (void *)nodep);
-	else if (len == 4) {
+	if (is_printable_string(nodep, len)) {
+		const char *nodec = (const char *)nodep;
+		int i;
+
+		/*
+		 * Iterate over all members in stringlist and find the one at
+		 * offset $index. If no such index exists, indicate failure.
+		 */
+		for (i = 0; i < len; ) {
+			if (index-- > 0) {
+				i += strlen(nodec) + 1;
+				nodec += strlen(nodec) + 1;
+				continue;
+			}
+
+			env_set(var, nodec);
+			return 0;
+		}
+
+		return 1;
+	} else if (len == 4) {
 		char buf[11];
 
 		sprintf(buf, "0x%08X", fdt32_to_cpu(*(fdt32_t *)nodep));
@@ -188,19 +208,11 @@ static int do_fdt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		}
 
 		return CMD_RET_SUCCESS;
-	}
-
-	if (!working_fdt) {
-		puts("No FDT memory address configured. Please configure\n"
-		     "the FDT address via \"fdt addr <address>\" command.\n"
-		     "Aborting!\n");
-		return CMD_RET_FAILURE;
-	}
 
 	/*
 	 * Move the working_fdt
 	 */
-	if (strncmp(argv[1], "mo", 2) == 0) {
+	} else if (strncmp(argv[1], "mo", 2) == 0) {
 		struct fdt_header *newaddr;
 		int  len;
 		int  err;
@@ -211,11 +223,11 @@ static int do_fdt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		/*
 		 * Set the address and length of the fdt.
 		 */
-		working_fdt = (struct fdt_header *)hextoul(argv[2], NULL);
+		working_fdt = map_sysmem(hextoul(argv[2], NULL), 0);
 		if (!fdt_valid(&working_fdt))
 			return 1;
 
-		newaddr = (struct fdt_header *)hextoul(argv[3], NULL);
+		newaddr = map_sysmem(hextoul(argv[3], NULL), 0);
 
 		/*
 		 * If the user specifies a length, use that.  Otherwise use the
@@ -242,10 +254,21 @@ static int do_fdt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 				fdt_strerror(err));
 			return 1;
 		}
-		set_working_fdt_addr((ulong)newaddr);
+		set_working_fdt_addr(map_to_sysmem(newaddr));
+
+		return CMD_RET_SUCCESS;
+	}
+
+	if (!working_fdt) {
+		puts("No FDT memory address configured. Please configure\n"
+		     "the FDT address via \"fdt addr <address>\" command.\n"
+		     "Aborting!\n");
+		return CMD_RET_FAILURE;
+	}
+
 #ifdef CONFIG_OF_SYSTEM_SETUP
 	/* Call the board-specific fixup routine */
-	} else if (strncmp(argv[1], "sys", 3) == 0) {
+	if (strncmp(argv[1], "sys", 3) == 0) {
 		int err = ft_system_setup(working_fdt, gd->bd);
 
 		if (err) {
@@ -253,11 +276,14 @@ static int do_fdt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			       fdt_strerror(err));
 			return CMD_RET_FAILURE;
 		}
+
+		return CMD_RET_SUCCESS;
+	}
 #endif
 	/*
 	 * Make a new node
 	 */
-	} else if (strncmp(argv[1], "mk", 2) == 0) {
+	if (strncmp(argv[1], "mk", 2) == 0) {
 		char *pathp;		/* path */
 		char *nodep;		/* new node to add */
 		int  nodeoffset;	/* node offset from libfdt */
@@ -426,10 +452,14 @@ static int do_fdt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 				return 0;
 			} else if (nodep && len > 0) {
 				if (subcmd[0] == 'v') {
+					int index = 0;
 					int ret;
 
+					if (argc == 7)
+						index = simple_strtoul(argv[6], NULL, 10);
+
 					ret = fdt_value_env_set(nodep, len,
-								var);
+								var, index);
 					if (ret != 0)
 						return ret;
 				} else if (subcmd[0] == 'a') {
@@ -1085,7 +1115,9 @@ static char fdt_help_text[] =
 	"fdt resize [<extrasize>]            - Resize fdt to size + padding to 4k addr + some optional <extrasize> if needed\n"
 	"fdt print  <path> [<prop>]          - Recursive print starting at <path>\n"
 	"fdt list   <path> [<prop>]          - Print one level starting at <path>\n"
-	"fdt get value <var> <path> <prop>   - Get <property> and store in <var>\n"
+	"fdt get value <var> <path> <prop> [<index>] - Get <property> and store in <var>\n"
+	"                                      In case of stringlist property, use optional <index>\n"
+	"                                      to select string within the stringlist. Default is 0.\n"
 	"fdt get name <var> <path> <index>   - Get name of node <index> and store in <var>\n"
 	"fdt get addr <var> <path> <prop>    - Get start address of <property> and store in <var>\n"
 	"fdt get size <var> <path> [<prop>]  - Get size of [<property>] or num nodes and store in <var>\n"

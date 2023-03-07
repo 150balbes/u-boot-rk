@@ -178,6 +178,7 @@ config USB_EHCI_MARVELL
 	depends on ARCH_MVEBU || ARCH_KIRKWOOD || ARCH_ORION5X
 	default y
 	select USB_EHCI_IS_TDI if !ARM64
+	select USB_EHCI_IS_TDI if ALLEYCAT_5
 	---help---
 	  Enables support for the on-chip EHCI controller on MVEBU SoCs.
 
@@ -213,6 +214,14 @@ config USB_EHCI_MXS
 	help
 	  Enables support for the on-chip EHCI controller on i.MX23 and
 	  i.MX28 SoCs.
+
+config USB_EHCI_NPCM
+	bool "Support for Nuvoton NPCM on-chip EHCI USB controller"
+	depends on ARCH_NPCM
+	default n
+	---help---
+	  Enables support for the on-chip EHCI controller on
+	  Nuvoton NPCM chips.
 
 config USB_EHCI_OMAP
 	bool "Support for OMAP3+ on-chip EHCI USB controller"
@@ -343,16 +352,19 @@ config USB_OHCI_DA8XX
 	help
 	  Enable support for the da850 USB controller.
 
+config USB_OHCI_NPCM
+	bool "Support for Nuvoton NPCM on-chip OHCI USB controller"
+	depends on ARCH_NPCM
+	default n
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  Nuvoton NPCM chips.
+
 endif # USB_OHCI_HCD
 
 config SYS_USB_OHCI_SLOT_NAME
 	string "Display name for the OHCI controller"
 	depends on USB_OHCI_NEW && !DM_USB
-
-config SYS_USB_OHCI_MAX_ROOT_PORTS
-	int "Maximal number of ports of the root hub"
-	depends on USB_OHCI_NEW
-	default 1 if ARCH_SUNXI
 
 config SYS_OHCI_SWAP_REG_ACCESS
 	bool "Perform byte swapping on OHCI controller register accesses"

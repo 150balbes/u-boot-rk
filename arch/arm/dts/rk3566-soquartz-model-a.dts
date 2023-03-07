@@ -177,6 +177,18 @@
 };
 
 /*
+ * spi3 is exposed on CM1 / Module1A - to PI40
+ * pin 37 - GPIO7  - spi3_cs1_m0
+ * pin 38 - GPIO11 - spi3_clk_m0
+ * pin 39 - GPIO8  - spi3_cs0_m0
+ * pin 40 - GPIO9  - spi3_miso_m0, shared with i2s1_8ch
+ * pin 44 - GPIO10 - spi3_mosi_m0
+ */
+&spi3 {
+	status = "disabled";
+};
+
+/*
  * uart2 is exposed on CM1 / Module1A - to PI40
  * pin 51 - GPIO15 - uart2_rx_m0
  * pin 55 - GPIO14 - uart2_tx_m0
@@ -191,6 +203,19 @@
  * pin 47 - GPIO23 - uart7_rx_m2
  */
 &uart7 {
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usb2phy0_otg {
+	phy-supply = <&vcc5v0_usb>;
+	status = "okay";
+};
+
+&usb_host0_xhci {
 	status = "okay";
 };
 

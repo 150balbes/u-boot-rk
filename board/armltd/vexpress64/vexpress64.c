@@ -29,7 +29,7 @@ DECLARE_GLOBAL_DATA_PTR;
 static const struct pl01x_serial_plat serial_plat = {
 	.base = V2M_UART0,
 	.type = TYPE_PL011,
-	.clock = CONFIG_PL011_CLOCK,
+	.clock = CFG_PL011_CLOCK,
 };
 
 U_BOOT_DRVINFO(vexpress_serials) = {
@@ -100,7 +100,7 @@ int dram_init_banksize(void)
  * Push the variable into the .data section so that it
  * does not get cleared later.
  */
-unsigned long __section(".data") prior_stage_fdt_address;
+unsigned long __section(".data") prior_stage_fdt_address[2];
 
 #ifdef CONFIG_OF_BOARD
 
@@ -108,7 +108,7 @@ unsigned long __section(".data") prior_stage_fdt_address;
 #define JUNO_FLASH_SEC_SIZE	(256 * 1024)
 static phys_addr_t find_dtb_in_nor_flash(const char *partname)
 {
-	phys_addr_t sector = CONFIG_SYS_FLASH_BASE;
+	phys_addr_t sector = CFG_SYS_FLASH_BASE;
 	int i;
 
 	for (i = 0;
@@ -140,7 +140,7 @@ static phys_addr_t find_dtb_in_nor_flash(const char *partname)
 			imginfo = sector + JUNO_FLASH_SEC_SIZE - 0x30 - reg;
 			reg = readl(imginfo + 0x54);
 
-			return CONFIG_SYS_FLASH_BASE +
+			return CFG_SYS_FLASH_BASE +
 			       reg * JUNO_FLASH_SEC_SIZE;
 		}
 	}
@@ -150,6 +150,23 @@ static phys_addr_t find_dtb_in_nor_flash(const char *partname)
 	return ~0;
 }
 #endif
+
+/*
+ * Filter for a valid DTB, as TF-A happens to provide a pointer to some
+ * data structure using the DTB format, which we cannot use.
+ * The address of the DTB cannot be 0, in fact this is the reserved value
+ * for x1 in the kernel boot protocol.
+ * And while the nt_fw_config.dtb used by TF-A is a valid DTB structure, it
+ * does not contain the typical nodes and properties, which we test for by
+ * probing for the mandatory /memory node.
+ */
+static bool is_valid_dtb(uintptr_t dtb_ptr)
+{
+	if (dtb_ptr == 0 || fdt_magic(dtb_ptr) != FDT_MAGIC)
+		return false;
+
+	return fdt_subnode_offset((void *)dtb_ptr, 0, "memory") >= 0;
+}
 
 void *board_fdt_blob_setup(int *err)
 {
@@ -172,10 +189,12 @@ void *board_fdt_blob_setup(int *err)
 	}
 #endif
 
-	if (fdt_magic(prior_stage_fdt_address) == FDT_MAGIC &&
-	    fdt_totalsize(prior_stage_fdt_address) > 0x100) {
+	if (is_valid_dtb(prior_stage_fdt_address[1])) {
 		*err = 0;
-		return (void *)prior_stage_fdt_address;
+		return (void *)prior_stage_fdt_address[1];
+	} else if (is_valid_dtb(prior_stage_fdt_address[0])) {
+		*err = 0;
+		return (void *)prior_stage_fdt_address[0];
 	}
 
 	if (fdt_magic(gd->fdt_blob) == FDT_MAGIC) {
@@ -201,7 +220,7 @@ int board_eth_init(struct bd_info *bis)
 	int rc = 0;
 #ifndef CONFIG_DM_ETH
 #ifdef CONFIG_SMC911X
-	rc = smc911x_initialize(0, CONFIG_SMC911X_BASE);
+	rc = smc911x_initialize(0, CFG_SMC911X_BASE);
 #endif
 #endif
 	return rc;

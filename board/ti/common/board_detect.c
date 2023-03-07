@@ -87,6 +87,8 @@ static int __maybe_unused ti_i2c_eeprom_get(int bus_addr, int dev_addr,
 					    u32 header, u32 size, uint8_t *ep)
 {
 	int rc;
+	uint8_t offset_test;
+	bool one_byte_addressing = true;
 
 #if CONFIG_IS_ENABLED(DM_I2C)
 	struct udevice *dev;
@@ -114,8 +116,23 @@ static int __maybe_unused ti_i2c_eeprom_get(int bus_addr, int dev_addr,
 	 */
 	(void)dm_i2c_read(dev, 0, ep, size);
 
+	if (*((u32 *)ep) != header)
+		one_byte_addressing = false;
+
+	/*
+	 * Handle case of bad 2 byte eeproms that responds to 1 byte addressing
+	 * but gets stuck in const addressing when read requests are performed
+	 * on offsets. We perform an offset test to make sure it is not a 2 byte
+	 * eeprom that works with 1 byte addressing but just without an offset
+	 */
+
+	rc = dm_i2c_read(dev, 0x1, &offset_test, sizeof(offset_test));
+
+	if (*((u32 *)ep) != (header & 0xFF))
+		one_byte_addressing = false;
+
 	/* Corrupted data??? */
-	if (*((u32 *)ep) != header) {
+	if (!one_byte_addressing) {
 		/*
 		 * read the eeprom header using i2c again, but use only a
 		 * 2 byte address (some newer boards need this..)
@@ -151,8 +168,23 @@ static int __maybe_unused ti_i2c_eeprom_get(int bus_addr, int dev_addr,
 	 */
 	(void)i2c_read(dev_addr, 0x0, byte, ep, size);
 
+	if (*((u32 *)ep) != header)
+		one_byte_addressing = false;
+
+	/*
+	 * Handle case of bad 2 byte eeproms that responds to 1 byte addressing
+	 * but gets stuck in const addressing when read requests are performed
+	 * on offsets. We perform an offset test to make sure it is not a 2 byte
+	 * eeprom that works with 1 byte addressing but just without an offset
+	 */
+
+	rc = i2c_read(dev_addr, 0x1, byte, &offset_test, sizeof(offset_test));
+
+	if (*((u32 *)ep) != (header & 0xFF))
+		one_byte_addressing = false;
+
 	/* Corrupted data??? */
-	if (*((u32 *)ep) != header) {
+	if (!one_byte_addressing) {
 		/*
 		 * read the eeprom header using i2c again, but use only a
 		 * 2 byte address (some newer boards need this..)

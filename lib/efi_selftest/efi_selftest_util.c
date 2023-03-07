@@ -102,11 +102,22 @@ u16 *efi_st_translate_code(u16 code)
 	return efi_st_unknown;
 }
 
-int efi_st_strcmp_16_8(const u16 *buf1, const char *buf2)
+int efi_st_strcmp_16_8(const u16 *buf1, const unsigned char *buf2)
 {
 	for (; *buf1 || *buf2; ++buf1, ++buf2) {
 		if (*buf1 != *buf2)
 			return *buf1 - *buf2;
 	}
 	return 0;
+}
+
+void *efi_st_get_config_table(const efi_guid_t *guid)
+{
+	size_t i;
+
+	for (i = 0; i < st_systable->nr_tables; i++) {
+		if (!guidcmp(guid, &st_systable->tables[i].guid))
+			return st_systable->tables[i].table;
+	}
+	return NULL;
 }

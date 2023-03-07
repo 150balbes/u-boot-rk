@@ -67,11 +67,24 @@ void spl_board_init(void)
 #endif
 }
 
+void tzpc_init(void)
+{
+	/*
+	 * Mark the whole OCRAM as non-secure, otherwise DMA devices cannot
+	 * access it. This is for example necessary for MMC boot.
+	 */
+#ifdef TZPCR0SIZE_BASE
+	out_le32(TZPCR0SIZE_BASE, 0);
+#endif
+}
+
 void board_init_f(ulong dummy)
 {
 	int ret;
 
 	icache_enable();
+	tzpc_init();
+
 	/* Clear global data */
 	memset((void *)gd, 0, sizeof(gd_t));
 	if (IS_ENABLED(CONFIG_DEBUG_UART))
@@ -103,7 +116,7 @@ void board_init_f(ulong dummy)
 #endif
 	dram_init();
 #ifdef CONFIG_SPL_FSL_LS_PPA
-#ifndef CONFIG_SYS_MEM_RESERVE_SECURE
+#ifndef CFG_SYS_MEM_RESERVE_SECURE
 #error Need secure RAM for PPA
 #endif
 	/*

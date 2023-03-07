@@ -1,41 +1,43 @@
 if ROCKCHIP_RK3568
 
-choice
-	prompt "RK3568/RK3566 board select"
-
 config TARGET_EVB_RK3568
 	bool "RK3568 evaluation board"
 	select BOARD_LATE_INIT
 	help
 	  RK3568 EVB is a evaluation board for Rockchp RK3568.
 
-config TARGET_ROC_PC_RK3566
-	bool "Firefly Station M2 RK3566 development board"
-	help
-	  Station M2 RK3566 is a development board from Firefly.
-
 config TARGET_QUARTZ64_A_RK3566
-	bool "Quartz64 Model A RK3566 development board"
+	bool "PINE64 Quartz64 Model A"
 	help
-	  Quartz64 Model B RK3566 is a development board from Pine64.
-
-config TARGET_PINENOTE_RK3566
-	bool "Pinenote RK3566 E-Ink Linux Tablet"
-	help
-	  Pinenote RK3566 is a E-Ink tablet from Pine64.
+	  The PINE64 Quartz64 Model A is a single board computer based
+	  on the Rockchip RK3566 SoC.
 
 config TARGET_QUARTZ64_B_RK3566
-	bool "Quartz64 Model B RK3566 development board"
+	bool "PINE64 Quartz64 Model B"
 	help
-	  Quartz64 Model B RK3566 is a development board from Pine64.
+	  The PINE64 Quartz64 Model B is a single board computer based
+	  on the Rockchip RK3566 SoC.
+
+config TARGET_SOQUARTZ_BLADE_RK3566
+	bool "PINE64 SOQuartz in Blade carrier board"
+	select BOARD_LATE_INIT
+	help
+	  The PINE64 SOQuartz Blade board is a carrier board for the
+	  PINE64 SOQuartz CM4 compute module.
+
+config TARGET_SOQUARTZ_CM4IO_RK3566
+	bool "PINE64 SOQuartz in CM4IO carrier board"
+	select BOARD_LATE_INIT
+	help
+	  The SOQuartz Module but placed in a Raspberry Pi CM4 IO
+	  carrier board.
 
 config TARGET_SOQUARTZ_MODEL_A_RK3566
 	bool "PINE64 SOQuartz in Model A carrier board"
+	select BOARD_LATE_INIT
 	help
 	  The PINE64 SOQuartz Model A board is a carrier board for the
 	  PINE64 SOQuartz CM4 compute module.
-
-endchoice
 
 config ROCKCHIP_BOOT_MODE_REG
 	default 0xfdc20200
@@ -50,10 +52,10 @@ config SYS_MALLOC_F_LEN
 	default 0x2000
 
 source "board/rockchip/evb_rk3568/Kconfig"
-source "board/firefly/roc-pc-rk3566/Kconfig"
 source "board/pine64/quartz64-a-rk3566/Kconfig"
 source "board/pine64/quartz64-b-rk3566/Kconfig"
-source "board/pine64/pinenote-rk3566/Kconfig"
+source "board/pine64/soquartz-blade-rk3566/Kconfig"
+source "board/pine64/soquartz-cm4io-rk3566/Kconfig"
 source "board/pine64/soquartz-model-a-rk3566/Kconfig"
 
 endif
