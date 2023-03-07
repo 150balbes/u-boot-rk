@@ -334,9 +334,11 @@ efi_status_t efi_set_variable_int(const u16 *variable_name,
 	else
 		ret = EFI_SUCCESS;
 
-	/* Write non-volatile EFI variables to file */
-	if (attributes & EFI_VARIABLE_NON_VOLATILE &&
-	    ret == EFI_SUCCESS && efi_obj_list_initialized == EFI_SUCCESS)
+	/*
+	 * Write non-volatile EFI variables to file
+	 * TODO: check if a value change has occured to avoid superfluous writes
+	 */
+	if (attributes & EFI_VARIABLE_NON_VOLATILE)
 		efi_var_to_file();
 
 	return EFI_SUCCESS;
@@ -347,6 +349,26 @@ efi_status_t efi_query_variable_info_int(u32 attributes,
 					 u64 *remaining_variable_storage_size,
 					 u64 *maximum_variable_size)
 {
+	if (attributes == 0)
+		return EFI_INVALID_PARAMETER;
+
+	/* EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS is deprecated */
+	if ((attributes & EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS) ||
+	    ((attributes & EFI_VARIABLE_MASK) == 0))
+		return EFI_UNSUPPORTED;
+
+	if ((attributes & EFI_VARIABLE_MASK) == EFI_VARIABLE_NON_VOLATILE)
+		return EFI_INVALID_PARAMETER;
+
+	/* Make sure if runtime bit is set, boot service bit is set also. */
+	if ((attributes &
+	     (EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS)) ==
+	    EFI_VARIABLE_RUNTIME_ACCESS)
+		return EFI_INVALID_PARAMETER;
+
+	if (attributes & ~(u32)EFI_VARIABLE_MASK)
+		return EFI_INVALID_PARAMETER;
+
 	*maximum_variable_storage_size = EFI_VAR_BUF_SIZE -
 					 sizeof(struct efi_var_file);
 	*remaining_variable_storage_size = efi_var_mem_free();
@@ -370,7 +392,7 @@ efi_status_t efi_query_variable_info_int(u32 attributes,
  *					selected type
  * Returns:				status code
  */
-efi_status_t __efi_runtime EFIAPI efi_query_variable_info_runtime(
+static efi_status_t __efi_runtime EFIAPI efi_query_variable_info_runtime(
 			u32 attributes,
 			u64 *maximum_variable_storage_size,
 			u64 *remaining_variable_storage_size,
@@ -425,6 +447,9 @@ efi_status_t efi_init_variables(void)
 	if (ret != EFI_SUCCESS)
 		return ret;
 
+	ret = efi_var_from_file();
+	if (ret != EFI_SUCCESS)
+		return ret;
 	if (IS_ENABLED(CONFIG_EFI_VARIABLES_PRESEED)) {
 		ret = efi_var_restore((struct efi_var_file *)
 				      __efi_var_file_begin, true);
@@ -432,9 +457,6 @@ efi_status_t efi_init_variables(void)
 			log_err("Invalid EFI variable seed\n");
 	}
 
-	ret = efi_var_from_file();
-	if (ret != EFI_SUCCESS)
-		return ret;
 
 	return efi_init_secure_state();
 }

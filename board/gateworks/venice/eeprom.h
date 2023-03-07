@@ -24,10 +24,13 @@ struct venice_board_info {
 	u8 chksum[2];	/* 0x4E */
 };
 
-int eeprom_init(int quiet);
+int venice_eeprom_init(int quiet);
 const char *eeprom_get_model(void);
+const char *eeprom_get_baseboard_model(void);
 const char *eeprom_get_dtb_name(int level, char *buf, int len);
 int eeprom_getmac(int index, uint8_t *enetaddr);
 uint32_t eeprom_get_serial(void);
+int get_bom_rev(const char *str);
+char get_pcb_rev(const char *str);
 
 #endif

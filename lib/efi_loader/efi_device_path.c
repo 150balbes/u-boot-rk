@@ -17,7 +17,6 @@
 #include <nvme.h>
 #include <efi_loader.h>
 #include <part.h>
-#include <sandboxblockdev.h>
 #include <uuid.h>
 #include <asm-generic/unaligned.h>
 #include <linux/compat.h> /* U16_MAX */
@@ -556,7 +555,7 @@ __maybe_unused static unsigned int dp_size(struct udevice *dev)
 				sizeof(struct efi_device_path_nvme);
 #endif
 #ifdef CONFIG_SANDBOX
-		case UCLASS_ROOT:
+		case UCLASS_HOST:
 			 /*
 			  * Sandbox's host device will be represented
 			  * as vendor device with extra one byte for
@@ -613,7 +612,7 @@ __maybe_unused static void *dp_fill(void *buf, struct udevice *dev)
 		*vdp = ROOT;
 		return &vdp[1];
 	}
-#ifdef CONFIG_NET
+#ifdef CONFIG_NETDEVICES
 	case UCLASS_ETH: {
 		struct efi_device_path_mac_addr *dp =
 			dp_fill(buf, dev->parent);
@@ -633,7 +632,7 @@ __maybe_unused static void *dp_fill(void *buf, struct udevice *dev)
 	case UCLASS_BLK:
 		switch (dev->parent->uclass->uc_drv->id) {
 #ifdef CONFIG_SANDBOX
-		case UCLASS_ROOT: {
+		case UCLASS_HOST: {
 			/* stop traversing parents at this point: */
 			struct efi_device_path_vendor *dp;
 			struct blk_desc *desc = dev_get_uclass_plat(dev);
@@ -936,7 +935,8 @@ struct efi_device_path *efi_dp_part_node(struct blk_desc *desc, int part)
 		dpsize = sizeof(struct efi_device_path_hard_drive_path);
 	buf = dp_alloc(dpsize);
 
-	dp_part_node(buf, desc, part);
+	if (buf)
+		dp_part_node(buf, desc, part);
 
 	return buf;
 }
@@ -1051,7 +1051,7 @@ struct efi_device_path *efi_dp_from_uart(void)
 	return buf;
 }
 
-#ifdef CONFIG_NET
+#ifdef CONFIG_NETDEVICES
 struct efi_device_path *efi_dp_from_eth(void)
 {
 	void *buf, *start;
@@ -1168,7 +1168,7 @@ efi_status_t efi_dp_from_name(const char *dev, const char *devnr,
 		return EFI_INVALID_PARAMETER;
 
 	if (!strcmp(dev, "Net")) {
-#ifdef CONFIG_NET
+#ifdef CONFIG_NETDEVICES
 		if (device)
 			*device = efi_dp_from_eth();
 #endif

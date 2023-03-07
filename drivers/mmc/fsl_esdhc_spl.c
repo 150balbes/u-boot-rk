@@ -9,6 +9,10 @@
 #include <mmc.h>
 #include <malloc.h>
 
+#ifndef CFG_SYS_MMC_U_BOOT_OFFS
+extern uchar mmc_u_boot_offs[];
+#endif
+
 /*
  * The environment variables are written to just after the u-boot image
  * on SDCard, so we must read the MBR to get the start address and code
@@ -58,10 +62,10 @@ void __noreturn mmc_boot(void)
 {
 	__attribute__((noreturn)) void (*uboot)(void);
 	uint blk_start, blk_cnt, err;
-#ifndef CONFIG_FSL_CORENET
 	uchar *tmp_buf;
 	u32 blklen;
 	u32 blk_off;
+#ifndef CONFIG_FSL_CORENET
 	uchar val;
 #ifndef CONFIG_SPL_FSL_PBL
 	u32 val32;
@@ -83,9 +87,6 @@ void __noreturn mmc_boot(void)
 		hang();
 	}
 
-#ifdef CONFIG_FSL_CORENET
-	offset = CONFIG_SYS_MMC_U_BOOT_OFFS;
-#else
 	blklen = mmc->read_bl_len;
 	if (blklen < 512)
 		blklen = 512;
@@ -95,6 +96,9 @@ void __noreturn mmc_boot(void)
 		hang();
 	}
 
+#ifdef CONFIG_FSL_CORENET
+	offset = CFG_SYS_MMC_U_BOOT_OFFS;
+#else
 	sector = 0;
 again:
 	memset(tmp_buf, 0, blklen);
@@ -149,33 +153,54 @@ again:
 		val = *(tmp_buf + blk_off + ESDHC_BOOT_IMAGE_ADDR + i);
 		offset = (offset << 8) + val;
 	}
-	offset += CONFIG_SYS_MMC_U_BOOT_OFFS;
+#ifndef CFG_SYS_MMC_U_BOOT_OFFS
+	offset += (ulong)&mmc_u_boot_offs - CONFIG_SPL_TEXT_BASE;
+#else
+	offset += CFG_SYS_MMC_U_BOOT_OFFS;
+#endif
 #endif
 	/*
 	* Load U-Boot image from mmc into RAM
 	*/
-	code_len = CONFIG_SYS_MMC_U_BOOT_SIZE;
-	blk_start = ALIGN(offset, mmc->read_bl_len) / mmc->read_bl_len;
-	blk_cnt = ALIGN(code_len, mmc->read_bl_len) / mmc->read_bl_len;
+	code_len = CFG_SYS_MMC_U_BOOT_SIZE;
+	blk_start = offset / mmc->read_bl_len;
+	blk_off = offset % mmc->read_bl_len;
+	blk_cnt = ALIGN(code_len, mmc->read_bl_len) / mmc->read_bl_len + 1;
+	if (blk_off) {
+		err = mmc->block_dev.block_read(&mmc->block_dev,
+						blk_start, 1, tmp_buf);
+		if (err != 1) {
+			puts("spl: mmc read failed!!\n");
+			hang();
+		}
+		blk_start++;
+	}
 	err = mmc->block_dev.block_read(&mmc->block_dev, blk_start, blk_cnt,
-					(uchar *)CONFIG_SYS_MMC_U_BOOT_DST);
+					(uchar *)CFG_SYS_MMC_U_BOOT_DST +
+					(blk_off ? (mmc->read_bl_len - blk_off) : 0));
 	if (err != blk_cnt) {
 		puts("spl: mmc read failed!!\n");
-#ifndef CONFIG_FSL_CORENET
 		free(tmp_buf);
-#endif
 		hang();
 	}
+	/*
+	 * SDHC DMA may erase bytes at dst + bl_len - blk_off - 8
+	 * due to unaligned access. So copy leading bytes from tmp_buf
+	 * after SDHC DMA transfer.
+	 */
+	if (blk_off)
+		memcpy((uchar *)CFG_SYS_MMC_U_BOOT_DST,
+		       tmp_buf + blk_off, mmc->read_bl_len - blk_off);
 
 	/*
 	* Clean d-cache and invalidate i-cache, to
 	* make sure that no stale data is executed.
 	*/
-	flush_cache(CONFIG_SYS_MMC_U_BOOT_DST, CONFIG_SYS_MMC_U_BOOT_SIZE);
+	flush_cache(CFG_SYS_MMC_U_BOOT_DST, CFG_SYS_MMC_U_BOOT_SIZE);
 
 	/*
 	* Jump to U-Boot image
 	*/
-	uboot = (void *)CONFIG_SYS_MMC_U_BOOT_START;
+	uboot = (void *)CFG_SYS_MMC_U_BOOT_START;
 	(*uboot)();
 }

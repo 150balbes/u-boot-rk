@@ -5,34 +5,22 @@
 
 #include <common.h>
 #include <dm.h>
-#include <fdt_support.h>
 #include <asm/armv8/mmu.h>
 #include <asm/io.h>
 #include <asm/arch-rockchip/bootrom.h>
-#include <asm/arch-rockchip/boot_mode.h>
 #include <asm/arch-rockchip/grf_rk3568.h>
 #include <asm/arch-rockchip/hardware.h>
 #include <dt-bindings/clock/rk3568-cru.h>
 
 #define PMUGRF_BASE			0xfdc20000
 #define GRF_BASE			0xfdc60000
-#define GRF_GPIO1B_IOMUX_H		0x0c
-#define GRF_GPIO1C_IOMUX_L		0x10
-#define GRF_GPIO1C_IOMUX_H		0x14
-#define GRF_GPIO1D_IOMUX_L		0x18
-#define GRF_GPIO1D_IOMUX_H		0x1c
-#define GRF_GPIO2A_IOMUX_L		0x20
 #define GRF_GPIO1B_DS_2			0x218
 #define GRF_GPIO1B_DS_3			0x21c
 #define GRF_GPIO1C_DS_0			0x220
 #define GRF_GPIO1C_DS_1			0x224
 #define GRF_GPIO1C_DS_2			0x228
 #define GRF_GPIO1C_DS_3			0x22c
-#define GRF_GPIO1D_DS_0			0x230
-#define GRF_GPIO1D_DS_1			0x234
-#define GRF_GPIO1D_DS_2			0x238
-#define SGRF_BASE			0xfdd18000
-#define SGRF_SOC_CON3			0x0c
+#define SGRF_BASE			0xFDD18000
 #define SGRF_SOC_CON4			0x10
 #define EMMC_HPROT_SECURE_CTRL		0x03
 #define SDMMC0_HPROT_SECURE_CTRL	0x01
@@ -144,104 +132,6 @@ int arch_cpu_init(void)
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_1);
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_2);
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_3);
-
-	/* emmc, sfc, and sdmmc iomux */
-	writel((0x7777UL << 16) | (0x1111), GRF_BASE + GRF_GPIO1B_IOMUX_H);
-	writel((0x7777UL << 16) | (0x1111), GRF_BASE + GRF_GPIO1C_IOMUX_L);
-	writel((0x7777UL << 16) | (0x2111), GRF_BASE + GRF_GPIO1C_IOMUX_H);
-	writel((0x7777UL << 16) | (0x1111), GRF_BASE + GRF_GPIO1D_IOMUX_L);
-	writel((0x7777UL << 16) | (0x1111), GRF_BASE + GRF_GPIO1D_IOMUX_H);
-	writel((0x7777UL << 16) | (0x1111), GRF_BASE + GRF_GPIO2A_IOMUX_L);
-
-	/* set the fspi d0~3 cs0 to level 2 */
-	writel(0x3f000700, GRF_BASE + GRF_GPIO1C_DS_3);
-	writel(0x3f000700, GRF_BASE + GRF_GPIO1D_DS_0);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1D_DS_1);
-	writel(0x003f0007, GRF_BASE + GRF_GPIO1D_DS_2);
-
-	/* Set the fspi to secure */
-	writel(((0x1 << 14) << 16) | (0x0 << 14), SGRF_BASE + SGRF_SOC_CON3);
-
 #endif
 	return 0;
 }
-
-#ifdef CONFIG_OF_SYSTEM_SETUP
-int ft_system_setup(void *blob, struct bd_info *bd)
-{
-	int ret;
-	int areas = 1;
-	u64 start[2], size[2];
-
-	/* Reserve the io address space. */
-	if (gd->ram_top > SDRAM_UPPER_ADDR_MIN) {
-		start[0] = gd->bd->bi_dram[0].start;
-		size[0] = SDRAM_LOWER_ADDR_MAX - gd->bd->bi_dram[0].start;
-
-		/* Add the upper 4GB address space */
-		start[1] = SDRAM_UPPER_ADDR_MIN;
-		size[1] = gd->ram_top - SDRAM_UPPER_ADDR_MIN;
-		areas = 2;
-
-		ret = fdt_set_usable_memory(blob, start, size, areas);
-		if (ret) {
-			printf("Cannot set usable memory\n");
-			return ret;
-		}
-	}
-
-	return 0;
-};
-#endif
-
-#ifdef CONFIG_SPL_BUILD
-
-void __weak led_setup(void)
-{
-}
-
-void spl_board_init(void)
-{
-	led_setup();
-
-#if defined(SPL_DM_REGULATOR)
-	/*
-	 * Turning the eMMC and SPI back on (if disabled via the Qseven
-	 * BIOS_ENABLE) signal is done through a always-on regulator).
-	 */
-	if (regulators_enable_boot_on(false))
-		debug("%s: Cannot enable boot on regulator\n", __func__);
-#endif
-
-	setup_boot_mode();
-}
-#endif
-
-#if defined(CONFIG_USB_GADGET)
-#include <usb.h>
-
-#if defined(CONFIG_USB_DWC3_GADGET) && !defined(CONFIG_DM_USB_GADGET)
-#include <dwc3-uboot.h>
-
-static struct dwc3_device dwc3_device_data = {
-	.maximum_speed = USB_SPEED_HIGH,
-	.base = 0xfcc00000,
-	.dr_mode = USB_DR_MODE_PERIPHERAL,
-	.index = 0,
-	.dis_u2_susphy_quirk = 1,
-	.hsphy_mode = USBPHY_INTERFACE_MODE_UTMIW,
-};
-
-int usb_gadget_handle_interrupts(int index)
-{
-	dwc3_uboot_handle_interrupt(0);
-	return 0;
-}
-
-int board_usb_init(int index, enum usb_init_type init)
-{
-	return dwc3_uboot_init(&dwc3_device_data);
-}
-#endif /* CONFIG_USB_DWC3_GADGET */
-
-#endif /* CONFIG_USB_GADGET */

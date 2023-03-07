@@ -423,7 +423,7 @@ static void __maybe_unused led_error_blink(u32 nb_blink)
 		for (i = 0; i < 2 * nb_blink; i++) {
 			led_set_state(led, LEDST_TOGGLE);
 			mdelay(125);
-			WATCHDOG_RESET();
+			schedule();
 		}
 	}
 #endif
@@ -527,56 +527,6 @@ static void sysconf_init(void)
 #endif
 }
 
-static void board_init_fmc2(void)
-{
-#define STM32_FMC2_BCR1			0x0
-#define STM32_FMC2_BTR1			0x4
-#define STM32_FMC2_BWTR1		0x104
-#define STM32_FMC2_BCR(x)		((x) * 0x8 + STM32_FMC2_BCR1)
-#define STM32_FMC2_BCRx_FMCEN		BIT(31)
-#define STM32_FMC2_BCRx_WREN		BIT(12)
-#define STM32_FMC2_BCRx_RSVD		BIT(7)
-#define STM32_FMC2_BCRx_FACCEN		BIT(6)
-#define STM32_FMC2_BCRx_MWID(n)		((n) << 4)
-#define STM32_FMC2_BCRx_MTYP(n)		((n) << 2)
-#define STM32_FMC2_BCRx_MUXEN		BIT(1)
-#define STM32_FMC2_BCRx_MBKEN		BIT(0)
-#define STM32_FMC2_BTR(x)		((x) * 0x8 + STM32_FMC2_BTR1)
-#define STM32_FMC2_BTRx_DATAHLD(n)	((n) << 30)
-#define STM32_FMC2_BTRx_BUSTURN(n)	((n) << 16)
-#define STM32_FMC2_BTRx_DATAST(n)	((n) << 8)
-#define STM32_FMC2_BTRx_ADDHLD(n)	((n) << 4)
-#define STM32_FMC2_BTRx_ADDSET(n)	((n) << 0)
-
-#define RCC_MP_AHB6RSTCLRR		0x218
-#define RCC_MP_AHB6RSTCLRR_FMCRST	BIT(12)
-#define RCC_MP_AHB6ENSETR		0x19c
-#define RCC_MP_AHB6ENSETR_FMCEN		BIT(12)
-
-	const u32 bcr = STM32_FMC2_BCRx_WREN |STM32_FMC2_BCRx_RSVD |
-			STM32_FMC2_BCRx_FACCEN | STM32_FMC2_BCRx_MWID(1) |
-			STM32_FMC2_BCRx_MTYP(2) | STM32_FMC2_BCRx_MUXEN |
-			STM32_FMC2_BCRx_MBKEN;
-	const u32 btr = STM32_FMC2_BTRx_DATAHLD(3) |
-			STM32_FMC2_BTRx_BUSTURN(2) |
-			STM32_FMC2_BTRx_DATAST(0x22) |
-			STM32_FMC2_BTRx_ADDHLD(2) |
-			STM32_FMC2_BTRx_ADDSET(2);
-
-	/* Set up FMC2 bus for KS8851-16MLL and X11 SRAM */
-	writel(RCC_MP_AHB6RSTCLRR_FMCRST, STM32_RCC_BASE + RCC_MP_AHB6RSTCLRR);
-	writel(RCC_MP_AHB6ENSETR_FMCEN, STM32_RCC_BASE + RCC_MP_AHB6ENSETR);
-
-	/* KS8851-16MLL -- Muxed mode */
-	writel(bcr, STM32_FMC2_BASE + STM32_FMC2_BCR(1));
-	writel(btr, STM32_FMC2_BASE + STM32_FMC2_BTR(1));
-	/* AS7C34098 SRAM on X11 -- Muxed mode */
-	writel(bcr, STM32_FMC2_BASE + STM32_FMC2_BCR(3));
-	writel(btr, STM32_FMC2_BASE + STM32_FMC2_BTR(3));
-
-	setbits_le32(STM32_FMC2_BASE + STM32_FMC2_BCR1, STM32_FMC2_BCRx_FMCEN);
-}
-
 #ifdef CONFIG_DM_REGULATOR
 #define STPMIC_NVM_BUCKS_VOUT_SHR			0xfc
 #define STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_1V2		0
@@ -597,7 +547,7 @@ static int board_get_regulator_buck3_nvm_uv_av96(int *uv)
 	if (!prop || !len)
 		return -ENODEV;
 
-	if (!strstr(prop, "avenger96"))
+	if (!strstr(prop, "avenger96") && !strstr(prop, "dhcor-testbench"))
 		return -EINVAL;
 
 	/* Read out STPMIC1 NVM and determine default Buck3 voltage. */
@@ -614,18 +564,32 @@ static int board_get_regulator_buck3_nvm_uv_av96(int *uv)
 	bucks_vout >>= STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_OFFSET(3);
 	bucks_vout &= STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_MASK;
 
-	/*
-	 * Avenger96 board comes in multiple regulator configurations:
-	 * - rev.100 or rev.200 have Buck3 preconfigured to 3V3 operation on
-	 *   boot and contains extra Enpirion EP53A8LQI DCDC converter which
-	 *   supplies the IO. Reduce Buck3 voltage to 2V9 to not waste power.
-	 * - rev.200L have Buck3 preconfigured to 1V8 operation and have no
-	 *   Enpirion EP53A8LQI DCDC anymore, the IO is supplied from Buck3.
-	 */
-	if (bucks_vout == STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_3V3)
-		*uv = 2900000;
-	else
-		*uv = 1800000;
+	if (strstr(prop, "avenger96")) {
+		/*
+		 * Avenger96 board comes in multiple regulator configurations:
+		 * - rev.100 or rev.200 have Buck3 preconfigured to
+		 *   3V3 operation on boot and contains extra Enpirion
+		 *   EP53A8LQI DCDC converter which supplies the IO.
+		 *   Reduce Buck3 voltage to 2V9 to not waste power.
+		 * - rev.200L have Buck3 preconfigured to 1V8 operation
+		 *   and have no Enpirion EP53A8LQI DCDC anymore, the
+		 *   IO is supplied from Buck3.
+		 */
+		if (bucks_vout == STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_3V3)
+			*uv = 2900000;
+		else
+			*uv = 1800000;
+	} else {
+		/* Testbench always respects Buck3 NVM settings */
+		if (bucks_vout == STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_3V3)
+			*uv = 3300000;
+		else if (bucks_vout == STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_3V0)
+			*uv = 3000000;
+		else if (bucks_vout == STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_1V8)
+			*uv = 1800000;
+		else	/* STPMIC_NVM_BUCKS_VOUT_SHR_BUCK_1V2 */
+			*uv = 1200000;
+	}
 
 	return 0;
 }
@@ -645,6 +609,7 @@ static void board_init_regulator_av96(void)
 
 	/* Adjust Buck3 per preconfigured PMIC voltage from NVM. */
 	regulator_set_value(rdev, uv);
+	regulator_set_enable(rdev, true);
 }
 
 static void board_init_regulator(void)
@@ -670,8 +635,6 @@ int board_init(void)
 	board_init_regulator();
 
 	sysconf_init();
-
-	board_init_fmc2();
 
 	return 0;
 }

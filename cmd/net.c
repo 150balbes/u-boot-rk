@@ -4,6 +4,8 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  */
 
+#define LOG_CATEGORY	UCLASS_ETH
+
 /*
  * Boot support
  */
@@ -13,9 +15,12 @@
 #include <dm.h>
 #include <env.h>
 #include <image.h>
+#include <log.h>
 #include <net.h>
+#include <net6.h>
 #include <net/udp.h>
 #include <net/sntp.h>
+#include <net/ncsi.h>
 
 static int netboot_common(enum proto_t, struct cmd_tbl *, int, char * const []);
 
@@ -44,11 +49,21 @@ int do_tftpb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+U_BOOT_CMD(
+	tftpboot,	4,	1,	do_tftpb,
+	"boot image via network using TFTP protocol\n"
+	"To use IPv6 add -ipv6 parameter or use IPv6 hostIPaddr framed "
+	"with [] brackets",
+	"[loadAddress] [[hostIPaddr:]bootfilename] [" USE_IP6_CMD_PARAM "]"
+);
+#else
 U_BOOT_CMD(
 	tftpboot,	3,	1,	do_tftpb,
-	"boot image via network using TFTP protocol",
+	"load file via network using TFTP protocol",
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
 );
+#endif
 #endif
 
 #ifdef CONFIG_CMD_TFTPPUT
@@ -108,6 +123,38 @@ U_BOOT_CMD(
 	"boot image via network using DHCP/TFTP protocol",
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
 );
+
+int dhcp_run(ulong addr, const char *fname, bool autoload)
+{
+	char *dhcp_argv[] = {"dhcp", NULL, (char *)fname, NULL};
+	struct cmd_tbl cmdtp = {};	/* dummy */
+	char file_addr[17];
+	int old_autoload;
+	int ret, result;
+
+	log_debug("addr=%lx, fname=%s, autoload=%d\n", addr, fname, autoload);
+	old_autoload = env_get_yesno("autoload");
+	ret = env_set("autoload", autoload ? "y" : "n");
+	if (ret)
+		return log_msg_ret("en1", -EINVAL);
+
+	if (autoload) {
+		sprintf(file_addr, "%lx", addr);
+		dhcp_argv[1] = file_addr;
+	}
+
+	result = do_dhcp(&cmdtp, 0, !autoload ? 1 : fname ? 3 : 2, dhcp_argv);
+
+	ret = env_set("autoload", old_autoload == -1 ? NULL :
+		      old_autoload ? "y" : "n");
+	if (ret)
+		return log_msg_ret("en2", -EINVAL);
+
+	if (result)
+		return log_msg_ret("res", -ENOENT);
+
+	return 0;
+}
 #endif
 
 #if defined(CONFIG_CMD_NFS)
@@ -121,6 +168,19 @@ U_BOOT_CMD(
 	nfs,	3,	1,	do_nfs,
 	"boot image via network using NFS protocol",
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
+);
+#endif
+
+#if defined(CONFIG_CMD_WGET)
+static int do_wget(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
+{
+	return netboot_common(WGET, cmdtp, argc, argv);
+}
+
+U_BOOT_CMD(
+	wget,   3,      1,      do_wget,
+	"boot image via network using HTTP protocol",
+	"[loadAddress] [[hostIPaddr:]path and image name]"
 );
 #endif
 
@@ -189,30 +249,49 @@ static void netboot_update_env(void)
 #endif
 }
 
-static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
-			  char *const argv[])
+/**
+ * parse_addr_size() - parse address and size arguments for tftpput
+ *
+ * @argv:	command line arguments
+ * Return:	0 on success
+ */
+static int parse_addr_size(char * const argv[])
 {
-	char *s;
-	char *end;
-	int   rcode = 0;
-	int   size;
+	if (strict_strtoul(argv[1], 16, &image_save_addr) < 0 ||
+	    strict_strtoul(argv[2], 16, &image_save_size) < 0) {
+		printf("Invalid address/size\n");
+		return CMD_RET_USAGE;
+	}
+	return 0;
+}
+
+/**
+ * parse_args() - parse command line arguments
+ *
+ * @proto:	command prototype
+ * @argc:	number of arguments
+ * @argv:	command line arguments
+ * Return:	0 on success
+ */
+static int parse_args(enum proto_t proto, int argc, char *const argv[])
+{
 	ulong addr;
-
-	net_boot_file_name_explicit = false;
-
-	/* pre-set image_load_addr */
-	s = env_get("loadaddr");
-	if (s != NULL)
-		image_load_addr = hextoul(s, NULL);
+	char *end;
 
 	switch (argc) {
 	case 1:
+		if (IS_ENABLED(CONFIG_CMD_TFTPPUT) && proto == TFTPPUT)
+			return 1;
+
 		/* refresh bootfile name from env */
 		copy_filename(net_boot_file_name, env_get("bootfile"),
 			      sizeof(net_boot_file_name));
 		break;
 
-	case 2:	/*
+	case 2:
+		if (IS_ENABLED(CONFIG_CMD_TFTPPUT) && proto == TFTPPUT)
+			return 1;
+		/*
 		 * Only one arg - accept two forms:
 		 * Just load address, or just boot file name. The latter
 		 * form must be written in a format which can not be
@@ -232,30 +311,77 @@ static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
 		break;
 
 	case 3:
-		image_load_addr = hextoul(argv[1], NULL);
-		net_boot_file_name_explicit = true;
-		copy_filename(net_boot_file_name, argv[2],
-			      sizeof(net_boot_file_name));
-
+		if (IS_ENABLED(CONFIG_CMD_TFTPPUT) && proto == TFTPPUT) {
+			if (parse_addr_size(argv))
+				return 1;
+		} else {
+			image_load_addr = hextoul(argv[1], NULL);
+			net_boot_file_name_explicit = true;
+			copy_filename(net_boot_file_name, argv[2],
+				      sizeof(net_boot_file_name));
+		}
 		break;
 
 #ifdef CONFIG_CMD_TFTPPUT
 	case 4:
-		if (strict_strtoul(argv[1], 16, &image_save_addr) < 0 ||
-		    strict_strtoul(argv[2], 16, &image_save_size) < 0) {
-			printf("Invalid address/size\n");
-			return CMD_RET_USAGE;
-		}
+		if (parse_addr_size(argv))
+			return 1;
 		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, argv[3],
 			      sizeof(net_boot_file_name));
 		break;
 #endif
 	default:
+		return 1;
+	}
+	return 0;
+}
+
+static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
+			  char *const argv[])
+{
+	char *s;
+	int   rcode = 0;
+	int   size;
+
+	net_boot_file_name_explicit = false;
+	*net_boot_file_name = '\0';
+
+	/* pre-set image_load_addr */
+	s = env_get("loadaddr");
+	if (s != NULL)
+		image_load_addr = hextoul(s, NULL);
+
+	if (IS_ENABLED(CONFIG_IPV6)) {
+		use_ip6 = false;
+
+		/* IPv6 parameter has to be always *last* */
+		if (!strcmp(argv[argc - 1], USE_IP6_CMD_PARAM)) {
+			use_ip6 = true;
+			/* It is a hack not to break switch/case code */
+			--argc;
+		}
+	}
+
+	if (parse_args(proto, argc, argv)) {
 		bootstage_error(BOOTSTAGE_ID_NET_START);
 		return CMD_RET_USAGE;
 	}
+
 	bootstage_mark(BOOTSTAGE_ID_NET_START);
+
+	if (IS_ENABLED(CONFIG_IPV6) && !use_ip6) {
+		char *s, *e;
+		size_t len;
+
+		s = strchr(net_boot_file_name, '[');
+		e = strchr(net_boot_file_name, ']');
+		if (s && e) {
+			len = e - s;
+			if (!string_to_ip6(s + 1, len - 1, &net_server_ip6))
+				use_ip6 = true;
+		}
+	}
 
 	size = net_loop(proto);
 	if (size < 0) {
@@ -311,6 +437,32 @@ U_BOOT_CMD(
 	"pingAddress"
 );
 #endif
+
+#if IS_ENABLED(CONFIG_CMD_PING6)
+int do_ping6(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
+{
+	if (string_to_ip6(argv[1], strlen(argv[1]), &net_ping_ip6))
+		return CMD_RET_USAGE;
+
+	use_ip6 = true;
+	if (net_loop(PING6) < 0) {
+		use_ip6 = false;
+		printf("ping6 failed; host %pI6c is not alive\n",
+		       &net_ping_ip6);
+		return 1;
+	}
+
+	use_ip6 = false;
+	printf("host %pI6c is alive\n", &net_ping_ip6);
+	return 0;
+}
+
+U_BOOT_CMD(
+	ping6,  2,      1,      do_ping6,
+	"send ICMPv6 ECHO_REQUEST to network host",
+	"pingAddress"
+);
+#endif /* CONFIG_CMD_PING6 */
 
 #if defined(CONFIG_CMD_CDP)
 
@@ -480,7 +632,6 @@ U_BOOT_CMD(
 
 #endif  /* CONFIG_CMD_LINK_LOCAL */
 
-#ifdef CONFIG_DM_ETH
 static int do_net_list(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	const struct udevice *current = eth_get_dev();
@@ -523,4 +674,24 @@ U_BOOT_CMD(
 	"NET sub-system",
 	"list - list available devices\n"
 );
-#endif // CONFIG_DM_ETH
+
+#if defined(CONFIG_CMD_NCSI)
+static int do_ncsi(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
+{
+	if (!phy_interface_is_ncsi() || !ncsi_active()) {
+		printf("Device not configured for NC-SI\n");
+		return CMD_RET_FAILURE;
+	}
+
+	if (net_loop(NCSI) < 0)
+		return CMD_RET_FAILURE;
+
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+	ncsi,	1,	1,	do_ncsi,
+	"Configure attached NIC via NC-SI",
+	""
+);
+#endif  /* CONFIG_CMD_NCSI */

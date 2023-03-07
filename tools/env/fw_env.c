@@ -192,10 +192,13 @@ static int ubi_get_volnum_by_name(int devnum, const char *volname)
 			     &tmp_devnum, &volnum);
 		if (ret == 2 && devnum == tmp_devnum) {
 			if (ubi_check_volume_sysfs_name(dirent->d_name,
-							volname) == 0)
+							volname) == 0) {
+				closedir(sysfs_ubi);
 				return volnum;
+			}
 		}
 	}
+	closedir(sysfs_ubi);
 
 	return -1;
 }
@@ -1730,6 +1733,7 @@ static int find_nvmem_device(void)
 
 	while (!nvmem && (dent = readdir(dir))) {
 		FILE *fp;
+		size_t size;
 
 		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
 			continue;
@@ -1745,7 +1749,14 @@ static int find_nvmem_device(void)
 			continue;
 		}
 
-		fread(buf, sizeof(buf), 1, fp);
+		size = fread(buf, sizeof(buf), 1, fp);
+		if (size != 1) {
+			fprintf(stderr,
+				"read failed about %s\n", comp);
+			fclose(fp);
+			return -EIO;
+		}
+
 
 		if (!strcmp(buf, "u-boot,env")) {
 			bytes = asprintf(&nvmem, "%s/%s/nvmem", path, dent->d_name);

@@ -11,6 +11,7 @@
 
 #include <asm/u-boot.h>
 #include <linux/libfdt.h>
+#include <abuf.h>
 
 /**
  * arch_fixup_fdt() - Write arch-specific information to fdt
@@ -187,6 +188,18 @@ int fdt_find_or_add_subnode(void *fdt, int parentoffset, const char *name);
 int ft_board_setup(void *blob, struct bd_info *bd);
 
 /**
+ * board_rng_seed() - Provide a seed to be passed via /chosen/rng-seed
+ *
+ * This function is called if CONFIG_BOARD_RNG_SEED is set, and must
+ * be provided by the board. It should return, via @buf, some suitable
+ * seed value to pass to the kernel.
+ *
+ * @param buf         A struct abuf for returning the seed and its size.
+ * @return            0 if ok, negative on error.
+ */
+int board_rng_seed(struct abuf *buf);
+
+/**
  * board_fdt_chosen_bootargs() - Arbitrarily amend fdt kernel command line
  *
  * This is used for late modification of kernel command line arguments just
@@ -229,8 +242,6 @@ int fdt_shrink_to_minimum(void *blob, uint extrasize);
 int fdt_increase_size(void *fdt, int add_len);
 
 int fdt_delete_disabled_nodes(void *blob);
-
-int fdt_fixup_nor_flash_size(void *blob);
 
 struct node_info;
 #if defined(CONFIG_FDT_FIXUP_PARTITIONS)

@@ -20,7 +20,7 @@
 #define DDR_BASE_CS_OFF(n)	(0x0000 + ((n) << 3))
 #define DDR_SIZE_CS_OFF(n)	(0x0004 + ((n) << 3))
 
-static struct mbus_win windows[] = {
+static const struct mbus_win windows[] = {
 	/* SPI */
 	{ MBUS_SPI_BASE, MBUS_SPI_SIZE,
 	  CPU_TARGET_DEVICEBUS_BOOTROM_SPI, CPU_ATTR_SPIFLASH },
@@ -83,7 +83,7 @@ u32 get_boot_device(void)
 	/*
 	 * Now check the SAR register for the strapped boot-device
 	 */
-	val = readl(CONFIG_SAR_REG);	/* SAR - Sample At Reset */
+	val = readl(CFG_SAR_REG);	/* SAR - Sample At Reset */
 	boot_device = (val & BOOT_DEV_SEL_MASK) >> BOOT_DEV_SEL_OFFS;
 	debug("SAR_REG=0x%08x boot_device=0x%x\n", val, boot_device);
 	switch (boot_device) {
@@ -195,9 +195,9 @@ void get_sar_freq(struct sar_freq_modes *sar_freq)
 	int i;
 
 #if defined(CONFIG_ARMADA_375) || defined(CONFIG_ARMADA_MSYS)
-	val = readl(CONFIG_SAR2_REG);	/* SAR - Sample At Reset */
+	val = readl(CFG_SAR2_REG);	/* SAR - Sample At Reset */
 #else
-	val = readl(CONFIG_SAR_REG);	/* SAR - Sample At Reset */
+	val = readl(CFG_SAR_REG);	/* SAR - Sample At Reset */
 #endif
 	freq = (val & SAR_CPU_FREQ_MASK) >> SAR_CPU_FREQ_OFFS;
 #if defined(SAR2_CPU_FREQ_MASK)
@@ -205,7 +205,7 @@ void get_sar_freq(struct sar_freq_modes *sar_freq)
 	 * Shift CPU0 clock frequency select bit from SAR2 register
 	 * into correct position
 	 */
-	freq |= ((readl(CONFIG_SAR2_REG) & SAR2_CPU_FREQ_MASK)
+	freq |= ((readl(CFG_SAR2_REG) & SAR2_CPU_FREQ_MASK)
 		 >> SAR2_CPU_FREQ_OFFS) << 3;
 #endif
 	for (i = 0; sar_freq_tab[i].val != 0xff; i++) {
@@ -445,19 +445,6 @@ static void setup_usb_phys(void)
  */
 int arch_cpu_init(void)
 {
-	struct pl310_regs *const pl310 =
-		(struct pl310_regs *)CONFIG_SYS_PL310_BASE;
-
-	if (IS_ENABLED(CONFIG_ARMADA_38X)) {
-		/*
-		 * To fully release / unlock this area from cache, we need
-		 * to flush all caches and disable the L2 cache.
-		 */
-		icache_disable();
-		dcache_disable();
-		clrbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
-	}
-
 	/*
 	 * We need to call mvebu_mbus_probe() before calling
 	 * update_sdram_window_sizes() as it disables all previously
@@ -663,7 +650,7 @@ void enable_caches(void)
 	 * ethernet driver (mvpp2). So lets keep the d-cache disabled
 	 * until this is solved.
 	 */
-	if (IS_ENABLED(CONFIG_ARMADA_375)) {
+	if (!IS_ENABLED(CONFIG_ARMADA_375)) {
 		/* Enable D-cache. I-cache is already enabled in start.S */
 		dcache_enable();
 	}
@@ -671,12 +658,20 @@ void enable_caches(void)
 
 void v7_outer_cache_enable(void)
 {
-	if (IS_ENABLED(CONFIG_ARMADA_XP)) {
-		struct pl310_regs *const pl310 =
-			(struct pl310_regs *)CONFIG_SYS_PL310_BASE;
-		u32 u;
+	struct pl310_regs *const pl310 =
+		(struct pl310_regs *)CFG_SYS_PL310_BASE;
 
-		/* The L2 cache is already disabled at this point */
+	/* The L2 cache is already disabled at this point */
+
+	/*
+	 * For now L2 cache will be enabled only for Armada XP and Armada 38x.
+	 * It can be enabled also for other SoCs after testing that it works fine.
+	 */
+	if (!IS_ENABLED(CONFIG_ARMADA_XP) && !IS_ENABLED(CONFIG_ARMADA_38X))
+		return;
+
+	if (IS_ENABLED(CONFIG_ARMADA_XP)) {
+		u32 u;
 
 		/*
 		 * For Aurora cache in no outer mode, enable via the CP15
@@ -687,16 +682,16 @@ void v7_outer_cache_enable(void)
 		asm volatile("mcr p15, 1, %0, c15, c2, 0" : : "r" (u));
 
 		isb();
-
-		/* Enable the L2 cache */
-		setbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
 	}
+
+	/* Enable the L2 cache */
+	setbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
 }
 
 void v7_outer_cache_disable(void)
 {
 	struct pl310_regs *const pl310 =
-		(struct pl310_regs *)CONFIG_SYS_PL310_BASE;
+		(struct pl310_regs *)CFG_SYS_PL310_BASE;
 
 	clrbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
 }
