@@ -287,7 +287,7 @@
 			 <&cru ACLK_USB3OTG0>;
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk";
-		dr_mode = "otg";
+		dr_mode = "host";
 		phy_type = "utmi_wide";
 		power-domains = <&power RK3568_PD_PIPE>;
 		resets = <&cru SRST_USB3OTG0>;
@@ -422,8 +422,9 @@
 		clock-names = "xin24m";
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-		assigned-clocks = <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
-		assigned-clock-rates = <1200000000>, <200000000>;
+		assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
+		assigned-clock-rates = <32768>, <1200000000>, <200000000>;
+		assigned-clock-parents = <&pmucru CLK_RTC32K_FRAC>;
 		rockchip,grf = <&grf>;
 	};
 
@@ -870,6 +871,7 @@
 		clock-names = "aclk_mst", "aclk_slv",
 			      "aclk_dbi", "pclk", "aux";
 		device_type = "pci";
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pcie_intc 0>,
 				<0 0 0 2 &pcie_intc 1>,
