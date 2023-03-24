@@ -60,6 +60,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3568-bpi-r2pro.dtb \
 	rk3588s-roc-pc.dtb \
 	rk3588s-khadas-edge2.dtb \
+	rk3588s-orangepi-5.dtb \
 	rk3588-rock-5b.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
