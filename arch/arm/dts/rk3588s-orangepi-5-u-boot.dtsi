@@ -14,7 +14,7 @@
 
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = &sdmmc, &sdhci, &spi_nand, &spi_nor;
+		u-boot,spl-boot-order = &sdhci, &sdmmc, &spi_nand, &spi_nor;
 	};
 
 	secure-otp@fe3a0000 {
@@ -247,11 +247,11 @@
 				<0 RK_PA5 2 &pcfg_pull_none>;
 		};
 
-		sata_reset: sata-reset {
-			u-boot,dm-spl;
-			rockchip,pins =
-				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
+//		sata_reset: sata-reset {
+//			u-boot,dm-spl;
+//			rockchip,pins =
+//				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
+//		};
 	};
 };
 
