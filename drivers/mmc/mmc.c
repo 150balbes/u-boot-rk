@@ -2178,9 +2178,9 @@ int mmc_start_init(struct mmc *mmc)
 #endif
 	if (no_card) {
 		mmc->has_init = 0;
-#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-		printf("MMC: no card present\n");
-#endif
+//#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+//		printf("MMC: no card present\n");
+//#endif
 		return -ENOMEDIUM;
 	}
 
@@ -2276,8 +2276,8 @@ int mmc_init(struct mmc *mmc)
 
 	if (!err)
 		err = mmc_complete_init(mmc);
-	if (err)
-		printf("%s: %d, time %lu\n", __func__, err, get_timer(start));
+	//if (err)
+	//	printf("%s: %d, time %lu\n", __func__, err, get_timer(start));
 
 	return err;
 }

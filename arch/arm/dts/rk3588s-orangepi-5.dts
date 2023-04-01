@@ -54,23 +54,12 @@
 	};
 };
 
-#if 0
-&sata0 {
-	u-boot,dm-pre-reloc;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sata_reset>;
-	status = "okay";
-};
-
-# else
-
 &pcie2x1l2 {
 	u-boot,dm-pre-reloc;
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie2x1l2>;
 	status = "okay";
 };
-#endif
 
 &combphy0_ps {
 	u-boot,dm-pre-reloc;

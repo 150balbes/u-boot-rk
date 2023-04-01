@@ -3697,7 +3697,7 @@ static int do_showvar(cmd_tbl_t *cmdtp, int flag, int argc,
 			}
 		}
 		if (k < 0) {
-			printf ("## Error: \"%s\" not defined\n", name);
+			//printf ("## Error: \"%s\" not defined\n", name);
 			rcode ++;
 		}
 	}

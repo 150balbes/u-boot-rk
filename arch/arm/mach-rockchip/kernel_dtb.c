@@ -12,6 +12,7 @@
 #include <dm/root.h>
 #include <dm/uclass-internal.h>
 #include <asm/arch/hotkey.h>
+#include <asm/arch/resource_img.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -317,6 +318,7 @@ int init_kernel_dtb(void)
 	}
 
 	if (IS_ENABLED(CONFIG_EMBED_KERNEL_DTB_ALWAYS)) {
+		resource_init_list();
 		printf("Always embed kernel dtb\n");
 		goto dtb_embed;
 	}
@@ -351,7 +353,7 @@ dtb_embed:
 		       fdt_totalsize(gd->fdt_blob_kern));
 		printf("DTB: %s\n", CONFIG_EMBED_KERNEL_DTB_PATH);
 	} else {
-		printf("Failed to get kernel dtb, ret=%d\n", ret);
+		//printf("Failed to get kernel dtb, ret=%d\n", ret);
 		return -ENOENT;
 	}
 

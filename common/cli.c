@@ -134,7 +134,7 @@ int do_run(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		arg = env_get(argv[i]);
 		if (arg == NULL) {
-			printf("## Error: \"%s\" not defined\n", argv[i]);
+			//printf("## Error: \"%s\" not defined\n", argv[i]);
 			return 1;
 		}
 
@@ -192,7 +192,7 @@ void cli_secure_boot_cmd(const char *cmd)
 #ifdef CONFIG_CMDLINE
 	cmdtp = find_cmd(cmd);
 	if (!cmdtp) {
-		printf("## Error: \"%s\" not defined\n", cmd);
+		//printf("## Error: \"%s\" not defined\n", cmd);
 		goto err;
 	}
 

@@ -152,7 +152,7 @@ static void *fit_get_blob(struct blk_desc *dev_desc,
 		part_name = PART_BOOT;
 
 	if (part_get_info_by_name(dev_desc, part_name, &part) < 0) {
-		FIT_I("No %s partition\n", part_name);
+		//FIT_I("No %s partition\n", part_name);
 		return NULL;
 	}
 

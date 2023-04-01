@@ -406,6 +406,7 @@
 	};
 
 	usb2phy0_grf: syscon@fd5d0000 {
+		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3588-usb2phy-grf", "syscon",
 			     "simple-mfd";
 		reg = <0x0 0xfd5d0000 0x0 0x4000>;
@@ -429,6 +430,7 @@
 	};
 
 	usb2phy2_grf: syscon@fd5d8000 {
+		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3588-usb2phy-grf", "syscon",
 			     "simple-mfd";
 		reg = <0x0 0xfd5d8000 0x0 0x4000>;
@@ -443,7 +445,6 @@
 			reset-names = "phy", "apb";
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
-			clock-output-names = "usb480m_phy2";
 			#clock-cells = <0>;
 			status = "disabled";
 
@@ -455,28 +456,28 @@
 	};
 
 	usb2phy3_grf: syscon@fd5dc000 {
+		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3588-usb2phy-grf", "syscon",
-			     "simple-mfd";
+		             "simple-mfd";
 		reg = <0x0 0xfd5dc000 0x0 0x4000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
 		u2phy3: usb2-phy@c000 {
-			compatible = "rockchip,rk3588-usb2phy";
-			reg = <0xc000 0x10>;
-			interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&cru SRST_OTGPHY_U2_1>, <&cru SRST_P_USB2PHY_U2_1_GRF0>;
-			reset-names = "phy", "apb";
-			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
-			clock-names = "phyclk";
-			clock-output-names = "usb480m_phy3";
-			#clock-cells = <0>;
-			status = "disabled";
+		        compatible = "rockchip,rk3588-usb2phy";
+		        reg = <0xc000 0x10>;
+		        interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
+		        resets = <&cru SRST_OTGPHY_U2_1>, <&cru SRST_P_USB2PHY_U2_1_GRF0>;
+		        reset-names = "phy", "apb";
+		        clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
+		        clock-names = "phyclk";
+		        #clock-cells = <0>;
+		        status = "disabled";
 
-			u2phy3_host: host-port {
-				#phy-cells = <0>;
-				status = "disabled";
-			};
+		        u2phy3_host: host-port {
+		                #phy-cells = <0>;
+		                status = "disabled";
+		        };
 		};
 	};
 

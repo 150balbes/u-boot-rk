@@ -20,6 +20,7 @@ ifndef CONFIG_TPL_BUILD
 obj-$(CONFIG_$(SPL_)FIT) += fit_misc.o
 ifdef CONFIG_SPL_BUILD
 obj-y += spl_boot_mode.o
+obj-$(CONFIG_ROCKCHIP_META) += rk_meta.o
 endif
 endif
 
@@ -38,7 +39,7 @@ obj-y += boot_rkimg.o
 obj-y += board.o
 obj-y += iomem.o
 obj-y += memblk.o
-obj-y += hotkey.o
+obj-$(CONFIG_ROCKCHIP_HOTKEY) += hotkey.o
 else
 obj-y += usbplug.o
 endif
@@ -87,3 +88,4 @@ obj-$(CONFIG_TPL_BUILD) += $(obj-tpl-y)
 
 obj-$(CONFIG_ROCKCHIP_PRELOADER_ATAGS) += rk_atags.o
 obj-$(CONFIG_SET_DFU_ALT_INFO) += dfu_alt_info.o
+obj-$(CONFIG_PSTORE) += pstore.o

@@ -734,7 +734,7 @@ static int rockchip_pcie_probe(struct udevice *dev)
 			priv->cfg_base = (void *)(priv->io.phys_start - priv->io.size);
 			priv->cfg_size = priv->io.size;
 		} else {
-			dev_err(dev, "invalid flags type!\n");
+			;//dev_err(dev, "invalid flags type!\n");
 		}
 	}
 

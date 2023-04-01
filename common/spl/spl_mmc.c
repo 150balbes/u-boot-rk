@@ -178,9 +178,9 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 	else
 		err = part_get_info(mmc_get_blk_desc(mmc), partition, &info);
 	if (err < 0) {
-#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-		puts("spl: partition error\n");
-#endif
+//#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
+//		puts("spl: partition error\n");
+//#endif
 		return -1;
 	}
 

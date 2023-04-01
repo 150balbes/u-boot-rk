@@ -233,7 +233,7 @@ static int rkfw_load_trust(struct spl_load_info *info, u32 image_sector,
 			load_addr = (char *)((size_t)hdr.loader_load_addr);
 			blkcnt = DIV_ROUND_UP(hdr.loader_load_size, 512);
 
-			printf("tee.bi: addr=0x%lx, size=0x%lx\n",
+			printf("tee.bin: addr=0x%lx, size=0x%lx\n",
 			       (ulong)load_addr, (ulong)blkcnt * 512);
 			ret = info->read(info, sect_addr, blkcnt, load_addr);
 			if (ret != blkcnt)

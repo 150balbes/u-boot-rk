@@ -401,7 +401,7 @@ resource_part:
 #endif
 	/* resource partition */
 	if (part_get_info_by_name(dev_desc, PART_RESOURCE, &part) < 0) {
-		printf("No resource partition\n");
+		//printf("No resource partition\n");
 		return -ENODEV;
 	} else {
 		rsce_base = part.start;

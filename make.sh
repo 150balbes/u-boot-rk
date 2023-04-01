@@ -202,7 +202,7 @@ function process_args()
 				elif [ "$1" == "--fdt" ]; then
 					cp $2 ${REP_DIR}/u-boot.dtb
 				elif [ "$1" == "--optee" ]; then
-					cp $2 ${REP_DIR}/tee.bi
+					cp $2 ${REP_DIR}/tee.bin
 				elif [ "$1" == "--mcu" ]; then
 					cp $2 ${REP_DIR}/mcu.bin
 				elif [ "$1" == "--bl31" ]; then
@@ -541,10 +541,10 @@ function pack_uboot_itb_image()
 	if [ "${ARM64_TRUSTZONE}" == "y" ]; then
 		BL31_ELF=`sed -n '/_bl31_/s/PATH=//p' ${INI} | tr -d '\r'`
 		BL32_BIN=`sed -n '/_bl32_/s/PATH=//p' ${INI} | tr -d '\r'`
-		rm bl31.elf tee.bi -rf
+		rm bl31.elf tee.bin -rf
 		cp ${RKBIN}/${BL31_ELF} bl31.elf
 		if grep BL32_OPTION -A 1 ${INI} | grep SEC=1 ; then
-			cp ${RKBIN}/${BL32_BIN} tee.bi
+			cp ${RKBIN}/${BL32_BIN} tee.bin
 			TEE_OFFSET=`grep BL32_OPTION -A 3 ${INI} | grep ADDR= | awk -F "=" '{ printf $2 }' | tr -d '\r'`
 			TEE_ARG="-t ${TEE_OFFSET}"
 		fi
@@ -553,9 +553,9 @@ function pack_uboot_itb_image()
 		TOS=`filt_val "TOS" ${INI}`
 		TOSTA=`filt_val "TOSTA" ${INI}`
 		if [ ! -z "${TOSTA}" ]; then
-			cp ${RKBIN}/${TOSTA} tee.bi
+			cp ${RKBIN}/${TOSTA} tee.bin
 		elif [ ! -z "${TOS}" ]; then
-			cp ${RKBIN}/${TOS}   tee.bi
+			cp ${RKBIN}/${TOS}   tee.bin
 		else
 			echo "WARN: No tee bin"
 		fi

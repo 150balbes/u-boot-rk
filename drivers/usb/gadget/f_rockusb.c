@@ -20,10 +20,6 @@
 #endif
 #include <rockusb.h>
 
-#ifdef CONFIG_TOYBRICK_VERIFY
-#include <asm/arch/toybrick-rockusb.h>
-#endif
-
 #define ROCKUSB_INTERFACE_CLASS	0xff
 #define ROCKUSB_INTERFACE_SUB_CLASS	0x06
 #define ROCKUSB_INTERFACE_PROTOCOL	0x05
@@ -181,7 +177,14 @@ static int rkusb_do_reset(struct fsg_common *common,
 static int rkusb_do_test_unit_ready(struct fsg_common *common,
 				    struct fsg_buffhd *bh)
 {
-	common->residue = 0x06 << 24; /* Max block xfer support from host */
+	struct blk_desc *desc = &ums[common->lun].block_dev;
+
+	if ((desc->if_type == IF_TYPE_MTD && desc->devnum == BLK_MTD_SPI_NOR) ||
+	    desc->if_type == IF_TYPE_SPINOR)
+		common->residue = 0x03 << 24; /* 128KB Max block xfer for SPI Nor */
+	else
+		common->residue = 0x06 << 24; /* Max block xfer support from host */
+
 	common->data_dir = DATA_DIR_NONE;
 	bh->state = BUF_STATE_EMPTY;
 
@@ -194,13 +197,30 @@ static int rkusb_do_read_flash_id(struct fsg_common *common,
 	u8 *buf = (u8 *)bh->buf;
 	u32 len = 5;
 	enum if_type type = ums[common->lun].block_dev.if_type;
+	u32 devnum = ums[common->lun].block_dev.devnum;
+	const char *str;
 
-	if (type == IF_TYPE_MMC)
-		memcpy((void *)&buf[0], "EMMC ", 5);
-	else if (type == IF_TYPE_RKNAND)
-		memcpy((void *)&buf[0], "NAND ", 5);
-	else
-		memcpy((void *)&buf[0], "UNKN ", 5); /* unknown */
+	switch (type) {
+	case IF_TYPE_MMC:
+		str = "EMMC ";
+		break;
+	case IF_TYPE_RKNAND:
+		str = "NAND ";
+		break;
+	case IF_TYPE_MTD:
+		if (devnum == BLK_MTD_SPI_NAND)
+			str ="SNAND";
+		else if (devnum == BLK_MTD_NAND)
+			str = "NAND ";
+		else
+			str = "NOR  ";
+		break;
+	default:
+		str = "UNKN "; /* unknown */
+		break;
+	}
+
+	memcpy((void *)&buf[0], str, len);
 
 	/* Set data xfer size */
 	common->residue = common->data_size_from_cmnd = len;
@@ -255,7 +275,7 @@ static int rkusb_do_read_flash_info(struct fsg_common *common,
 	if (desc->if_type == IF_TYPE_MTD && desc->devnum == BLK_MTD_SPI_NOR) {
 		/* RV1126/RK3308 mtd spinor keep the former upgrade mode */
 #if !defined(CONFIG_ROCKCHIP_RV1126) && !defined(CONFIG_ROCKCHIP_RK3308)
-		finfo.block_size = 0x100; /* Aligned to 128KB */
+		finfo.block_size = 0x80; /* Aligned to 64KB */
 #else
 		finfo.block_size = ROCKCHIP_FLASH_BLOCK_SIZE;
 #endif
@@ -454,19 +474,7 @@ static int rkusb_do_vs_write(struct fsg_common *common)
 			vhead = (struct vendor_item *)bh->buf;
 			data  = bh->buf + sizeof(struct vendor_item);
 
-#ifdef CONFIG_TOYBRICK_VERIFY
-			if (type == 2 && memcmp(data, "RKSN", 4) == 0) {
-				rc = toybrick_write_SnMacActcode(curlun, data);
-				if (rc < 0)
-					return rc;
-			} else if (type == 3 && memcmp(data, "RKSN", 4) == 0) {
-				rc = toybrick_write_extrakey(curlun, vhead, data);
-				if (rc < 0)
-					return rc;
-			} else if (!type) {
-#else
 			if (!type) {
-#endif
 				if (vhead->id == HDCP_14_HDMI_ID ||
 				    vhead->id == HDCP_14_HDMIRX_ID ||
 				    vhead->id == HDCP_14_DP_ID) {
@@ -620,16 +628,6 @@ static int rkusb_do_vs_read(struct fsg_common *common)
 			}
 			vhead->size = rc;
 		} else if (type == 2) {
-#ifdef CONFIG_TOYBRICK_VERIFY
-			rc = toybrick_read_SnMacActcode(common, curlun, vhead, data);
-			if (rc < 0)
-				return rc;
-		} else if (type == 3) {
-			rc = trusty_read_toybrick_cpu_id((uint8_t *)data);
-			if (rc < 0)
-				return rc;
-			vhead->size = common->data_size - 8;
-#else
 			/* security storage */
 #ifdef CONFIG_RK_AVB_LIBAVB_USER
 			rc = rk_avb_read_perm_attr(vhead->id,
@@ -640,7 +638,6 @@ static int rkusb_do_vs_read(struct fsg_common *common)
 			vhead->size = rc;
 #else
 			printf("Please enable CONFIG_RK_AVB_LIBAVB_USER!\n");
-#endif
 #endif
 		} else {
 			return -EINVAL;

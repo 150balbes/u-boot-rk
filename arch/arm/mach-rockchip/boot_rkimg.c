@@ -526,7 +526,7 @@ static int rkimg_traverse_read_dtb(void *fdt, int where)
 
 		ret = rockchip_read_resource_dtb(fdt, &hash, &hash_size);
 		if (ret) {
-			printf("Failed to load DTB, ret=%d\n", ret);
+			//printf("Failed to load DTB, ret=%d\n", ret);
 			return ret;
 		}
 
@@ -569,7 +569,7 @@ int rockchip_read_dtb_file(void *fdt)
 			break;
 	}
 	if (ret) {
-		printf("No find valid DTB, ret=%d\n", ret);
+		//printf("No find valid DTB, ret=%d\n", ret);
 		return ret;
 	}
 

@@ -155,7 +155,7 @@ function gen_bl32_node()
 		fi
 	fi
 
-	TEE="tee.bi"
+	TEE="tee.bin"
 	echo "		optee {
 			description = \"OP-TEE\";
 			data = /incbin/(\"${TEE}${SUFFIX}\");
