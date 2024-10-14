@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013
  * Texas Instruments Incorporated.
@@ -6,6 +5,8 @@
  *
  * Configuration settings for the TI EVM5430 board.
  * See ti_omap5_common.h for omap5 common settings.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_OMAP5_EVM_H
@@ -28,18 +29,44 @@
 
 #include <configs/ti_omap5_common.h>
 
-#define CFG_SYS_NS16550_COM3		UART3_BASE
+#define CONFIG_CONS_INDEX		3
+#define CONFIG_SYS_NS16550_COM3		UART3_BASE
 
+#define CONFIG_MISC_INIT_R
 /* MMC ENV related defines */
+#define CONFIG_SYS_MMC_ENV_DEV		1	/* SLOT2: eMMC(1) */
+#define CONFIG_ENV_SIZE			(128 << 10)
+#define CONFIG_ENV_OFFSET		0x260000
+#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
+#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
+
+/* Enhance our eMMC support / experience. */
+#define CONFIG_HSMMC2_8BIT
+#define CONFIG_SUPPORT_EMMC_BOOT
 
 /* Required support for the TCA642X GPIO we have on the uEVM */
-#define CFG_SYS_I2C_TCA642X_BUS_NUM 4
-#define CFG_SYS_I2C_TCA642X_ADDR 0x22
+#define CONFIG_TCA642X
+#define CONFIG_SYS_I2C_TCA642X_BUS_NUM 4
+#define CONFIG_SYS_I2C_TCA642X_ADDR 0x22
+
+/* USB UHH support options */
+#define CONFIG_EHCI_HCD_INIT_AFTER_RESET
+
+#define CONFIG_OMAP_EHCI_PHY2_RESET_GPIO 80
+#define CONFIG_OMAP_EHCI_PHY3_RESET_GPIO 79
 
 /* Enabled commands */
 
 /* USB Networking options */
 
-#define CONSOLEDEV		"ttyS2"
+#define CONSOLEDEV		"ttyO2"
+
+#define CONFIG_LIBATA
+#define CONFIG_SCSI_AHCI
+#define CONFIG_SCSI_AHCI_PLAT
+#define CONFIG_SYS_SCSI_MAX_SCSI_ID	1
+#define CONFIG_SYS_SCSI_MAX_LUN		1
+#define CONFIG_SYS_SCSI_MAX_DEVICE	(CONFIG_SYS_SCSI_MAX_SCSI_ID * \
+						CONFIG_SYS_SCSI_MAX_LUN)
 
 #endif /* __CONFIG_OMAP5_EVM_H */

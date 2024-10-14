@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2015 Freescale Semiconductor
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
@@ -24,8 +25,8 @@ enum csu_cslx_access {
 };
 
 struct csu_ns_dev {
-	u8 ind;
-	u8 val;
+	unsigned long ind;
+	uint32_t val;
 };
 
 void enable_layerscape_ns_access(void);

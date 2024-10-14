@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2015 Freescale Semiconductor
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  * Extracted from gic_64.S
  */
@@ -12,7 +13,7 @@
 /*************************************************************************
  *
  * void ccn504_add_masters_to_dvm(CCI_MN_BASE, CCI_MN_RNF_NODEID_LIST,
- *				  CCI_MN_DVM_DOMAIN_CTL_SET);
+ * 				  CCI_MN_DVM_DOMAIN_CTL_SET);
  *
  * Add fully-coherent masters to DVM domain
  *
@@ -78,3 +79,4 @@ ENTRY(ccn504_set_aux)
 
 	ret
 ENDPROC(ccn504_set_aux)
+

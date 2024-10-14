@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013
  *
  * Written by Guilherme Maciel Ferreira <guilherme.maciel.ferreira@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include "imagetool.h"
@@ -26,12 +27,6 @@ struct image_type_params *imagetool_get_type(int type)
 	return NULL;
 }
 
-static int imagetool_verify_print_header_by_type(
-	void *ptr,
-	struct stat *sbuf,
-	struct image_type_params *tparams,
-	struct image_tool_params *params);
-
 int imagetool_verify_print_header(
 	void *ptr,
 	struct stat *sbuf,
@@ -45,23 +40,14 @@ int imagetool_verify_print_header(
 	struct image_type_params **start = __start_image_type;
 	struct image_type_params **end = __stop_image_type;
 
-	if (tparams)
-		return imagetool_verify_print_header_by_type(ptr, sbuf, tparams, params);
-
 	for (curr = start; curr != end; curr++) {
-		/*
-		 * Basically every data file can be guessed / verified as gpimage,
-		 * so skip autodetection of data file as gpimage as it does not work.
-		 */
-		if ((*curr)->check_image_type && (*curr)->check_image_type(IH_TYPE_GPIMAGE) == 0)
-			continue;
 		if ((*curr)->verify_header) {
 			retval = (*curr)->verify_header((unsigned char *)ptr,
 						     sbuf->st_size, params);
 
 			if (retval == 0) {
 				/*
-				 * Print the image information if verify is
+				 * Print the image information  if verify is
 				 * successful
 				 */
 				if ((*curr)->print_header) {
@@ -75,49 +61,6 @@ int imagetool_verify_print_header(
 				break;
 			}
 		}
-	}
-
-	if (retval != 0) {
-		fprintf(stderr, "%s: cannot detect image type\n",
-			params->cmdname);
-	}
-
-	return retval;
-}
-
-static int imagetool_verify_print_header_by_type(
-	void *ptr,
-	struct stat *sbuf,
-	struct image_type_params *tparams,
-	struct image_tool_params *params)
-{
-	int retval = -1;
-
-	if (tparams->verify_header) {
-		retval = tparams->verify_header((unsigned char *)ptr,
-						sbuf->st_size, params);
-
-		if (retval == 0) {
-			/*
-			 * Print the image information if verify is successful
-			 */
-			if (tparams->print_header) {
-				if (!params->quiet)
-					tparams->print_header(ptr);
-			} else {
-				fprintf(stderr,
-					"%s: print_header undefined for %s\n",
-					params->cmdname, tparams->name);
-			}
-		} else {
-			fprintf(stderr,
-				"%s: verify_header failed for %s with exit code %d\n",
-				params->cmdname, tparams->name, retval);
-		}
-
-	} else {
-		fprintf(stderr, "%s: verify_header undefined for %s\n",
-			params->cmdname, tparams->name);
 	}
 
 	return retval;
@@ -174,7 +117,7 @@ int imagetool_get_filesize(struct image_tool_params *params, const char *fname)
 }
 
 time_t imagetool_get_source_date(
-	 const char *cmdname,
+	 struct image_tool_params *params,
 	 time_t fallback)
 {
 	char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
@@ -186,7 +129,7 @@ time_t imagetool_get_source_date(
 
 	if (gmtime(&time) == NULL) {
 		fprintf(stderr, "%s: SOURCE_DATE_EPOCH is not valid\n",
-			cmdname);
+			params->cmdname);
 		time = 0;
 	}
 

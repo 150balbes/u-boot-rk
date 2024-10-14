@@ -1,14 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * (C) Copyright 2017 Theobroma Systems Design und Consulting GmbH
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_ARCH_DDR_RK3368_H__
 #define __ASM_ARCH_DDR_RK3368_H__
-
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
 
 /*
  * The RK3368 DDR PCTL differs from the incarnation in the RK3288 only

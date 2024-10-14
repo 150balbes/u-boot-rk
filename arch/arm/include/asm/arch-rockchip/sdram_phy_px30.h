@@ -5,12 +5,8 @@
 
 #ifndef _ASM_ARCH_SDRAM_PHY_PX30_H
 #define _ASM_ARCH_SDRAM_PHY_PX30_H
-#include <asm/arch-rockchip/sdram_common.h>
-#include <asm/arch-rockchip/sdram_phy_ron_rtt_px30.h>
-
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
+#include <asm/arch/sdram_common.h>
+#include <asm/arch/sdram_phy_ron_rtt_px30.h>
 
 struct ddr_phy_regs {
 	u32 phy[5][2];

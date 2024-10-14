@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2017 Theobroma Systems Design und Consulting GmbH
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __RK_VOP_H__
 #define __RK_VOP_H__
 
-#include <asm/arch-rockchip/vop_rk3288.h>
+#include <asm/arch/vop_rk3288.h>
 
 struct rk_vop_priv {
 	void *grf;
@@ -32,7 +33,7 @@ struct rkvop_driverdata {
  * successfully initialised).
  *
  * @dev:	device
- * Return: 0 if OK, -ve if something went wrong
+ * @return 0 if OK, -ve if something went wrong
  */
 int rk_vop_probe(struct udevice *dev);
 
@@ -44,7 +45,7 @@ int rk_vop_probe(struct udevice *dev);
  *     (32 BPP) x VIDEO_ROCKCHIP_MAX_XRES x VIDEO_ROCKCHIP_MAX_YRES
  *
  * @dev:	device
- * Return: 0 (always OK)
+ * @return 0 (always OK)
  */
 int rk_vop_bind(struct udevice *dev);
 

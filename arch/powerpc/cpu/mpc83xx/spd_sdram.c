@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2006-2007 Freescale Semiconductor, Inc.
  *
@@ -8,24 +7,17 @@
  * Copyright (C) 2004-2006 Freescale Semiconductor, Inc.
  * (C) Copyright 2003 Motorola Inc.
  * Xianghua Xiao (X.Xiao@motorola.com)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifndef CONFIG_MPC83XX_SDRAM
-
 #include <common.h>
-#include <cpu_func.h>
-#include <log.h>
-#include <time.h>
-#include <vsprintf.h>
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <i2c.h>
 #include <spd.h>
 #include <asm/mmu.h>
 #include <spd_sdram.h>
-#include <asm/bitops.h>
-#include <asm/global_data.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -38,7 +30,7 @@ void board_add_ram_info(int use_default)
 	printf(" (DDR%d", ((ddr->sdram_cfg & SDRAM_CFG_SDRAM_TYPE_MASK)
 			   >> SDRAM_CFG_SDRAM_TYPE_SHIFT) - 1);
 
-#if defined(CONFIG_ARCH_MPC8308) || defined(CONFIG_ARCH_MPC831X)
+#if defined(CONFIG_MPC8308) || defined(CONFIG_MPC831x)
 	if ((ddr->sdram_cfg & SDRAM_CFG_DBW_MASK) == SDRAM_CFG_DBW_16)
 		puts(", 16-bit");
 	else if ((ddr->sdram_cfg & SDRAM_CFG_DBW_MASK) == SDRAM_CFG_DBW_32)
@@ -59,15 +51,15 @@ void board_add_ram_info(int use_default)
 
 	printf(", %s MHz)", strmhz(buf, gd->mem_clk));
 
-#if defined(CONFIG_SYS_LB_SDRAM) && defined(CFG_SYS_LBC_SDRAM_SIZE)
+#if defined(CONFIG_SYS_LB_SDRAM) && defined(CONFIG_SYS_LBC_SDRAM_SIZE)
 	puts("\nSDRAM: ");
-	print_size (CFG_SYS_LBC_SDRAM_SIZE * 1024 * 1024, " (local bus)");
+	print_size (CONFIG_SYS_LBC_SDRAM_SIZE * 1024 * 1024, " (local bus)");
 #endif
 }
 
 #ifdef CONFIG_SPD_EEPROM
-#ifndef	CFG_SYS_READ_SPD
-#define CFG_SYS_READ_SPD	i2c_read
+#ifndef	CONFIG_SYS_READ_SPD
+#define CONFIG_SYS_READ_SPD	i2c_read
 #endif
 #ifndef SPD_EEPROM_OFFSET
 #define SPD_EEPROM_OFFSET	0
@@ -167,7 +159,7 @@ long int spd_sdram()
 	isync();
 
 	/* Read SPD parameters with I2C */
-	CFG_SYS_READ_SPD(SPD_EEPROM_ADDRESS, SPD_EEPROM_OFFSET,
+	CONFIG_SYS_READ_SPD(SPD_EEPROM_ADDRESS, SPD_EEPROM_OFFSET,
 		SPD_EEPROM_ADDR_LEN, (uchar *) &spd, sizeof(spd));
 #ifdef SPD_DEBUG
 	spd_debug(&spd);
@@ -204,12 +196,12 @@ long int spd_sdram()
 		return 0;
 	}
 
-#ifdef CFG_SYS_DDRCDR_VALUE
+#ifdef CONFIG_SYS_DDRCDR_VALUE
 	/*
 	 * Adjust DDR II IO voltage biasing.  It just makes it work.
 	 */
 	if(spd.mem_type == SPD_MEMTYPE_DDR2) {
-		immap->sysconf.ddrcdr = CFG_SYS_DDRCDR_VALUE;
+		immap->sysconf.ddrcdr = CONFIG_SYS_DDRCDR_VALUE;
 	}
 	udelay(50000);
 #endif
@@ -288,7 +280,7 @@ long int spd_sdram()
 	/*
 	 * Set up LAWBAR for all of DDR.
 	 */
-	ecm->bar = CFG_SYS_SDRAM_BASE & 0xfffff000;
+	ecm->bar = CONFIG_SYS_DDR_SDRAM_BASE & 0xfffff000;
 	ecm->ar  = (LAWAR_EN | LAWAR_TRGT_IF_DDR | (LAWAR_SIZE & law_size));
 	debug("DDR:bar=0x%08x\n", ecm->bar);
 	debug("DDR:ar=0x%08x\n", ecm->ar);
@@ -433,7 +425,7 @@ long int spd_sdram()
 
 	/*
 	 * Errata DDR6 work around: input enable 2 cycles earlier.
-	 * including MPC834X Rev1.0/1.1 and MPC8360 Rev1.1/1.2.
+	 * including MPC834x Rev1.0/1.1 and MPC8360 Rev1.1/1.2.
 	 */
 	if(PVR_MAJ(pvr) <= 1 && spd.mem_type == SPD_MEMTYPE_DDR){
 		if (caslat == 2)
@@ -443,7 +435,7 @@ long int spd_sdram()
 		else if (caslat == 4)
 			ddr->debug_reg = 0x202c0000; /* CL=3.0 */
 
-		sync();
+		__asm__ __volatile__ ("sync");
 
 		debug("Errata DDR6 (debug_reg=0x%08x)\n", ddr->debug_reg);
 	}
@@ -693,7 +685,7 @@ long int spd_sdram()
 		ddr->sdram_mode =
 			(0
 			 | (1 << (16 + 10))             /* DQS Differential disable */
-#ifdef CFG_SYS_DDR_MODE_WEAK
+#ifdef CONFIG_SYS_DDR_MODE_WEAK
 			 | (1 << (16 + 1))		/* weak driver (~60%) */
 #endif
 			 | (add_lat << (16 + 3))        /* Additive Latency in EMRS1 */
@@ -767,13 +759,12 @@ long int spd_sdram()
 		debug("DDR: sdram_cfg2  = 0x%08x\n", ddr->sdram_cfg2);
 	}
 
-#ifdef CFG_SYS_DDR_SDRAM_CLK_CNTL	/* Optional platform specific value */
-	ddr->sdram_clk_cntl = CFG_SYS_DDR_SDRAM_CLK_CNTL;
+#ifdef CONFIG_SYS_DDR_SDRAM_CLK_CNTL	/* Optional platform specific value */
+	ddr->sdram_clk_cntl = CONFIG_SYS_DDR_SDRAM_CLK_CNTL;
 #endif
 	debug("DDR:sdram_clk_cntl=0x%08x\n", ddr->sdram_clk_cntl);
 
-	sync();
-	isync();
+	asm("sync;isync");
 
 	udelay(600);
 
@@ -834,10 +825,15 @@ long int spd_sdram()
 #endif
 	debug("   DDRC ECC mode: %s\n", ddrc_ecc_enable ? "ON":"OFF");
 
+#if defined(CONFIG_DDR_2T_TIMING)
+	/*
+	 * Enable 2T timing by setting sdram_cfg[16].
+	 */
+	sdram_cfg |= SDRAM_CFG_2T_EN;
+#endif
 	/* Enable controller, and GO! */
 	ddr->sdram_cfg = sdram_cfg;
-	sync();
-	isync();
+	asm("sync;isync");
 	udelay(500);
 
 	debug("DDR:sdram_cfg=0x%08x\n", ddr->sdram_cfg);
@@ -846,22 +842,6 @@ long int spd_sdram()
 #endif /* CONFIG_SPD_EEPROM */
 
 #if defined(CONFIG_DDR_ECC) && !defined(CONFIG_ECC_INIT_VIA_DDRCONTROLLER)
-static inline u32 mftbu(void)
-{
-	u32 rval;
-
-	asm volatile("mftbu %0" : "=r" (rval));
-	return rval;
-}
-
-static inline u32 mftb(void)
-{
-	u32 rval;
-
-	asm volatile("mftb %0" : "=r" (rval));
-	return rval;
-}
-
 /*
  * Use timebase counter, get_timer() is not available
  * at this point of initialization yet.
@@ -877,9 +857,9 @@ static __inline__ unsigned long get_tbms (void)
 
 	/* get the timebase ticks */
 	do {
-		tbu1 = mftbu();
-		tbl = mftb();
-		tbu2 = mftbu();
+		asm volatile ("mftbu %0":"=r" (tbu1):);
+		asm volatile ("mftb %0":"=r" (tbl):);
+		asm volatile ("mftbu %0":"=r" (tbu2):);
 	} while (tbu1 != tbu2);
 
 	/* convert ticks to ms */
@@ -908,12 +888,16 @@ void ddr_enable_ecc(unsigned int dram_size)
 	pattern[0] = 0xdeadbeef;
 	pattern[1] = 0xdeadbeef;
 
+#if defined(CONFIG_DDR_ECC_INIT_VIA_DMA)
+	dma_meminit(pattern[0], dram_size);
+#else
 	debug("ddr init: CPU FP write method\n");
 	size = dram_size;
 	for (p = 0; p < (u64*)(size); p++) {
 		ppcDWstore((u32*)p, pattern);
 	}
-	sync();
+	__asm__ __volatile__ ("sync");
+#endif
 
 	t_end = get_tbms();
 	icache_disable();
@@ -937,9 +921,7 @@ void ddr_enable_ecc(unsigned int dram_size)
 	/* Enable errors for ECC */
 	ddr->err_disable &= ECC_ERROR_ENABLE;
 
-	sync();
-	isync();
+	__asm__ __volatile__ ("sync");
+	__asm__ __volatile__ ("isync");
 }
 #endif	/* CONFIG_DDR_ECC */
-
-#endif /* !CONFIG_MPC83XX_SDRAM */

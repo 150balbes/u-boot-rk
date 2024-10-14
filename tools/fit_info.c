@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014
  * DENX Software Engineering
@@ -19,6 +18,8 @@
  *		some functions added to address abstraction
  *
  * All rights reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include "mkimage.h"
@@ -80,7 +81,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "%s: Missing property name\n", *argv);
 		usage(*argv);
 	}
-	ffd = mmap_fdt(cmdname, fdtfile, 0, &fit_blob, &fsbuf, false, false);
+	ffd = mmap_fdt(cmdname, fdtfile, 0, &fit_blob, &fsbuf, false);
 
 	if (ffd < 0) {
 		printf("Could not open %s\n", fdtfile);
@@ -101,6 +102,7 @@ int main(int argc, char **argv)
 	printf("NAME: %s\n", fit_get_name(fit_blob, nodeoffset, NULL));
 	printf("LEN: %d\n", len);
 	printf("OFF: %d\n", (int)(nodep - fit_blob));
+	printf("END: %d\n", (int)(nodep + len - fit_blob));
 	(void) munmap((void *)fit_blob, fsbuf.st_size);
 
 	close(ffd);

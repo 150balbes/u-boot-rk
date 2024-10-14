@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2008-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP Semiconductor
+ * Copyright 2008-2014 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef FSL_DDR_MEMCTL_H
@@ -48,25 +48,25 @@
 #if defined(CONFIG_SYS_FSL_DDR1)
 #define FSL_DDR_MIN_TCKE_PULSE_WIDTH_DDR	(1)
 typedef ddr1_spd_eeprom_t generic_spd_eeprom_t;
-#ifndef CFG_FSL_SDRAM_TYPE
-#define CFG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR1
+#ifndef CONFIG_FSL_SDRAM_TYPE
+#define CONFIG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR1
 #endif
 #elif defined(CONFIG_SYS_FSL_DDR2)
 #define FSL_DDR_MIN_TCKE_PULSE_WIDTH_DDR	(3)
 typedef ddr2_spd_eeprom_t generic_spd_eeprom_t;
-#ifndef CFG_FSL_SDRAM_TYPE
-#define CFG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR2
+#ifndef CONFIG_FSL_SDRAM_TYPE
+#define CONFIG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR2
 #endif
 #elif defined(CONFIG_SYS_FSL_DDR3)
 typedef ddr3_spd_eeprom_t generic_spd_eeprom_t;
-#ifndef CFG_FSL_SDRAM_TYPE
-#define CFG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR3
+#ifndef CONFIG_FSL_SDRAM_TYPE
+#define CONFIG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR3
 #endif
 #elif defined(CONFIG_SYS_FSL_DDR4)
 #define FSL_DDR_MIN_TCKE_PULSE_WIDTH_DDR	(3)	/* FIXME */
 typedef struct ddr4_spd_eeprom_s generic_spd_eeprom_t;
-#ifndef CFG_FSL_SDRAM_TYPE
-#define CFG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR4
+#ifndef CONFIG_FSL_SDRAM_TYPE
+#define CONFIG_FSL_SDRAM_TYPE	SDRAM_TYPE_DDR4
 #endif
 #endif	/* #if defined(CONFIG_SYS_FSL_DDR1) */
 
@@ -366,7 +366,6 @@ typedef struct memctl_options_s {
 	unsigned int quad_rank_present;
 	unsigned int ap_en;	/* address parity enable for RDIMM/DDR4-UDIMM */
 	unsigned int x4_en;	/* enable x4 devices */
-	unsigned int package_3ds;
 
 	/* Global Timing Parameters */
 	unsigned int cas_latency_override;
@@ -409,7 +408,6 @@ typedef struct memctl_options_s {
 	unsigned int rcw_override;
 	unsigned int rcw_1;
 	unsigned int rcw_2;
-	unsigned int rcw_3;
 	/* control register 1 */
 	unsigned int ddr_cdr1;
 	unsigned int ddr_cdr2;
@@ -483,7 +481,7 @@ typedef struct fixed_ddr_parm{
 /**
  * fsl_initdram() - Set up the SDRAM
  *
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int fsl_initdram(void);
 

@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
-#include <log.h>
 #include <malloc.h>
 #include <dm-demo.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 
@@ -29,7 +28,7 @@ struct shape_data {
 /* Crazy little function to draw shapes on the console */
 static int shape_hello(struct udevice *dev, int ch)
 {
-	const struct dm_demo_pdata *pdata = dev_get_plat(dev);
+	const struct dm_demo_pdata *pdata = dev_get_platdata(dev);
 	struct shape_data *data = dev_get_priv(dev);
 	static const struct shape {
 		int start;
@@ -141,9 +140,9 @@ static const struct demo_ops shape_ops = {
 	.set_light = set_light,
 };
 
-static int shape_of_to_plat(struct udevice *dev)
+static int shape_ofdata_to_platdata(struct udevice *dev)
 {
-	struct dm_demo_pdata *pdata = dev_get_plat(dev);
+	struct dm_demo_pdata *pdata = dev_get_platdata(dev);
 	int ret;
 
 	/* Parse the data that is common with all demo devices */
@@ -190,10 +189,10 @@ U_BOOT_DRIVER(demo_shape_drv) = {
 	.name	= "demo_shape_drv",
 	.of_match = demo_shape_id,
 	.id	= UCLASS_DEMO,
-	.of_to_plat = shape_of_to_plat,
+	.ofdata_to_platdata = shape_ofdata_to_platdata,
 	.ops	= &shape_ops,
 	.probe = dm_shape_probe,
 	.remove = dm_shape_remove,
-	.priv_auto	= sizeof(struct shape_data),
-	.plat_auto	= sizeof(struct dm_demo_pdata),
+	.priv_auto_alloc_size = sizeof(struct shape_data),
+	.platdata_auto_alloc_size = sizeof(struct dm_demo_pdata),
 };

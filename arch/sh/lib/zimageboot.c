@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  *   Renesas Solutions Corp.
  *   Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -10,14 +11,10 @@
  */
 
 #include <common.h>
-#include <command.h>
-#include <env.h>
-#include <irq_func.h>
 #include <asm/io.h>
 #include <asm/zimage.h>
 
-int do_sh_zimageboot(struct cmd_tbl *cmdtp, int flag, int argc,
-		     char *const argv[])
+int do_sh_zimageboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong (*zboot_entry)(int, char * const []) = NULL;
 	char *s0, *s1;
@@ -37,12 +34,11 @@ int do_sh_zimageboot(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	if (s0)
-		zboot_entry = (ulong (*)(int, char * const []))hextoul(s0,
-									NULL);
+		zboot_entry = (ulong (*)(int, char * const []))simple_strtoul(s0, NULL, 16);
 
 	/* empty_zero_page */
 	if (s1)
-		param = (unsigned char *)hextoul(s1, NULL);
+		param = (unsigned char*)simple_strtoul(s1, NULL, 16);
 
 	/* Linux kernel command line */
 	cmdline = (char *)param + COMMAND_LINE;

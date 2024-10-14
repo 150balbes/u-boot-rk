@@ -1,23 +1,19 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <console.h>
-#include <cpu_func.h>
-#include <flash.h>
-#include <irq_func.h>
-#include <uuid.h>
-#include <linux/delay.h>
 
-#define PHYS_FLASH_1 CFG_SYS_FLASH_BASE
+#define PHYS_FLASH_1 CONFIG_SYS_FLASH_BASE
 #define FLASH_BANK_SIZE 0x200000
 
 flash_info_t flash_info[CONFIG_SYS_MAX_FLASH_BANKS];
 
-void flash_print_info(flash_info_t *info)
+void flash_print_info (flash_info_t * info)
 {
 	int i;
 
@@ -58,7 +54,7 @@ Done:
 }
 
 
-unsigned long flash_init(void)
+unsigned long flash_init (void)
 {
 	int i, j;
 	ulong size = 0;
@@ -101,9 +97,9 @@ unsigned long flash_init(void)
 		size += flash_info[i].size;
 	}
 
-	flash_protect(FLAG_PROTECT_SET,
-		      CFG_SYS_FLASH_BASE,
-		      CFG_SYS_FLASH_BASE + 0x3ffff, &flash_info[0]);
+	flash_protect (FLAG_PROTECT_SET,
+		       CONFIG_SYS_FLASH_BASE,
+		       CONFIG_SYS_FLASH_BASE + 0x3ffff, &flash_info[0]);
 
 	return size;
 }
@@ -117,8 +113,8 @@ unsigned long flash_init(void)
 #define CMD_PROGRAM		0x00A0
 #define CMD_UNLOCK_BYPASS	0x0020
 
-#define MEM_FLASH_ADDR1		(*(volatile u16 *)(CFG_SYS_FLASH_BASE + (0x00000555<<1)))
-#define MEM_FLASH_ADDR2		(*(volatile u16 *)(CFG_SYS_FLASH_BASE + (0x000002AA<<1)))
+#define MEM_FLASH_ADDR1		(*(volatile u16 *)(CONFIG_SYS_FLASH_BASE + (0x00000555<<1)))
+#define MEM_FLASH_ADDR2		(*(volatile u16 *)(CONFIG_SYS_FLASH_BASE + (0x000002AA<<1)))
 
 #define BIT_ERASE_DONE		0x0080
 #define BIT_RDY_MASK		0x0080
@@ -130,7 +126,7 @@ unsigned long flash_init(void)
 #define TMO   4
 
 
-int flash_erase(flash_info_t *info, int s_first, int s_last)
+int flash_erase (flash_info_t * info, int s_first, int s_last)
 {
 	ulong result;
 	int iflag, cflag, prot, sect;
@@ -169,9 +165,9 @@ int flash_erase(flash_info_t *info, int s_first, int s_last)
 	 * chip is in programming mode.
 	 */
 
-	cflag = icache_status();
-	icache_disable();
-	iflag = disable_interrupts();
+	cflag = icache_status ();
+	icache_disable ();
+	iflag = disable_interrupts ();
 
 	printf ("\n");
 
@@ -200,8 +196,8 @@ int flash_erase(flash_info_t *info, int s_first, int s_last)
 			do {
 				result = *addr;
 
-				/* check timeout, 1000ms */
-				if (get_timer(start) > 1000) {
+				/* check timeout */
+				if (get_timer(start) > CONFIG_SYS_FLASH_ERASE_TOUT) {
 					MEM_FLASH_ADDR1 = CMD_READ_ARRAY;
 					chip1 = TMO;
 					break;
@@ -236,18 +232,18 @@ int flash_erase(flash_info_t *info, int s_first, int s_last)
 
       outahere:
 	/* allow flash to settle - wait 10 ms */
-	mdelay(10);
+	udelay (10000);
 
 	if (iflag)
-		enable_interrupts();
+		enable_interrupts ();
 
 	if (cflag)
-		icache_enable();
+		icache_enable ();
 
 	return rc;
 }
 
-static int write_word(flash_info_t *info, ulong dest, ulong data)
+static int write_word (flash_info_t * info, ulong dest, ulong data)
 {
 	volatile u16 *addr = (volatile u16 *) dest;
 	ulong result;
@@ -272,9 +268,9 @@ static int write_word(flash_info_t *info, ulong dest, ulong data)
 	 * chip is in programming mode.
 	 */
 
-	cflag = icache_status();
-	icache_disable();
-	iflag = disable_interrupts();
+	cflag = icache_status ();
+	icache_disable ();
+	iflag = disable_interrupts ();
 
 	MEM_FLASH_ADDR1 = CMD_UNLOCK1;
 	MEM_FLASH_ADDR2 = CMD_UNLOCK2;
@@ -289,8 +285,8 @@ static int write_word(flash_info_t *info, ulong dest, ulong data)
 	do {
 		result = *addr;
 
-		/* check timeout, 1000ms */
-		if (get_timer(start) > 1000) {
+		/* check timeout */
+		if (get_timer(start) > CONFIG_SYS_FLASH_ERASE_TOUT) {
 			chip1 = ERR | TMO;
 			break;
 		}
@@ -305,16 +301,16 @@ static int write_word(flash_info_t *info, ulong dest, ulong data)
 		rc = ERR_PROG_ERROR;
 
 	if (iflag)
-		enable_interrupts();
+		enable_interrupts ();
 
 	if (cflag)
-		icache_enable();
+		icache_enable ();
 
 	return rc;
 }
 
 
-int write_buff(flash_info_t *info, uchar *src, ulong addr, ulong cnt)
+int write_buff (flash_info_t * info, uchar * src, ulong addr, ulong cnt)
 {
 	ulong wp, data;
 	int rc;

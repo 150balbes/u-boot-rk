@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * U-Boot additions to enable a generic Exynos GPIO driver
  *
  * Copyright (c) 2014 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /{
@@ -12,6 +13,8 @@
 	 * numbers are not needed in U-Boot for exynos.
 	 */
 	pinctrl@14010000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 	pinctrl@13400000 {
 		#address-cells = <1>;
@@ -24,10 +27,16 @@
 		};
 	};
 	pinctrl@13410000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 	pinctrl@14000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 	pinctrl@03860000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 
 };

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Google, Inc
+ *
+ * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #ifndef __ALIGNMEM_H
@@ -103,7 +104,7 @@
  *
  * @size:	Minimum number of bytes to allocate
  *
- * Return: pointer to new memory region, or NULL if there is no more memory
+ * @return pointer to new memory region, or NULL if there is no more memory
  * available.
  */
 static inline void *malloc_cache_aligned(size_t size)

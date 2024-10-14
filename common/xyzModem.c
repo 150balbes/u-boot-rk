@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: eCos-2.0
 /*
  *==========================================================================
  *
@@ -6,6 +5,8 @@
  *
  *      RedBoot stream handler for xyzModem protocol
  *
+ *==========================================================================
+ * SPDX-License-Identifier:	eCos-2.0
  *==========================================================================
  *#####DESCRIPTIONBEGIN####
  *
@@ -24,16 +25,13 @@
 #include <common.h>
 #include <xyzModem.h>
 #include <stdarg.h>
-#include <u-boot/crc.h>
-#include <watchdog.h>
-#include <env.h>
+#include <crc.h>
 
 /* Assumption - run xyzModem protocol over the console port */
 
 /* Values magic to the protocol */
 #define SOH 0x01
 #define STX 0x02
-#define ETX 0x03		/* ^C for interrupt */
 #define EOT 0x04
 #define ACK 0x06
 #define BSP 0x08
@@ -51,24 +49,22 @@ static struct
   int len, mode, total_retries;
   int total_SOH, total_STX, total_CAN;
   bool crc_mode, at_eof, tx_ack;
-  bool first_xmodem_packet;
-  ulong initial_time, timeout;
   unsigned long file_length, read_length;
 } xyz;
 
-#define xyzModem_CHAR_TIMEOUT            2000	/* 2 seconds */
+#define _xyzModem_CHAR_TIMEOUT            2000	/* 2 seconds */
 #define xyzModem_MAX_RETRIES             20
 #define xyzModem_MAX_RETRIES_WITH_CRC    10
 #define xyzModem_CAN_COUNT                3	/* Wait for 3 CAN before quitting */
 
+int xyzModem_CHAR_TIMEOUT = _xyzModem_CHAR_TIMEOUT;
 
 typedef int cyg_int32;
-static int
+int
 CYGACC_COMM_IF_GETC_TIMEOUT (char chan, char *c)
 {
 
   ulong now = get_timer(0);
-  schedule();
   while (!tstc ())
     {
       if (get_timer(now) > xyzModem_CHAR_TIMEOUT)
@@ -76,13 +72,13 @@ CYGACC_COMM_IF_GETC_TIMEOUT (char chan, char *c)
     }
   if (tstc ())
     {
-      *c = getchar();
+      *c = getc ();
       return 1;
     }
   return 0;
 }
 
-static void
+void
 CYGACC_COMM_IF_PUTC (char x, char y)
 {
   putc (y);
@@ -177,7 +173,7 @@ parse_num (char *s, unsigned long *val, char **es, char *delim)
 }
 
 
-#if defined(DEBUG) && !CONFIG_IS_ENABLED(USE_TINY_PRINTF)
+#ifdef DEBUG
 /*
  * Note: this debug setup works by storing the strings in a fixed buffer
  */
@@ -186,16 +182,15 @@ static char *zm_out = zm_debug_buf;
 static char *zm_out_start = zm_debug_buf;
 
 static int
-zm_dprintf(char *fmt, ...)
+zm_dprintf (char *fmt, ...)
 {
-	int len;
-	va_list args;
+  int len;
+  va_list args;
 
-	va_start(args, fmt);
-	len = diag_vsprintf(zm_out, fmt, args);
-	va_end(args);
-	zm_out += len;
-	return len;
+  va_start (args, fmt);
+  len = diag_vsprintf (zm_out, fmt, args);
+  zm_out += len;
+  return len;
 }
 
 static void
@@ -287,7 +282,6 @@ xyzModem_get_hdr (void)
 	      hdr_found = true;
 	      break;
 	    case CAN:
-	    case ETX:
 	      xyz.total_CAN++;
 	      ZM_DEBUG (zm_dump (__LINE__));
 	      if (++can_total == xyzModem_CAN_COUNT)
@@ -412,19 +406,6 @@ xyzModem_get_hdr (void)
   return 0;
 }
 
-static
-ulong
-xyzModem_get_initial_timeout (void)
-{
-  /* timeout is in seconds, non-positive timeout value is infinity */
-#if CONFIG_IS_ENABLED(ENV_SUPPORT)
-  const char *timeout_str = env_get("loadxy_timeout");
-  if (timeout_str)
-    return 1000 * simple_strtol(timeout_str, NULL, 10);
-#endif
-  return 1000 * CONFIG_CMD_LOADXY_TIMEOUT;
-}
-
 int
 xyzModem_stream_open (connection_info_t * info, int *err)
 {
@@ -455,28 +436,18 @@ xyzModem_stream_open (connection_info_t * info, int *err)
   xyz.total_CAN = 0;
   xyz.read_length = 0;
   xyz.file_length = 0;
-  xyz.first_xmodem_packet = false;
-  xyz.initial_time = get_timer(0);
-  xyz.timeout = xyzModem_get_initial_timeout();
 
   CYGACC_COMM_IF_PUTC (*xyz.__chan, (xyz.crc_mode ? 'C' : NAK));
 
   if (xyz.mode == xyzModem_xmodem)
     {
       /* X-modem doesn't have an information header - exit here */
-      xyz.first_xmodem_packet = true;
       xyz.next_blk = 1;
       return 0;
     }
 
-  while (!(xyz.timeout && get_timer(xyz.initial_time) > xyz.timeout))
+  while (retries-- > 0)
     {
-      if (--retries <= 0)
-        {
-          retries = xyzModem_MAX_RETRIES;
-          crc_retries = xyzModem_MAX_RETRIES_WITH_CRC;
-          xyz.crc_mode = true;
-        }
       stat = xyzModem_get_hdr ();
       if (stat == 0)
 	{
@@ -522,26 +493,16 @@ xyzModem_stream_read (char *buf, int size, int *err)
   total = 0;
   stat = xyzModem_cancel;
   /* Try and get 'size' bytes into the buffer */
-  while (!xyz.at_eof && xyz.len >= 0 && (size > 0))
+  while (!xyz.at_eof && (size > 0))
     {
       if (xyz.len == 0)
 	{
 	  retries = xyzModem_MAX_RETRIES;
 	  while (retries-- > 0)
 	    {
-	      if (xyz.first_xmodem_packet && xyz.timeout &&
-		  get_timer(xyz.initial_time) > xyz.timeout)
-		{
-		  *err = xyzModem_timeout;
-		  xyz.len = -1;
-		  return total;
-		}
-
 	      stat = xyzModem_get_hdr ();
 	      if (stat == 0)
 		{
-		  if (xyz.mode == xyzModem_xmodem && xyz.first_xmodem_packet)
-		    xyz.first_xmodem_packet = false;
 		  if (xyz.blk == xyz.next_blk)
 		    {
 		      xyz.tx_ack = true;
@@ -610,8 +571,6 @@ xyzModem_stream_read (char *buf, int size, int *err)
 		      CYGACC_COMM_IF_PUTC (*xyz.__chan, ACK);
 		      ZM_DEBUG (zm_dprintf ("FINAL ACK (%d)\n", __LINE__));
 		    }
-		  else
-		    stat = 0;
 		  xyz.at_eof = true;
 		  break;
 		}
@@ -619,7 +578,7 @@ xyzModem_stream_read (char *buf, int size, int *err)
 	      xyz.total_retries++;
 	      ZM_DEBUG (zm_dprintf ("NAK (%d)\n", __LINE__));
 	    }
-	  if (stat < 0 && (!xyz.first_xmodem_packet || stat != xyzModem_timeout))
+	  if (stat < 0)
 	    {
 	      *err = stat;
 	      xyz.len = -1;
@@ -627,7 +586,7 @@ xyzModem_stream_read (char *buf, int size, int *err)
 	    }
 	}
       /* Don't "read" data from the EOF protocol package */
-      if (!xyz.at_eof && xyz.len > 0)
+      if (!xyz.at_eof)
 	{
 	  len = xyz.len;
 	  if (size < len)
@@ -646,10 +605,10 @@ xyzModem_stream_read (char *buf, int size, int *err)
 void
 xyzModem_stream_close (int *err)
 {
-  ZM_DEBUG (zm_dprintf
+  diag_printf
     ("xyzModem - %s mode, %d(SOH)/%d(STX)/%d(CAN) packets, %d retries\n",
      xyz.crc_mode ? "CRC" : "Cksum", xyz.total_SOH, xyz.total_STX,
-     xyz.total_CAN, xyz.total_retries));
+     xyz.total_CAN, xyz.total_retries);
   ZM_DEBUG (zm_flush ());
 }
 

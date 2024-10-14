@@ -1,17 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  */
-
-#define LOG_CATEGORY UCLASS_MAILBOX
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
 #include <mailbox.h>
 #include <mailbox-uclass.h>
-#include <malloc.h>
-#include <time.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 static inline struct mbox_ops *mbox_dev_ops(struct udevice *dev)
 {
@@ -24,7 +22,7 @@ static int mbox_of_xlate_default(struct mbox_chan *chan,
 	debug("%s(chan=%p)\n", __func__, chan);
 
 	if (args->args_count != 1) {
-		debug("Invalid args_count: %d\n", args->args_count);
+		debug("Invaild args_count: %d\n", args->args_count);
 		return -EINVAL;
 	}
 
@@ -54,16 +52,7 @@ int mbox_get_by_index(struct udevice *dev, int index, struct mbox_chan *chan)
 	if (ret) {
 		debug("%s: uclass_get_device_by_of_offset failed: %d\n",
 		      __func__, ret);
-
-		/* Test with parent node */
-		ret = uclass_get_device_by_ofnode(UCLASS_MAILBOX,
-						  ofnode_get_parent(args.node),
-						  &dev_mbox);
-		if (ret) {
-			debug("%s: mbox node from parent failed: %d\n",
-			      __func__, ret);
-			return ret;
-		};
+		return ret;
 	}
 	ops = mbox_dev_ops(dev_mbox);
 
@@ -77,8 +66,7 @@ int mbox_get_by_index(struct udevice *dev, int index, struct mbox_chan *chan)
 		return ret;
 	}
 
-	if (ops->request)
-		ret = ops->request(chan);
+	ret = ops->request(chan);
 	if (ret) {
 		debug("ops->request() failed: %d\n", ret);
 		return ret;
@@ -109,10 +97,7 @@ int mbox_free(struct mbox_chan *chan)
 
 	debug("%s(chan=%p)\n", __func__, chan);
 
-	if (ops->rfree)
-		return ops->rfree(chan);
-
-	return 0;
+	return ops->free(chan);
 }
 
 int mbox_send(struct mbox_chan *chan, const void *data)

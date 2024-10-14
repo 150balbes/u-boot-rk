@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014 Gateworks Corporation
  * Tim Harvey <tharvey@gateworks.com>
+ *
+ * SPDX-License-Identifier:      GPL-2.0+
  */
 
 #include <common.h>
@@ -23,7 +24,7 @@ int power_ltc3676_init(unsigned char bus)
 	p->name = name;
 	p->interface = PMIC_I2C;
 	p->number_of_regs = LTC3676_NUM_OF_REGS;
-	p->hw.i2c.addr = CFG_POWER_LTC3676_I2C_ADDR;
+	p->hw.i2c.addr = CONFIG_POWER_LTC3676_I2C_ADDR;
 	p->hw.i2c.tx_num = 1;
 	p->bus = bus;
 

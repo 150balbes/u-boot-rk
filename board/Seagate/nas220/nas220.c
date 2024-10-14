@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014  Evgeni Dobrev <evgeni@studio-punkt.com>
  *
@@ -6,13 +5,12 @@
  * Prafulla Wadaskar <prafulla@marvell.com>
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
 #include <miiphy.h>
-#include <net.h>
-#include <asm/global_data.h>
 #include <asm/mach-types.h>
 #include <asm/arch/soc.h>
 #include <asm/arch/mpp.h>

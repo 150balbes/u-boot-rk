@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 Texas Instruments
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -9,7 +10,7 @@
 #ifdef CONFIG_CMD_BAT
 #include <twl6030.h>
 
-int do_vbat(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_vbat(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc == 2) {
 		if (strncmp(argv[1], "startcharge", 12) == 0)
@@ -38,4 +39,4 @@ U_BOOT_CMD(
 	"bat startcharge - start charging via USB\n"
 	"bat stopcharge - stop charging\n"
 );
-#endif /* CONFIG_CMD_BAT */
+#endif /* CONFIG_BAT_CMD */

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  armboot - Startup Code for OMP2420/ARM1136 CPU-core
  *
@@ -9,6 +8,8 @@
  *  Copyright (c) 2002	Gary Jennejohn <garyj@denx.de>
  *  Copyright (c) 2003	Richard Woodruff <r-woodruff2@ti.com>
  *  Copyright (c) 2003	Kshitij <kshitij@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -39,7 +40,7 @@ reset:
 	msr	cpsr,r0
 
 	/* the mask ROM code should have PLL and others stable */
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT
 	bl  cpu_init_crit
 #endif
 
@@ -62,7 +63,7 @@ c_runtime_cpu_setup:
  *
  *************************************************************************
  */
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT
 cpu_init_crit:
 	/*
 	 * flush v4 I/D caches
@@ -81,7 +82,7 @@ cpu_init_crit:
 	orr	r0, r0, #0x00001000	@ set bit 12 (I) I-Cache
 	mcr	p15, 0, r0, c1, c0, 0
 
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT_ONLY)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT_ONLY
 	/*
 	 * Jump to board specific initialization... The Mask ROM will have already initialized
 	 * basic memory.  Go here to bump up clock rate and handle wake up conditions.
@@ -91,4 +92,4 @@ cpu_init_crit:
 	mov	lr, ip		/* restore link */
 #endif
 	mov	pc, lr		/* back to my caller */
-#endif /* !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT) */
+#endif /* CONFIG_SKIP_LOWLEVEL_INIT */

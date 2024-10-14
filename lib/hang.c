@@ -1,17 +1,19 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013
  * Andreas Bießmann <andreas@biessmann.org>
  *
  * This file consolidates all the different hang() functions implemented in
  * u-boot.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <bootstage.h>
-#include <hang.h>
-#include <os.h>
 
+#ifdef CONFIG_SPL_BUILD
+__weak void spl_hang_reset(void) {}
+#endif
 /**
  * hang - stop processing by staying in an endless loop
  *
@@ -22,14 +24,14 @@
  */
 void hang(void)
 {
-#if !defined(CONFIG_SPL_BUILD) || \
-		(CONFIG_IS_ENABLED(LIBCOMMON_SUPPORT) && \
-		 CONFIG_IS_ENABLED(SERIAL))
+#if !defined(CONFIG_SPL_BUILD) || (defined(CONFIG_SPL_LIBCOMMON_SUPPORT) && \
+		defined(CONFIG_SPL_SERIAL_SUPPORT))
 	puts("### ERROR ### Please RESET the board ###\n");
 #endif
 	bootstage_error(BOOTSTAGE_ID_NEED_RESET);
-	if (IS_ENABLED(CONFIG_SANDBOX))
-		os_exit(1);
+#ifdef CONFIG_SPL_BUILD
+	spl_hang_reset();
+#endif
 	for (;;)
 		;
 }

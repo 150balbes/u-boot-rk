@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2004-2007 ARM Limited.
  * Copyright (C) 2008 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  * Copyright (C) 2015 - 2016 Xilinx, Inc, Michal Simek
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  *
  * As a special exception, if other files instantiate templates or use macros
  * or inline functions from this file, or you compile this file and link it
@@ -19,7 +20,7 @@
 #include <dm.h>
 #include <serial.h>
 
-#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V7A) || defined(CONFIG_CPU_V7R)
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V7)
 /*
  * ARMV6 & ARMV7
  */
@@ -51,7 +52,7 @@
 #define status_dcc(x)	\
 		__asm__ volatile ("mrc p14, 0, %0, c14, c0, 0\n" : "=r" (x))
 
-#elif defined(CONFIG_ARM64)
+#elif defined(CONFIG_CPU_ARMV8)
 /*
  * ARMV8
  */
@@ -155,6 +156,7 @@ U_BOOT_DRIVER(serial_dcc) = {
 	.id	= UCLASS_SERIAL,
 	.of_match = arm_dcc_ids,
 	.ops	= &arm_dcc_ops,
+	.flags = DM_FLAG_PRE_RELOC,
 };
 
 #ifdef CONFIG_DEBUG_UART_ARM_DCC

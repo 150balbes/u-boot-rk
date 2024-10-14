@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Samsung Electronics
  * Przemyslaw Marczak <p.marczak@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <errno.h>
@@ -135,9 +136,9 @@ int sandbox_adc_probe(struct udevice *dev)
 	return 0;
 }
 
-int sandbox_adc_of_to_plat(struct udevice *dev)
+int sandbox_adc_ofdata_to_platdata(struct udevice *dev)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 
 	uc_pdata->data_mask = SANDBOX_ADC_DATA_MASK;
 	uc_pdata->data_format = ADC_DATA_FORMAT_BIN;
@@ -168,6 +169,6 @@ U_BOOT_DRIVER(sandbox_adc) = {
 	.of_match	= sandbox_adc_ids,
 	.ops		= &sandbox_adc_ops,
 	.probe		= sandbox_adc_probe,
-	.of_to_plat = sandbox_adc_of_to_plat,
-	.priv_auto	= sizeof(struct sandbox_adc_priv),
+	.ofdata_to_platdata = sandbox_adc_ofdata_to_platdata,
+	.priv_auto_alloc_size = sizeof(struct sandbox_adc_priv),
 };

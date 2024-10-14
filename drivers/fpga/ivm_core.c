@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Porting to u-boot:
  *
@@ -27,10 +26,10 @@
  * 08/28/08 NN Added Calculate checksum support.
  * 4/1/09 Nguyen replaced the recursive function call codes on
  *        the ispVMLCOUNT function
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
 #include <linux/string.h>
 #include <malloc.h>
 #include <lattice.h>

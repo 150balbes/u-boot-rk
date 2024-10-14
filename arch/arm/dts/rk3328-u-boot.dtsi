@@ -1,45 +1,32 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
- * (C) Copyright 2019 Rockchip Electronics Co., Ltd
+ * (C) Copyright 2018 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
-
-#include "rockchip-u-boot.dtsi"
 
 / {
 	aliases {
 		mmc0 = &emmc;
 		mmc1 = &sdmmc;
-		spi0 = &spi0;
 	};
 
 	chosen {
-		u-boot,spl-boot-order = &emmc, &sdmmc;
+		u-boot,spl-boot-order = &sdmmc, &emmc;
+		stdout-path = &uart2;
 	};
 
-	dmc: dmc {
-		u-boot,dm-pre-reloc;
-		compatible = "rockchip,rk3328-dmc";
-		reg = <0x0 0xff400000 0x0 0x1000
-		       0x0 0xff780000 0x0 0x3000
-		       0x0 0xff100000 0x0 0x1000
-		       0x0 0xff440000 0x0 0x1000
-		       0x0 0xff720000 0x0 0x1000
-		       0x0 0xff798000 0x0 0x1000>;
-	};
+};
 
-	usb_host0_xhci: usb@ff600000 {
-		compatible = "rockchip,rk3328-xhci";
-		reg = <0x0 0xff600000 0x0 0x100000>;
-		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
-		snps,dis-enblslpm-quirk;
-		snps,phyif-utmi-bits = <16>;
-		snps,dis-u2-freeclk-exists-quirk;
-		snps,dis-u2-susphy-quirk;
-		status = "disabled";
-	};
+&psci {
+	u-boot,dm-pre-reloc;
+	status = "okay";
 };
 
 &cru {
+	u-boot,dm-pre-reloc;
+};
+
+&crypto {
 	u-boot,dm-pre-reloc;
 };
 
@@ -47,29 +34,67 @@
 	u-boot,dm-pre-reloc;
 };
 
+&dmc {
+	u-boot,dm-pre-reloc;
+};
+
 &uart2 {
 	u-boot,dm-pre-reloc;
-	clock-frequency = <24000000>;
 };
 
 &emmc {
-	u-boot,dm-pre-reloc;
-
-	/* mmc to sram can't do dma, prevent aborts transfering TF-A parts */
-	u-boot,spl-fifo-mode;
+	u-boot,dm-spl;
 };
 
 &sdmmc {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
+};
 
-	/* mmc to sram can't do dma, prevent aborts transfering TF-A parts */
-	u-boot,spl-fifo-mode;
+&saradc {
+	u-boot,dm-spl;
+	status = "okay";
 };
 
 &usb20_otg {
-	hnp-srp-disable;
+	u-boot,dm-spl;
 };
 
-&spi0 {
-	u-boot,dm-pre-reloc;
+&usb2phy_grf {
+	u-boot,dm-spl;
+};
+
+&u2phy {
+	u-boot,dm-spl;
+};
+
+&u2phy_otg {
+	u-boot,dm-spl;
+};
+
+&u2phy_host {
+	u-boot,dm-spl;
+};
+
+&usb_host0_ehci {
+	u-boot,dm-spl;
+};
+
+&pinctrl {
+	u-boot,dm-spl;
+};
+
+&sdmmc0_bus4 {
+	u-boot,dm-spl;
+};
+
+&sdmmc0_clk {
+	u-boot,dm-spl;
+};
+
+&sdmmc0_cmd {
+	u-boot,dm-spl;
+};
+
+&sdmmc0_dectn {
+	u-boot,dm-spl;
 };

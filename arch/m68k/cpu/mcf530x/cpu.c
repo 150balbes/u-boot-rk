@@ -1,18 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014  Angelo Dureghello <angelo@sysam.it>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
 #include <common.h>
-#include <command.h>
-#include <init.h>
-#include <vsprintf.h>
 #include <asm/immap.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_M5307
-int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	sim_t *sim = (sim_t *)(MMAP_SIM);
 
@@ -27,14 +25,12 @@ int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return 0;
 }
 
-#if defined(CONFIG_DISPLAY_CPUINFO)
-int print_cpuinfo(void)
+int checkcpu(void)
 {
 	char buf[32];
 
 	printf("CPU:   Freescale Coldfire MCF5307 at %s MHz\n",
-	       strmhz(buf, CFG_SYS_CPU_CLK));
+	       strmhz(buf, CONFIG_SYS_CPU_CLK));
 	return 0;
 }
-#endif /* CONFIG_DISPLAY_CPUINFO */
 #endif

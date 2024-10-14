@@ -1,14 +1,14 @@
-# SPDX-License-Identifier: GPL-2.0+
 #
 # Copyright 2010-2011 Freescale Semiconductor, Inc.
+#
+# SPDX-License-Identifier:	GPL-2.0+
+#
 
 MINIMAL=
 
 ifdef CONFIG_SPL_BUILD
-ifndef CONFIG_TPL_BUILD
 ifdef CONFIG_SPL_INIT_MINIMAL
 MINIMAL=y
-endif
 endif
 endif
 

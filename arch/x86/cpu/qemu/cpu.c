@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015, Miao Yan <yanmiaobest@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,7 +11,9 @@
 #include <qfw.h>
 #include <asm/cpu.h>
 
-int cpu_qemu_get_desc(const struct udevice *dev, char *buf, int size)
+DECLARE_GLOBAL_DATA_PTR;
+
+int cpu_qemu_get_desc(struct udevice *dev, char *buf, int size)
 {
 	if (size < CPU_MAX_NAME_LEN)
 		return -ENOSPC;
@@ -20,16 +23,9 @@ int cpu_qemu_get_desc(const struct udevice *dev, char *buf, int size)
 	return 0;
 }
 
-static int cpu_qemu_get_count(const struct udevice *dev)
+static int cpu_qemu_get_count(struct udevice *dev)
 {
-	int ret;
-	struct udevice *qfw_dev;
-
-	ret = qfw_get_dev(&qfw_dev);
-	if (ret)
-		return ret;
-
-	return qfw_online_cpus(qfw_dev);
+	return qemu_fwcfg_online_cpus();
 }
 
 static const struct cpu_ops cpu_qemu_ops = {

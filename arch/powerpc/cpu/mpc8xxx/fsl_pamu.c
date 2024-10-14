@@ -1,13 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * FSL PAMU driver
  *
  * Copyright 2012-2016 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
-#include <linux/bitops.h>
 #include <linux/log2.h>
 #include <malloc.h>
 #include <asm/fsl_pamu.h>
@@ -70,7 +69,7 @@ static void pamu_setup_default_xfer_to_host_spaace(struct paace *spaace)
 				then snoopid not defined
  * @param[in] subwin_cnt number of sub-windows
  *
- * Return: Returns 0 upon success else error code < 0 returned
+ * @return Returns 0 upon success else error code < 0 returned
  */
 static int pamu_config_ppaace(uint32_t liodn, uint64_t win_addr,
 	uint64_t win_size, uint32_t omi,
@@ -133,10 +132,10 @@ static int pamu_config_ppaace(uint32_t liodn, uint64_t win_addr,
 		set_bf(ppaace->addr_bitfields, PAACE_AF_AP, PAACE_AP_PERMS_ALL);
 	}
 
-	sync();
+	asm volatile("sync" : : : "memory");
 	/* Mark the ppace entry valid */
 	ppaace->addr_bitfields |= PAACE_V_VALID;
-	sync();
+	asm volatile("sync" : : : "memory");
 
 	return 0;
 }
@@ -230,7 +229,7 @@ static int pamu_config_spaace(uint32_t liodn,
 
 int pamu_init(void)
 {
-	u32 base_addr = CFG_SYS_PAMU_ADDR;
+	u32 base_addr = CONFIG_SYS_PAMU_ADDR;
 	struct ccsr_pamu *regs;
 	u32 i = 0;
 	u64 ppaact_phys, ppaact_lim, ppaact_size;
@@ -240,8 +239,8 @@ int pamu_init(void)
 	spaact_size = sizeof(struct paace) * NUM_SPAACT_ENTRIES;
 
 	/* Allocate space for Primary PAACT Table */
-#if (defined(CONFIG_SPL_BUILD) && defined(CFG_SPL_PPAACT_ADDR))
-	ppaact = (void *)CFG_SPL_PPAACT_ADDR;
+#if (defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_PPAACT_ADDR))
+	ppaact = (void *)CONFIG_SPL_PPAACT_ADDR;
 #else
 	ppaact = memalign(PAMU_TABLE_ALIGNMENT, ppaact_size);
 	if (!ppaact)
@@ -250,8 +249,8 @@ int pamu_init(void)
 	memset(ppaact, 0, ppaact_size);
 
 	/* Allocate space for Secondary PAACT Table */
-#if (defined(CONFIG_SPL_BUILD) && defined(CFG_SPL_SPAACT_ADDR))
-	sec = (void *)CFG_SPL_SPAACT_ADDR;
+#if (defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_SPAACT_ADDR))
+	sec = (void *)CONFIG_SPL_SPAACT_ADDR;
 #else
 	sec = memalign(PAMU_TABLE_ALIGNMENT, spaact_size);
 	if (!sec)
@@ -266,7 +265,7 @@ int pamu_init(void)
 	spaact_lim = spaact_phys + spaact_size;
 
 	/* Configure all PAMU's */
-	for (i = 0; i < CFG_NUM_PAMU; i++) {
+	for (i = 0; i < CONFIG_NUM_PAMU; i++) {
 		regs = (struct ccsr_pamu *)base_addr;
 
 		out_be32(&regs->ppbah, ppaact_phys >> 32);
@@ -281,7 +280,7 @@ int pamu_init(void)
 			out_be32(&regs->splah, spaact_lim >> 32);
 			out_be32(&regs->splal, (uint32_t)spaact_lim);
 		}
-		sync();
+		asm volatile("sync" : : : "memory");
 
 		base_addr += PAMU_OFFSET;
 	}
@@ -292,11 +291,11 @@ int pamu_init(void)
 void pamu_enable(void)
 {
 	u32 i = 0;
-	u32 base_addr = CFG_SYS_PAMU_ADDR;
-	for (i = 0; i < CFG_NUM_PAMU; i++) {
+	u32 base_addr = CONFIG_SYS_PAMU_ADDR;
+	for (i = 0; i < CONFIG_NUM_PAMU; i++) {
 		setbits_be32((void *)base_addr + PAMU_PCR_OFFSET,
 			     PAMU_PCR_PE);
-		sync();
+		asm volatile("sync" : : : "memory");
 		base_addr += PAMU_OFFSET;
 	}
 }
@@ -304,10 +303,10 @@ void pamu_enable(void)
 void pamu_reset(void)
 {
 	u32 i  = 0;
-	u32 base_addr = CFG_SYS_PAMU_ADDR;
+	u32 base_addr = CONFIG_SYS_PAMU_ADDR;
 	struct ccsr_pamu *regs;
 
-	for (i = 0; i < CFG_NUM_PAMU; i++) {
+	for (i = 0; i < CONFIG_NUM_PAMU; i++) {
 		regs = (struct ccsr_pamu *)base_addr;
 	/* Clear PPAACT Base register */
 		out_be32(&regs->ppbah, 0);
@@ -320,7 +319,7 @@ void pamu_reset(void)
 		out_be32(&regs->splal, 0);
 
 		clrbits_be32((void *)regs + PAMU_PCR_OFFSET, PAMU_PCR_PE);
-		sync();
+		asm volatile("sync" : : : "memory");
 		base_addr += PAMU_OFFSET;
 	}
 }
@@ -328,12 +327,12 @@ void pamu_reset(void)
 void pamu_disable(void)
 {
 	u32 i  = 0;
-	u32 base_addr = CFG_SYS_PAMU_ADDR;
+	u32 base_addr = CONFIG_SYS_PAMU_ADDR;
 
 
-	for (i = 0; i < CFG_NUM_PAMU; i++) {
+	for (i = 0; i < CONFIG_NUM_PAMU; i++) {
 		clrbits_be32((void *)base_addr + PAMU_PCR_OFFSET, PAMU_PCR_PE);
-		sync();
+		asm volatile("sync" : : : "memory");
 		base_addr += PAMU_OFFSET;
 	}
 }
@@ -390,7 +389,7 @@ int config_pamu(struct pamu_addr_tbl *tbl, int num_entries, uint32_t liodn)
 		return -1;
 
 	sizebit = __ilog2_roundup_64(size);
-	size = 1ull << sizebit;
+	size = 1 << sizebit;
 	debug("min start_addr is %llx\n", min_addr);
 	debug("max end_addr is %llx\n", max_addr);
 	debug("size found is  %llx\n", size);

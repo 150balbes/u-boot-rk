@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2012
  * Joe Hershberger, National Instruments, joe.hershberger@ni.com
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <env.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 
@@ -19,24 +19,17 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #else
 #include <common.h>
-#include <env_internal.h>
+#include <environment.h>
 #endif
 
-#ifdef CONFIG_NET
+#ifdef CONFIG_CMD_NET
 #define ENV_FLAGS_NET_VARTYPE_REPS "im"
 #else
 #define ENV_FLAGS_NET_VARTYPE_REPS ""
 #endif
 
-#ifdef CONFIG_ENV_WRITEABLE_LIST
-#define ENV_FLAGS_WRITEABLE_VARACCESS_REPS "w"
-#else
-#define ENV_FLAGS_WRITEABLE_VARACCESS_REPS ""
-#endif
-
 static const char env_flags_vartype_rep[] = "sdxb" ENV_FLAGS_NET_VARTYPE_REPS;
-static const char env_flags_varaccess_rep[] =
-	"aroc" ENV_FLAGS_WRITEABLE_VARACCESS_REPS;
+static const char env_flags_varaccess_rep[] = "aroc";
 static const int env_flags_varaccess_mask[] = {
 	0,
 	ENV_FLAGS_VARACCESS_PREVENT_DELETE |
@@ -45,11 +38,7 @@ static const int env_flags_varaccess_mask[] = {
 	ENV_FLAGS_VARACCESS_PREVENT_DELETE |
 		ENV_FLAGS_VARACCESS_PREVENT_OVERWR,
 	ENV_FLAGS_VARACCESS_PREVENT_DELETE |
-		ENV_FLAGS_VARACCESS_PREVENT_NONDEF_OVERWR,
-#ifdef CONFIG_ENV_WRITEABLE_LIST
-	ENV_FLAGS_VARACCESS_WRITEABLE,
-#endif
-	};
+		ENV_FLAGS_VARACCESS_PREVENT_NONDEF_OVERWR};
 
 #ifdef CONFIG_CMD_ENV_FLAGS
 static const char * const env_flags_vartype_names[] = {
@@ -57,7 +46,7 @@ static const char * const env_flags_vartype_names[] = {
 	"decimal",
 	"hexadecimal",
 	"boolean",
-#ifdef CONFIG_NET
+#ifdef CONFIG_CMD_NET
 	"IP address",
 	"MAC address",
 #endif
@@ -67,9 +56,6 @@ static const char * const env_flags_varaccess_names[] = {
 	"read-only",
 	"write-once",
 	"change-default",
-#ifdef CONFIG_ENV_WRITEABLE_LIST
-	"writeable",
-#endif
 };
 
 /*
@@ -144,25 +130,21 @@ enum env_flags_vartype env_flags_parse_vartype(const char *flags)
  */
 enum env_flags_varaccess env_flags_parse_varaccess(const char *flags)
 {
-	enum env_flags_varaccess va_default = env_flags_varaccess_any;
-	enum env_flags_varaccess va;
 	char *access;
 
 	if (strlen(flags) <= ENV_FLAGS_VARACCESS_LOC)
-		return va_default;
+		return env_flags_varaccess_any;
 
 	access = strchr(env_flags_varaccess_rep,
 		flags[ENV_FLAGS_VARACCESS_LOC]);
 
-	if (access != NULL) {
-		va = (enum env_flags_varaccess)
+	if (access != NULL)
+		return (enum env_flags_varaccess)
 			(access - &env_flags_varaccess_rep[0]);
-		return va;
-	}
 
 	printf("## Warning: Unknown environment variable access method '%c'\n",
 		flags[ENV_FLAGS_VARACCESS_LOC]);
-	return va_default;
+	return env_flags_varaccess_any;
 }
 
 /*
@@ -170,21 +152,17 @@ enum env_flags_varaccess env_flags_parse_varaccess(const char *flags)
  */
 enum env_flags_varaccess env_flags_parse_varaccess_from_binflags(int binflags)
 {
-	enum env_flags_varaccess va_default = env_flags_varaccess_any;
-	enum env_flags_varaccess va;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(env_flags_varaccess_mask); i++)
 		if (env_flags_varaccess_mask[i] ==
-		    (binflags & ENV_FLAGS_VARACCESS_BIN_MASK)) {
-			va = (enum env_flags_varaccess)i;
-			return va;
-	}
+		    (binflags & ENV_FLAGS_VARACCESS_BIN_MASK))
+			return (enum env_flags_varaccess)i;
 
 	printf("Warning: Non-standard access flags. (0x%x)\n",
 		binflags & ENV_FLAGS_VARACCESS_BIN_MASK);
 
-	return va_default;
+	return env_flags_varaccess_any;
 }
 
 static inline int is_hex_prefix(const char *value)
@@ -211,7 +189,7 @@ static void skip_num(int hex, const char *value, const char **end,
 		*end = value;
 }
 
-#ifdef CONFIG_NET
+#ifdef CONFIG_CMD_NET
 int eth_validate_ethaddr_str(const char *addr)
 {
 	const char *end;
@@ -244,7 +222,7 @@ static int _env_flags_validate_type(const char *value,
 	enum env_flags_vartype type)
 {
 	const char *end;
-#ifdef CONFIG_NET
+#ifdef CONFIG_CMD_NET
 	const char *cur;
 	int i;
 #endif
@@ -273,7 +251,7 @@ static int _env_flags_validate_type(const char *value,
 		if (value[1] != '\0')
 			return -1;
 		break;
-#ifdef CONFIG_NET
+#ifdef CONFIG_CMD_NET
 	case env_flags_vartype_ipaddr:
 		cur = value;
 		for (i = 0; i < 4; i++) {
@@ -348,14 +326,13 @@ enum env_flags_vartype env_flags_get_type(const char *name)
 enum env_flags_varaccess env_flags_get_varaccess(const char *name)
 {
 	const char *flags_list = env_get(ENV_FLAGS_VAR);
-	enum env_flags_varaccess va_default = env_flags_varaccess_any;
 	char flags[ENV_FLAGS_ATTR_MAX_LEN + 1];
 
 	if (env_flags_lookup(flags_list, name, flags))
-		return va_default;
+		return env_flags_varaccess_any;
 
 	if (strlen(flags) <= ENV_FLAGS_VARACCESS_LOC)
-		return va_default;
+		return env_flags_varaccess_any;
 
 	return env_flags_parse_varaccess(flags);
 }
@@ -442,18 +419,14 @@ static const char *flags_list;
  * This is called specifically when the variable did not exist in the hash
  * previously, so the blanket update did not find this variable.
  */
-void env_flags_init(struct env_entry *var_entry)
+void env_flags_init(ENTRY *var_entry)
 {
 	const char *var_name = var_entry->key;
 	char flags[ENV_FLAGS_ATTR_MAX_LEN + 1] = "";
 	int ret = 1;
 
 	if (first_call) {
-#ifdef CONFIG_ENV_WRITEABLE_LIST
-		flags_list = ENV_FLAGS_LIST_STATIC;
-#else
 		flags_list = env_get(ENV_FLAGS_VAR);
-#endif
 		first_call = 0;
 	}
 	/* look in the ".flags" and static for a reference to this variable */
@@ -468,7 +441,7 @@ void env_flags_init(struct env_entry *var_entry)
  * Called on each existing env var prior to the blanket update since removing
  * a flag in the flag list should remove its flags.
  */
-static int clear_flags(struct env_entry *entry)
+static int clear_flags(ENTRY *entry)
 {
 	entry->flags = 0;
 
@@ -480,11 +453,12 @@ static int clear_flags(struct env_entry *entry)
  */
 static int set_flags(const char *name, const char *value, void *priv)
 {
-	struct env_entry e, *ep;
+	ENTRY e, *ep;
 
 	e.key	= name;
 	e.data	= NULL;
-	hsearch_r(e, ENV_FIND, &ep, &env_htab, 0);
+	e.callback = NULL;
+	hsearch_r(e, FIND, &ep, &env_htab, 0);
 
 	/* does the env variable actually exist? */
 	if (ep != NULL) {
@@ -522,8 +496,8 @@ U_BOOT_ENV_CALLBACK(flags, on_flags);
  * overwriting of write-once variables.
  */
 
-int env_flags_validate(const struct env_entry *item, const char *newval,
-		       enum env_op op, int flag)
+int env_flags_validate(const ENTRY *item, const char *newval, enum env_op op,
+	int flag)
 {
 	const char *name;
 	const char *oldval = NULL;
@@ -550,26 +524,10 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 	}
 
 	/* check for access permission */
-#ifdef CONFIG_ENV_WRITEABLE_LIST
-	if (flag & H_DEFAULT)
-		return 0;	/* Default env is always OK */
-
-	/*
-	 * External writeable variables can be overwritten by external env,
-	 * anything else can not be overwritten by external env.
-	 */
-	if ((flag & H_EXTERNAL) &&
-	    !(item->flags & ENV_FLAGS_VARACCESS_WRITEABLE))
-		return 1;
-#endif
-
-	if (flag & H_FORCE) {
-#ifdef CONFIG_ENV_ACCESS_IGNORE_FORCE
-		printf("## Error: Can't force access to \"%s\"\n", name);
-#else
+#ifndef CONFIG_ENV_ACCESS_IGNORE_FORCE
+	if (flag & H_FORCE)
 		return 0;
 #endif
-	}
 	switch (op) {
 	case env_op_delete:
 		if (item->flags & ENV_FLAGS_VARACCESS_PREVENT_DELETE) {

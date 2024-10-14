@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * U-Boot EFI linker script
+ *
+ * SPDX-License-Identifier:	BSD-2-Clause
  *
  * Modified from usr/lib32/elf_ia32_efi.lds in gnu-efi
  */
@@ -46,12 +47,12 @@ SECTIONS
 		*(.sbss)
 		*(.scommon)
 		*(.dynbss)
-		*(.bss*)
+		*(.bss)
 		*(COMMON)
 
 		/* U-Boot lists and device tree */
 		. = ALIGN(8);
-		*(SORT(__u_boot_list*));
+		*(SORT(.u_boot_list*));
 		. = ALIGN(8);
 		*(.dtb*);
 	}
@@ -69,7 +70,7 @@ SECTIONS
 		*(.data.rel.local)
 		*(.data.rel.ro)
 		*(.data.rel*)
-		*(.rel__u_boot_list*)
+		*(.rel.u_boot_list*)
 	}
 	. = ALIGN(4096);
 		.reloc :	/* This is the PECOFF .reloc section! */

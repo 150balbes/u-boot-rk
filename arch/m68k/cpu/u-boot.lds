@@ -1,15 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  * (C) Copyright 2015
  * Angelo Dureghello, Sysam Firmware, angelo@sysam.it
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <config.h>
 
 OUTPUT_ARCH(m68k)
-ENTRY(_start)
 
 #ifndef LDS_BOARD_TEXT
 #define LDS_BOARD_TEXT
@@ -60,8 +60,8 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(4);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	. = .;
@@ -69,14 +69,12 @@ SECTIONS
 	__ex_table : { *(__ex_table) }
 	__stop___ex_table = .;
 
-	. = ALIGN(4);
+	. = ALIGN(256);
 	__init_begin = .;
 	.text.init : { *(.text.init) }
 	.data.init : { *(.data.init) }
-	. = ALIGN(4);
+	. = ALIGN(256);
 	__init_end = .;
-
-	_end = .;
 
 	__bss_start = .;
 	.bss (NOLOAD)       :

@@ -13,7 +13,7 @@ fail() {
 build_uboot() {
 	echo "Build sandbox"
 	OPTS="O=${OUTPUT_DIR} $1"
-	NUM_CPUS=$(nproc)
+	NUM_CPUS=$(grep -c processor /proc/cpuinfo)
 	echo ${OPTS}
 	make ${OPTS} sandbox_config
 	make ${OPTS} -s -j${NUM_CPUS}

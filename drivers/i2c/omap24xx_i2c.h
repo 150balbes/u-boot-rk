@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2004-2010
  * Texas Instruments, <www.ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _OMAP2PLUS_I2C_H_
 #define _OMAP2PLUS_I2C_H_
@@ -80,6 +81,10 @@
 #define I2C_SCLH_SCLH_M		0xFF
 #define I2C_SCLH_HSSCLH		8
 #define I2C_SCLH_HSSCLH_M	0xFF
+
+#define OMAP_I2C_STANDARD	100000
+#define OMAP_I2C_FAST_MODE	400000
+#define OMAP_I2C_HIGH_SPEED	3400000
 
 #define SYSTEM_CLOCK_12		12000000
 #define SYSTEM_CLOCK_13		13000000

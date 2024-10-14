@@ -1,17 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * Author:
  *	Peng Fan <Peng.Fan@freescale.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <clock_legacy.h>
-#include <command.h>
 #include <div64.h>
-#include <log.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <asm/arch/imx-regs.h>
@@ -23,16 +20,16 @@ struct mxc_ccm_anatop_reg *ccm_anatop = (struct mxc_ccm_anatop_reg *)
 					 ANATOP_BASE_ADDR;
 struct mxc_ccm_reg *ccm_reg = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 
-#ifdef CONFIG_FSL_ESDHC_IMX
+#ifdef CONFIG_FSL_ESDHC
 DECLARE_GLOBAL_DATA_PTR;
 #endif
 
 int get_clocks(void)
 {
-#ifdef CONFIG_FSL_ESDHC_IMX
-#if CFG_SYS_FSL_ESDHC_ADDR == USDHC2_BASE_ADDR
+#ifdef CONFIG_FSL_ESDHC
+#if CONFIG_SYS_FSL_ESDHC_ADDR == USDHC2_BASE_ADDR
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-#elif CFG_SYS_FSL_ESDHC_ADDR == USDHC3_BASE_ADDR
+#elif CONFIG_SYS_FSL_ESDHC_ADDR == USDHC3_BASE_ADDR
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
 #else
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
@@ -57,7 +54,7 @@ static u32 get_ipg_clk(void)
 
 u32 imx_get_uartclk(void)
 {
-	return get_root_clk(UART_CLK_ROOT);
+	return get_root_clk(UART1_CLK_ROOT);
 }
 
 u32 imx_get_fecclk(void)
@@ -502,7 +499,7 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 	case MXC_IPG_CLK:
 		return get_ipg_clk();
 	case MXC_I2C_CLK:
-		return 60000000;
+		return get_root_clk(I2C1_CLK_ROOT);
 	case MXC_UART_CLK:
 		return get_root_clk(UART1_CLK_ROOT);
 	case MXC_CSPI_CLK:
@@ -917,7 +914,7 @@ void mxs_set_lcdclk(uint32_t base_addr, uint32_t freq)
 		}
 
 		if (5 == i) {
-			printf("Fail to set rate to %u kHz", freq);
+			printf("Fail to set rate to %dkhz", freq);
 			return;
 		}
 	}
@@ -937,7 +934,7 @@ void mxs_set_lcdclk(uint32_t base_addr, uint32_t freq)
 	}
 
 	if (best == 0) {
-		printf("Fail to set rate to %u kHz", freq);
+		printf("Fail to set rate to %dkhz", freq);
 		return;
 	}
 
@@ -969,15 +966,15 @@ int set_clk_enet(enum enet_freq type)
 	clock_enable(CCGR_ENET2, 0);
 
 	switch (type) {
-	case ENET_125MHZ:
+	case ENET_125MHz:
 		enet1_ref = ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_125M_CLK;
 		enet2_ref = ENET2_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_125M_CLK;
 		break;
-	case ENET_50MHZ:
+	case ENET_50MHz:
 		enet1_ref = ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_50M_CLK;
 		enet2_ref = ENET2_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_50M_CLK;
 		break;
-	case ENET_25MHZ:
+	case ENET_25MHz:
 		enet1_ref = ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK;
 		enet2_ref = ENET2_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK;
 		break;
@@ -1078,7 +1075,7 @@ void clock_init(void)
 	}
 }
 
-#ifdef CONFIG_IMX_HAB
+#ifdef CONFIG_SECURE_BOOT
 void hab_caam_clock_enable(unsigned char enable)
 {
 	if (enable)
@@ -1099,12 +1096,10 @@ void epdc_clock_disable(void)
 }
 #endif
 
-#ifndef CONFIG_SPL_BUILD
 /*
  * Dump some core clockes.
  */
-int do_mx7_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[])
+int do_mx7_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	u32 freq;
 	freq = decode_pll(PLL_CORE, MXC_HCLK);
@@ -1116,17 +1111,17 @@ int do_mx7_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	printf("\n");
 
-	printf("IPG        %8u kHz\n", mxc_get_clock(MXC_IPG_CLK) / 1000);
-	printf("UART       %8u kHz\n", mxc_get_clock(MXC_UART_CLK) / 1000);
+	printf("IPG        %8d kHz\n", mxc_get_clock(MXC_IPG_CLK) / 1000);
+	printf("UART       %8d kHz\n", mxc_get_clock(MXC_UART_CLK) / 1000);
 #ifdef CONFIG_MXC_SPI
-	printf("CSPI       %8u kHz\n", mxc_get_clock(MXC_CSPI_CLK) / 1000);
+	printf("CSPI       %8d kHz\n", mxc_get_clock(MXC_CSPI_CLK) / 1000);
 #endif
-	printf("AHB        %8u kHz\n", mxc_get_clock(MXC_AHB_CLK) / 1000);
-	printf("AXI        %8u kHz\n", mxc_get_clock(MXC_AXI_CLK) / 1000);
-	printf("DDR        %8u kHz\n", mxc_get_clock(MXC_DDR_CLK) / 1000);
-	printf("USDHC1     %8u kHz\n", mxc_get_clock(MXC_ESDHC_CLK) / 1000);
-	printf("USDHC2     %8u kHz\n", mxc_get_clock(MXC_ESDHC2_CLK) / 1000);
-	printf("USDHC3     %8u kHz\n", mxc_get_clock(MXC_ESDHC3_CLK) / 1000);
+	printf("AHB        %8d kHz\n", mxc_get_clock(MXC_AHB_CLK) / 1000);
+	printf("AXI        %8d kHz\n", mxc_get_clock(MXC_AXI_CLK) / 1000);
+	printf("DDR        %8d kHz\n", mxc_get_clock(MXC_DDR_CLK) / 1000);
+	printf("USDHC1     %8d kHz\n", mxc_get_clock(MXC_ESDHC_CLK) / 1000);
+	printf("USDHC2     %8d kHz\n", mxc_get_clock(MXC_ESDHC2_CLK) / 1000);
+	printf("USDHC3     %8d kHz\n", mxc_get_clock(MXC_ESDHC3_CLK) / 1000);
 
 	return 0;
 }
@@ -1136,4 +1131,3 @@ U_BOOT_CMD(
 	"display clocks",
 	""
 );
-#endif

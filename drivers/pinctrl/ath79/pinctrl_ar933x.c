@@ -1,13 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015-2016 Wills Wang <wills.wang@live.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
-#include <log.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <dm/pinctrl.h>
 #include <mach/ar71xx_regs.h>
@@ -112,7 +111,7 @@ static int ar933x_pinctrl_probe(struct udevice *dev)
 	struct ar933x_pinctrl_priv *priv = dev_get_priv(dev);
 	fdt_addr_t addr;
 
-	addr = dev_read_addr(dev);
+	addr = devfdt_get_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
@@ -131,7 +130,7 @@ U_BOOT_DRIVER(pinctrl_ar933x) = {
 	.name		= "pinctrl_ar933x",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= ar933x_pinctrl_ids,
-	.priv_auto	= sizeof(struct ar933x_pinctrl_priv),
+	.priv_auto_alloc_size = sizeof(struct ar933x_pinctrl_priv),
 	.ops		= &ar933x_pinctrl_ops,
 	.probe		= ar933x_pinctrl_probe,
 };

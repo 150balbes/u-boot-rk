@@ -1,12 +1,11 @@
-# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2016 Google Inc.
 #
+# SPDX-License-Identifier:	GPL-2.0
 
 config INTEL_BROADWELL
 	bool
 	select CACHE_MRC_BIN
-	select DM_EVENT
 	select ARCH_EARLY_INIT_R
 	imply HAVE_INTEL_ME
 	imply ENABLE_MRC_CACHE
@@ -14,7 +13,6 @@ config INTEL_BROADWELL
 	imply ICH_SPI
 	imply INTEL_BROADWELL_GPIO
 	imply SCSI
-	imply SCSI_AHCI
 	imply SPI_FLASH
 	imply USB
 	imply USB_EHCI_HCD

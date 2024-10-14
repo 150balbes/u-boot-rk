@@ -1,14 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
- * Author: Patrick Delaunay <patrick.delaunay@foss.st.com>
+ * Author: Patrick Delaunay <patrick.delaunay@st.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <backlight.h>
-#include <log.h>
 #include <asm/gpio.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 struct gpio_backlight_priv {
 	struct gpio_desc gpio;
@@ -24,7 +26,7 @@ static int gpio_backlight_enable(struct udevice *dev)
 	return 0;
 }
 
-static int gpio_backlight_of_to_plat(struct udevice *dev)
+static int gpio_backlight_ofdata_to_platdata(struct udevice *dev)
 {
 	struct gpio_backlight_priv *priv = dev_get_priv(dev);
 	int ret;
@@ -66,7 +68,7 @@ U_BOOT_DRIVER(gpio_backlight) = {
 	.id	= UCLASS_PANEL_BACKLIGHT,
 	.of_match = gpio_backlight_ids,
 	.ops	= &gpio_backlight_ops,
-	.of_to_plat	= gpio_backlight_of_to_plat,
+	.ofdata_to_platdata	= gpio_backlight_ofdata_to_platdata,
 	.probe		= gpio_backlight_probe,
-	.priv_auto	= sizeof(struct gpio_backlight_priv),
+	.priv_auto_alloc_size	= sizeof(struct gpio_backlight_priv),
 };

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2014  Angelo Dureghello <angelo@sysam.it>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 
@@ -66,3 +67,4 @@
 #define	MCFSIM_ICR_PRI3		0x03	/* Priority 3 intr */
 
 #endif	/* mcf5307_h */
+

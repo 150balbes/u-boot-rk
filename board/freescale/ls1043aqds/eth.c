@@ -1,12 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
-#include <net.h>
 #include <asm/io.h>
 #include <netdev.h>
 #include <fdt_support.h>
@@ -30,6 +28,8 @@
 #define EMI1_SLOT4	5
 #define EMI2		6
 
+static int mdio_mux[NUM_FM_PORTS];
+
 static const char * const mdio_names[] = {
 	"LS1043AQDS_MDIO_RGMII1",
 	"LS1043AQDS_MDIO_RGMII2",
@@ -41,11 +41,7 @@ static const char * const mdio_names[] = {
 };
 
 /* Map SerDes1 4 lanes to default slot, will be initialized dynamically */
-#ifdef CONFIG_FMAN_ENET
-static int mdio_mux[NUM_FM_PORTS];
-
 static u8 lane_to_slot[] = {1, 2, 3, 4};
-#endif
 
 static const char *ls1043aqds_mdio_name_for_muxval(u8 muxval)
 {
@@ -77,7 +73,6 @@ struct mii_dev *mii_dev_for_muxval(u8 muxval)
 	return bus;
 }
 
-#ifdef CONFIG_FMAN_ENET
 struct ls1043aqds_mdio {
 	u8 muxval;
 	struct mii_dev *realbus;
@@ -167,19 +162,19 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 	if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_SGMII) {
 		if (port == FM1_DTSEC9) {
 			fdt_set_phy_handle(fdt, compat, addr,
-					   "sgmii-riser-s1-p1");
+					   "sgmii_riser_s1_p1");
 		} else if (port == FM1_DTSEC2) {
 			fdt_set_phy_handle(fdt, compat, addr,
-					   "sgmii-riser-s2-p1");
+					   "sgmii_riser_s2_p1");
 		} else if (port == FM1_DTSEC5) {
 			fdt_set_phy_handle(fdt, compat, addr,
-					   "sgmii-riser-s3-p1");
+					   "sgmii_riser_s3_p1");
 		} else if (port == FM1_DTSEC6) {
 			fdt_set_phy_handle(fdt, compat, addr,
-					   "sgmii-riser-s4-p1");
+					   "sgmii_riser_s4_p1");
 		}
 	} else if (fm_info_get_enet_if(port) ==
-		   PHY_INTERFACE_MODE_2500BASEX) {
+		   PHY_INTERFACE_MODE_SGMII_2500) {
 		/* 2.5G SGMII interface */
 		f_link.phy_id = cpu_to_fdt32(port);
 		f_link.duplex = cpu_to_fdt32(1);
@@ -190,26 +185,26 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 		fdt_delprop(fdt, offset, "phy-handle");
 		fdt_setprop(fdt, offset, "fixed-link", &f_link, sizeof(f_link));
 		fdt_setprop_string(fdt, offset, "phy-connection-type",
-				   "2500base-x");
+				   "sgmii-2500");
 	} else if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_QSGMII) {
 		switch (mdio_mux[port]) {
 		case EMI1_SLOT1:
 			switch (port) {
 			case FM1_DTSEC1:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s1-p1");
+						   "qsgmii_s1_p1");
 				break;
 			case FM1_DTSEC2:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s1-p2");
+						   "qsgmii_s1_p2");
 				break;
 			case FM1_DTSEC5:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s1-p3");
+						   "qsgmii_s1_p3");
 				break;
 			case FM1_DTSEC6:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s1-p4");
+						   "qsgmii_s1_p4");
 				break;
 			default:
 				break;
@@ -219,19 +214,19 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 			switch (port) {
 			case FM1_DTSEC1:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s2-p1");
+						   "qsgmii_s2_p1");
 				break;
 			case FM1_DTSEC2:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s2-p2");
+						   "qsgmii_s2_p2");
 				break;
 			case FM1_DTSEC5:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s2-p3");
+						   "qsgmii_s2_p3");
 				break;
 			case FM1_DTSEC6:
 				fdt_set_phy_handle(fdt, compat, addr,
-						   "qsgmii-s2-p4");
+						   "qsgmii_s2_p4");
 				break;
 			default:
 				break;
@@ -245,13 +240,13 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 				   "qsgmii");
 	} else if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_XGMII &&
 		   port == FM1_10GEC1) {
-		/* 10GBase-R interface */
+		/* XFI interface */
 		f_link.phy_id = cpu_to_fdt32(port);
 		f_link.duplex = cpu_to_fdt32(1);
 		f_link.link_speed = cpu_to_fdt32(10000);
 		f_link.pause = 0;
 		f_link.asym_pause = 0;
-		/* no PHY for 10GBase-R */
+		/* no PHY for XFI */
 		fdt_delprop(fdt, offset, "phy-handle");
 		fdt_setprop(fdt, offset, "fixed-link", &f_link, sizeof(f_link));
 		fdt_setprop_string(fdt, offset, "phy-connection-type", "xgmii");
@@ -261,7 +256,7 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 void fdt_fixup_board_enet(void *fdt)
 {
 	int i;
-	struct ccsr_gur *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 	u32 srds_s1;
 
 	srds_s1 = in_be32(&gur->rcwsr[4]) &
@@ -274,16 +269,16 @@ void fdt_fixup_board_enet(void *fdt)
 		case PHY_INTERFACE_MODE_QSGMII:
 			switch (mdio_mux[i]) {
 			case EMI1_SLOT1:
-				fdt_status_okay_by_alias(fdt, "emi1-slot1");
+				fdt_status_okay_by_alias(fdt, "emi1_slot1");
 				break;
 			case EMI1_SLOT2:
-				fdt_status_okay_by_alias(fdt, "emi1-slot2");
+				fdt_status_okay_by_alias(fdt, "emi1_slot2");
 				break;
 			case EMI1_SLOT3:
-				fdt_status_okay_by_alias(fdt, "emi1-slot3");
+				fdt_status_okay_by_alias(fdt, "emi1_slot3");
 				break;
 			case EMI1_SLOT4:
-				fdt_status_okay_by_alias(fdt, "emi1-slot4");
+				fdt_status_okay_by_alias(fdt, "emi1_slot4");
 				break;
 			default:
 				break;
@@ -297,12 +292,13 @@ void fdt_fixup_board_enet(void *fdt)
 	}
 }
 
-int board_eth_init(struct bd_info *bis)
+int board_eth_init(bd_t *bis)
 {
+#ifdef CONFIG_FMAN_ENET
 	int i, idx, lane, slot, interface;
 	struct memac_mdio_info dtsec_mdio_info;
 	struct memac_mdio_info tgec_mdio_info;
-	struct ccsr_gur *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 	u32 srds_s1;
 
 	srds_s1 = in_be32(&gur->rcwsr[4]) &
@@ -314,7 +310,7 @@ int board_eth_init(struct bd_info *bis)
 		mdio_mux[i] = EMI_NONE;
 
 	dtsec_mdio_info.regs =
-		(struct memac_mdio_controller *)CFG_SYS_FM1_DTSEC_MDIO_ADDR;
+		(struct memac_mdio_controller *)CONFIG_SYS_FM1_DTSEC_MDIO_ADDR;
 
 	dtsec_mdio_info.name = DEFAULT_FM_MDIO_NAME;
 
@@ -322,7 +318,7 @@ int board_eth_init(struct bd_info *bis)
 	fm_memac_mdio_init(bis, &dtsec_mdio_info);
 
 	tgec_mdio_info.regs =
-		(struct memac_mdio_controller *)CFG_SYS_FM1_TGEC_MDIO_ADDR;
+		(struct memac_mdio_controller *)CONFIG_SYS_FM1_TGEC_MDIO_ADDR;
 	tgec_mdio_info.name = DEFAULT_FM_TGEC_MDIO_NAME;
 
 	/* Register the 10G MDIO bus */
@@ -427,17 +423,17 @@ int board_eth_init(struct bd_info *bis)
 		break;
 	}
 
-	for (i = FM1_DTSEC1; i < FM1_DTSEC1 + CFG_SYS_NUM_FM1_DTSEC; i++) {
+	for (i = FM1_DTSEC1; i < FM1_DTSEC1 + CONFIG_SYS_NUM_FM1_DTSEC; i++) {
 		idx = i - FM1_DTSEC1;
 		interface = fm_info_get_enet_if(i);
 		switch (interface) {
 		case PHY_INTERFACE_MODE_SGMII:
-		case PHY_INTERFACE_MODE_2500BASEX:
+		case PHY_INTERFACE_MODE_SGMII_2500:
 		case PHY_INTERFACE_MODE_QSGMII:
 			if (interface == PHY_INTERFACE_MODE_SGMII) {
 				lane = serdes_get_first_lane(FSL_SRDS_1,
 						SGMII_FM1_DTSEC1 + idx);
-			} else if (interface == PHY_INTERFACE_MODE_2500BASEX) {
+			} else if (interface == PHY_INTERFACE_MODE_SGMII_2500) {
 				lane = serdes_get_first_lane(FSL_SRDS_1,
 						SGMII_2500_FM1_DTSEC1 + idx);
 			} else {
@@ -481,8 +477,6 @@ int board_eth_init(struct bd_info *bis)
 			break;
 		case PHY_INTERFACE_MODE_RGMII:
 		case PHY_INTERFACE_MODE_RGMII_TXID:
-		case PHY_INTERFACE_MODE_RGMII_RXID:
-		case PHY_INTERFACE_MODE_RGMII_ID:
 			if (i == FM1_DTSEC3)
 				mdio_mux[i] = EMI1_RGMII1;
 			else if (i == FM1_DTSEC4)
@@ -495,7 +489,7 @@ int board_eth_init(struct bd_info *bis)
 	}
 
 	cpu_eth_init(bis);
+#endif /* CONFIG_FMAN_ENET */
 
 	return pci_eth_init(bis);
 }
-#endif /* CONFIG_FMAN_ENET */

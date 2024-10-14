@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: LGPL-2.1
 /*
  *  Heiko Schocher, DENX Software Engineering, hs@denx.de.
  *  based on:
  *  FIPS-180-1 compliant SHA-1 implementation
  *
  *  Copyright (C) 2003-2006  Christophe Devine
+ *
+ * SPDX-License-Identifier:	LGPL-2.1
  */
 /*
  *  The SHA-1 standard was published by NIST in 1993.
@@ -25,7 +26,14 @@
 #include <watchdog.h>
 #include <u-boot/sha1.h>
 
-#include <linux/compiler_attributes.h>
+#include <linux/compiler.h>
+
+#ifdef USE_HOSTCC
+#undef __weak
+#define __weak
+#undef __maybe_unused
+#define __maybe_unused
+#endif
 
 const uint8_t sha1_der_prefix[SHA1_DER_LEN] = {
 	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
@@ -344,7 +352,7 @@ void sha1_csum_wd(const unsigned char *input, unsigned int ilen,
 			chunk = chunk_sz;
 		sha1_update (&ctx, curr, chunk);
 		curr += chunk;
-		schedule();
+		WATCHDOG_RESET ();
 	}
 #else
 	sha1_update (&ctx, input, ilen);

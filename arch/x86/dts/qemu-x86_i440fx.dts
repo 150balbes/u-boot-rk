@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /dts-v1/;
@@ -10,11 +11,8 @@
 /include/ "skeleton.dtsi"
 /include/ "serial.dtsi"
 /include/ "keyboard.dtsi"
-/include/ "reset.dtsi"
 /include/ "rtc.dtsi"
-
-#include "tsc_timer.dtsi"
-#include "smbios.dtsi"
+/include/ "tsc_timer.dtsi"
 
 / {
 	model = "QEMU x86 (I440FX)";
@@ -40,6 +38,10 @@
 			reg = <0>;
 			intel,apic-id = <0>;
 		};
+	};
+
+	tsc-timer {
+		clock-frequency = <1000000000>;
 	};
 
 	pci {

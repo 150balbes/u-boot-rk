@@ -1,6 +1,12 @@
 MPC8308 BOARD
-M:	Mario Six <mario.six@gdsys.cc>
+M:	Dirk Eibach <eibach@gdsys.de>
 S:	Maintained
 F:	board/gdsys/mpc8308/
-F:	include/configs/gazerbeam.h
-F:	configs/gazerbeam_defconfig
+F:	include/configs/hrcon.h
+F:	configs/hrcon_defconfig
+F:	configs/hrcon_dh_defconfig
+F:	include/configs/strider.h
+F:	configs/strider_cpu_defconfig
+F:	configs/strider_cpu_dp_defconfig
+F:	configs/strider_con_defconfig
+F:	configs/strider_con_dp_defconfig

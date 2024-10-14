@@ -1,20 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * R8A66597 HCD (Host Controller Driver) for u-boot
  *
  * Copyright (C) 2008  Yoshihiro Shimoda <shimoda.yoshihiro@renesas.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <console.h>
 #include <dm.h>
-#include <log.h>
 #include <usb.h>
 #include <asm/io.h>
-#include <dm/device_compat.h>
-#include <linux/delay.h>
 #include <linux/iopoll.h>
-#include <linux/usb/usb_urb_compat.h>
 #include <power/regulator.h>
 
 #include "r8a66597.h"
@@ -24,6 +21,35 @@
 #else
 #define R8A66597_DPRINT(...)
 #endif
+
+static inline struct usb_device *usb_dev_get_parent(struct usb_device *udev)
+{
+	struct udevice *parent = udev->dev->parent;
+
+	/*
+	 * When called from usb-uclass.c: usb_scan_device() udev->dev points
+	 * to the parent udevice, not the actual udevice belonging to the
+	 * udev as the device is not instantiated yet.
+	 *
+	 * If dev is an usb-bus, then we are called from usb_scan_device() for
+	 * an usb-device plugged directly into the root port, return NULL.
+	 */
+	if (device_get_uclass_id(udev->dev) == UCLASS_USB)
+		return NULL;
+
+	/*
+	 * If these 2 are not the same we are being called from
+	 * usb_scan_device() and udev itself is the parent.
+	 */
+	if (dev_get_parent_priv(udev->dev) != udev)
+		return udev;
+
+	/* We are being called normally, use the parent pointer */
+	if (device_get_uclass_id(parent) == UCLASS_USB_HUB)
+		return dev_get_parent_priv(parent);
+
+	return NULL;
+}
 
 static void get_hub_data(struct usb_device *dev, u16 *hub_devnum, u16 *hubport)
 {
@@ -73,10 +99,10 @@ static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 	 * and USB1, so we must always set the USB0 register
 	 */
 #if (CONFIG_R8A66597_XTAL == 1)
-	r8a66597_bset(r8a66597, XTAL, SYSCFG0);
+	setbits(le16, R8A66597_BASE0, XTAL);
 #endif
 	mdelay(1);
-	r8a66597_bset(r8a66597, UPLLE, SYSCFG0);
+	setbits(le16, R8A66597_BASE0, UPLLE);
 	mdelay(1);
 	r8a66597_bset(r8a66597, SUSPM, SUSPMODE0);
 
@@ -87,7 +113,7 @@ static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
 {
 	r8a66597_bclr(r8a66597, SUSPM, SUSPMODE0);
 
-	r8a66597_bclr(r8a66597, UPLLE, SYSCFG0);
+	clrbits(le16, R8A66597_BASE0, UPLLE);
 	mdelay(1);
 	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
 	mdelay(1);
@@ -777,7 +803,7 @@ static int r8a66597_submit_bulk_msg(struct udevice *udev,
 	return ret;
 }
 
-static int r8a66597_usb_of_to_plat(struct udevice *dev)
+static int r8a66597_usb_ofdata_to_platdata(struct udevice *dev)
 {
 	struct r8a66597 *priv = dev_get_priv(dev);
 	fdt_addr_t addr;
@@ -862,10 +888,10 @@ U_BOOT_DRIVER(usb_r8a66597) = {
 	.name	= "r8a66597_usb",
 	.id	= UCLASS_USB,
 	.of_match = r8a66597_usb_ids,
-	.of_to_plat = r8a66597_usb_of_to_plat,
+	.ofdata_to_platdata = r8a66597_usb_ofdata_to_platdata,
 	.probe	= r8a66597_usb_probe,
 	.remove = r8a66597_usb_remove,
 	.ops	= &r8a66597_usb_ops,
-	.priv_auto	= sizeof(struct r8a66597),
+	.priv_auto_alloc_size = sizeof(struct r8a66597),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };

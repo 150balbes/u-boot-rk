@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2012 The Chromium OS Authors.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_EXYNOS_SPL_H__
@@ -62,7 +63,7 @@ struct spl_machine_param {
  * Validate signature and return a pointer to the parameter table.  If the
  * signature is invalid, call panic() and never return.
  *
- * Return: pointer to the parameter table if signature matched or never return.
+ * @return pointer to the parameter table if signature matched or never return.
  */
 struct spl_machine_param *spl_get_machine_params(void);
 

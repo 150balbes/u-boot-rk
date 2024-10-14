@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015
  * Bhuvanchandra DV, Toradex, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_ARCH_VF610_GPIO_H
@@ -20,7 +21,7 @@ struct vybrid_gpio_regs {
 	u32 gpio_pdir;
 };
 
-struct vybrid_gpio_plat {
+struct vybrid_gpio_platdata {
 	unsigned int chip;
 	u32 base;
 	const char *port_name;

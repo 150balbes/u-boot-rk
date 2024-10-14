@@ -1,22 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2011
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
-#define LOG_CATEGORY UCLASS_IDE
 
 #include <common.h>
 #include <ata.h>
-#include <blk.h>
-#include <bootdev.h>
 #include <dm.h>
 #include <ide.h>
-#include <log.h>
-#include <part.h>
 #include <watchdog.h>
 #include <asm/io.h>
-#include <linux/delay.h>
 
 #ifdef __PPC__
 # define EIEIO		__asm__ volatile ("eieio")
@@ -46,6 +40,10 @@ struct blk_desc ide_dev_desc[CONFIG_SYS_IDE_MAXDEVICE];
 
 #define IDE_SPIN_UP_TIME_OUT 5000 /* 5 sec spin-up timeout */
 
+#ifndef CONFIG_SYS_ATA_PORT_ADDR
+#define CONFIG_SYS_ATA_PORT_ADDR(port) (port)
+#endif
+
 #ifdef CONFIG_IDE_RESET
 extern void ide_set_reset(int idereset);
 
@@ -63,7 +61,7 @@ static void ide_reset(void)
 	/* the reset signal shall be asserted for et least 25 us */
 	udelay(25);
 
-	schedule();
+	WATCHDOG_RESET();
 
 	/* de-assert RESET signal */
 	ide_set_reset(0);
@@ -129,37 +127,55 @@ OUT:
  * ATAPI Support
  */
 
+#if defined(CONFIG_IDE_SWAP_IO)
 /* since ATAPI may use commands with not 4 bytes alligned length
  * we have our own transfer functions, 2 bytes alligned */
 __weak void ide_output_data_shorts(int dev, ushort *sect_buf, int shorts)
 {
-	uintptr_t paddr = (ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	ushort *dbuf;
+	volatile ushort *pbuf;
 
+	pbuf = (ushort *)(ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	dbuf = (ushort *)sect_buf;
 
-	debug("in output data shorts base for read is %p\n", (void *)paddr);
+	debug("in output data shorts base for read is %lx\n",
+	      (unsigned long) pbuf);
 
 	while (shorts--) {
 		EIEIO;
-		outw(cpu_to_le16(*dbuf++), paddr);
+		*pbuf = *dbuf++;
 	}
 }
 
 __weak void ide_input_data_shorts(int dev, ushort *sect_buf, int shorts)
 {
-	uintptr_t paddr = (ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	ushort *dbuf;
+	volatile ushort *pbuf;
 
+	pbuf = (ushort *)(ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	dbuf = (ushort *)sect_buf;
 
-	debug("in input data shorts base for read is %p\n", (void *)paddr);
+	debug("in input data shorts base for read is %lx\n",
+	      (unsigned long) pbuf);
 
 	while (shorts--) {
 		EIEIO;
-		*dbuf++ = le16_to_cpu(inw(paddr));
+		*dbuf++ = *pbuf;
 	}
 }
+
+#else  /* ! CONFIG_IDE_SWAP_IO */
+__weak void ide_output_data_shorts(int dev, ushort *sect_buf, int shorts)
+{
+	outsw(ATA_CURR_BASE(dev) + ATA_DATA_REG, sect_buf, shorts);
+}
+
+__weak void ide_input_data_shorts(int dev, ushort *sect_buf, int shorts)
+{
+	insw(ATA_CURR_BASE(dev) + ATA_DATA_REG, sect_buf, shorts);
+}
+
+#endif /* CONFIG_IDE_SWAP_IO */
 
 /*
  * Wait until (Status & mask) == res, or timeout (in ms)
@@ -216,7 +232,7 @@ unsigned char atapi_issue(int device, unsigned char *ccb, int ccblen,
 		 (unsigned char) ((buflen >> 8) & 0xFF));
 	ide_outb(device, ATA_DEV_HD, ATA_LBA | ATA_DEVICE(device));
 
-	ide_outb(device, ATA_COMMAND, ATA_CMD_PACKET);
+	ide_outb(device, ATA_COMMAND, ATAPI_CMD_PACKET);
 	udelay(50);
 
 	mask = ATA_STAT_DRQ | ATA_STAT_BUSY | ATA_STAT_ERR;
@@ -444,6 +460,9 @@ static void atapi_inquiry(struct blk_desc *dev_desc)
 
 	device = dev_desc->devnum;
 	dev_desc->type = DEV_TYPE_UNKNOWN;	/* not yet valid */
+#ifndef CONFIG_BLK
+	dev_desc->block_read = atapi_read;
+#endif
 
 	memset(ccb, 0, sizeof(ccb));
 	memset(iobuf, 0, sizeof(iobuf));
@@ -523,8 +542,8 @@ static void ide_ident(struct blk_desc *dev_desc)
 {
 	unsigned char c;
 	hd_driveid_t iop;
+
 #ifdef CONFIG_ATAPI
-	bool is_atapi = false;
 	int retries = 0;
 #endif
 	int device;
@@ -535,7 +554,7 @@ static void ide_ident(struct blk_desc *dev_desc)
 	/* Select device
 	 */
 	ide_outb(device, ATA_DEV_HD, ATA_LBA | ATA_DEVICE(device));
-	dev_desc->uclass_id = UCLASS_IDE;
+	dev_desc->if_type = IF_TYPE_IDE;
 #ifdef CONFIG_ATAPI
 
 	retries = 0;
@@ -548,11 +567,11 @@ static void ide_ident(struct blk_desc *dev_desc)
 		    (ide_inb(device, ATA_CYL_LOW) == 0x14) &&
 		    (ide_inb(device, ATA_CYL_HIGH) == 0xEB)) {
 			/* ATAPI Signature found */
-			is_atapi = true;
+			dev_desc->if_type = IF_TYPE_ATAPI;
 			/*
 			 * Start Ident Command
 			 */
-			ide_outb(device, ATA_COMMAND, ATA_CMD_ID_ATAPI);
+			ide_outb(device, ATA_COMMAND, ATAPI_CMD_IDENT);
 			/*
 			 * Wait for completion - ATAPI devices need more time
 			 * to become ready
@@ -564,7 +583,7 @@ static void ide_ident(struct blk_desc *dev_desc)
 			/*
 			 * Start Ident Command
 			 */
-			ide_outb(device, ATA_COMMAND, ATA_CMD_ID_ATA);
+			ide_outb(device, ATA_COMMAND, ATA_CMD_IDENT);
 
 			/*
 			 * Wait for completion
@@ -614,6 +633,19 @@ static void ide_ident(struct blk_desc *dev_desc)
 		  sizeof(dev_desc->vendor));
 	ident_cpy((unsigned char *)dev_desc->product, iop.serial_no,
 		  sizeof(dev_desc->product));
+#ifdef __LITTLE_ENDIAN
+	/*
+	 * firmware revision, model, and serial number have Big Endian Byte
+	 * order in Word. Convert all three to little endian.
+	 *
+	 * See CF+ and CompactFlash Specification Revision 2.0:
+	 * 6.2.1.6: Identify Drive, Table 39 for more details
+	 */
+
+	strswab(dev_desc->revision);
+	strswab(dev_desc->vendor);
+	strswab(dev_desc->product);
+#endif /* __LITTLE_ENDIAN */
 
 	if ((iop.config & 0x0080) == 0x0080)
 		dev_desc->removable = 1;
@@ -621,28 +653,32 @@ static void ide_ident(struct blk_desc *dev_desc)
 		dev_desc->removable = 0;
 
 #ifdef CONFIG_ATAPI
-	if (is_atapi) {
+	if (dev_desc->if_type == IF_TYPE_ATAPI) {
 		atapi_inquiry(dev_desc);
 		return;
 	}
 #endif /* CONFIG_ATAPI */
 
-	iop.lba_capacity[0] = be16_to_cpu(iop.lba_capacity[0]);
-	iop.lba_capacity[1] = be16_to_cpu(iop.lba_capacity[1]);
-	dev_desc->lba =
-			((unsigned long)iop.lba_capacity[0]) |
-			((unsigned long)iop.lba_capacity[1] << 16);
+#ifdef __BIG_ENDIAN
+	/* swap shorts */
+	dev_desc->lba = (iop.lba_capacity << 16) | (iop.lba_capacity >> 16);
+#else  /* ! __BIG_ENDIAN */
+	/*
+	 * do not swap shorts on little endian
+	 *
+	 * See CF+ and CompactFlash Specification Revision 2.0:
+	 * 6.2.1.6: Identfy Drive, Table 39, Word Address 57-58 for details.
+	 */
+	dev_desc->lba = iop.lba_capacity;
+#endif /* __BIG_ENDIAN */
 
 #ifdef CONFIG_LBA48
 	if (iop.command_set_2 & 0x0400) {	/* LBA 48 support */
 		dev_desc->lba48 = 1;
-		for (int i = 0; i < 4; i++)
-			iop.lba48_capacity[i] = be16_to_cpu(iop.lba48_capacity[i]);
-		dev_desc->lba =
-			((unsigned long long)iop.lba48_capacity[0] |
-			((unsigned long long)iop.lba48_capacity[1] << 16) |
-			((unsigned long long)iop.lba48_capacity[2] << 32) |
-			((unsigned long long)iop.lba48_capacity[3] << 48));
+		dev_desc->lba = (unsigned long long) iop.lba48_capacity[0] |
+			((unsigned long long) iop.lba48_capacity[1] << 16) |
+			((unsigned long long) iop.lba48_capacity[2] << 32) |
+			((unsigned long long) iop.lba48_capacity[3] << 48);
 	} else {
 		dev_desc->lba48 = 0;
 	}
@@ -672,29 +708,53 @@ static void ide_ident(struct blk_desc *dev_desc)
 __weak void ide_outb(int dev, int port, unsigned char val)
 {
 	debug("ide_outb (dev= %d, port= 0x%x, val= 0x%02x) : @ 0x%08lx\n",
-	      dev, port, val, ATA_CURR_BASE(dev) + port);
+	      dev, port, val,
+	      (ATA_CURR_BASE(dev) + CONFIG_SYS_ATA_PORT_ADDR(port)));
 
-	outb(val, ATA_CURR_BASE(dev) + port);
+#if defined(CONFIG_IDE_AHB)
+	if (port) {
+		/* write command */
+		ide_write_register(dev, port, val);
+	} else {
+		/* write data */
+		outb(val, (ATA_CURR_BASE(dev)));
+	}
+#else
+	outb(val, (ATA_CURR_BASE(dev) + CONFIG_SYS_ATA_PORT_ADDR(port)));
+#endif
 }
 
 __weak unsigned char ide_inb(int dev, int port)
 {
 	uchar val;
 
-	val = inb(ATA_CURR_BASE(dev) + port);
+#if defined(CONFIG_IDE_AHB)
+	val = ide_read_register(dev, port);
+#else
+	val = inb((ATA_CURR_BASE(dev) + CONFIG_SYS_ATA_PORT_ADDR(port)));
+#endif
 
 	debug("ide_inb (dev= %d, port= 0x%x) : @ 0x%08lx -> 0x%02x\n",
-	      dev, port, ATA_CURR_BASE(dev) + port, val);
+	      dev, port,
+	      (ATA_CURR_BASE(dev) + CONFIG_SYS_ATA_PORT_ADDR(port)), val);
 	return val;
 }
 
 void ide_init(void)
 {
-	struct udevice *dev;
 	unsigned char c;
 	int i, bus;
 
-	schedule();
+#ifdef CONFIG_IDE_PREINIT
+	WATCHDOG_RESET();
+
+	if (ide_preinit()) {
+		puts("ide_preinit failed\n");
+		return;
+	}
+#endif /* CONFIG_IDE_PREINIT */
+
+	WATCHDOG_RESET();
 
 	/* ATAPI Drives seems to need a proper IDE Reset */
 	ide_reset();
@@ -744,80 +804,141 @@ void ide_init(void)
 			puts("OK ");
 			ide_bus_ok[bus] = 1;
 		}
-		schedule();
+		WATCHDOG_RESET();
 	}
 
 	putc('\n');
 
 	for (i = 0; i < CONFIG_SYS_IDE_MAXDEVICE; ++i) {
 		ide_dev_desc[i].type = DEV_TYPE_UNKNOWN;
-		ide_dev_desc[i].uclass_id = UCLASS_IDE;
+		ide_dev_desc[i].if_type = IF_TYPE_IDE;
 		ide_dev_desc[i].devnum = i;
 		ide_dev_desc[i].part_type = PART_TYPE_UNKNOWN;
 		ide_dev_desc[i].blksz = 0;
 		ide_dev_desc[i].log2blksz =
 			LOG2_INVALID(typeof(ide_dev_desc[i].log2blksz));
 		ide_dev_desc[i].lba = 0;
+#ifndef CONFIG_BLK
+		ide_dev_desc[i].block_read = ide_read;
+		ide_dev_desc[i].block_write = ide_write;
+#endif
 		if (!ide_bus_ok[IDE_BUS(i)])
 			continue;
 		ide_ident(&ide_dev_desc[i]);
 		dev_print(&ide_dev_desc[i]);
+
+#ifndef CONFIG_BLK
+		if ((ide_dev_desc[i].lba > 0) && (ide_dev_desc[i].blksz > 0)) {
+			/* initialize partition type */
+			part_init(&ide_dev_desc[i]);
+		}
+#endif
 	}
-	schedule();
+	WATCHDOG_RESET();
+
+#ifdef CONFIG_BLK
+	struct udevice *dev;
 
 	uclass_first_device(UCLASS_IDE, &dev);
+#endif
 }
 
+/* We only need to swap data if we are running on a big endian cpu. */
+#if defined(__LITTLE_ENDIAN)
 __weak void ide_input_swap_data(int dev, ulong *sect_buf, int words)
 {
-	uintptr_t paddr = (ATA_CURR_BASE(dev) + ATA_DATA_REG);
+	ide_input_data(dev, sect_buf, words);
+}
+#else
+__weak void ide_input_swap_data(int dev, ulong *sect_buf, int words)
+{
+	volatile ushort *pbuf =
+		(ushort *)(ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	ushort *dbuf = (ushort *)sect_buf;
 
-	debug("in input swap data base for read is %p\n", (void *)paddr);
+	debug("in input swap data base for read is %lx\n",
+	      (unsigned long) pbuf);
 
 	while (words--) {
-		EIEIO;
-		*dbuf++ = be16_to_cpu(inw(paddr));
-		EIEIO;
-		*dbuf++ = be16_to_cpu(inw(paddr));
+#ifdef __MIPS__
+		*dbuf++ = swab16p((u16 *)pbuf);
+		*dbuf++ = swab16p((u16 *)pbuf);
+#else
+		*dbuf++ = ld_le16(pbuf);
+		*dbuf++ = ld_le16(pbuf);
+#endif /* !MIPS */
 	}
 }
+#endif /* __LITTLE_ENDIAN */
 
+
+#if defined(CONFIG_IDE_SWAP_IO)
 __weak void ide_output_data(int dev, const ulong *sect_buf, int words)
 {
-	uintptr_t paddr = (ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	ushort *dbuf;
+	volatile ushort *pbuf;
 
+	pbuf = (ushort *)(ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	dbuf = (ushort *)sect_buf;
 	while (words--) {
 		EIEIO;
-		outw(cpu_to_le16(*dbuf++), paddr);
+		*pbuf = *dbuf++;
 		EIEIO;
-		outw(cpu_to_le16(*dbuf++), paddr);
+		*pbuf = *dbuf++;
 	}
 }
+#else  /* ! CONFIG_IDE_SWAP_IO */
+__weak void ide_output_data(int dev, const ulong *sect_buf, int words)
+{
+#if defined(CONFIG_IDE_AHB)
+	ide_write_data(dev, sect_buf, words);
+#else
+	outsw(ATA_CURR_BASE(dev) + ATA_DATA_REG, sect_buf, words << 1);
+#endif
+}
+#endif /* CONFIG_IDE_SWAP_IO */
 
+#if defined(CONFIG_IDE_SWAP_IO)
 __weak void ide_input_data(int dev, ulong *sect_buf, int words)
 {
-	uintptr_t paddr = (ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	ushort *dbuf;
+	volatile ushort *pbuf;
 
+	pbuf = (ushort *)(ATA_CURR_BASE(dev) + ATA_DATA_REG);
 	dbuf = (ushort *)sect_buf;
 
-	debug("in input data base for read is %p\n", (void *)paddr);
+	debug("in input data base for read is %lx\n", (unsigned long) pbuf);
 
 	while (words--) {
 		EIEIO;
-		*dbuf++ = le16_to_cpu(inw(paddr));
+		*dbuf++ = *pbuf;
 		EIEIO;
-		*dbuf++ = le16_to_cpu(inw(paddr));
+		*dbuf++ = *pbuf;
 	}
 }
+#else  /* ! CONFIG_IDE_SWAP_IO */
+__weak void ide_input_data(int dev, ulong *sect_buf, int words)
+{
+#if defined(CONFIG_IDE_AHB)
+	ide_read_data(dev, sect_buf, words);
+#else
+	insw(ATA_CURR_BASE(dev) + ATA_DATA_REG, sect_buf, words << 1);
+#endif
+}
 
+#endif /* CONFIG_IDE_SWAP_IO */
+
+#ifdef CONFIG_BLK
 ulong ide_read(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt,
 	       void *buffer)
+#else
+ulong ide_read(struct blk_desc *block_dev, lbaint_t blknr, lbaint_t blkcnt,
+	       void *buffer)
+#endif
 {
-	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
+#ifdef CONFIG_BLK
+	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+#endif
 	int device = block_dev->devnum;
 	ulong n = 0;
 	unsigned char c;
@@ -846,7 +967,7 @@ ulong ide_read(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt,
 
 	/* first check if the drive is in Powersaving mode, if yes,
 	 * increase the timeout value */
-	ide_outb(device, ATA_COMMAND, ATA_CMD_CHK_POWER);
+	ide_outb(device, ATA_COMMAND, ATA_CMD_CHK_PWR);
 	udelay(50);
 
 	c = ide_wait(device, IDE_TIME_OUT);	/* can't take over 500 ms */
@@ -895,14 +1016,14 @@ ulong ide_read(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt,
 		if (lba48) {
 			ide_outb(device, ATA_DEV_HD,
 				 ATA_LBA | ATA_DEVICE(device));
-			ide_outb(device, ATA_COMMAND, ATA_CMD_PIO_READ_EXT);
+			ide_outb(device, ATA_COMMAND, ATA_CMD_READ_EXT);
 
 		} else
 #endif
 		{
 			ide_outb(device, ATA_DEV_HD, ATA_LBA |
 				 ATA_DEVICE(device) | ((blknr >> 24) & 0xF));
-			ide_outb(device, ATA_COMMAND, ATA_CMD_PIO_READ);
+			ide_outb(device, ATA_COMMAND, ATA_CMD_READ);
 		}
 
 		udelay(50);
@@ -934,10 +1055,17 @@ IDE_READ_E:
 	return n;
 }
 
+#ifdef CONFIG_BLK
 ulong ide_write(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt,
 		const void *buffer)
+#else
+ulong ide_write(struct blk_desc *block_dev, lbaint_t blknr, lbaint_t blkcnt,
+		const void *buffer)
+#endif
 {
-	struct blk_desc *block_dev = dev_get_uclass_plat(dev);
+#ifdef CONFIG_BLK
+	struct blk_desc *block_dev = dev_get_uclass_platdata(dev);
+#endif
 	int device = block_dev->devnum;
 	ulong n = 0;
 	unsigned char c;
@@ -985,14 +1113,14 @@ ulong ide_write(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt,
 		if (lba48) {
 			ide_outb(device, ATA_DEV_HD,
 				 ATA_LBA | ATA_DEVICE(device));
-			ide_outb(device, ATA_COMMAND, ATA_CMD_PIO_WRITE_EXT);
+			ide_outb(device, ATA_COMMAND, ATA_CMD_WRITE_EXT);
 
 		} else
 #endif
 		{
 			ide_outb(device, ATA_DEV_HD, ATA_LBA |
 				 ATA_DEVICE(device) | ((blknr >> 24) & 0xF));
-			ide_outb(device, ATA_COMMAND, ATA_CMD_PIO_WRITE);
+			ide_outb(device, ATA_COMMAND, ATA_CMD_WRITE);
 		}
 
 		udelay(50);
@@ -1026,9 +1154,10 @@ int ide_device_present(int dev)
 }
 #endif
 
+#ifdef CONFIG_BLK
 static int ide_blk_probe(struct udevice *udev)
 {
-	struct blk_desc *desc = dev_get_uclass_plat(udev);
+	struct blk_desc *desc = dev_get_uclass_platdata(udev);
 
 	/* fill in device vendor/product/rev strings */
 	strncpy(desc->vendor, ide_dev_desc[desc->devnum].vendor,
@@ -1040,6 +1169,8 @@ static int ide_blk_probe(struct udevice *udev)
 	strncpy(desc->revision, ide_dev_desc[desc->devnum].revision,
 		BLK_REV_SIZE);
 	desc->revision[BLK_REV_SIZE] = '\0';
+
+	part_init(desc);
 
 	return 0;
 }
@@ -1054,45 +1185,6 @@ U_BOOT_DRIVER(ide_blk) = {
 	.id		= UCLASS_BLK,
 	.ops		= &ide_blk_ops,
 	.probe		= ide_blk_probe,
-};
-
-static int ide_bootdev_bind(struct udevice *dev)
-{
-	struct bootdev_uc_plat *ucp = dev_get_uclass_plat(dev);
-
-	ucp->prio = BOOTDEVP_5_SCAN_SLOW;
-
-	return 0;
-}
-
-static int ide_bootdev_hunt(struct bootdev_hunter *info, bool show)
-{
-	ide_init();
-
-	return 0;
-}
-
-struct bootdev_ops ide_bootdev_ops = {
-};
-
-static const struct udevice_id ide_bootdev_ids[] = {
-	{ .compatible = "u-boot,bootdev-ide" },
-	{ }
-};
-
-U_BOOT_DRIVER(ide_bootdev) = {
-	.name		= "ide_bootdev",
-	.id		= UCLASS_BOOTDEV,
-	.ops		= &ide_bootdev_ops,
-	.bind		= ide_bootdev_bind,
-	.of_match	= ide_bootdev_ids,
-};
-
-BOOTDEV_HUNTER(ide_bootdev_hunter) = {
-	.prio		= BOOTDEVP_5_SCAN_SLOW,
-	.uclass		= UCLASS_IDE,
-	.hunt		= ide_bootdev_hunt,
-	.drv		= DM_DRIVER_REF(ide_bootdev),
 };
 
 static int ide_probe(struct udevice *udev)
@@ -1118,18 +1210,10 @@ static int ide_probe(struct udevice *udev)
 			if (!blksz)
 				continue;
 			ret = blk_create_devicef(udev, "ide_blk", name,
-						 UCLASS_IDE, i,
+						 IF_TYPE_IDE, i,
 						 blksz, size, &blk_dev);
 			if (ret)
 				return ret;
-
-			ret = blk_probe_or_unbind(blk_dev);
-			if (ret)
-				return ret;
-
-			ret = bootdev_setup_for_dev(udev, "ide_bootdev");
-			if (ret)
-				return log_msg_ret("bootdev", ret);
 		}
 	}
 
@@ -1153,3 +1237,11 @@ UCLASS_DRIVER(ide) = {
 	.name		= "ide",
 	.id		= UCLASS_IDE,
 };
+#else
+U_BOOT_LEGACY_BLK(ide) = {
+	.if_typename	= "ide",
+	.if_type	= IF_TYPE_IDE,
+	.max_devs	= CONFIG_SYS_IDE_MAXDEVICE,
+	.desc		= ide_dev_desc,
+};
+#endif

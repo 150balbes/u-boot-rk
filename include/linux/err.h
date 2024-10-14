@@ -23,22 +23,22 @@
 
 static inline void *ERR_PTR(long error)
 {
-	return (void *)(CONFIG_ERR_PTR_OFFSET + error);
+	return (void *) error;
 }
 
 static inline long PTR_ERR(const void *ptr)
 {
-	return ((long)ptr - CONFIG_ERR_PTR_OFFSET);
+	return (long) ptr;
 }
 
 static inline long IS_ERR(const void *ptr)
 {
-	return IS_ERR_VALUE((unsigned long)PTR_ERR(ptr));
+	return IS_ERR_VALUE((unsigned long)ptr);
 }
 
 static inline bool IS_ERR_OR_NULL(const void *ptr)
 {
-	return !ptr || IS_ERR_VALUE((unsigned long)PTR_ERR(ptr));
+	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
 }
 
 /**

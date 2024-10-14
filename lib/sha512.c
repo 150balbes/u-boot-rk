@@ -1,13 +1,27 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: Apache-2.0
 /*
- * FIPS-180-2 compliant SHA-512 and SHA-384 implementation
+ *  FIPS-180-2 compliant SHA-384/512 implementation
  *
- * SHA-512 code by Jean-Luc Cooke <jlcooke@certainkey.com>
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
  *
- * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
- * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
- * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
- * Copyright (c) 2020 Reuben Dowle <reuben.dowle@4rf.com>
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may
+ *  not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  This file is part of mbed TLS (https://tls.mbed.org)
+ */
+/*
+ *  The SHA-512 Secure Hash Standard was published by NIST in 2002.
+ *
+ *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
 #ifndef USE_HOSTCC
@@ -16,367 +30,317 @@
 #else
 #include <string.h>
 #endif /* USE_HOSTCC */
-#include <compiler.h>
-#include <watchdog.h>
 #include <u-boot/sha512.h>
 
-const uint8_t sha384_der_prefix[SHA384_DER_LEN] = {
-	0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
-	0x00, 0x04, 0x30
-};
-
-const uint8_t sha512_der_prefix[SHA512_DER_LEN] = {
-	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
-	0x00, 0x04, 0x40
-};
-
-#define SHA384_H0	0xcbbb9d5dc1059ed8ULL
-#define SHA384_H1	0x629a292a367cd507ULL
-#define SHA384_H2	0x9159015a3070dd17ULL
-#define SHA384_H3	0x152fecd8f70e5939ULL
-#define SHA384_H4	0x67332667ffc00b31ULL
-#define SHA384_H5	0x8eb44a8768581511ULL
-#define SHA384_H6	0xdb0c2e0d64f98fa7ULL
-#define SHA384_H7	0x47b5481dbefa4fa4ULL
-
-#define SHA512_H0	0x6a09e667f3bcc908ULL
-#define SHA512_H1	0xbb67ae8584caa73bULL
-#define SHA512_H2	0x3c6ef372fe94f82bULL
-#define SHA512_H3	0xa54ff53a5f1d36f1ULL
-#define SHA512_H4	0x510e527fade682d1ULL
-#define SHA512_H5	0x9b05688c2b3e6c1fULL
-#define SHA512_H6	0x1f83d9abfb41bd6bULL
-#define SHA512_H7	0x5be0cd19137e2179ULL
-
-static inline uint64_t Ch(uint64_t x, uint64_t y, uint64_t z)
-{
-        return z ^ (x & (y ^ z));
-}
-
-static inline uint64_t Maj(uint64_t x, uint64_t y, uint64_t z)
-{
-        return (x & y) | (z & (x | y));
-}
-
-static const uint64_t sha512_K[80] = {
-        0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL,
-        0xe9b5dba58189dbbcULL, 0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL,
-        0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL, 0xd807aa98a3030242ULL,
-        0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
-        0x72be5d74f27b896fULL, 0x80deb1fe3b1696b1ULL, 0x9bdc06a725c71235ULL,
-        0xc19bf174cf692694ULL, 0xe49b69c19ef14ad2ULL, 0xefbe4786384f25e3ULL,
-        0x0fc19dc68b8cd5b5ULL, 0x240ca1cc77ac9c65ULL, 0x2de92c6f592b0275ULL,
-        0x4a7484aa6ea6e483ULL, 0x5cb0a9dcbd41fbd4ULL, 0x76f988da831153b5ULL,
-        0x983e5152ee66dfabULL, 0xa831c66d2db43210ULL, 0xb00327c898fb213fULL,
-        0xbf597fc7beef0ee4ULL, 0xc6e00bf33da88fc2ULL, 0xd5a79147930aa725ULL,
-        0x06ca6351e003826fULL, 0x142929670a0e6e70ULL, 0x27b70a8546d22ffcULL,
-        0x2e1b21385c26c926ULL, 0x4d2c6dfc5ac42aedULL, 0x53380d139d95b3dfULL,
-        0x650a73548baf63deULL, 0x766a0abb3c77b2a8ULL, 0x81c2c92e47edaee6ULL,
-        0x92722c851482353bULL, 0xa2bfe8a14cf10364ULL, 0xa81a664bbc423001ULL,
-        0xc24b8b70d0f89791ULL, 0xc76c51a30654be30ULL, 0xd192e819d6ef5218ULL,
-        0xd69906245565a910ULL, 0xf40e35855771202aULL, 0x106aa07032bbd1b8ULL,
-        0x19a4c116b8d2d0c8ULL, 0x1e376c085141ab53ULL, 0x2748774cdf8eeb99ULL,
-        0x34b0bcb5e19b48a8ULL, 0x391c0cb3c5c95a63ULL, 0x4ed8aa4ae3418acbULL,
-        0x5b9cca4f7763e373ULL, 0x682e6ff3d6b2b8a3ULL, 0x748f82ee5defb2fcULL,
-        0x78a5636f43172f60ULL, 0x84c87814a1f0ab72ULL, 0x8cc702081a6439ecULL,
-        0x90befffa23631e28ULL, 0xa4506cebde82bde9ULL, 0xbef9a3f7b2c67915ULL,
-        0xc67178f2e372532bULL, 0xca273eceea26619cULL, 0xd186b8c721c0c207ULL,
-        0xeada7dd6cde0eb1eULL, 0xf57d4f7fee6ed178ULL, 0x06f067aa72176fbaULL,
-        0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL, 0x1b710b35131c471bULL,
-        0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL,
-        0x431d67c49c100d4cULL, 0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL,
-        0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL,
-};
-
-static inline uint64_t ror64(uint64_t word, unsigned int shift)
-{
-	return (word >> (shift & 63)) | (word << ((-shift) & 63));
-}
-
-#define e0(x)       (ror64(x,28) ^ ror64(x,34) ^ ror64(x,39))
-#define e1(x)       (ror64(x,14) ^ ror64(x,18) ^ ror64(x,41))
-#define s0(x)       (ror64(x, 1) ^ ror64(x, 8) ^ (x >> 7))
-#define s1(x)       (ror64(x,19) ^ ror64(x,61) ^ (x >> 6))
+#if defined(_MSC_VER) || defined(__WATCOMC__)
+#define UL64(x) x##ui64
+#else
+#define UL64(x) x##ULL
+#endif
 
 /*
  * 64-bit integer manipulation macros (big endian)
  */
 #ifndef GET_UINT64_BE
-#define GET_UINT64_BE(n,b,i) {				\
-	(n) = ( (unsigned long long) (b)[(i)    ] << 56 )	\
-	    | ( (unsigned long long) (b)[(i) + 1] << 48 )	\
-	    | ( (unsigned long long) (b)[(i) + 2] << 40 )	\
-	    | ( (unsigned long long) (b)[(i) + 3] << 32 )	\
-	    | ( (unsigned long long) (b)[(i) + 4] << 24 )	\
-	    | ( (unsigned long long) (b)[(i) + 5] << 16 )	\
-	    | ( (unsigned long long) (b)[(i) + 6] <<  8 )	\
-	    | ( (unsigned long long) (b)[(i) + 7]       );	\
+#define GET_UINT64_BE(n,b,i)                   \
+{                                              \
+    (n) = ((uint64_t)(b)[(i)    ] << 56)       \
+        | ((uint64_t)(b)[(i) + 1] << 48)       \
+        | ((uint64_t)(b)[(i) + 2] << 40)       \
+        | ((uint64_t)(b)[(i) + 3] << 32)       \
+        | ((uint64_t)(b)[(i) + 4] << 24)       \
+        | ((uint64_t)(b)[(i) + 5] << 16)       \
+        | ((uint64_t)(b)[(i) + 6] <<  8)       \
+        | ((uint64_t)(b)[(i) + 7]      );      \
 }
-#endif
+#endif /* GET_UINT64_BE */
+
 #ifndef PUT_UINT64_BE
-#define PUT_UINT64_BE(n,b,i) {				\
-	(b)[(i)    ] = (unsigned char) ( (n) >> 56 );	\
-	(b)[(i) + 1] = (unsigned char) ( (n) >> 48 );	\
-	(b)[(i) + 2] = (unsigned char) ( (n) >> 40 );	\
-	(b)[(i) + 3] = (unsigned char) ( (n) >> 32 );	\
-	(b)[(i) + 4] = (unsigned char) ( (n) >> 24 );	\
-	(b)[(i) + 5] = (unsigned char) ( (n) >> 16 );	\
-	(b)[(i) + 6] = (unsigned char) ( (n) >>  8 );	\
-	(b)[(i) + 7] = (unsigned char) ( (n)       );	\
+#define PUT_UINT64_BE(n,b,i)                          \
+{                                                     \
+    (b)[(i)    ] = (unsigned char) ((n) >> 56);       \
+    (b)[(i) + 1] = (unsigned char) ((n) >> 48);       \
+    (b)[(i) + 2] = (unsigned char) ((n) >> 40);       \
+    (b)[(i) + 3] = (unsigned char) ((n) >> 32);       \
+    (b)[(i) + 4] = (unsigned char) ((n) >> 24);       \
+    (b)[(i) + 5] = (unsigned char) ((n) >> 16);       \
+    (b)[(i) + 6] = (unsigned char) ((n) >>  8);       \
+    (b)[(i) + 7] = (unsigned char) ((n)      );       \
 }
-#endif
+#endif /* PUT_UINT64_BE */
 
-static inline void LOAD_OP(int I, uint64_t *W, const uint8_t *input)
+/*
+ * SHA-512 context setup
+ */
+static int __sha512_starts(sha512_context *ctx, int is384)
 {
-	GET_UINT64_BE(W[I], input, I*8);
-}
+	ctx->total[0] = 0;
+	ctx->total[1] = 0;
 
-static inline void BLEND_OP(int I, uint64_t *W)
-{
-	W[I & 15] += s1(W[(I-2) & 15]) + W[(I-7) & 15] + s0(W[(I-15) & 15]);
-}
-
-static void
-sha512_transform(uint64_t *state, const uint8_t *input)
-{
-	uint64_t a, b, c, d, e, f, g, h, t1, t2;
-
-	int i;
-	uint64_t W[16];
-
-	/* load the state into our registers */
-	a=state[0];   b=state[1];   c=state[2];   d=state[3];
-	e=state[4];   f=state[5];   g=state[6];   h=state[7];
-
-	/* now iterate */
-	for (i=0; i<80; i+=8) {
-		if (!(i & 8)) {
-			int j;
-
-			if (i < 16) {
-				/* load the input */
-				for (j = 0; j < 16; j++)
-					LOAD_OP(i + j, W, input);
-			} else {
-				for (j = 0; j < 16; j++) {
-					BLEND_OP(i + j, W);
-				}
-			}
-		}
-
-		t1 = h + e1(e) + Ch(e,f,g) + sha512_K[i  ] + W[(i & 15)];
-		t2 = e0(a) + Maj(a,b,c);    d+=t1;    h=t1+t2;
-		t1 = g + e1(d) + Ch(d,e,f) + sha512_K[i+1] + W[(i & 15) + 1];
-		t2 = e0(h) + Maj(h,a,b);    c+=t1;    g=t1+t2;
-		t1 = f + e1(c) + Ch(c,d,e) + sha512_K[i+2] + W[(i & 15) + 2];
-		t2 = e0(g) + Maj(g,h,a);    b+=t1;    f=t1+t2;
-		t1 = e + e1(b) + Ch(b,c,d) + sha512_K[i+3] + W[(i & 15) + 3];
-		t2 = e0(f) + Maj(f,g,h);    a+=t1;    e=t1+t2;
-		t1 = d + e1(a) + Ch(a,b,c) + sha512_K[i+4] + W[(i & 15) + 4];
-		t2 = e0(e) + Maj(e,f,g);    h+=t1;    d=t1+t2;
-		t1 = c + e1(h) + Ch(h,a,b) + sha512_K[i+5] + W[(i & 15) + 5];
-		t2 = e0(d) + Maj(d,e,f);    g+=t1;    c=t1+t2;
-		t1 = b + e1(g) + Ch(g,h,a) + sha512_K[i+6] + W[(i & 15) + 6];
-		t2 = e0(c) + Maj(c,d,e);    f+=t1;    b=t1+t2;
-		t1 = a + e1(f) + Ch(f,g,h) + sha512_K[i+7] + W[(i & 15) + 7];
-		t2 = e0(b) + Maj(b,c,d);    e+=t1;    a=t1+t2;
+	if (is384 == 0) {
+		/* SHA-512 */
+		ctx->state[0] = UL64(0x6A09E667F3BCC908);
+		ctx->state[1] = UL64(0xBB67AE8584CAA73B);
+		ctx->state[2] = UL64(0x3C6EF372FE94F82B);
+		ctx->state[3] = UL64(0xA54FF53A5F1D36F1);
+		ctx->state[4] = UL64(0x510E527FADE682D1);
+		ctx->state[5] = UL64(0x9B05688C2B3E6C1F);
+		ctx->state[6] = UL64(0x1F83D9ABFB41BD6B);
+		ctx->state[7] = UL64(0x5BE0CD19137E2179);
+	} else {
+		/* SHA-384 */
+		ctx->state[0] = UL64(0xCBBB9D5DC1059ED8);
+		ctx->state[1] = UL64(0x629A292A367CD507);
+		ctx->state[2] = UL64(0x9159015A3070DD17);
+		ctx->state[3] = UL64(0x152FECD8F70E5939);
+		ctx->state[4] = UL64(0x67332667FFC00B31);
+		ctx->state[5] = UL64(0x8EB44A8768581511);
+		ctx->state[6] = UL64(0xDB0C2E0D64F98FA7);
+		ctx->state[7] = UL64(0x47B5481DBEFA4FA4);
 	}
 
-	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+	ctx->is384 = is384;
 
-	/* erase our data */
-	a = b = c = d = e = f = g = h = t1 = t2 = 0;
+	return(0);
 }
 
-static void sha512_block_fn(sha512_context *sst, const uint8_t *src,
-				    int blocks)
+int sha512_starts(sha512_context *ctx)
 {
-	while (blocks--) {
-		sha512_transform(sst->state, src);
-		src += SHA512_BLOCK_SIZE;
-	}
-}
-
-static void sha512_base_do_update(sha512_context *sctx,
-					const uint8_t *data,
-					unsigned int len)
-{
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
-
-	sctx->count[0] += len;
-	if (sctx->count[0] < len)
-		sctx->count[1]++;
-
-	if (unlikely((partial + len) >= SHA512_BLOCK_SIZE)) {
-		int blocks;
-
-		if (partial) {
-			int p = SHA512_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buf + partial, data, p);
-			data += p;
-			len -= p;
-
-			sha512_block_fn(sctx, sctx->buf, 1);
-		}
-
-		blocks = len / SHA512_BLOCK_SIZE;
-		len %= SHA512_BLOCK_SIZE;
-
-		if (blocks) {
-			sha512_block_fn(sctx, data, blocks);
-			data += blocks * SHA512_BLOCK_SIZE;
-		}
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buf + partial, data, len);
-}
-
-static void sha512_base_do_finalize(sha512_context *sctx)
-{
-	const int bit_offset = SHA512_BLOCK_SIZE - sizeof(uint64_t[2]);
-	uint64_t *bits = (uint64_t *)(sctx->buf + bit_offset);
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
-
-	sctx->buf[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(sctx->buf + partial, 0x0, SHA512_BLOCK_SIZE - partial);
-		partial = 0;
-
-		sha512_block_fn(sctx, sctx->buf, 1);
-	}
-
-	memset(sctx->buf + partial, 0x0, bit_offset - partial);
-	bits[0] = cpu_to_be64(sctx->count[1] << 3 | sctx->count[0] >> 61);
-	bits[1] = cpu_to_be64(sctx->count[0] << 3);
-	sha512_block_fn(sctx, sctx->buf, 1);
-}
-
-#if defined(CONFIG_SHA384)
-void sha384_starts(sha512_context * ctx)
-{
-	ctx->state[0] = SHA384_H0;
-	ctx->state[1] = SHA384_H1;
-	ctx->state[2] = SHA384_H2;
-	ctx->state[3] = SHA384_H3;
-	ctx->state[4] = SHA384_H4;
-	ctx->state[5] = SHA384_H5;
-	ctx->state[6] = SHA384_H6;
-	ctx->state[7] = SHA384_H7;
-	ctx->count[0] = ctx->count[1] = 0;
-}
-
-void sha384_update(sha512_context *ctx, const uint8_t *input, uint32_t length)
-{
-	sha512_base_do_update(ctx, input, length);
-}
-
-void sha384_finish(sha512_context * ctx, uint8_t digest[SHA384_SUM_LEN])
-{
-	int i;
-
-	sha512_base_do_finalize(ctx);
-	for(i=0; i<SHA384_SUM_LEN / sizeof(uint64_t); i++)
-		PUT_UINT64_BE(ctx->state[i], digest, i * 8);
+	return __sha512_starts(ctx, 0);
 }
 
 /*
- * Output = SHA-512( input buffer ). Trigger the watchdog every 'chunk_sz'
- * bytes of input processed.
+ * Round constants
  */
-void sha384_csum_wd(const unsigned char *input, unsigned int ilen,
-		unsigned char *output, unsigned int chunk_sz)
-{
-	sha512_context ctx;
-#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-	const unsigned char *end;
-	unsigned char *curr;
-	int chunk;
-#endif
+static const uint64_t K[80] = {
+	UL64(0x428A2F98D728AE22),  UL64(0x7137449123EF65CD),
+	UL64(0xB5C0FBCFEC4D3B2F),  UL64(0xE9B5DBA58189DBBC),
+	UL64(0x3956C25BF348B538),  UL64(0x59F111F1B605D019),
+	UL64(0x923F82A4AF194F9B),  UL64(0xAB1C5ED5DA6D8118),
+	UL64(0xD807AA98A3030242),  UL64(0x12835B0145706FBE),
+	UL64(0x243185BE4EE4B28C),  UL64(0x550C7DC3D5FFB4E2),
+	UL64(0x72BE5D74F27B896F),  UL64(0x80DEB1FE3B1696B1),
+	UL64(0x9BDC06A725C71235),  UL64(0xC19BF174CF692694),
+	UL64(0xE49B69C19EF14AD2),  UL64(0xEFBE4786384F25E3),
+	UL64(0x0FC19DC68B8CD5B5),  UL64(0x240CA1CC77AC9C65),
+	UL64(0x2DE92C6F592B0275),  UL64(0x4A7484AA6EA6E483),
+	UL64(0x5CB0A9DCBD41FBD4),  UL64(0x76F988DA831153B5),
+	UL64(0x983E5152EE66DFAB),  UL64(0xA831C66D2DB43210),
+	UL64(0xB00327C898FB213F),  UL64(0xBF597FC7BEEF0EE4),
+	UL64(0xC6E00BF33DA88FC2),  UL64(0xD5A79147930AA725),
+	UL64(0x06CA6351E003826F),  UL64(0x142929670A0E6E70),
+	UL64(0x27B70A8546D22FFC),  UL64(0x2E1B21385C26C926),
+	UL64(0x4D2C6DFC5AC42AED),  UL64(0x53380D139D95B3DF),
+	UL64(0x650A73548BAF63DE),  UL64(0x766A0ABB3C77B2A8),
+	UL64(0x81C2C92E47EDAEE6),  UL64(0x92722C851482353B),
+	UL64(0xA2BFE8A14CF10364),  UL64(0xA81A664BBC423001),
+	UL64(0xC24B8B70D0F89791),  UL64(0xC76C51A30654BE30),
+	UL64(0xD192E819D6EF5218),  UL64(0xD69906245565A910),
+	UL64(0xF40E35855771202A),  UL64(0x106AA07032BBD1B8),
+	UL64(0x19A4C116B8D2D0C8),  UL64(0x1E376C085141AB53),
+	UL64(0x2748774CDF8EEB99),  UL64(0x34B0BCB5E19B48A8),
+	UL64(0x391C0CB3C5C95A63),  UL64(0x4ED8AA4AE3418ACB),
+	UL64(0x5B9CCA4F7763E373),  UL64(0x682E6FF3D6B2B8A3),
+	UL64(0x748F82EE5DEFB2FC),  UL64(0x78A5636F43172F60),
+	UL64(0x84C87814A1F0AB72),  UL64(0x8CC702081A6439EC),
+	UL64(0x90BEFFFA23631E28),  UL64(0xA4506CEBDE82BDE9),
+	UL64(0xBEF9A3F7B2C67915),  UL64(0xC67178F2E372532B),
+	UL64(0xCA273ECEEA26619C),  UL64(0xD186B8C721C0C207),
+	UL64(0xEADA7DD6CDE0EB1E),  UL64(0xF57D4F7FEE6ED178),
+	UL64(0x06F067AA72176FBA),  UL64(0x0A637DC5A2C898A6),
+	UL64(0x113F9804BEF90DAE),  UL64(0x1B710B35131C471B),
+	UL64(0x28DB77F523047D84),  UL64(0x32CAAB7B40C72493),
+	UL64(0x3C9EBE0A15C9BEBC),  UL64(0x431D67C49C100D4C),
+	UL64(0x4CC5D4BECB3E42B6),  UL64(0x597F299CFC657E2A),
+	UL64(0x5FCB6FAB3AD6FAEC),  UL64(0x6C44198C4A475817)
+};
 
-	sha384_starts(&ctx);
-
-#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-	curr = (unsigned char *)input;
-	end = input + ilen;
-	while (curr < end) {
-		chunk = end - curr;
-		if (chunk > chunk_sz)
-			chunk = chunk_sz;
-		sha384_update(&ctx, curr, chunk);
-		curr += chunk;
-		schedule();
-	}
-#else
-	sha384_update(&ctx, input, ilen);
-#endif
-
-	sha384_finish(&ctx, output);
-}
-
-#endif
-
-void sha512_starts(sha512_context * ctx)
-{
-	ctx->state[0] = SHA512_H0;
-	ctx->state[1] = SHA512_H1;
-	ctx->state[2] = SHA512_H2;
-	ctx->state[3] = SHA512_H3;
-	ctx->state[4] = SHA512_H4;
-	ctx->state[5] = SHA512_H5;
-	ctx->state[6] = SHA512_H6;
-	ctx->state[7] = SHA512_H7;
-	ctx->count[0] = ctx->count[1] = 0;
-}
-
-void sha512_update(sha512_context *ctx, const uint8_t *input, uint32_t length)
-{
-	sha512_base_do_update(ctx, input, length);
-}
-
-void sha512_finish(sha512_context * ctx, uint8_t digest[SHA512_SUM_LEN])
+static int sha512_process(sha512_context *ctx, const unsigned char data[128])
 {
 	int i;
+	uint64_t temp1, temp2, W[80];
+	uint64_t A, B, C, D, E, F, G, H;
 
-	sha512_base_do_finalize(ctx);
-	for(i=0; i<SHA512_SUM_LEN / sizeof(uint64_t); i++)
-		PUT_UINT64_BE(ctx->state[i], digest, i * 8);
+#define  SHR(x,n) (x >> n)
+#define ROTR(x,n) (SHR(x,n) | (x << (64 - n)))
+
+#define S0(x) (ROTR(x, 1) ^ ROTR(x, 8) ^  SHR(x, 7))
+#define S1(x) (ROTR(x,19) ^ ROTR(x,61) ^  SHR(x, 6))
+
+#define S2(x) (ROTR(x,28) ^ ROTR(x,34) ^ ROTR(x,39))
+#define S3(x) (ROTR(x,14) ^ ROTR(x,18) ^ ROTR(x,41))
+
+#define F0(x,y,z) ((x & y) | (z & (x | y)))
+#define F1(x,y,z) (z ^ (x & (y ^ z)))
+
+#define P(a,b,c,d,e,f,g,h,x,K)                  \
+{                                               \
+    temp1 = h + S3(e) + F1(e,f,g) + K + x;      \
+    temp2 = S2(a) + F0(a,b,c);                  \
+    d += temp1; h = temp1 + temp2;              \
+}
+
+	for (i = 0; i < 16; i++) {
+		GET_UINT64_BE(W[i], data, i << 3);
+	}
+
+	for (; i < 80; i++) {
+		W[i] = S1(W[i -  2]) + W[i -  7] +
+		       S0(W[i - 15]) + W[i - 16];
+	}
+
+	A = ctx->state[0];
+	B = ctx->state[1];
+	C = ctx->state[2];
+	D = ctx->state[3];
+	E = ctx->state[4];
+	F = ctx->state[5];
+	G = ctx->state[6];
+	H = ctx->state[7];
+	i = 0;
+
+	do {
+		P(A, B, C, D, E, F, G, H, W[i], K[i]);
+		i++;
+		P(H, A, B, C, D, E, F, G, W[i], K[i]);
+		i++;
+		P(G, H, A, B, C, D, E, F, W[i], K[i]);
+		i++;
+		P(F, G, H, A, B, C, D, E, W[i], K[i]);
+		i++;
+		P(E, F, G, H, A, B, C, D, W[i], K[i]);
+		i++;
+		P(D, E, F, G, H, A, B, C, W[i], K[i]);
+		i++;
+		P(C, D, E, F, G, H, A, B, W[i], K[i]);
+		i++;
+		P(B, C, D, E, F, G, H, A, W[i], K[i]);
+		i++;
+	} while (i < 80);
+
+	ctx->state[0] += A;
+	ctx->state[1] += B;
+	ctx->state[2] += C;
+	ctx->state[3] += D;
+	ctx->state[4] += E;
+	ctx->state[5] += F;
+	ctx->state[6] += G;
+	ctx->state[7] += H;
+
+	return(0);
 }
 
 /*
- * Output = SHA-512( input buffer ). Trigger the watchdog every 'chunk_sz'
- * bytes of input processed.
+ * SHA-512 process buffer
  */
-void sha512_csum_wd(const unsigned char *input, unsigned int ilen,
-		unsigned char *output, unsigned int chunk_sz)
+int sha512_update(sha512_context *ctx, const unsigned char *input, size_t ilen)
+{
+	int ret;
+	size_t fill;
+	unsigned int left;
+
+	if (ilen == 0)
+		return(0);
+
+	left = (unsigned int)(ctx->total[0] & 0x7F);
+	fill = 128 - left;
+
+	ctx->total[0] += (uint64_t)ilen;
+
+	if (ctx->total[0] < (uint64_t)ilen)
+		ctx->total[1]++;
+
+	if (left && ilen >= fill) {
+		memcpy((void *)(ctx->buffer + left), input, fill);
+
+		if ((ret = sha512_process(ctx, ctx->buffer)) != 0)
+			return(ret);
+
+		input += fill;
+		ilen  -= fill;
+		left = 0;
+	}
+
+	while (ilen >= 128) {
+		if ((ret = sha512_process(ctx, input)) != 0)
+			return(ret);
+
+		input += 128;
+		ilen  -= 128;
+	}
+
+	if (ilen > 0)
+		memcpy((void *)(ctx->buffer + left), input, ilen);
+
+	return(0);
+}
+
+/*
+ * SHA-512 final digest
+ */
+int sha512_finish(sha512_context *ctx, unsigned char output[64])
+{
+	int ret;
+	unsigned used;
+	uint64_t high, low;
+
+	/*
+	 * Add padding: 0x80 then 0x00 until 16 bytes remain for the length
+	 */
+	used = ctx->total[0] & 0x7F;
+
+	ctx->buffer[used++] = 0x80;
+
+	if (used <= 112) {
+		/* Enough room for padding + length in current block */
+		memset(ctx->buffer + used, 0, 112 - used);
+	} else {
+		/* We'll need an extra block */
+		memset(ctx->buffer + used, 0, 128 - used);
+
+		if ((ret = sha512_process(ctx, ctx->buffer)) != 0)
+			return(ret);
+
+		memset(ctx->buffer, 0, 112);
+	}
+
+	/*
+	 * Add message length
+	 */
+	high = (ctx->total[0] >> 61)
+	       | (ctx->total[1] <<  3);
+	low  = (ctx->total[0] <<  3);
+
+	PUT_UINT64_BE(high, ctx->buffer, 112);
+	PUT_UINT64_BE(low,  ctx->buffer, 120);
+
+	if ((ret = sha512_process(ctx, ctx->buffer)) != 0)
+		return(ret);
+
+	/*
+	 * Output final state
+	 */
+	PUT_UINT64_BE(ctx->state[0], output,  0);
+	PUT_UINT64_BE(ctx->state[1], output,  8);
+	PUT_UINT64_BE(ctx->state[2], output, 16);
+	PUT_UINT64_BE(ctx->state[3], output, 24);
+	PUT_UINT64_BE(ctx->state[4], output, 32);
+	PUT_UINT64_BE(ctx->state[5], output, 40);
+
+	if (ctx->is384 == 0) {
+		PUT_UINT64_BE(ctx->state[6], output, 48);
+		PUT_UINT64_BE(ctx->state[7], output, 56);
+	}
+
+	return(0);
+}
+
+void sha512_csum(const unsigned char *input, unsigned int ilen,
+		 unsigned char output[64])
 {
 	sha512_context ctx;
-#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-	const unsigned char *end;
-	unsigned char *curr;
-	int chunk;
-#endif
 
 	sha512_starts(&ctx);
-
-#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-	curr = (unsigned char *)input;
-	end = input + ilen;
-	while (curr < end) {
-		chunk = end - curr;
-		if (chunk > chunk_sz)
-			chunk = chunk_sz;
-		sha512_update(&ctx, curr, chunk);
-		curr += chunk;
-		schedule();
-	}
-#else
 	sha512_update(&ctx, input, ilen);
-#endif
-
 	sha512_finish(&ctx, output);
 }

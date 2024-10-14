@@ -12,10 +12,7 @@
  */
 
 #include <common.h>
-#include <env.h>
-#include <log.h>
 #include <net.h>
-#include <rand.h>
 #include "arp.h"
 #include "net_rand.h"
 

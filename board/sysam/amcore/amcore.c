@@ -1,15 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Board functions for Sysam AMCORE (MCF5307 based) board
  *
  * (C) Copyright 2016  Angelo Dureghello <angelo@sysam.it>
  *
+ * SPDX-License-Identifier:     GPL-2.0+
+ *
  * This file copies memory testdram() from sandburst/common/sb_common.c
  */
 
 #include <common.h>
-#include <init.h>
-#include <asm/global_data.h>
 #include <asm/immap.h>
 #include <asm/io.h>
 #include <dm.h>
@@ -77,7 +76,7 @@ int dram_init(void)
 	 * DCR
 	 * set proper  RC as per specification
 	 */
-	RC = (CFG_SYS_CPU_CLK / 1000000) >> 1;
+	RC = (CONFIG_SYS_CPU_CLK / 1000000) >> 1;
 	RC = (RC * 15) >> 4;
 
 	/* 0x8000 is the faster option */
@@ -88,7 +87,7 @@ int dram_init(void)
 	 */
 	out_be32(&dc->dacr0, 0x00003304);
 
-	dramsize = ((CFG_SYS_SDRAM_SIZE)-1) & 0xfffc0000;
+	dramsize = ((CONFIG_SYS_SDRAM_SIZE)-1) & 0xfffc0000;
 	out_be32(&dc->dmr0,  dramsize|1);
 
 	/* issue a PRECHARGE ALL */
@@ -102,19 +101,19 @@ int dram_init(void)
 	out_be32(&dc->dacr0, 0x0000b344);
 	out_be32((u32 *)0x00000c00, 0xbeaddeed);
 
-	gd->ram_size = get_ram_size(CFG_SYS_SDRAM_BASE,
-				    CFG_SYS_SDRAM_SIZE);
+	gd->ram_size = get_ram_size(CONFIG_SYS_SDRAM_BASE,
+				    CONFIG_SYS_SDRAM_SIZE);
 
 	return 0;
 }
 
-static struct coldfire_serial_plat mcf5307_serial_plat = {
-	.base = CFG_SYS_UART_BASE,
+static struct coldfire_serial_platdata mcf5307_serial_plat = {
+	.base = CONFIG_SYS_UART_BASE,
 	.port = 0,
 	.baudrate = CONFIG_BAUDRATE,
 };
 
-U_BOOT_DRVINFO(coldfire_serial) = {
+U_BOOT_DEVICE(coldfire_serial) = {
 	.name = "serial_coldfire",
-	.plat = &mcf5307_serial_plat,
+	.platdata = &mcf5307_serial_plat,
 };

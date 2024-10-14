@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2016 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _ASM_ARCH_SCU_AST2500_H
 #define _ASM_ARCH_SCU_AST2500_H
@@ -22,8 +23,6 @@
 #define SCU_MPLL_POST_MASK		(0x3f << SCU_MPLL_POST_SHIFT)
 #define SCU_PCLK_DIV_SHIFT		23
 #define SCU_PCLK_DIV_MASK		(7 << SCU_PCLK_DIV_SHIFT)
-#define SCU_SDCLK_DIV_SHIFT		12
-#define SCU_SDCLK_DIV_MASK		(7 << SCU_SDCLK_DIV_SHIFT)
 #define SCU_HPLL_DENUM_SHIFT		0
 #define SCU_HPLL_DENUM_MASK		0x1f
 #define SCU_HPLL_NUM_SHIFT		5
@@ -109,7 +108,6 @@
 
 #define SCU_CLKSTOP_MAC1		(1 << 20)
 #define SCU_CLKSTOP_MAC2		(1 << 21)
-#define SCU_CLKSTOP_SDCLK		(1 << 27)
 
 #define SCU_D2PLL_EXT1_OFF		(1 << 0)
 #define SCU_D2PLL_EXT1_BYPASS		(1 << 1)
@@ -217,14 +215,14 @@ struct ast2500_scu {
  * ast_get_clk() - get a pointer to Clock Driver
  *
  * @devp, OUT - pointer to Clock Driver
- * Return: zero on success, error code (< 0) otherwise.
+ * @return zero on success, error code (< 0) otherwise.
  */
 int ast_get_clk(struct udevice **devp);
 
 /**
  * ast_get_scu() - get a pointer to SCU registers
  *
- * Return: pointer to struct ast2500_scu on success, ERR_PTR otherwise
+ * @return pointer to struct ast2500_scu on success, ERR_PTR otherwise
  */
 void *ast_get_scu(void);
 

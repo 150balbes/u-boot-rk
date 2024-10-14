@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2008,2009
@@ -6,21 +5,24 @@
  *
  * (C) Copyright 2002
  * Daniel Engström, Omicron Ceti AB, <daniel@omicron.se>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
-#include <log.h>
 #include <malloc.h>
 #include <pci.h>
 #include <asm/io.h>
 #include <asm/pci.h>
 
-int pci_x86_read_config(pci_dev_t bdf, uint offset, ulong *valuep,
-			enum pci_size_t size)
+DECLARE_GLOBAL_DATA_PTR;
+
+int pci_x86_read_config(struct udevice *bus, pci_dev_t bdf, uint offset,
+			ulong *valuep, enum pci_size_t size)
 {
-	outl(PCI_CONF1_ADDRESS(PCI_BUS(bdf), PCI_DEV(bdf), PCI_FUNC(bdf), offset), PCI_REG_ADDR);
+	outl(bdf | (offset & 0xfc) | PCI_CFG_EN, PCI_REG_ADDR);
 	switch (size) {
 	case PCI_SIZE_8:
 		*valuep = inb(PCI_REG_DATA + (offset & 3));
@@ -36,10 +38,10 @@ int pci_x86_read_config(pci_dev_t bdf, uint offset, ulong *valuep,
 	return 0;
 }
 
-int pci_x86_write_config(pci_dev_t bdf, uint offset, ulong value,
-			 enum pci_size_t size)
+int pci_x86_write_config(struct udevice *bus, pci_dev_t bdf, uint offset,
+			 ulong value, enum pci_size_t size)
 {
-	outl(PCI_CONF1_ADDRESS(PCI_BUS(bdf), PCI_DEV(bdf), PCI_FUNC(bdf), offset), PCI_REG_ADDR);
+	outl(bdf | (offset & 0xfc) | PCI_CFG_EN, PCI_REG_ADDR);
 	switch (size) {
 	case PCI_SIZE_8:
 		outb(value, PCI_REG_DATA + (offset & 3));
@@ -53,21 +55,6 @@ int pci_x86_write_config(pci_dev_t bdf, uint offset, ulong value,
 	}
 
 	return 0;
-}
-
-int pci_x86_clrset_config(pci_dev_t bdf, uint offset, ulong clr, ulong set,
-			  enum pci_size_t size)
-{
-	ulong value;
-	int ret;
-
-	ret = pci_x86_read_config(bdf, offset, &value, size);
-	if (ret)
-		return ret;
-	value &= ~clr;
-	value |= set;
-
-	return pci_x86_write_config(bdf, offset, value, size);
 }
 
 void pci_assign_irqs(int bus, int device, u8 irq[4])

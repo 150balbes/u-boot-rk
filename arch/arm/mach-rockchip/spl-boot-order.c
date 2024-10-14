@@ -1,16 +1,23 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2017 Theobroma Systems Design und Consulting GmbH
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
 #include <mmc.h>
+#include <nand.h>
 #include <spl.h>
-#include <asm/global_data.h>
 
-#if CONFIG_IS_ENABLED(OF_LIBFDT)
+#ifdef CONFIG_SPL_RAM_DEVICE
+void board_boot_order(u32 *spl_boot_list)
+{
+	spl_boot_list[0] = BOOT_DEVICE_RAM;
+}
+#else
+
+#if CONFIG_IS_ENABLED(OF_CONTROL) && ! CONFIG_IS_ENABLED(OF_PLATDATA)
 /**
  * spl_node_to_boot_device() - maps from a DT-node to a SPL boot device
  * @node:	of_offset of the node
@@ -29,7 +36,6 @@
  *   -1, for unspecified failures
  *   a positive integer (from the BOOT_DEVICE_... family) on succes.
  */
-
 static int spl_node_to_boot_device(int node)
 {
 	struct udevice *parent;
@@ -37,7 +43,7 @@ static int spl_node_to_boot_device(int node)
 	/*
 	 * This should eventually move into the SPL code, once SPL becomes
 	 * aware of the block-device layer.  Until then (and to avoid unneeded
-	 * delays in getting this feature out), it lives at the board-level.
+	 * delays in getting this feature out, it lives at the board-level).
 	 */
 	if (!uclass_get_device_by_of_offset(UCLASS_MMC, node, &parent)) {
 		struct udevice *dev;
@@ -47,7 +53,7 @@ static int spl_node_to_boot_device(int node)
 		     dev;
 		     device_find_next_child(&dev)) {
 			if (device_get_uclass_id(dev) == UCLASS_BLK) {
-				desc = dev_get_uclass_plat(dev);
+				desc = dev_get_uclass_platdata(dev);
 				break;
 			}
 		}
@@ -63,9 +69,6 @@ static int spl_node_to_boot_device(int node)
 		default:
 			return -ENOSYS;
 		}
-	} else if (!uclass_get_device_by_of_offset(UCLASS_SPI_FLASH, node,
-		&parent)) {
-		return BOOT_DEVICE_SPI;
 	}
 
 	/*
@@ -75,7 +78,45 @@ static int spl_node_to_boot_device(int node)
 	 * soon.
 	 */
 	if (!uclass_get_device_by_of_offset(UCLASS_SPI_FLASH, node, &parent))
+#ifndef CONFIG_SPL_MTD_SUPPORT
 		return BOOT_DEVICE_SPI;
+#else
+		return BOOT_DEVICE_MTD_BLK_SPI_NOR;
+
+	if (!uclass_get_device_by_of_offset(UCLASS_MTD, node, &parent)) {
+		struct udevice *dev;
+		struct blk_desc *desc = NULL;
+
+		for (device_find_first_child(parent, &dev);
+		     dev;
+		     device_find_next_child(&dev)) {
+			if (device_get_uclass_id(dev) == UCLASS_BLK) {
+				desc = dev_get_uclass_platdata(dev);
+				break;
+			}
+		}
+
+		if (!desc)
+			return -ENOENT;
+
+		switch (desc->devnum) {
+		case 0:
+			return BOOT_DEVICE_MTD_BLK_NAND;
+		case 1:
+			return BOOT_DEVICE_MTD_BLK_SPI_NAND;
+		default:
+			return -ENOSYS;
+		}
+	}
+#endif
+
+	/*
+	 * This should eventually move into the SPL code, once SPL becomes
+	 * aware of the block-device layer.  Until then (and to avoid unneeded
+	 * delays in getting this feature out, it lives at the board-level).
+	 */
+	if (!uclass_get_device_by_of_offset(UCLASS_RKNAND, node, &parent))
+		return BOOT_DEVICE_RKNAND;
 
 	return -1;
 }
@@ -100,12 +141,6 @@ __weak const char *board_spl_was_booted_from(void)
 
 void board_boot_order(u32 *spl_boot_list)
 {
-	/* In case of no fdt (or only plat), use spl_boot_device() */
-	if (!CONFIG_IS_ENABLED(OF_CONTROL) || CONFIG_IS_ENABLED(OF_PLATDATA)) {
-		spl_boot_list[0] = spl_boot_device();
-		return;
-	}
-
 	const void *blob = gd->fdt_blob;
 	int chosen_node = fdt_path_offset(blob, "/chosen");
 	int idx = 0;
@@ -142,7 +177,7 @@ void board_boot_order(u32 *spl_boot_list)
 		/* Try to resolve the config item (or alias) as a path */
 		node = fdt_path_offset(blob, conf);
 		if (node < 0) {
-			debug("%s: could not find %s in FDT\n", __func__, conf);
+			debug("%s: could not find %s in FDT", __func__, conf);
 			continue;
 		}
 
@@ -161,4 +196,5 @@ void board_boot_order(u32 *spl_boot_list)
 	if (idx == 0)
 		spl_boot_list[0] = spl_boot_device();
 }
+#endif
 #endif

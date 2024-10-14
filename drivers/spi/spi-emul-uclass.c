@@ -1,9 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2014 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
-#define LOG_CATEGORY UCLASS_SPI_EMUL
 
 #include <common.h>
 #include <dm.h>

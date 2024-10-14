@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __SANDBOX_CACHE_H__
@@ -19,5 +20,6 @@
 #else
 #define ARCH_DMA_MINALIGN	16
 #endif
+#define CONFIG_SYS_CACHELINE_SIZE	ARCH_DMA_MINALIGN
 
 #endif /* __SANDBOX_CACHE_H__ */

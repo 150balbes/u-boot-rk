@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Address map functions for Marvell EBU SoCs (Kirkwood, Armada
  * 370/XP, Dove, Orion5x and MV78xx0)
@@ -11,6 +10,8 @@
  *
  * based on mbus driver from Linux
  *   (C) Copyright 2008 Marvell Semiconductor
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  *
  * The Marvell EBU SoCs have a configurable physical address space:
  * the physical address at which certain devices (PCIe, NOR, NAND,
@@ -47,8 +48,6 @@
  */
 
 #include <common.h>
-#include <malloc.h>
-#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
@@ -88,34 +87,31 @@
 
 #define DOVE_DDR_BASE_CS_OFF(n) ((n) << 4)
 
+struct mvebu_mbus_state;
+
+struct mvebu_mbus_soc_data {
+	unsigned int num_wins;
+	unsigned int num_remappable_wins;
+	unsigned int (*win_cfg_offset)(const int win);
+	void (*setup_cpu_target)(struct mvebu_mbus_state *s);
+};
+
+struct mvebu_mbus_state mbus_state
+	__attribute__ ((section(".data")));
 static struct mbus_dram_target_info mbus_dram_info
-	__section(".data");
-
-#if defined(CONFIG_ARCH_MVEBU)
-	#define MVEBU_MBUS_NUM_WINS 20
-	#define MVEBU_MBUS_NUM_REMAPPABLE_WINS 8
-	#define MVEBU_MBUS_WIN_CFG_OFFSET(win) armada_370_xp_mbus_win_offset(win)
-#elif defined(CONFIG_ARCH_KIRKWOOD)
-	#define MVEBU_MBUS_NUM_WINS 8
-	#define MVEBU_MBUS_NUM_REMAPPABLE_WINS 4
-	#define MVEBU_MBUS_WIN_CFG_OFFSET(win) orion5x_mbus_win_offset(win)
-#else
-	#error "No supported architecture"
-#endif
-
-static unsigned int armada_370_xp_mbus_win_offset(int win);
-static unsigned int orion5x_mbus_win_offset(int win);
+	__attribute__ ((section(".data")));
 
 /*
  * Functions to manipulate the address decoding windows
  */
 
-static void mvebu_mbus_read_window(int win, int *enabled, u64 *base,
+static void mvebu_mbus_read_window(struct mvebu_mbus_state *mbus,
+				   int win, int *enabled, u64 *base,
 				   u32 *size, u8 *target, u8 *attr,
 				   u64 *remap)
 {
-	void __iomem *addr = (void __iomem *)MVEBU_CPU_WIN_BASE +
-		MVEBU_MBUS_WIN_CFG_OFFSET(win);
+	void __iomem *addr = mbus->mbuswins_base +
+		mbus->soc->win_cfg_offset(win);
 	u32 basereg = readl(addr + WIN_BASE_OFF);
 	u32 ctrlreg = readl(addr + WIN_CTRL_OFF);
 
@@ -136,7 +132,7 @@ static void mvebu_mbus_read_window(int win, int *enabled, u64 *base,
 		*attr = (ctrlreg & WIN_CTRL_ATTR_MASK) >> WIN_CTRL_ATTR_SHIFT;
 
 	if (remap) {
-		if (win < MVEBU_MBUS_NUM_REMAPPABLE_WINS) {
+		if (win < mbus->soc->num_remappable_wins) {
 			u32 remap_low = readl(addr + WIN_REMAP_LO_OFF);
 			u32 remap_hi  = readl(addr + WIN_REMAP_HI_OFF);
 			*remap = ((u64)remap_hi << 32) | remap_low;
@@ -146,25 +142,27 @@ static void mvebu_mbus_read_window(int win, int *enabled, u64 *base,
 	}
 }
 
-static void mvebu_mbus_disable_window(int win)
+static void mvebu_mbus_disable_window(struct mvebu_mbus_state *mbus,
+				      int win)
 {
 	void __iomem *addr;
 
-	addr = (void __iomem *)MVEBU_CPU_WIN_BASE + MVEBU_MBUS_WIN_CFG_OFFSET(win);
+	addr = mbus->mbuswins_base + mbus->soc->win_cfg_offset(win);
 
 	writel(0, addr + WIN_BASE_OFF);
 	writel(0, addr + WIN_CTRL_OFF);
-	if (win < MVEBU_MBUS_NUM_REMAPPABLE_WINS) {
+	if (win < mbus->soc->num_remappable_wins) {
 		writel(0, addr + WIN_REMAP_LO_OFF);
 		writel(0, addr + WIN_REMAP_HI_OFF);
 	}
 }
 
 /* Checks whether the given window number is available */
-static int mvebu_mbus_window_is_free(const int win)
+static int mvebu_mbus_window_is_free(struct mvebu_mbus_state *mbus,
+				     const int win)
 {
-	void __iomem *addr = (void __iomem *)MVEBU_CPU_WIN_BASE +
-		MVEBU_MBUS_WIN_CFG_OFFSET(win);
+	void __iomem *addr = mbus->mbuswins_base +
+		mbus->soc->win_cfg_offset(win);
 	u32 ctrl = readl(addr + WIN_CTRL_OFF);
 	return !(ctrl & WIN_CTRL_ENABLE);
 }
@@ -173,19 +171,20 @@ static int mvebu_mbus_window_is_free(const int win)
  * Checks whether the given (base, base+size) area doesn't overlap an
  * existing region
  */
-static int mvebu_mbus_window_conflicts(phys_addr_t base, size_t size,
+static int mvebu_mbus_window_conflicts(struct mvebu_mbus_state *mbus,
+				       phys_addr_t base, size_t size,
 				       u8 target, u8 attr)
 {
 	u64 end = (u64)base + size;
 	int win;
 
-	for (win = 0; win < MVEBU_MBUS_NUM_WINS; win++) {
+	for (win = 0; win < mbus->soc->num_wins; win++) {
 		u64 wbase, wend;
 		u32 wsize;
 		u8 wtarget, wattr;
 		int enabled;
 
-		mvebu_mbus_read_window(win,
+		mvebu_mbus_read_window(mbus, win,
 				       &enabled, &wbase, &wsize,
 				       &wtarget, &wattr, NULL);
 
@@ -211,16 +210,17 @@ static int mvebu_mbus_window_conflicts(phys_addr_t base, size_t size,
 	return 1;
 }
 
-static int mvebu_mbus_find_window(phys_addr_t base, size_t size)
+static int mvebu_mbus_find_window(struct mvebu_mbus_state *mbus,
+				  phys_addr_t base, size_t size)
 {
 	int win;
 
-	for (win = 0; win < MVEBU_MBUS_NUM_WINS; win++) {
+	for (win = 0; win < mbus->soc->num_wins; win++) {
 		u64 wbase;
 		u32 wsize;
 		int enabled;
 
-		mvebu_mbus_read_window(win,
+		mvebu_mbus_read_window(mbus, win,
 				       &enabled, &wbase, &wsize,
 				       NULL, NULL, NULL);
 
@@ -234,12 +234,13 @@ static int mvebu_mbus_find_window(phys_addr_t base, size_t size)
 	return -ENODEV;
 }
 
-static int mvebu_mbus_setup_window(int win, phys_addr_t base, size_t size,
+static int mvebu_mbus_setup_window(struct mvebu_mbus_state *mbus,
+				   int win, phys_addr_t base, size_t size,
 				   phys_addr_t remap, u8 target,
 				   u8 attr)
 {
-	void __iomem *addr = (void __iomem *)MVEBU_CPU_WIN_BASE +
-		MVEBU_MBUS_WIN_CFG_OFFSET(win);
+	void __iomem *addr = mbus->mbuswins_base +
+		mbus->soc->win_cfg_offset(win);
 	u32 ctrl, remap_addr;
 
 	ctrl = ((size - 1) & WIN_CTRL_SIZE_MASK) |
@@ -249,7 +250,7 @@ static int mvebu_mbus_setup_window(int win, phys_addr_t base, size_t size,
 
 	writel(base & WIN_BASE_LOW, addr + WIN_BASE_OFF);
 	writel(ctrl, addr + WIN_CTRL_OFF);
-	if (win < MVEBU_MBUS_NUM_REMAPPABLE_WINS) {
+	if (win < mbus->soc->num_remappable_wins) {
 		if (remap == MVEBU_MBUS_NO_REMAP)
 			remap_addr = base;
 		else
@@ -261,25 +262,26 @@ static int mvebu_mbus_setup_window(int win, phys_addr_t base, size_t size,
 	return 0;
 }
 
-static int mvebu_mbus_alloc_window(phys_addr_t base, size_t size,
+static int mvebu_mbus_alloc_window(struct mvebu_mbus_state *mbus,
+				   phys_addr_t base, size_t size,
 				   phys_addr_t remap, u8 target,
 				   u8 attr)
 {
 	int win;
 
 	if (remap == MVEBU_MBUS_NO_REMAP) {
-		for (win = MVEBU_MBUS_NUM_REMAPPABLE_WINS;
-		     win < MVEBU_MBUS_NUM_WINS; win++)
-			if (mvebu_mbus_window_is_free(win))
-				return mvebu_mbus_setup_window(win, base,
+		for (win = mbus->soc->num_remappable_wins;
+		     win < mbus->soc->num_wins; win++)
+			if (mvebu_mbus_window_is_free(mbus, win))
+				return mvebu_mbus_setup_window(mbus, win, base,
 							       size, remap,
 							       target, attr);
 	}
 
 
-	for (win = 0; win < MVEBU_MBUS_NUM_WINS; win++)
-		if (mvebu_mbus_window_is_free(win))
-			return mvebu_mbus_setup_window(win, base, size,
+	for (win = 0; win < mbus->soc->num_wins; win++)
+		if (mvebu_mbus_window_is_free(mbus, win))
+			return mvebu_mbus_setup_window(mbus, win, base, size,
 						       remap, target, attr);
 
 	return -ENOMEM;
@@ -289,7 +291,7 @@ static int mvebu_mbus_alloc_window(phys_addr_t base, size_t size,
  * SoC-specific functions and definitions
  */
 
-static unsigned int __maybe_unused armada_370_xp_mbus_win_offset(int win)
+static unsigned int armada_370_xp_mbus_win_offset(int win)
 {
 	/* The register layout is a bit annoying and the below code
 	 * tries to cope with it.
@@ -309,12 +311,12 @@ static unsigned int __maybe_unused armada_370_xp_mbus_win_offset(int win)
 		return 0x90 + ((win - 8) << 3);
 }
 
-static unsigned int __maybe_unused orion5x_mbus_win_offset(int win)
+static unsigned int orion5x_mbus_win_offset(int win)
 {
 	return win << 4;
 }
 
-static void mvebu_mbus_default_setup_cpu_target(void)
+static void mvebu_mbus_default_setup_cpu_target(struct mvebu_mbus_state *mbus)
 {
 	int i;
 	int cs;
@@ -322,8 +324,8 @@ static void mvebu_mbus_default_setup_cpu_target(void)
 	mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
 
 	for (i = 0, cs = 0; i < 4; i++) {
-		u32 base = readl((void __iomem *)MVEBU_SDRAM_BASE + DDR_BASE_CS_OFF(i));
-		u32 size = readl((void __iomem *)MVEBU_SDRAM_BASE + DDR_SIZE_CS_OFF(i));
+		u32 base = readl(mbus->sdramwins_base + DDR_BASE_CS_OFF(i));
+		u32 size = readl(mbus->sdramwins_base + DDR_SIZE_CS_OFF(i));
 
 		/*
 		 * We only take care of entries for which the chip
@@ -343,12 +345,23 @@ static void mvebu_mbus_default_setup_cpu_target(void)
 		}
 	}
 	mbus_dram_info.num_cs = cs;
-
-#if defined(CONFIG_ARMADA_MSYS)
-	/* Disable MBUS Err Prop - in order to avoid data aborts */
-	clrbits_le32((void __iomem *)MVEBU_CPU_WIN_BASE + 0x200, BIT(8));
-#endif
 }
+
+static const struct mvebu_mbus_soc_data
+armada_370_xp_mbus_data __maybe_unused = {
+	.num_wins            = 20,
+	.num_remappable_wins = 8,
+	.win_cfg_offset      = armada_370_xp_mbus_win_offset,
+	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
+};
+
+static const struct mvebu_mbus_soc_data
+kirkwood_mbus_data __maybe_unused = {
+	.num_wins            = 8,
+	.num_remappable_wins = 4,
+	.win_cfg_offset      = orion5x_mbus_win_offset,
+	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
+};
 
 /*
  * Public API of the driver
@@ -363,13 +376,15 @@ int mvebu_mbus_add_window_remap_by_id(unsigned int target,
 				      phys_addr_t base, size_t size,
 				      phys_addr_t remap)
 {
-	if (!mvebu_mbus_window_conflicts(base, size, target, attribute)) {
+	struct mvebu_mbus_state *s = &mbus_state;
+
+	if (!mvebu_mbus_window_conflicts(s, base, size, target, attribute)) {
 		printf("Cannot add window '%x:%x', conflicts with another window\n",
 		       target, attribute);
 		return -EINVAL;
 	}
 
-	return mvebu_mbus_alloc_window(base, size, remap, target, attribute);
+	return mvebu_mbus_alloc_window(s, base, size, remap, target, attribute);
 }
 
 int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
@@ -383,27 +398,27 @@ int mvebu_mbus_del_window(phys_addr_t base, size_t size)
 {
 	int win;
 
-	win = mvebu_mbus_find_window(base, size);
+	win = mvebu_mbus_find_window(&mbus_state, base, size);
 	if (win < 0)
 		return win;
 
-	mvebu_mbus_disable_window(win);
+	mvebu_mbus_disable_window(&mbus_state, win);
 	return 0;
 }
 
-#ifndef CONFIG_ARCH_KIRKWOOD
-static void mvebu_mbus_get_lowest_base(phys_addr_t *base)
+static void mvebu_mbus_get_lowest_base(struct mvebu_mbus_state *mbus,
+				       phys_addr_t *base)
 {
 	int win;
 	*base = 0xffffffff;
 
-	for (win = 0; win < MVEBU_MBUS_NUM_WINS; win++) {
+	for (win = 0; win < mbus->soc->num_wins; win++) {
 		u64 wbase;
 		u32 wsize;
 		u8 wtarget, wattr;
 		int enabled;
 
-		mvebu_mbus_read_window(win,
+		mvebu_mbus_read_window(mbus, win,
 				       &enabled, &wbase, &wsize,
 				       &wtarget, &wattr, NULL);
 
@@ -415,14 +430,14 @@ static void mvebu_mbus_get_lowest_base(phys_addr_t *base)
 	}
 }
 
-static void mvebu_config_mbus_bridge(void)
+static void mvebu_config_mbus_bridge(struct mvebu_mbus_state *mbus)
 {
 	phys_addr_t base;
 	u32 val;
 	u32 size;
 
 	/* Set MBUS bridge base/ctrl */
-	mvebu_mbus_get_lowest_base(&base);
+	mvebu_mbus_get_lowest_base(&mbus_state, &base);
 
 	size = 0xffffffff - base + 1;
 	if (!is_power_of_2(size)) {
@@ -437,11 +452,11 @@ static void mvebu_config_mbus_bridge(void)
 	val = (size / (64 << 10)) - 1;
 	writel((val << 16) | 0x1, MBUS_BRIDGE_WIN_CTRL_REG);
 }
-#endif
 
-int mbus_dt_setup_win(u32 base, u32 size, u8 target, u8 attr)
+int mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
+		      u32 base, u32 size, u8 target, u8 attr)
 {
-	if (!mvebu_mbus_window_conflicts(base, size, target, attr)) {
+	if (!mvebu_mbus_window_conflicts(mbus, base, size, target, attr)) {
 		printf("Cannot add window '%04x:%04x', conflicts with another window\n",
 		       target, attr);
 		return -EBUSY;
@@ -451,34 +466,42 @@ int mbus_dt_setup_win(u32 base, u32 size, u8 target, u8 attr)
 	 * In U-Boot we first try to add the mbus window to the remap windows.
 	 * If this fails, lets try to add the windows to the non-remap windows.
 	 */
-	if (mvebu_mbus_alloc_window(base, size, base, target, attr)) {
-		if (mvebu_mbus_alloc_window(base, size,
+	if (mvebu_mbus_alloc_window(mbus, base, size, base, target, attr)) {
+		if (mvebu_mbus_alloc_window(mbus, base, size,
 					    MVEBU_MBUS_NO_REMAP, target, attr))
 			return -ENOMEM;
 	}
 
-#ifndef CONFIG_ARCH_KIRKWOOD
 	/*
 	 * Re-configure the mbus bridge registers each time this function
 	 * is called. Since it may get called from the board code in
 	 * later boot stages as well.
 	 */
-	mvebu_config_mbus_bridge();
-#endif
+	mvebu_config_mbus_bridge(mbus);
 
 	return 0;
 }
 
-int mvebu_mbus_probe(const struct mbus_win windows[], int count)
+int mvebu_mbus_probe(struct mbus_win windows[], int count)
 {
 	int win;
 	int ret;
 	int i;
 
-	for (win = 0; win < MVEBU_MBUS_NUM_WINS; win++)
-		mvebu_mbus_disable_window(win);
+#if defined(CONFIG_KIRKWOOD)
+	mbus_state.soc = &kirkwood_mbus_data;
+#endif
+#if defined(CONFIG_ARCH_MVEBU)
+	mbus_state.soc = &armada_370_xp_mbus_data;
+#endif
 
-	mvebu_mbus_default_setup_cpu_target();
+	mbus_state.mbuswins_base = (void __iomem *)MVEBU_CPU_WIN_BASE;
+	mbus_state.sdramwins_base = (void __iomem *)MVEBU_SDRAM_BASE;
+
+	for (win = 0; win < mbus_state.soc->num_wins; win++)
+		mvebu_mbus_disable_window(&mbus_state, win);
+
+	mbus_state.soc->setup_cpu_target(&mbus_state);
 
 	/* Setup statically declared windows in the DT */
 	for (i = 0; i < count; i++) {
@@ -489,7 +512,7 @@ int mvebu_mbus_probe(const struct mbus_win windows[], int count)
 		attr = windows[i].attr;
 		base = windows[i].base;
 		size = windows[i].size;
-		ret = mbus_dt_setup_win(base, size, target, attr);
+		ret = mbus_dt_setup_win(&mbus_state, base, size, target, attr);
 		if (ret < 0)
 			return ret;
 	}

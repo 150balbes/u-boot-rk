@@ -1,10 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2004-2007 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
+
+#if defined(CONFIG_CMD_DATE)
 
 #include <command.h>
 #include <rtc.h>
@@ -12,6 +15,10 @@
 #include <asm/rtc.h>
 
 #undef RTC_DEBUG
+
+#ifndef CONFIG_SYS_MCFRTC_BASE
+#error RTC_BASE is not defined!
+#endif
 
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 #define	STARTOFTIME		1970
@@ -98,3 +105,5 @@ void rtc_reset(void)
 
 	rtc->cr |= RTC_CR_SWR;
 }
+
+#endif				/* CONFIG_MCFRTC && CONFIG_CMD_DATE */

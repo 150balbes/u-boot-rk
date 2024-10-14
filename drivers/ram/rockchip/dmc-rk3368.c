@@ -1,28 +1,26 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) Copyright 2017 Theobroma Systems Design und Consulting GmbH
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
-#include <hang.h>
-#include <log.h>
 #include <dt-bindings/memory/rk3368-dmc.h>
 #include <dt-structs.h>
 #include <ram.h>
 #include <regmap.h>
 #include <syscon.h>
 #include <asm/io.h>
-#include <asm/arch-rockchip/clock.h>
-#include <asm/arch-rockchip/cru_rk3368.h>
-#include <asm/arch-rockchip/grf_rk3368.h>
-#include <asm/arch-rockchip/ddr_rk3368.h>
-#include <asm/arch-rockchip/sdram.h>
-#include <asm/arch-rockchip/sdram_rk3288.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
-#include <linux/err.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/cru_rk3368.h>
+#include <asm/arch/grf_rk3368.h>
+#include <asm/arch/ddr_rk3368.h>
+#include <asm/arch/sdram_rk3288.h>
+#include <asm/arch/sdram.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 struct dram_info {
 	struct ram_info info;
@@ -109,7 +107,7 @@ enum {
 	PCTL_STAT_MSK = 7,
 	INIT_MEM = 0,
 	CONFIG,
-	CFG_REQ,
+	CONFIG_REQ,
 	ACCESS,
 	ACCESS_REQ,
 	LOW_POWER,
@@ -604,7 +602,7 @@ static int ddrphy_data_training(struct rk3368_ddr_pctl *pctl,
 static int sdram_col_row_detect(struct udevice *dev)
 {
 	struct dram_info *priv = dev_get_priv(dev);
-	struct rk3368_sdram_params *params = dev_get_plat(dev);
+	struct rk3368_sdram_params *params = dev_get_platdata(dev);
 	struct rk3368_ddr_pctl *pctl = priv->pctl;
 	struct rk3368_msch *msch = priv->msch;
 	const u32 test_pattern = 0x5aa5f00f;
@@ -617,12 +615,12 @@ static int sdram_col_row_detect(struct udevice *dev)
 
 	/* Detect col */
 	for (col = 11; col >= 9; col--) {
-		writel(0, CFG_SYS_SDRAM_BASE);
-		addr = CFG_SYS_SDRAM_BASE +
+		writel(0, CONFIG_SYS_SDRAM_BASE);
+		addr = CONFIG_SYS_SDRAM_BASE +
 			(1 << (col + params->chan.bw - 1));
 		writel(test_pattern, addr);
 		if ((readl(addr) == test_pattern) &&
-		    (readl(CFG_SYS_SDRAM_BASE) == 0))
+		    (readl(CONFIG_SYS_SDRAM_BASE) == 0))
 			break;
 	}
 
@@ -637,11 +635,11 @@ static int sdram_col_row_detect(struct udevice *dev)
 
 	/* Detect row*/
 	for (row = 16; row >= 12; row--) {
-		writel(0, CFG_SYS_SDRAM_BASE);
-		addr = CFG_SYS_SDRAM_BASE + (1 << (row + 15 - 1));
+		writel(0, CONFIG_SYS_SDRAM_BASE);
+		addr = CONFIG_SYS_SDRAM_BASE + (1 << (row + 15 - 1));
 		writel(test_pattern, addr);
 		if ((readl(addr) == test_pattern) &&
-		    (readl(CFG_SYS_SDRAM_BASE) == 0))
+		    (readl(CONFIG_SYS_SDRAM_BASE) == 0))
 			break;
 	}
 
@@ -774,7 +772,7 @@ static void dram_all_config(struct udevice *dev)
 {
 	struct dram_info *priv = dev_get_priv(dev);
 	struct rk3368_pmu_grf *pmugrf = priv->pmugrf;
-	struct rk3368_sdram_params *params = dev_get_plat(dev);
+	struct rk3368_sdram_params *params = dev_get_platdata(dev);
 	const struct rk3288_sdram_channel *info = &params->chan;
 	u32 sys_reg = 0;
 	const int chan = 0;
@@ -798,7 +796,7 @@ static void dram_all_config(struct udevice *dev)
 static int setup_sdram(struct udevice *dev)
 {
 	struct dram_info *priv = dev_get_priv(dev);
-	struct rk3368_sdram_params *params = dev_get_plat(dev);
+	struct rk3368_sdram_params *params = dev_get_platdata(dev);
 
 	struct rk3368_ddr_pctl *pctl = priv->pctl;
 	struct rk3368_ddrphy *ddrphy = priv->phy;
@@ -879,25 +877,25 @@ error:
 }
 #endif
 
-static int rk3368_dmc_of_to_plat(struct udevice *dev)
+static int rk3368_dmc_ofdata_to_platdata(struct udevice *dev)
 {
 	int ret = 0;
 
-	if (CONFIG_IS_ENABLED(OF_REAL)) {
-		struct rk3368_sdram_params *plat = dev_get_plat(dev);
+#if !CONFIG_IS_ENABLED(OF_PLATDATA)
+	struct rk3368_sdram_params *plat = dev_get_platdata(dev);
 
-		ret = regmap_init_mem(dev_ofnode(dev), &plat->map);
-		if (ret)
-			return ret;
-	}
+	ret = regmap_init_mem(dev, &plat->map);
+	if (ret)
+		return ret;
+#endif
 
 	return ret;
 }
 
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
-static int conv_of_plat(struct udevice *dev)
+static int conv_of_platdata(struct udevice *dev)
 {
-	struct rk3368_sdram_params *plat = dev_get_plat(dev);
+	struct rk3368_sdram_params *plat = dev_get_platdata(dev);
 	struct dtd_rockchip_rk3368_dmc *of_plat = &plat->of_plat;
 
 	plat->ddr_freq = of_plat->rockchip_ddr_frequency;
@@ -911,7 +909,7 @@ static int conv_of_plat(struct udevice *dev)
 static int rk3368_dmc_probe(struct udevice *dev)
 {
 #ifdef CONFIG_TPL_BUILD
-	struct rk3368_sdram_params *plat = dev_get_plat(dev);
+	struct rk3368_sdram_params *plat = dev_get_platdata(dev);
 	struct rk3368_ddr_pctl *pctl;
 	struct rk3368_ddrphy *ddrphy;
 	struct rk3368_cru *cru;
@@ -923,7 +921,7 @@ static int rk3368_dmc_probe(struct udevice *dev)
 	struct dram_info *priv = dev_get_priv(dev);
 
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
-	ret = conv_of_plat(dev);
+	ret = conv_of_platdata(dev);
 	if (ret)
 		return ret;
 #endif
@@ -992,15 +990,15 @@ static const struct udevice_id rk3368_dmc_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(rockchip_rk3368_dmc) = {
+U_BOOT_DRIVER(dmc_rk3368) = {
 	.name = "rockchip_rk3368_dmc",
 	.id = UCLASS_RAM,
 	.of_match = rk3368_dmc_ids,
 	.ops = &rk3368_dmc_ops,
 	.probe = rk3368_dmc_probe,
-	.priv_auto	= sizeof(struct dram_info),
-	.of_to_plat = rk3368_dmc_of_to_plat,
+	.priv_auto_alloc_size = sizeof(struct dram_info),
+	.ofdata_to_platdata = rk3368_dmc_ofdata_to_platdata,
 	.probe = rk3368_dmc_probe,
-	.priv_auto	= sizeof(struct dram_info),
-	.plat_auto	= sizeof(struct rk3368_sdram_params),
+	.priv_auto_alloc_size = sizeof(struct dram_info),
+	.platdata_auto_alloc_size = sizeof(struct rk3368_sdram_params),
 };

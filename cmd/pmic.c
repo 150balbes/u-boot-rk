@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014-2015 Samsung Electronics
  * Przemyslaw Marczak <p.marczak@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
-#include <command.h>
 #include <errno.h>
 #include <dm.h>
 #include <dm/uclass-internal.h>
@@ -22,7 +22,7 @@ static int failure(int ret)
 	return CMD_RET_FAILURE;
 }
 
-static int do_dev(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_dev(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *name;
 	int ret = -ENODEV;
@@ -41,47 +41,36 @@ static int do_dev(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			return CMD_RET_USAGE;
 		}
 
-		printf("dev: %d @ %s\n", dev_seq(currdev), currdev->name);
+		printf("dev: %d @ %s\n", currdev->seq, currdev->name);
 	}
 
 	return CMD_RET_SUCCESS;
 }
 
-static int do_list(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_list(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct udevice *dev;
-	int ret, err = 0;
 
 	printf("| %-*.*s| %-*.*s| %s @ %s\n",
 	       LIMIT_DEV, LIMIT_DEV, "Name",
 	       LIMIT_PARENT, LIMIT_PARENT, "Parent name",
 	       "Parent uclass", "seq");
 
-	for (ret = uclass_first_device_check(UCLASS_PMIC, &dev); dev;
-	     ret = uclass_next_device_check(&dev)) {
-		if (ret)
-			err = ret;
-
-		printf("| %-*.*s| %-*.*s| %s @ %d | status: %i\n",
+	for (uclass_first_device(UCLASS_PMIC, &dev); dev;
+	     uclass_next_device(&dev)) {
+		printf("| %-*.*s| %-*.*s| %s @ %d\n",
 		       LIMIT_DEV, LIMIT_DEV, dev->name,
 		       LIMIT_PARENT, LIMIT_PARENT, dev->parent->name,
-		       dev_get_uclass_name(dev->parent), dev_seq(dev->parent),
-		       ret);
+		       dev_get_uclass_name(dev->parent), dev->parent->seq);
 	}
-
-	if (err)
-		return CMD_RET_FAILURE;
 
 	return CMD_RET_SUCCESS;
 }
 
-static int do_dump(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_dump(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	struct uc_pmic_priv *priv;
 	struct udevice *dev;
-	char fmt[16];
+	uint8_t value;
 	uint reg;
 	int ret;
 
@@ -91,15 +80,12 @@ static int do_dump(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	dev = currdev;
-	priv = dev_get_uclass_priv(dev);
+
 	printf("Dump pmic: %s registers\n", dev->name);
 
-	sprintf(fmt, "%%%d.%dx ", priv->trans_len * 2,
-		priv->trans_len * 2);
-
 	for (reg = 0; reg < pmic_reg_count(dev); reg++) {
-		ret = pmic_reg_read(dev, reg);
-		if (ret < 0 && ret != -ENODATA) {
+		ret = pmic_read(dev, reg, &value, 1);
+		if (ret) {
 			printf("Can't read register: %d\n", reg);
 			return failure(ret);
 		}
@@ -107,28 +93,18 @@ static int do_dump(struct cmd_tbl *cmdtp, int flag, int argc,
 		if (!(reg % 16))
 			printf("\n0x%02x: ", reg);
 
-		if (ret == -ENODATA) {
-			int i;
-
-			for (i = 0; i < priv->trans_len; i++)
-				puts("--");
-			puts(" ");
-		} else {
-			printf(fmt, ret);
-		}
+		printf("%2.2x ", value);
 	}
 	printf("\n");
 
 	return CMD_RET_SUCCESS;
 }
 
-static int do_read(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	struct uc_pmic_priv *priv;
 	struct udevice *dev;
 	int regs, ret;
-	char fmt[24];
+	uint8_t value;
 	uint reg;
 
 	if (!currdev) {
@@ -137,7 +113,6 @@ static int do_read(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	dev = currdev;
-	priv = dev_get_uclass_priv(dev);
 
 	if (argc != 2)
 		return CMD_RET_USAGE;
@@ -149,25 +124,23 @@ static int do_read(struct cmd_tbl *cmdtp, int flag, int argc,
 		return failure(-EFAULT);
 	}
 
-	ret = pmic_reg_read(dev, reg);
-	if (ret < 0) {
+	ret = pmic_read(dev, reg, &value, 1);
+	if (ret) {
 		printf("Can't read PMIC register: %d!\n", reg);
 		return failure(ret);
 	}
 
-	sprintf(fmt, "0x%%02x: 0x%%%d.%dx\n", priv->trans_len * 2,
-		priv->trans_len * 2);
-	printf(fmt, reg, ret);
+	printf("0x%02x: 0x%2.2x\n", reg, value);
 
 	return CMD_RET_SUCCESS;
 }
 
-static int do_write(struct cmd_tbl *cmdtp, int flag, int argc,
-		    char *const argv[])
+static int do_write(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct udevice *dev;
-	uint reg, value;
 	int regs, ret;
+	uint8_t value;
+	uint reg;
 
 	if (!currdev) {
 		printf("First, set the PMIC device!\n");
@@ -188,7 +161,7 @@ static int do_write(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	value = simple_strtoul(argv[2], NULL, 0);
 
-	ret = pmic_reg_write(dev, reg, value);
+	ret = pmic_write(dev, reg, &value, 1);
 	if (ret) {
 		printf("Can't write PMIC register: %d!\n", reg);
 		return failure(ret);
@@ -197,7 +170,7 @@ static int do_write(struct cmd_tbl *cmdtp, int flag, int argc,
 	return CMD_RET_SUCCESS;
 }
 
-static struct cmd_tbl subcmd[] = {
+static cmd_tbl_t subcmd[] = {
 	U_BOOT_CMD_MKENT(dev, 2, 1, do_dev, "", ""),
 	U_BOOT_CMD_MKENT(list, 1, 1, do_list, "", ""),
 	U_BOOT_CMD_MKENT(dump, 1, 1, do_dump, "", ""),
@@ -205,10 +178,10 @@ static struct cmd_tbl subcmd[] = {
 	U_BOOT_CMD_MKENT(write, 3, 1, do_write, "", ""),
 };
 
-static int do_pmic(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_pmic(cmd_tbl_t *cmdtp, int flag, int argc,
+			char * const argv[])
 {
-	struct cmd_tbl *cmd;
+	cmd_tbl_t *cmd;
 
 	argc--;
 	argv++;
@@ -221,7 +194,7 @@ static int do_pmic(struct cmd_tbl *cmdtp, int flag, int argc,
 }
 
 U_BOOT_CMD(pmic, CONFIG_SYS_MAXARGS, 1, do_pmic,
-	"PMIC sub-system",
+	" operations",
 	"list          - list pmic devices\n"
 	"pmic dev [name]    - show or [set] operating PMIC device\n"
 	"pmic dump          - dump registers\n"

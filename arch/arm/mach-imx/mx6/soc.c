@@ -1,22 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
  * (C) Copyright 2009 Freescale Semiconductor, Inc.
- * Copyright 2021 NXP
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <env.h>
-#include <init.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/bootm.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/dma.h>
 #include <asm/mach-imx/hab.h>
@@ -27,8 +23,11 @@
 #include <imx_thermal.h>
 #include <mmc.h>
 
-#define has_err007805() \
-	(is_mx6sl() || is_mx6dl() || is_mx6solo() || is_mx6ull())
+enum ldo_reg {
+	LDO_ARM,
+	LDO_SOC,
+	LDO_PU,
+};
 
 struct scu_regs {
 	u32	ctrl;
@@ -38,20 +37,20 @@ struct scu_regs {
 	u32	fpga_rev;
 };
 
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_IMX_THERMAL)
+#if defined(CONFIG_IMX_THERMAL)
 static const struct imx_thermal_plat imx6_thermal_plat = {
 	.regs = (void *)ANATOP_BASE_ADDR,
 	.fuse_bank = 1,
 	.fuse_word = 6,
 };
 
-U_BOOT_DRVINFO(imx6_thermal) = {
+U_BOOT_DEVICE(imx6_thermal) = {
 	.name = "imx_thermal",
-	.plat = &imx6_thermal_plat,
+	.platdata = &imx6_thermal_plat,
 };
 #endif
 
-#if defined(CONFIG_IMX_HAB)
+#if defined(CONFIG_SECURE_BOOT)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 0,
 	.word = 6,
@@ -86,10 +85,6 @@ u32 get_cpu_rev(void)
 				type = MXC_CPU_MX6D;
 		}
 
-		if (type == MXC_CPU_MX6ULL) {
-			if (readl(SRC_BASE_ADDR + 0x1c) & (1 << 6))
-				type = MXC_CPU_MX6ULZ;
-		}
 	}
 	major = ((reg >> 8) & 0xff);
 	if ((major >= 1) &&
@@ -100,11 +95,6 @@ u32 get_cpu_rev(void)
 			type = MXC_CPU_MX6DP;
 	}
 	reg &= 0xff;		/* mx6 silicon revision */
-
-	/* For 6DQ, the value 0x00630005 is Silicon revision 1.3*/
-	if (((type == MXC_CPU_MX6Q) || (type == MXC_CPU_MX6D)) && (reg == 0x5))
-		reg = 0x3;
-
 	return (type << 12) | (reg + (0x10 * (major + 1)));
 }
 
@@ -255,7 +245,7 @@ static void clear_ldo_ramp(void)
  * Possible values are from 0.725V to 1.450V in steps of
  * 0.025V (25mV).
  */
-int set_ldo_voltage(enum ldo_reg ldo, u32 mv)
+static int set_ldo_voltage(enum ldo_reg ldo, u32 mv)
 {
 	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
 	u32 val, step, old, reg = readl(&anatop->reg_core);
@@ -366,47 +356,14 @@ static void init_bandgap(void)
 	 *	111 - set REFTOP_VBGADJ[2:0] to 3b'111,
 	 */
 	if (is_mx6ull()) {
-		static const u32 map[] = {6, 1, 2, 3, 4, 5, 0, 7};
-
 		val = readl(&fuse->mem0);
 		val >>= OCOTP_MEM0_REFTOP_TRIM_SHIFT;
 		val &= 0x7;
 
-		writel(map[val] << BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ_SHIFT,
+		writel(val << BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ_SHIFT,
 		       &anatop->ana_misc0_set);
 	}
 }
-
-#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
-static void noc_setup(void)
-{
-	enable_ipu_clock();
-
-	writel(0x80000201, 0xbb0608);
-	/* Bypass IPU1 QoS generator */
-	writel(0x00000002, 0x00bb048c);
-	/* Bypass IPU2 QoS generator */
-	writel(0x00000002, 0x00bb050c);
-	/* Bandwidth THR for of PRE0 */
-	writel(0x00000200, 0x00bb0690);
-	/* Bandwidth THR for of PRE1 */
-	writel(0x00000200, 0x00bb0710);
-	/* Bandwidth THR for of PRE2 */
-	writel(0x00000200, 0x00bb0790);
-	/* Bandwidth THR for of PRE3 */
-	writel(0x00000200, 0x00bb0810);
-	/* Saturation THR for of PRE0 */
-	writel(0x00000010, 0x00bb0694);
-	/* Saturation THR for of PRE1 */
-	writel(0x00000010, 0x00bb0714);
-	/* Saturation THR for of PRE2 */
-	writel(0x00000010, 0x00bb0794);
-	/* Saturation THR for of PRE */
-	writel(0x00000010, 0x00bb0814);
-
-	disable_ipu_clock();
-}
-#endif
 
 int arch_cpu_init(void)
 {
@@ -475,22 +432,15 @@ int arch_cpu_init(void)
 	}
 
 	/* Set perclk to source from OSC 24MHz */
-	if (has_err007805())
+	if (is_mx6sl())
 		setbits_le32(&ccm->cscmr1, MXC_CCM_CSCMR1_PER_CLK_SEL_MASK);
 
-	imx_wdog_disable_powerdown(); /* Disable PDE bit of WMCR register */
+	imx_set_wdog_powerdown(false); /* Disable PDE bit of WMCR register */
 
 	if (is_mx6sx())
 		setbits_le32(&ccm->cscdr1, MXC_CCM_CSCDR1_UART_CLK_SEL);
 
 	init_src();
-
-#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
-	if (is_mx6dqp())
-		noc_setup();
-#endif
-
-	enable_ca7_smp();
 
 	return 0;
 }
@@ -503,7 +453,8 @@ __weak int board_mmc_get_env_dev(int devno)
 
 static int mmc_get_boot_dev(void)
 {
-	u32 soc_sbmr = imx6_src_get_boot_mode();
+	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	u32 soc_sbmr = readl(&src_regs->sbmr1);
 	u32 bootsel;
 	int devno;
 
@@ -566,6 +517,40 @@ int board_postclk_init(void)
 	return 0;
 }
 
+#if defined(CONFIG_FEC_MXC)
+void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
+{
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[4];
+	struct fuse_bank4_regs *fuse =
+			(struct fuse_bank4_regs *)bank->fuse_regs;
+
+	if ((is_mx6sx() || is_mx6ul() || is_mx6ull()) && dev_id == 1) {
+		u32 value = readl(&fuse->mac_addr2);
+		mac[0] = value >> 24 ;
+		mac[1] = value >> 16 ;
+		mac[2] = value >> 8 ;
+		mac[3] = value ;
+
+		value = readl(&fuse->mac_addr1);
+		mac[4] = value >> 24 ;
+		mac[5] = value >> 16 ;
+		
+	} else {
+		u32 value = readl(&fuse->mac_addr1);
+		mac[0] = (value >> 8);
+		mac[1] = value ;
+
+		value = readl(&fuse->mac_addr0);
+		mac[2] = value >> 24 ;
+		mac[3] = value >> 16 ;
+		mac[4] = value >> 8 ;
+		mac[5] = value ;
+	}
+
+}
+#endif
+
 #ifndef CONFIG_SPL_BUILD
 /*
  * cfg_val will be used for
@@ -597,10 +582,8 @@ const struct boot_mode soc_boot_modes[] = {
 
 void reset_misc(void)
 {
-#ifndef CONFIG_SPL_BUILD
-#if defined(CONFIG_VIDEO_MXS) && !defined(CONFIG_VIDEO)
+#ifdef CONFIG_VIDEO_MXS
 	lcdif_power_down();
-#endif
 #endif
 }
 
@@ -700,82 +683,9 @@ void imx_setup_hdmi(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_MISC_INIT
-/*
- * UNIQUE_ID describes a unique ID based on silicon wafer
- * and die X/Y position
- *
- * UNIQUE_ID offset 0x410
- * 31:0 fuse 0
- * FSL-wide unique, encoded LOT ID STD II/SJC CHALLENGE/ Unique ID
- *
- * UNIQUE_ID offset 0x420
- * 31:24 fuse 1
- * The X-coordinate of the die location on the wafer/SJC CHALLENGE/ Unique ID
- * 23:16 fuse 1
- * The Y-coordinate of the die location on the wafer/SJC CHALLENGE/ Unique ID
- * 15:11 fuse 1
- * The wafer number of the wafer on which the device was fabricated/SJC
- * CHALLENGE/ Unique ID
- * 10:0 fuse 1
- * FSL-wide unique, encoded LOT ID STD II/SJC CHALLENGE/ Unique ID
- */
-static void setup_serial_number(void)
-{
-	char serial_string[17];
-	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
-	struct fuse_bank *bank = &ocotp->bank[0];
-	struct fuse_bank0_regs *fuse =
-		(struct fuse_bank0_regs *)bank->fuse_regs;
-
-	if (env_get("serial#"))
-		return;
-
-	snprintf(serial_string, sizeof(serial_string), "%08x%08x",
-		 fuse->uid_low, fuse->uid_high);
-	env_set("serial#", serial_string);
-}
-
-int arch_misc_init(void)
-{
-	if (IS_ENABLED(CONFIG_FSL_CAAM)) {
-		struct udevice *dev;
-		int ret;
-
-		ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(caam_jr), &dev);
-		if (ret)
-			printf("Failed to initialize caam_jr: %d\n", ret);
-	}
-
-	if (IS_ENABLED(CONFIG_FSL_DCP_RNG)) {
-		struct udevice *dev;
-		int ret;
-
-		ret = uclass_get_device_by_driver(UCLASS_RNG, DM_DRIVER_GET(dcp_rng), &dev);
-		if (ret)
-			printf("Failed to initialize dcp rng: %d\n", ret);
-	}
-
-	setup_serial_number();
-	return 0;
-}
-#endif
-
-/*
- * gpr_init() function is common for boards using MX6S, MX6DL, MX6D,
- * MX6Q and MX6QP processors
- */
 void gpr_init(void)
 {
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
-
-	/*
-	 * If this function is used in a common MX6 spl implementation
-	 * we have to ensure that it is only called for suitable cpu types,
-	 * otherwise it breaks hardware parts like enet1, can1, can2, etc.
-	 */
-	if (!is_mx6dqp() && !is_mx6dq() && !is_mx6sdl())
-		return;
 
 	/* enable AXI cache for VDOA/VPU/IPU */
 	writel(0xF00000CF, &iomux->gpr[4]);
@@ -789,3 +699,41 @@ void gpr_init(void)
 		writel(0x007F007F, &iomux->gpr[7]);
 	}
 }
+
+#ifdef CONFIG_IMX_BOOTAUX
+int arch_auxiliary_core_up(u32 core_id, u32 boot_private_data)
+{
+	struct src *src_reg;
+	u32 stack, pc;
+
+	if (!boot_private_data)
+		return -EINVAL;
+
+	stack = *(u32 *)boot_private_data;
+	pc = *(u32 *)(boot_private_data + 4);
+
+	/* Set the stack and pc to M4 bootROM */
+	writel(stack, M4_BOOTROM_BASE_ADDR);
+	writel(pc, M4_BOOTROM_BASE_ADDR + 4);
+
+	/* Enable M4 */
+	src_reg = (struct src *)SRC_BASE_ADDR;
+	clrsetbits_le32(&src_reg->scr, SRC_SCR_M4C_NON_SCLR_RST_MASK,
+			SRC_SCR_M4_ENABLE_MASK);
+
+	return 0;
+}
+
+int arch_auxiliary_core_check_up(u32 core_id)
+{
+	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
+	unsigned val;
+
+	val = readl(&src_reg->scr);
+
+	if (val & SRC_SCR_M4C_NON_SCLR_RST_MASK)
+		return 0;  /* assert in reset */
+
+	return 1;
+}
+#endif

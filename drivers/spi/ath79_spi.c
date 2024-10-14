@@ -1,15 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015-2016 Wills Wang <wills.wang@live.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <common.h>
-#include <clock_legacy.h>
 #include <spi.h>
 #include <dm.h>
 #include <div64.h>
 #include <errno.h>
-#include <time.h>
 #include <asm/io.h>
 #include <asm/addrspace.h>
 #include <asm/types.h>
@@ -59,7 +58,7 @@ static int ath79_spi_xfer(struct udevice *dev, unsigned int bitlen,
 {
 	struct udevice *bus = dev_get_parent(dev);
 	struct ath79_spi_priv *priv = dev_get_priv(bus);
-	struct dm_spi_slave_plat *slave = dev_get_parent_plat(dev);
+	struct dm_spi_slave_platdata *slave = dev_get_parent_platdata(dev);
 	u8 *rx = din;
 	const u8 *tx = dout;
 	u8 curbyte, curbitlen, restbits;
@@ -178,7 +177,7 @@ static int ath79_spi_probe(struct udevice *bus)
 	struct ath79_spi_priv *priv = dev_get_priv(bus);
 	fdt_addr_t addr;
 
-	addr = dev_read_addr(bus);
+	addr = devfdt_get_addr(bus);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
@@ -200,7 +199,7 @@ static int ath79_cs_info(struct udevice *bus, uint cs,
 {
 	/* Always allow activity on CS 0/1/2 */
 	if (cs >= 3)
-		return -EINVAL;
+		return -ENODEV;
 
 	return 0;
 }
@@ -224,6 +223,6 @@ U_BOOT_DRIVER(ath79_spi) = {
 	.id = UCLASS_SPI,
 	.of_match = ath79_spi_ids,
 	.ops    = &ath79_spi_ops,
-	.priv_auto	= sizeof(struct ath79_spi_priv),
+	.priv_auto_alloc_size = sizeof(struct ath79_spi_priv),
 	.probe  = ath79_spi_probe,
 };

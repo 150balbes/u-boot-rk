@@ -20,7 +20,4 @@
 #error invalid endian
 #endif
 
-/* Allow unaligned memory access */
-void allow_unaligned(void);
-
 #endif

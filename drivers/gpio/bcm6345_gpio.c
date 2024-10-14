@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Álvaro Fernández Rojas <noltari@gmail.com>
  *
  * Derived from linux/arch/mips/bcm63xx/gpio.c:
  *	Copyright (C) 2008 Maxime Bizon <mbizon@freebox.fr>
  *	Copyright (C) 2008-2011 Florian Fainelli <florian@openwrt.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,7 +13,8 @@
 #include <errno.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <linux/bitops.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 struct bcm6345_gpio_priv {
 	void __iomem *reg_dirout;
@@ -23,7 +25,7 @@ static int bcm6345_gpio_get_value(struct udevice *dev, unsigned offset)
 {
 	struct bcm6345_gpio_priv *priv = dev_get_priv(dev);
 
-	return !!(readl(priv->reg_data) & BIT(offset));
+	return !!(readl_be(priv->reg_data) & BIT(offset));
 }
 
 static int bcm6345_gpio_set_value(struct udevice *dev, unsigned offset,
@@ -32,9 +34,9 @@ static int bcm6345_gpio_set_value(struct udevice *dev, unsigned offset,
 	struct bcm6345_gpio_priv *priv = dev_get_priv(dev);
 
 	if (value)
-		setbits_32(priv->reg_data, BIT(offset));
+		setbits_be32(priv->reg_data, BIT(offset));
 	else
-		clrbits_32(priv->reg_data, BIT(offset));
+		clrbits_be32(priv->reg_data, BIT(offset));
 
 	return 0;
 }
@@ -43,9 +45,9 @@ static int bcm6345_gpio_set_direction(void __iomem *dirout, unsigned offset,
 				      bool input)
 {
 	if (input)
-		clrbits_32(dirout, BIT(offset));
+		clrbits_be32(dirout, BIT(offset));
 	else
-		setbits_32(dirout, BIT(offset));
+		setbits_be32(dirout, BIT(offset));
 
 	return 0;
 }
@@ -71,7 +73,7 @@ static int bcm6345_gpio_get_function(struct udevice *dev, unsigned offset)
 {
 	struct bcm6345_gpio_priv *priv = dev_get_priv(dev);
 
-	if (readl(priv->reg_dirout) & BIT(offset))
+	if (readl_be(priv->reg_dirout) & BIT(offset))
 		return GPIOF_OUTPUT;
 	else
 		return GPIOF_INPUT;
@@ -89,16 +91,22 @@ static int bcm6345_gpio_probe(struct udevice *dev)
 {
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 	struct bcm6345_gpio_priv *priv = dev_get_priv(dev);
+	fdt_addr_t data_addr, dirout_addr;
+	fdt_size_t data_size, dirout_size;
 
-	priv->reg_dirout = dev_remap_addr_index(dev, 0);
-	if (!priv->reg_dirout)
+	dirout_addr = devfdt_get_addr_size_index(dev, 0, &dirout_size);
+	if (dirout_addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
-	priv->reg_data = dev_remap_addr_index(dev, 1);
-	if (!priv->reg_data)
+	data_addr = devfdt_get_addr_size_index(dev, 1, &data_size);
+	if (data_addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
-	uc_priv->gpio_count = dev_read_u32_default(dev, "ngpios", 32);
+	priv->reg_data = ioremap(data_addr, data_size);
+	priv->reg_dirout = ioremap(dirout_addr, dirout_size);
+
+	uc_priv->gpio_count = fdtdec_get_uint(gd->fdt_blob, dev_of_offset(dev),
+					      "ngpios", 32);
 	uc_priv->bank_name = dev->name;
 
 	return 0;
@@ -114,6 +122,6 @@ U_BOOT_DRIVER(bcm6345_gpio) = {
 	.id = UCLASS_GPIO,
 	.of_match = bcm6345_gpio_ids,
 	.ops = &bcm6345_gpio_ops,
-	.priv_auto	= sizeof(struct bcm6345_gpio_priv),
+	.priv_auto_alloc_size = sizeof(struct bcm6345_gpio_priv),
 	.probe = bcm6345_gpio_probe,
 };

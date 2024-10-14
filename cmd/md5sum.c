@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011
  * Joe Hershberger, National Instruments, joe.hershberger@ni.com
  *
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <image.h>
 #include <mapmem.h>
 #include <u-boot/md5.h>
 #include <asm/io.h>
@@ -25,7 +24,7 @@ static void store_result(const u8 *sum, const char *dest)
 	if (*dest == '*') {
 		u8 *ptr;
 
-		ptr = (u8 *)hextoul(dest + 1, NULL);
+		ptr = (u8 *)simple_strtoul(dest + 1, NULL, 16);
 		for (i = 0; i < 16; i++)
 			*ptr++ = sum[i];
 	} else {
@@ -46,7 +45,7 @@ static int parse_verify_sum(char *verify_str, u8 *vsum)
 	if (*verify_str == '*') {
 		u8 *ptr;
 
-		ptr = (u8 *)hextoul(verify_str + 1, NULL);
+		ptr = (u8 *)simple_strtoul(verify_str + 1, NULL, 16);
 		memcpy(vsum, ptr, 16);
 	} else {
 		unsigned int i;
@@ -66,14 +65,14 @@ static int parse_verify_sum(char *verify_str, u8 *vsum)
 
 			*nullp = '\0';
 			*(u8 *)(vsum + i) =
-				hextoul(vsum_str + (i * 2), NULL);
+				simple_strtoul(vsum_str + (i * 2), NULL, 16);
 			*nullp = end;
 		}
 	}
 	return 0;
 }
 
-int do_md5sum(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_md5sum(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong addr, len;
 	unsigned int i;
@@ -97,8 +96,8 @@ int do_md5sum(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			return CMD_RET_USAGE;
 	}
 
-	addr = hextoul(*av++, NULL);
-	len = hextoul(*av++, NULL);
+	addr = simple_strtoul(*av++, NULL, 16);
+	len = simple_strtoul(*av++, NULL, 16);
 
 	buf = map_sysmem(addr, len);
 	md5_wd(buf, len, output, CHUNKSZ_MD5);
@@ -136,8 +135,7 @@ int do_md5sum(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return 0;
 }
 #else
-static int do_md5sum(struct cmd_tbl *cmdtp, int flag, int argc,
-		     char *const argv[])
+static int do_md5sum(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned long addr, len;
 	unsigned int i;
@@ -147,8 +145,8 @@ static int do_md5sum(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (argc < 3)
 		return CMD_RET_USAGE;
 
-	addr = hextoul(argv[1], NULL);
-	len = hextoul(argv[2], NULL);
+	addr = simple_strtoul(argv[1], NULL, 16);
+	len = simple_strtoul(argv[2], NULL, 16);
 
 	buf = map_sysmem(addr, len);
 	md5_wd(buf, len, output, CHUNKSZ_MD5);

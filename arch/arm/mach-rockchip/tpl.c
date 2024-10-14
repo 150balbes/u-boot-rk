@@ -1,62 +1,135 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
- * (C) Copyright 2019 Rockchip Electronics Co., Ltd
+ * (C) Copyright 2017 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <bootstage.h>
 #include <debug_uart.h>
 #include <dm.h>
-#include <hang.h>
-#include <init.h>
-#include <log.h>
+#include <ns16550.h>
 #include <ram.h>
 #include <spl.h>
 #include <version.h>
 #include <asm/io.h>
-#include <asm/arch-rockchip/bootrom.h>
-#include <linux/bitops.h>
-#include <linux/kconfig.h>
+#include <asm/arch/bootrom.h>
+#include <asm/arch/uart.h>
+#include <asm/arch-rockchip/sys_proto.h>
 
-#if CONFIG_IS_ENABLED(BANNER_PRINT)
-#include <timestamp.h>
-#endif
+#ifndef CONFIG_TPL_LIBCOMMON_SUPPORT
+#define CONFIG_SYS_NS16550_COM1 CONFIG_DEBUG_UART_BASE
+void puts(const char *str)
+{
+	while (*str)
+		putc(*str++);
+}
 
-#define TIMER_LOAD_COUNT_L	0x00
-#define TIMER_LOAD_COUNT_H	0x04
-#define TIMER_CONTROL_REG	0x10
-#define TIMER_EN	0x1
-#define	TIMER_FMODE	BIT(0)
-#define	TIMER_RMODE	BIT(1)
+void putc(char c)
+{
+	if (c == '\n')
+		NS16550_putc((NS16550_t)(CONFIG_SYS_NS16550_COM1), '\r');
+
+	NS16550_putc((NS16550_t)(CONFIG_SYS_NS16550_COM1), c);
+}
+#endif /* CONFIG_TPL_LIBCOMMON_SUPPORT */
+
+#ifndef CONFIG_TPL_LIBGENERIC_SUPPORT
+int __weak timer_init(void)
+{
+	return 0;
+}
+
+#ifdef CONFIG_ARM64
+/* for ARM64,it don't have define timer_init and __udelay except lib/timer.c */
+void __weak __udelay(unsigned long usec)
+{
+	u64 i, j, count;
+
+	asm volatile ("MRS %0, CNTPCT_EL0" : "=r"(count));
+	i = count;
+	/* usec to count,24MHz */
+	j = usec * 24;
+	i += j;
+	while (1) {
+		asm volatile ("MRS %0, CNTPCT_EL0" : "=r"(count));
+		if (count > i)
+			break;
+	}
+}
+#else
+void __weak __udelay(unsigned long usec)
+{
+	u32 nowl, nowu;
+	u64 cur_count, end_count;
+
+	asm volatile("mrrc p15, 0, %0, %1, c14" : "=r" (nowl), "=r" (nowu));
+	cur_count = (u64)nowu << 32 | nowl;
+	/* usec to count,24MHz */
+	end_count = usec * 24 + cur_count;
+	while (1) {
+		asm volatile("mrrc p15, 0, %0, %1, c14" : "=r" (nowl),
+			     "=r" (nowu));
+		cur_count = (u64)nowu << 32 | nowl;
+		if (cur_count > end_count)
+			break;
+	}
+}
+#endif /* CONFIG_ARM64 */
+
+void udelay(unsigned long usec)
+{
+	__udelay(usec);
+}
+
+void hang(void)
+{
+        bootstage_error(BOOTSTAGE_ID_NEED_RESET);
+        for (;;)
+                ;
+}
+#endif /* CONFIG_TPL_LIBGENERIC_SUPPORT */
+
+u32 spl_boot_device(void)
+{
+	return BOOT_DEVICE_BOOTROM;
+}
 
 __weak void rockchip_stimer_init(void)
 {
-#if defined(CONFIG_ROCKCHIP_STIMER_BASE)
-	/* If Timer already enabled, don't re-init it */
-	u32 reg = readl(CONFIG_ROCKCHIP_STIMER_BASE + TIMER_CONTROL_REG);
-
-	if (reg & TIMER_EN)
-		return;
-
 #ifndef CONFIG_ARM64
 	asm volatile("mcr p15, 0, %0, c14, c0, 0"
-		     : : "r"(CONFIG_COUNTER_FREQUENCY));
+		     : : "r"(COUNTER_FREQUENCY));
+#elif CONFIG_IS_ENABLED(TINY_FRAMEWORK)
+	/*
+	 * For ARM64,generally initialize CNTFRQ in start.S,
+	 * but if defined CONFIG_TPL_TINY_FRAMEWORK should skip start.S.
+	 * So initialize CNTFRQ to 24MHz here.
+	 */
+	asm volatile("msr CNTFRQ_EL0, %0"
+		     : : "r" (COUNTER_FREQUENCY));
 #endif
-
-	writel(0, CONFIG_ROCKCHIP_STIMER_BASE + TIMER_CONTROL_REG);
+	writel(0, CONFIG_ROCKCHIP_STIMER_BASE + 0x10);
 	writel(0xffffffff, CONFIG_ROCKCHIP_STIMER_BASE);
 	writel(0xffffffff, CONFIG_ROCKCHIP_STIMER_BASE + 4);
-	writel(TIMER_EN | TIMER_FMODE, CONFIG_ROCKCHIP_STIMER_BASE +
-	       TIMER_CONTROL_REG);
-#endif
+	writel(1, CONFIG_ROCKCHIP_STIMER_BASE + 0x10);
+}
+
+__weak int arch_cpu_init(void)
+{
+	return 0;
 }
 
 void board_init_f(ulong dummy)
 {
+#if defined(CONFIG_SPL_FRAMEWORK) && !CONFIG_IS_ENABLED(TINY_FRAMEWORK)
 	struct udevice *dev;
 	int ret;
+#endif
 
-#if defined(CONFIG_DEBUG_UART) && defined(CONFIG_TPL_SERIAL)
+	rockchip_stimer_init();
+	arch_cpu_init();
+#define EARLY_DEBUG
+#ifdef EARLY_DEBUG
 	/*
 	 * Debug UART can be used from here if required:
 	 *
@@ -66,49 +139,45 @@ void board_init_f(ulong dummy)
 	 * printascii("string");
 	 */
 	debug_uart_init();
-#ifdef CONFIG_TPL_BANNER_PRINT
 	printascii("\nU-Boot TPL " PLAIN_VERSION " (" U_BOOT_DATE " - " \
 				U_BOOT_TIME ")\n");
 #endif
-#endif
-	/* Init secure timer */
-	rockchip_stimer_init();
 
+#if defined(CONFIG_SPL_FRAMEWORK) && !CONFIG_IS_ENABLED(TINY_FRAMEWORK)
 	ret = spl_early_init();
 	if (ret) {
 		debug("spl_early_init() failed: %d\n", ret);
 		hang();
 	}
+#endif
 
 	/* Init ARM arch timer */
-	if (IS_ENABLED(CONFIG_SYS_ARCH_TIMER))
-		timer_init();
+	timer_init();
 
+#if defined(CONFIG_SPL_FRAMEWORK) && !CONFIG_IS_ENABLED(TINY_FRAMEWORK)
 	ret = uclass_get_device(UCLASS_RAM, 0, &dev);
 	if (ret) {
 		printf("DRAM init failed: %d\n", ret);
 		return;
 	}
-}
-
-int board_return_to_bootrom(struct spl_image_info *spl_image,
-			    struct spl_boot_device *bootdev)
-{
-#ifdef CONFIG_BOOTSTAGE_STASH
-	int ret;
-
-	bootstage_mark_name(BOOTSTAGE_ID_END_TPL, "end tpl");
-	ret = bootstage_stash((void *)CONFIG_BOOTSTAGE_STASH_ADDR,
-			      CONFIG_BOOTSTAGE_STASH_SIZE);
-	if (ret)
-		debug("Failed to stash bootstage: err=%d\n", ret);
+#else
+	sdram_init();
 #endif
+
+#if defined(CONFIG_TPL_ROCKCHIP_BACK_TO_BROM) && !defined(CONFIG_TPL_BOARD_INIT)
 	back_to_bootrom(BROM_BOOT_NEXTSTAGE);
-
-	return 0;
+#endif
 }
 
-u32 spl_boot_device(void)
+#if !(defined(CONFIG_SPL_FRAMEWORK) && !CONFIG_IS_ENABLED(TINY_FRAMEWORK))
+/* Place Holders */
+void board_init_r(gd_t *id, ulong dest_addr)
 {
-	return BOOT_DEVICE_BOOTROM;
+	/*
+	 * Function attribute is no-return
+	 * This Function never executes
+	 */
+	while (1)
+		;
 }
+#endif

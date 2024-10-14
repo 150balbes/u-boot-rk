@@ -1,21 +1,19 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * From Coreboot file of same name
  *
  * Copyright (C) 2007-2009 coresystems GmbH
  * Copyright (C) 2011 The Chromium Authors
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <cpu.h>
 #include <dm.h>
 #include <fdtdec.h>
-#include <log.h>
 #include <malloc.h>
 #include <asm/cpu.h>
-#include <asm/cpu_common.h>
 #include <asm/cpu_x86.h>
-#include <asm/global_data.h>
 #include <asm/msr.h>
 #include <asm/msr-index.h>
 #include <asm/mtrr.h>
@@ -142,16 +140,19 @@ static const u8 power_limit_time_msr_to_sec[] = {
 	[0x11] = 128,
 };
 
-bool cpu_ivybridge_config_tdp_levels(void)
+int cpu_config_tdp_levels(void)
 {
 	struct cpuid_result result;
+	msr_t platform_info;
 
 	/* Minimum CPU revision */
 	result = cpuid(1);
 	if (result.eax < IVB_CONFIG_TDP_MIN_CPUID)
-		return false;
+		return 0;
 
-	return cpu_config_tdp_levels();
+	/* Bits 34:33 indicate how many levels supported */
+	platform_info = msr_read(MSR_PLATFORM_INFO);
+	return (platform_info.hi >> 1) & 3;
 }
 
 /*
@@ -212,7 +213,7 @@ void set_power_limits(u8 power_limit_1_time)
 	msr_write(MSR_PKG_POWER_LIMIT, limit);
 
 	/* Use nominal TDP values for CPUs with configurable TDP */
-	if (cpu_ivybridge_config_tdp_levels()) {
+	if (cpu_config_tdp_levels()) {
 		msr = msr_read(MSR_CONFIG_TDP_NOMINAL);
 		limit.hi = 0;
 		limit.lo = msr.lo & 0xff;
@@ -282,6 +283,26 @@ static void configure_c_states(void)
 	msr_write(MSR_PP1_CURRENT_CONFIG, msr);
 }
 
+static int configure_thermal_target(struct udevice *dev)
+{
+	int tcc_offset;
+	msr_t msr;
+
+	tcc_offset = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
+				    "tcc-offset", 0);
+
+	/* Set TCC activaiton offset if supported */
+	msr = msr_read(MSR_PLATFORM_INFO);
+	if ((msr.lo & (1 << 30)) && tcc_offset) {
+		msr = msr_read(MSR_TEMPERATURE_TARGET);
+		msr.lo &= ~(0xf << 24); /* Bits 27:24 */
+		msr.lo |= (tcc_offset & 0xf) << 24;
+		msr_write(MSR_TEMPERATURE_TARGET, msr);
+	}
+
+	return 0;
+}
+
 static void configure_misc(void)
 {
 	msr_t msr;
@@ -328,20 +349,24 @@ static void configure_dca_cap(void)
 
 static void set_max_ratio(void)
 {
-	msr_t msr;
-	uint ratio;
+	msr_t msr, perf_ctl;
+
+	perf_ctl.hi = 0;
 
 	/* Check for configurable TDP option */
-	if (cpu_ivybridge_config_tdp_levels()) {
+	if (cpu_config_tdp_levels()) {
 		/* Set to nominal TDP ratio */
 		msr = msr_read(MSR_CONFIG_TDP_NOMINAL);
-		ratio = msr.lo & 0xff;
+		perf_ctl.lo = (msr.lo & 0xff) << 8;
 	} else {
 		/* Platform Info bits 15:8 give max ratio */
 		msr = msr_read(MSR_PLATFORM_INFO);
-		ratio = (msr.lo & 0xff00) >> 8;
+		perf_ctl.lo = msr.lo & 0xff00;
 	}
-	cpu_set_perf_control(ratio);
+	msr_write(MSR_IA32_PERF_CTL, perf_ctl);
+
+	debug("model_x06ax: frequency set to %d\n",
+	      ((perf_ctl.lo >> 8) & 0xff) * SANDYBRIDGE_BCLK);
 }
 
 static void set_energy_perf_bias(u8 policy)
@@ -369,12 +394,27 @@ static void configure_mca(void)
 		msr_write(IA32_MC0_STATUS + (i * 4), msr);
 }
 
+#if CONFIG_USBDEBUG
+static unsigned ehci_debug_addr;
+#endif
+
 static int model_206ax_init(struct udevice *dev)
 {
 	int ret;
 
 	/* Clear out pending MCEs */
 	configure_mca();
+
+#if CONFIG_USBDEBUG
+	/* Is this caution really needed? */
+	if (!ehci_debug_addr)
+		ehci_debug_addr = get_ehci_debug();
+	set_ehci_debug(0);
+#endif
+
+#if CONFIG_USBDEBUG
+	set_ehci_debug(ehci_debug_addr);
+#endif
 
 	/* Enable the local cpu apics */
 	enable_lapic_tpr();
@@ -389,11 +429,10 @@ static int model_206ax_init(struct udevice *dev)
 	configure_misc();
 
 	/* Thermal throttle activation offset */
-	ret = cpu_configure_thermal_target(dev);
+	ret = configure_thermal_target(dev);
 	if (ret) {
 		debug("Cannot set thermal target\n");
-		if (ret != -ENOENT)
-			return ret;
+		return ret;
 	}
 
 	/* Enable Direct Cache Access */
@@ -411,22 +450,26 @@ static int model_206ax_init(struct udevice *dev)
 	return 0;
 }
 
-static int model_206ax_get_info(const struct udevice *dev,
-				struct cpu_info *info)
+static int model_206ax_get_info(struct udevice *dev, struct cpu_info *info)
 {
-	return cpu_intel_get_info(info, INTEL_BCLK_MHZ);
+	msr_t msr;
+
+	msr = msr_read(MSR_IA32_PERF_CTL);
+	info->cpu_freq = ((msr.lo >> 8) & 0xff) * SANDYBRIDGE_BCLK * 1000000;
+	info->features = 1 << CPU_FEAT_L1_CACHE | 1 << CPU_FEAT_MMU |
+		1 << CPU_FEAT_UCODE;
 
 	return 0;
 }
 
-static int model_206ax_get_count(const struct udevice *dev)
+static int model_206ax_get_count(struct udevice *dev)
 {
 	return 4;
 }
 
 static int cpu_x86_model_206ax_probe(struct udevice *dev)
 {
-	if (dev_seq(dev) == 0)
+	if (dev->seq == 0)
 		model_206ax_init(dev);
 
 	return 0;
@@ -451,5 +494,4 @@ U_BOOT_DRIVER(cpu_x86_model_206ax_drv) = {
 	.bind		= cpu_x86_bind,
 	.probe		= cpu_x86_model_206ax_probe,
 	.ops		= &cpu_x86_model_206ax_ops,
-	.flags		= DM_FLAG_PRE_RELOC,
 };

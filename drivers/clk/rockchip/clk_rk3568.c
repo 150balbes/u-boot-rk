@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2021 Rockchip Electronics Co., Ltd
- * Author: Elaine Zhang <zhangqing@rock-chips.com>
+ * Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+ * Author: Joseph Chen <chenjh@rock-chips.com>
  */
 
 #include <common.h>
@@ -10,25 +10,15 @@
 #include <dm.h>
 #include <errno.h>
 #include <syscon.h>
-#include <asm/arch-rockchip/cru_rk3568.h>
-#include <asm/arch-rockchip/clock.h>
-#include <asm/arch-rockchip/hardware.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/cru_rk3568.h>
+#include <asm/arch/grf_rk3568.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
-#include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <dt-bindings/clock/rk3568-cru.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-struct rk3568_clk_plat {
-	struct dtd_rockchip_rk3568_cru dtd;
-};
-
-struct rk3568_pmuclk_plat {
-	struct dtd_rockchip_rk3568_pmucru dtd;
-};
-#endif
 
 #define RK3568_CPUCLK_RATE(_rate, _aclk_div, _pclk_div)		\
 {								\
@@ -94,7 +84,36 @@ static struct rockchip_pll_clock rk3568_pll_clks[] = {
 };
 
 #ifndef CONFIG_SPL_BUILD
-static ulong
+#define RK3568_CLK_DUMP(_id, _name, _iscru)	\
+{						\
+	.id = _id,				\
+	.name = _name,				\
+	.is_cru = _iscru,			\
+}
+
+static const struct rk3568_clk_info clks_dump[] = {
+	RK3568_CLK_DUMP(PLL_APLL, "apll", true),
+	RK3568_CLK_DUMP(PLL_DPLL, "dpll", true),
+	RK3568_CLK_DUMP(PLL_GPLL, "gpll", true),
+	RK3568_CLK_DUMP(PLL_CPLL, "cpll", true),
+	RK3568_CLK_DUMP(PLL_NPLL, "npll", true),
+	RK3568_CLK_DUMP(PLL_VPLL, "vpll", true),
+	RK3568_CLK_DUMP(PLL_HPLL, "hpll", false),
+	RK3568_CLK_DUMP(PLL_PPLL, "ppll", false),
+	RK3568_CLK_DUMP(ARMCLK, "armclk", true),
+	RK3568_CLK_DUMP(ACLK_BUS, "aclk_bus", true),
+	RK3568_CLK_DUMP(PCLK_BUS, "pclk_bus", true),
+	RK3568_CLK_DUMP(ACLK_TOP_HIGH, "aclk_top_high", true),
+	RK3568_CLK_DUMP(ACLK_TOP_LOW, "aclk_top_low", true),
+	RK3568_CLK_DUMP(HCLK_TOP, "hclk_top", true),
+	RK3568_CLK_DUMP(PCLK_TOP, "pclk_top", true),
+	RK3568_CLK_DUMP(ACLK_PERIMID, "aclk_perimid", true),
+	RK3568_CLK_DUMP(HCLK_PERIMID, "hclk_perimid", true),
+	RK3568_CLK_DUMP(PCLK_PMU, "pclk_pmu", false),
+};
+#endif
+
+static ulong __maybe_unused
 rk3568_pmu_pll_set_rate(struct rk3568_clk_priv *priv,
 			ulong pll_id, ulong rate)
 {
@@ -103,7 +122,7 @@ rk3568_pmu_pll_set_rate(struct rk3568_clk_priv *priv,
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
-					  DM_DRIVER_GET(rockchip_rk3568_pmucru),
+					  DM_GET_DRIVER(rockchip_rk3568_pmucru),
 					  &pmucru_dev);
 	if (ret) {
 		printf("%s: could not find pmucru device\n", __func__);
@@ -116,7 +135,6 @@ rk3568_pmu_pll_set_rate(struct rk3568_clk_priv *priv,
 
 	return 0;
 }
-#endif
 
 static ulong rk3568_pmu_pll_get_rate(struct rk3568_clk_priv *priv,
 				     ulong pll_id)
@@ -126,7 +144,7 @@ static ulong rk3568_pmu_pll_get_rate(struct rk3568_clk_priv *priv,
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
-					  DM_DRIVER_GET(rockchip_rk3568_pmucru),
+					  DM_GET_DRIVER(rockchip_rk3568_pmucru),
 					  &pmucru_dev);
 	if (ret) {
 		printf("%s: could not find pmucru device\n", __func__);
@@ -425,6 +443,10 @@ static ulong rk3568_pmuclk_set_rate(struct clk *clk, ulong rate)
 	case PCLK_PMU:
 		ret = rk3568_pmu_set_pmuclk(priv, rate);
 		break;
+	case CLK_PCIEPHY0_REF:
+	case CLK_PCIEPHY1_REF:
+	case CLK_PCIEPHY2_REF:
+		return 0;
 	default:
 		return -ENOENT;
 	}
@@ -492,14 +514,22 @@ static int rk3568_pmuclk_ofdata_to_platdata(struct udevice *dev)
 
 static int rk3568_pmuclk_bind(struct udevice *dev)
 {
-#if CONFIG_IS_ENABLED(RESET_ROCKCHIP)
 	int ret = 0;
+	struct udevice *sf_child;
+	struct softreset_reg *sf_priv;
 
-	ret = offsetof(struct rk3568_pmucru, pmu_softrst_con[0]);
-	ret = rockchip_reset_bind(dev, ret, 1);
-	if (ret)
-		debug("Warning: pmucru software reset driver bind faile\n");
-#endif
+	ret = device_bind_driver_to_node(dev, "rockchip_reset",
+					 "reset", dev_ofnode(dev),
+					 &sf_child);
+	if (ret) {
+		debug("Warning: No rockchip reset driver: ret=%d\n", ret);
+	} else {
+		sf_priv = malloc(sizeof(struct softreset_reg));
+		sf_priv->sf_reset_offset = offsetof(struct rk3568_pmucru,
+						    pmu_softrst_con[0]);
+		sf_priv->sf_reset_num = 1;
+		sf_child->priv = sf_priv;
+	}
 
 	return 0;
 }
@@ -513,15 +543,11 @@ U_BOOT_DRIVER(rockchip_rk3568_pmucru) = {
 	.name		= "rockchip_rk3568_pmucru",
 	.id		= UCLASS_CLK,
 	.of_match	= rk3568_pmuclk_ids,
-	.priv_auto = sizeof(struct rk3568_pmuclk_priv),
-	.of_to_plat = rk3568_pmuclk_ofdata_to_platdata,
+	.priv_auto_alloc_size = sizeof(struct rk3568_pmuclk_priv),
+	.ofdata_to_platdata = rk3568_pmuclk_ofdata_to_platdata,
 	.ops		= &rk3568_pmuclk_ops,
 	.bind		= rk3568_pmuclk_bind,
 	.probe		= rk3568_pmuclk_probe,
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-	.plat_auto	= sizeof(struct rk3568_pmuclk_plat),
-#endif
-
 };
 
 static int rk3568_armclk_set_clk(struct rk3568_clk_priv *priv, ulong hz)
@@ -698,7 +724,10 @@ static ulong rk3568_cpll_div_set_rate(struct rk3568_clk_priv *priv,
 	}
 
 	div = DIV_ROUND_UP(priv->cpll_hz, rate);
-	assert(div - 1 <= 31);
+	if (clk_id == CPLL_25M)
+		assert(div - 1 <= 63);
+	else
+		assert(div - 1 <= 31);
 	rk_clrsetreg(&cru->clksel_con[con],
 		     mask, (div - 1) << shift);
 	return rk3568_cpll_div_get_rate(priv, clk_id);
@@ -1138,7 +1167,7 @@ static ulong rk3568_pwm_get_clk(struct rk3568_clk_priv *priv, ulong clk_id)
 
 	switch (clk_id) {
 	case CLK_PWM1:
-		sel = (con & CLK_PWM1_SEL_MASK) >> CLK_PWM3_SEL_SHIFT;
+		sel = (con & CLK_PWM1_SEL_MASK) >> CLK_PWM1_SEL_SHIFT;
 		break;
 	case CLK_PWM2:
 		sel = (con & CLK_PWM2_SEL_MASK) >> CLK_PWM2_SEL_SHIFT;
@@ -1786,7 +1815,7 @@ static ulong rk3568_dclk_vop_get_clk(struct rk3568_clk_priv *priv, ulong clk_id)
 	return DIV_TO_RATE(parent, div);
 }
 
-#define RK3568_VOP_PLL_LIMIT_FREQ 600000000
+#define RK3568_VOP_PLL_LIMIT_FREQ 594000000
 
 static ulong rk3568_dclk_vop_set_clk(struct rk3568_clk_priv *priv,
 				     ulong clk_id, ulong rate)
@@ -1821,6 +1850,8 @@ static ulong rk3568_dclk_vop_set_clk(struct rk3568_clk_priv *priv,
 		rk3568_pmu_pll_set_rate(priv, HPLL, div * rate);
 	} else if (sel == DCLK_VOP_SEL_VPLL) {
 		div = DIV_ROUND_UP(RK3568_VOP_PLL_LIMIT_FREQ, rate);
+		if (div % 2)
+			div = div + 1;
 		rk_clrsetreg(&cru->clksel_con[conid],
 			     DCLK0_VOP_DIV_MASK | DCLK0_VOP_SEL_MASK,
 			     (DCLK_VOP_SEL_VPLL << DCLK0_VOP_SEL_SHIFT) |
@@ -1828,7 +1859,7 @@ static ulong rk3568_dclk_vop_set_clk(struct rk3568_clk_priv *priv,
 		rockchip_pll_set_rate(&rk3568_pll_clks[VPLL],
 				      priv->cru, VPLL, div * rate);
 	} else {
-		for (i = 0; i <= DCLK_VOP_SEL_CPLL; i++) {
+		for (i = sel; i <= DCLK_VOP_SEL_CPLL; i++) {
 			switch (i) {
 			case DCLK_VOP_SEL_GPLL:
 				pll_rate = priv->gpll_hz;
@@ -1836,6 +1867,9 @@ static ulong rk3568_dclk_vop_set_clk(struct rk3568_clk_priv *priv,
 			case DCLK_VOP_SEL_CPLL:
 				pll_rate = priv->cpll_hz;
 				break;
+			case DCLK_VOP_SEL_HPLL:
+			case DCLK_VOP_SEL_VPLL:
+				continue;
 			default:
 				printf("do not support this vop pll sel\n");
 				return -EINVAL;
@@ -2179,6 +2213,7 @@ static ulong rk3568_rkvdec_set_clk(struct rk3568_clk_priv *priv,
 
 	return rk3568_rkvdec_get_clk(priv, clk_id);
 }
+#endif
 
 static ulong rk3568_uart_get_rate(struct rk3568_clk_priv *priv, ulong clk_id)
 {
@@ -2314,6 +2349,169 @@ static ulong rk3568_uart_set_rate(struct rk3568_clk_priv *priv,
 
 	return rk3568_uart_get_rate(priv, clk_id);
 }
+
+#ifndef CONFIG_SPL_BUILD
+static ulong rk3568_i2s3_get_rate(struct rk3568_clk_priv *priv, ulong clk_id)
+{
+	struct rk3568_cru *cru = priv->cru;
+	struct rk3568_grf *grf = priv->grf;
+	u32 con, div, src, p_rate;
+	u32 reg, fracdiv, p_src;
+	unsigned long m, n;
+
+	switch (clk_id) {
+	case I2S3_MCLKOUT_TX:
+		con = readl(&cru->clksel_con[21]);
+		src = (con & I2S3_MCLKOUT_TX_SEL_MASK) >>
+		      I2S3_MCLKOUT_TX_SEL_SHIFT;
+		if (src == I2S3_MCLKOUT_TX_SEL_12M)
+			p_rate = 12000000;
+		else
+			p_rate = rk3568_i2s3_get_rate(priv, MCLK_I2S3_2CH_TX);
+		return p_rate;
+	case I2S3_MCLKOUT_RX:
+		con = readl(&cru->clksel_con[83]);
+		src = (con & I2S3_MCLKOUT_TX_SEL_MASK) >>
+		      I2S3_MCLKOUT_TX_SEL_SHIFT;
+		if (src == I2S3_MCLKOUT_TX_SEL_12M)
+			p_rate = 12000000;
+		else
+			p_rate = rk3568_i2s3_get_rate(priv, MCLK_I2S3_2CH_RX);
+		return p_rate;
+	case I2S3_MCLKOUT:
+		con = readl(&grf->soc_con2);
+		src = (con & I2S3_MCLKOUT_SEL_MASK)
+		      >> I2S3_MCLKOUT_SEL_SHIFT;
+		if (src == I2S3_MCLKOUT_SEL_RX)
+			p_rate = rk3568_i2s3_get_rate(priv, I2S3_MCLKOUT_RX);
+		else
+			p_rate = rk3568_i2s3_get_rate(priv, I2S3_MCLKOUT_TX);
+		return p_rate;
+	case MCLK_I2S3_2CH_RX:
+		reg = 83;
+		break;
+	case MCLK_I2S3_2CH_TX:
+		reg = 21;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	con = readl(&cru->clksel_con[reg]);
+	src = (con & CLK_I2S3_SEL_MASK) >> CLK_I2S3_SEL_SHIFT;
+	div = (con & CLK_I2S3_SRC_DIV_MASK) >> CLK_I2S3_SRC_DIV_SHIFT;
+	p_src = (con & CLK_I2S3_SRC_SEL_MASK) >> CLK_I2S3_SRC_SEL_SHIFT;
+	if (p_src == CLK_I2S3_SRC_SEL_GPLL)
+		p_rate = priv->gpll_hz;
+	else if (p_src == CLK_I2S3_SRC_SEL_CPLL)
+		p_rate = priv->cpll_hz;
+	else
+		p_rate = priv->npll_hz;
+	if (src == CLK_I2S3_SEL_SRC) {
+		return DIV_TO_RATE(p_rate, div);
+	} else if (src == CLK_I2S3_SEL_FRAC) {
+		fracdiv = readl(&cru->clksel_con[reg + 1]);
+		n = fracdiv & CLK_I2S3_FRAC_NUMERATOR_MASK;
+		n >>= CLK_I2S3_FRAC_NUMERATOR_SHIFT;
+		m = fracdiv & CLK_I2S3_FRAC_DENOMINATOR_MASK;
+		m >>= CLK_I2S3_FRAC_DENOMINATOR_SHIFT;
+		return DIV_TO_RATE(p_rate, div) * n / m;
+	} else {
+		return OSC_HZ / 2;
+	}
+}
+
+static ulong rk3568_i2s3_set_rate(struct rk3568_clk_priv *priv,
+				  ulong clk_id, ulong rate)
+{
+	struct rk3568_cru *cru = priv->cru;
+	struct rk3568_grf *grf = priv->grf;
+	u32 reg, con, clk_src, i2s_src, div;
+	unsigned long m = 0, n = 0, val;
+
+	if (priv->gpll_hz % rate == 0) {
+		clk_src = CLK_I2S3_SRC_SEL_GPLL;
+		i2s_src = CLK_I2S3_SEL_SRC;
+		div = DIV_ROUND_UP(priv->gpll_hz, rate);
+	} else if (priv->cpll_hz % rate == 0) {
+		clk_src = CLK_I2S3_SRC_SEL_CPLL;
+		i2s_src = CLK_I2S3_SEL_SRC;
+		div = DIV_ROUND_UP(priv->gpll_hz, rate);
+	} else if (rate == OSC_HZ / 2) {
+		clk_src = CLK_I2S3_SRC_SEL_GPLL;
+		i2s_src = CLK_I2S3_SEL_XIN12M;
+		div = 1;
+	} else {
+		clk_src = CLK_I2S3_SRC_SEL_GPLL;
+		i2s_src = CLK_I2S3_SEL_FRAC;
+		div = 1;
+		rational_best_approximation(rate, priv->gpll_hz / div,
+					    GENMASK(16 - 1, 0),
+					    GENMASK(16 - 1, 0),
+					    &m, &n);
+	}
+
+	switch (clk_id) {
+	case I2S3_MCLKOUT_TX:
+		if (rate == 12000000) {
+			rk_clrsetreg(&cru->clksel_con[21],
+				     I2S3_MCLKOUT_TX_SEL_MASK,
+				     I2S3_MCLKOUT_TX_SEL_12M <<
+				     I2S3_MCLKOUT_TX_SEL_SHIFT);
+		} else {
+			rk3568_i2s3_set_rate(priv, MCLK_I2S3_2CH_TX, rate),
+			rk_clrsetreg(&cru->clksel_con[21],
+				     I2S3_MCLKOUT_TX_SEL_MASK,
+				     I2S3_MCLKOUT_TX_SEL_MCLK <<
+				     I2S3_MCLKOUT_TX_SEL_SHIFT);
+		}
+		return rk3568_i2s3_get_rate(priv, clk_id);
+	case I2S3_MCLKOUT_RX:
+		if (rate == 12000000) {
+			rk_clrsetreg(&cru->clksel_con[83],
+				     I2S3_MCLKOUT_TX_SEL_MASK,
+				     I2S3_MCLKOUT_TX_SEL_12M <<
+				     I2S3_MCLKOUT_TX_SEL_SHIFT);
+		} else {
+			rk3568_i2s3_set_rate(priv, MCLK_I2S3_2CH_RX, rate),
+			rk_clrsetreg(&cru->clksel_con[21],
+				     I2S3_MCLKOUT_TX_SEL_MASK,
+				     I2S3_MCLKOUT_TX_SEL_MCLK <<
+				     I2S3_MCLKOUT_TX_SEL_SHIFT);
+		}
+		return rk3568_i2s3_get_rate(priv, clk_id);
+	case I2S3_MCLKOUT:
+		con = readl(&grf->soc_con2);
+		clk_src = (con & I2S3_MCLKOUT_SEL_MASK)
+		      >> I2S3_MCLKOUT_SEL_SHIFT;
+		if (clk_src == I2S3_MCLKOUT_SEL_RX)
+			rk3568_i2s3_set_rate(priv, I2S3_MCLKOUT_RX, rate);
+		else
+			rk3568_i2s3_set_rate(priv, I2S3_MCLKOUT_TX, rate);
+		return rk3568_i2s3_get_rate(priv, clk_id);
+	case MCLK_I2S3_2CH_RX:
+		reg = 83;
+		break;
+	case MCLK_I2S3_2CH_TX:
+		reg = 21;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	rk_clrsetreg(&cru->clksel_con[reg],
+		     CLK_I2S3_SEL_MASK | CLK_I2S3_SRC_SEL_MASK |
+		     CLK_I2S3_SRC_DIV_MASK,
+		     (clk_src << CLK_I2S3_SRC_SEL_SHIFT) |
+		     (i2s_src << CLK_I2S3_SEL_SHIFT) |
+		     ((div - 1) << CLK_I2S3_SRC_DIV_SHIFT));
+	if (m && n) {
+		val = m << CLK_I2S3_FRAC_NUMERATOR_SHIFT | n;
+		writel(val, &cru->clksel_con[reg + 1]);
+	}
+	return rk3568_i2s3_get_rate(priv, clk_id);
+}
+
 #endif
 
 static ulong rk3568_clk_get_rate(struct clk *clk)
@@ -2453,6 +2651,14 @@ static ulong rk3568_clk_get_rate(struct clk *clk)
 	case TCLK_WDT_NS:
 		rate = OSC_HZ;
 		break;
+	case I2S3_MCLKOUT_RX:
+	case I2S3_MCLKOUT_TX:
+	case MCLK_I2S3_2CH_RX:
+	case MCLK_I2S3_2CH_TX:
+	case I2S3_MCLKOUT:
+		rate = rk3568_i2s3_get_rate(priv, clk->id);
+		break;
+#endif
 	case SCLK_UART1:
 	case SCLK_UART2:
 	case SCLK_UART3:
@@ -2464,7 +2670,6 @@ static ulong rk3568_clk_get_rate(struct clk *clk)
 	case SCLK_UART9:
 		rate = rk3568_uart_get_rate(priv, clk->id);
 		break;
-#endif
 	case ACLK_SECURE_FLASH:
 	case ACLK_CRYPTO_NS:
 	case HCLK_SECURE_FLASH:
@@ -2638,6 +2843,14 @@ static ulong rk3568_clk_set_rate(struct clk *clk, ulong rate)
 	case TCLK_WDT_NS:
 		ret = OSC_HZ;
 		break;
+	case I2S3_MCLKOUT_RX:
+	case I2S3_MCLKOUT_TX:
+	case MCLK_I2S3_2CH_RX:
+	case MCLK_I2S3_2CH_TX:
+	case I2S3_MCLKOUT:
+		ret = rk3568_i2s3_set_rate(priv, clk->id, rate);
+		break;
+#endif
 	case SCLK_UART1:
 	case SCLK_UART2:
 	case SCLK_UART3:
@@ -2649,7 +2862,6 @@ static ulong rk3568_clk_set_rate(struct clk *clk, ulong rate)
 	case SCLK_UART9:
 		ret = rk3568_uart_set_rate(priv, clk->id, rate);
 		break;
-#endif
 	case ACLK_SECURE_FLASH:
 	case ACLK_CRYPTO_NS:
 	case HCLK_SECURE_FLASH:
@@ -2675,6 +2887,139 @@ static ulong rk3568_clk_set_rate(struct clk *clk, ulong rate)
 
 	return ret;
 };
+
+#define ROCKCHIP_MMC_DELAY_SEL		BIT(10)
+#define ROCKCHIP_MMC_DEGREE_MASK	0x3
+#define ROCKCHIP_MMC_DELAYNUM_OFFSET	2
+#define ROCKCHIP_MMC_DELAYNUM_MASK	(0xff << ROCKCHIP_MMC_DELAYNUM_OFFSET)
+
+#define PSECS_PER_SEC 1000000000000LL
+/*
+ * Each fine delay is between 44ps-77ps. Assume each fine delay is 60ps to
+ * simplify calculations. So 45degs could be anywhere between 33deg and 57.8deg.
+ */
+#define ROCKCHIP_MMC_DELAY_ELEMENT_PSEC 60
+
+int rk3568_mmc_get_phase(struct clk *clk)
+{
+	struct rk3568_clk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3568_cru *cru = priv->cru;
+	u32 raw_value, delay_num;
+	u16 degrees = 0;
+	ulong rate;
+
+	rate = rk3568_clk_get_rate(clk);
+	if (rate < 0)
+		return rate;
+
+	if (clk->id == SCLK_EMMC_SAMPLE)
+		raw_value = readl(&cru->emmc_con[1]);
+	else if (clk->id == SCLK_SDMMC0_SAMPLE)
+		raw_value = readl(&cru->sdmmc0_con[1]);
+	else if (clk->id == SCLK_SDMMC1_SAMPLE)
+		raw_value = readl(&cru->sdmmc1_con[1]);
+	else
+		raw_value = readl(&cru->sdmmc2_con[1]);
+
+	raw_value >>= 1;
+	degrees = (raw_value & ROCKCHIP_MMC_DEGREE_MASK) * 90;
+
+	if (raw_value & ROCKCHIP_MMC_DELAY_SEL) {
+		/* degrees/delaynum * 10000 */
+		unsigned long factor = (ROCKCHIP_MMC_DELAY_ELEMENT_PSEC / 10) *
+					36 * (rate / 1000000);
+
+		delay_num = (raw_value & ROCKCHIP_MMC_DELAYNUM_MASK);
+		delay_num >>= ROCKCHIP_MMC_DELAYNUM_OFFSET;
+		degrees += DIV_ROUND_CLOSEST(delay_num * factor, 10000);
+	}
+
+	return degrees % 360;
+}
+
+int rk3568_mmc_set_phase(struct clk *clk, u32 degrees)
+{
+	struct rk3568_clk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3568_cru *cru = priv->cru;
+	u8 nineties, remainder, delay_num;
+	u32 raw_value, delay;
+	ulong rate;
+
+	rate = rk3568_clk_get_rate(clk);
+	if (rate < 0)
+		return rate;
+
+	nineties = degrees / 90;
+	remainder = (degrees % 90);
+
+	/*
+	 * Convert to delay; do a little extra work to make sure we
+	 * don't overflow 32-bit / 64-bit numbers.
+	 */
+	delay = 10000000; /* PSECS_PER_SEC / 10000 / 10 */
+	delay *= remainder;
+	delay = DIV_ROUND_CLOSEST(delay, (rate / 1000) * 36 *
+				  (ROCKCHIP_MMC_DELAY_ELEMENT_PSEC / 10));
+
+	delay_num = (u8)min_t(u32, delay, 255);
+
+	raw_value = delay_num ? ROCKCHIP_MMC_DELAY_SEL : 0;
+	raw_value |= delay_num << ROCKCHIP_MMC_DELAYNUM_OFFSET;
+	raw_value |= nineties;
+
+	raw_value <<= 1;
+	if (clk->id == SCLK_EMMC_SAMPLE)
+		writel(raw_value | 0xffff0000, &cru->emmc_con[1]);
+	else if (clk->id == SCLK_SDMMC0_SAMPLE)
+		writel(raw_value | 0xffff0000, &cru->sdmmc0_con[1]);
+	else if (clk->id == SCLK_SDMMC1_SAMPLE)
+		writel(raw_value | 0xffff0000, &cru->sdmmc1_con[1]);
+	else
+		writel(raw_value | 0xffff0000, &cru->sdmmc2_con[1]);
+
+	debug("mmc set_phase(%d) delay_nums=%u reg=%#x actual_degrees=%d\n",
+	      degrees, delay_num, raw_value, rk3568_mmc_get_phase(clk));
+
+	return 0;
+}
+
+static int rk3568_clk_get_phase(struct clk *clk)
+{
+	int ret;
+
+	debug("%s %ld\n", __func__, clk->id);
+	switch (clk->id) {
+	case SCLK_EMMC_SAMPLE:
+	case SCLK_SDMMC0_SAMPLE:
+	case SCLK_SDMMC1_SAMPLE:
+	case SCLK_SDMMC2_SAMPLE:
+		ret = rk3568_mmc_get_phase(clk);
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	return ret;
+}
+
+static int rk3568_clk_set_phase(struct clk *clk, int degrees)
+{
+	int ret;
+
+	debug("%s %ld\n", __func__, clk->id);
+	switch (clk->id) {
+	case SCLK_EMMC_SAMPLE:
+	case SCLK_SDMMC0_SAMPLE:
+	case SCLK_SDMMC1_SAMPLE:
+	case SCLK_SDMMC2_SAMPLE:
+		ret = rk3568_mmc_set_phase(clk, degrees);
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	return ret;
+}
 
 #if (IS_ENABLED(OF_CONTROL)) || (!IS_ENABLED(OF_PLATDATA))
 static int rk3568_gmac0_src_set_parent(struct clk *clk, struct clk *parent)
@@ -2753,7 +3098,8 @@ static int rk3568_gmac1_tx_rx_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int rk3568_dclk_vop_set_parent(struct clk *clk, struct clk *parent)
+static int __maybe_unused rk3568_dclk_vop_set_parent(struct clk *clk,
+						     struct clk *parent)
 {
 	struct rk3568_clk_priv *priv = dev_get_priv(clk->dev);
 	struct rk3568_cru *cru = priv->cru;
@@ -2775,15 +3121,22 @@ static int rk3568_dclk_vop_set_parent(struct clk *clk, struct clk *parent)
 	if (parent->id == PLL_VPLL) {
 		rk_clrsetreg(&cru->clksel_con[con_id], DCLK0_VOP_SEL_MASK,
 			     DCLK_VOP_SEL_VPLL << DCLK0_VOP_SEL_SHIFT);
-	} else {
+	} else if (parent->id == PLL_HPLL) {
 		rk_clrsetreg(&cru->clksel_con[con_id], DCLK0_VOP_SEL_MASK,
 			     DCLK_VOP_SEL_HPLL << DCLK0_VOP_SEL_SHIFT);
+	} else if (parent->id == PLL_CPLL) {
+		rk_clrsetreg(&cru->clksel_con[con_id], DCLK0_VOP_SEL_MASK,
+			     DCLK_VOP_SEL_CPLL << DCLK0_VOP_SEL_SHIFT);
+	} else {
+		rk_clrsetreg(&cru->clksel_con[con_id], DCLK0_VOP_SEL_MASK,
+			     DCLK_VOP_SEL_GPLL << DCLK0_VOP_SEL_SHIFT);
 	}
 
 	return 0;
 }
 
-static int rk3568_rkvdec_set_parent(struct clk *clk, struct clk *parent)
+static int __maybe_unused rk3568_rkvdec_set_parent(struct clk *clk,
+						   struct clk *parent)
 {
 	struct rk3568_clk_priv *priv = dev_get_priv(clk->dev);
 	struct rk3568_cru *cru = priv->cru;
@@ -2814,6 +3167,42 @@ static int rk3568_rkvdec_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
+static int __maybe_unused rk3568_i2s3_set_parent(struct clk *clk,
+						 struct clk *parent)
+{
+	struct rk3568_clk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3568_grf *grf = priv->grf;
+
+	switch (clk->id) {
+	case I2S3_MCLK_IOE:
+		if (parent->id == I2S3_MCLKOUT) {
+			rk_clrsetreg(&grf->soc_con2, I2S3_MCLK_IOE_SEL_MASK,
+				     I2S3_MCLK_IOE_SEL_CLKOUT <<
+				     I2S3_MCLK_IOE_SEL_SHIFT);
+		} else {
+			rk_clrsetreg(&grf->soc_con2, I2S3_MCLK_IOE_SEL_MASK,
+				     I2S3_MCLK_IOE_SEL_CLKIN <<
+				     I2S3_MCLK_IOE_SEL_SHIFT);
+		}
+		break;
+	case I2S3_MCLKOUT:
+		if (parent->id == I2S3_MCLKOUT_RX) {
+			rk_clrsetreg(&grf->soc_con2, I2S3_MCLKOUT_SEL_MASK,
+				     I2S3_MCLKOUT_SEL_RX <<
+				     I2S3_MCLKOUT_SEL_SHIFT);
+		} else {
+			rk_clrsetreg(&grf->soc_con2, I2S3_MCLKOUT_SEL_MASK,
+				     I2S3_MCLKOUT_SEL_TX <<
+				     I2S3_MCLKOUT_SEL_SHIFT);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rk3568_clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	switch (clk->id) {
@@ -2832,6 +3221,14 @@ static int rk3568_clk_set_parent(struct clk *clk, struct clk *parent)
 	case ACLK_RKVDEC_PRE:
 	case CLK_RKVDEC_CORE:
 		return rk3568_rkvdec_set_parent(clk, parent);
+	case I2S3_MCLK_IOE:
+	case I2S3_MCLKOUT:
+		return rk3568_i2s3_set_parent(clk, parent);
+	case I2S1_MCLKOUT_TX:
+	case SCLK_GMAC0_RGMII_SPEED:
+	case SCLK_GMAC0_RMII_SPEED:
+	case SCLK_GMAC1_RGMII_SPEED:
+	case SCLK_GMAC1_RMII_SPEED:
 	default:
 		return -ENOENT;
 	}
@@ -2843,6 +3240,8 @@ static int rk3568_clk_set_parent(struct clk *clk, struct clk *parent)
 static struct clk_ops rk3568_clk_ops = {
 	.get_rate = rk3568_clk_get_rate,
 	.set_rate = rk3568_clk_set_rate,
+	.get_phase = rk3568_clk_get_phase,
+	.set_phase = rk3568_clk_set_phase,
 #if (IS_ENABLED(OF_CONTROL)) || (!IS_ENABLED(OF_PLATDATA))
 	.set_parent = rk3568_clk_set_parent,
 #endif
@@ -2900,7 +3299,7 @@ static int rk3568_clk_probe(struct udevice *dev)
 	rk3568_clk_init(priv);
 
 	/* Process 'assigned-{clocks/clock-parents/clock-rates}' properties */
-	ret = clk_set_defaults(dev, 1);
+	ret = clk_set_defaults(dev);
 	if (ret)
 		debug("%s clk_set_defaults failed %d\n", __func__, ret);
 	else
@@ -2921,8 +3320,9 @@ static int rk3568_clk_ofdata_to_platdata(struct udevice *dev)
 static int rk3568_clk_bind(struct udevice *dev)
 {
 	int ret;
-	struct udevice *sys_child;
+	struct udevice *sys_child, *sf_child;
 	struct sysreset_reg *priv;
+	struct softreset_reg *sf_priv;
 
 	/* The reset driver does not have a device node, so bind it here */
 	ret = device_bind_driver(dev, "rockchip_sysreset", "sysreset",
@@ -2935,15 +3335,20 @@ static int rk3568_clk_bind(struct udevice *dev)
 						    glb_srst_fst);
 		priv->glb_srst_snd_value = offsetof(struct rk3568_cru,
 						    glb_srsr_snd);
-		dev_set_priv(sys_child, priv);
+		sys_child->priv = priv;
 	}
 
-#if CONFIG_IS_ENABLED(RESET_ROCKCHIP)
-	ret = offsetof(struct rk3568_cru, softrst_con[0]);
-	ret = rockchip_reset_bind(dev, ret, 30);
-	if (ret)
-		debug("Warning: software reset driver bind faile\n");
-#endif
+	ret = device_bind_driver_to_node(dev, "rockchip_reset", "reset",
+					 dev_ofnode(dev), &sf_child);
+	if (ret) {
+		debug("Warning: No rockchip reset driver: ret=%d\n", ret);
+	} else {
+		sf_priv = malloc(sizeof(struct softreset_reg));
+		sf_priv->sf_reset_offset = offsetof(struct rk3568_cru,
+						    softrst_con[0]);
+		sf_priv->sf_reset_num = 30;
+		sf_child->priv = sf_priv;
+	}
 
 	return 0;
 }
@@ -2957,12 +3362,84 @@ U_BOOT_DRIVER(rockchip_rk3568_cru) = {
 	.name		= "rockchip_rk3568_cru",
 	.id		= UCLASS_CLK,
 	.of_match	= rk3568_clk_ids,
-	.priv_auto = sizeof(struct rk3568_clk_priv),
-	.of_to_plat = rk3568_clk_ofdata_to_platdata,
+	.priv_auto_alloc_size = sizeof(struct rk3568_clk_priv),
+	.ofdata_to_platdata = rk3568_clk_ofdata_to_platdata,
 	.ops		= &rk3568_clk_ops,
 	.bind		= rk3568_clk_bind,
 	.probe		= rk3568_clk_probe,
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-	.plat_auto	= sizeof(struct rk3568_clk_plat),
-#endif
 };
+
+#ifndef CONFIG_SPL_BUILD
+/**
+ * soc_clk_dump() - Print clock frequencies
+ * Returns zero on success
+ *
+ * Implementation for the clk dump command.
+ */
+int soc_clk_dump(void)
+{
+	struct udevice *cru_dev, *pmucru_dev;
+	struct rk3568_clk_priv *priv;
+	const struct rk3568_clk_info *clk_dump;
+	struct clk clk;
+	unsigned long clk_count = ARRAY_SIZE(clks_dump);
+	unsigned long rate;
+	int i, ret;
+
+	ret = uclass_get_device_by_driver(UCLASS_CLK,
+					  DM_GET_DRIVER(rockchip_rk3568_cru),
+					  &cru_dev);
+	if (ret) {
+		printf("%s failed to get cru device\n", __func__);
+		return ret;
+	}
+
+	ret = uclass_get_device_by_driver(UCLASS_CLK,
+					  DM_GET_DRIVER(rockchip_rk3568_pmucru),
+					  &pmucru_dev);
+	if (ret) {
+		printf("%s failed to get pmucru device\n", __func__);
+		return ret;
+	}
+
+	priv = dev_get_priv(cru_dev);
+	printf("CLK: (%s. arm: enter %lu KHz, init %lu KHz, kernel %lu%s)\n",
+	       priv->sync_kernel ? "sync kernel" : "uboot",
+	       priv->armclk_enter_hz / 1000,
+	       priv->armclk_init_hz / 1000,
+	       priv->set_armclk_rate ? priv->armclk_hz / 1000 : 0,
+	       priv->set_armclk_rate ? " KHz" : "N/A");
+	for (i = 0; i < clk_count; i++) {
+		clk_dump = &clks_dump[i];
+		if (clk_dump->name) {
+			clk.id = clk_dump->id;
+			if (clk_dump->is_cru)
+				ret = clk_request(cru_dev, &clk);
+			else
+				ret = clk_request(pmucru_dev, &clk);
+			if (ret < 0)
+				return ret;
+
+			rate = clk_get_rate(&clk);
+			clk_free(&clk);
+			if (i == 0) {
+				if (rate < 0)
+					printf("  %s %s\n", clk_dump->name,
+					       "unknown");
+				else
+					printf("  %s %lu KHz\n", clk_dump->name,
+					       rate / 1000);
+			} else {
+				if (rate < 0)
+					printf("  %s %s\n", clk_dump->name,
+					       "unknown");
+				else
+					printf("  %s %lu KHz\n", clk_dump->name,
+					       rate / 1000);
+			}
+		}
+	}
+
+	return 0;
+}
+#endif

@@ -1,17 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Stefan Roese <sr@denx.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <fdtdec.h>
-#include <init.h>
-#include <asm/cache.h>
-#include <asm/global_data.h>
-#include <asm/ptrace.h>
 #include <linux/libfdt.h>
-#include <linux/sizes.h>
 #include <pci.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -28,13 +24,14 @@ DECLARE_GLOBAL_DATA_PTR;
  * Currently only 2GiB are mapped for system memory. This is what
  * we pass to the U-Boot subsystem here.
  */
-#define USABLE_RAM_SIZE		0x80000000ULL
+#define USABLE_RAM_SIZE		0x80000000
 
-phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+ulong board_get_usable_ram_top(ulong total_size)
 {
-	unsigned long top = CFG_SYS_SDRAM_BASE + min(gd->ram_size, USABLE_RAM_SIZE);
+	if (gd->ram_size > USABLE_RAM_SIZE)
+		return USABLE_RAM_SIZE;
 
-	return (gd->ram_top > top) ? top : gd->ram_top;
+	return gd->ram_size;
 }
 
 /*
@@ -47,33 +44,18 @@ const struct mbus_dram_target_info *mvebu_mbus_dram_info(void)
 	return NULL;
 }
 
-__weak int dram_init_banksize(void)
+/* DRAM init code ... */
+
+int dram_init_banksize(void)
 {
-	if (IS_ENABLED(CONFIG_ARMADA_8K))
-		return a8k_dram_init_banksize();
-	else if (IS_ENABLED(CONFIG_ARMADA_3700))
-		return a3700_dram_init_banksize();
-	else if (IS_ENABLED(CONFIG_ALLEYCAT_5))
-		return alleycat5_dram_init_banksize();
-	else
-		return fdtdec_setup_memory_banksize();
+	fdtdec_setup_memory_banksize();
+
+	return 0;
 }
 
-__weak int dram_init(void)
+int dram_init(void)
 {
-	if (IS_ENABLED(CONFIG_ARMADA_8K)) {
-		gd->ram_size = a8k_dram_scan_ap_sz();
-		if (gd->ram_size != 0)
-			return 0;
-	}
-
-	if (IS_ENABLED(CONFIG_ARMADA_3700))
-		return a3700_dram_init();
-
-	if (IS_ENABLED(CONFIG_ALLEYCAT_5))
-		return alleycat5_dram_init();
-
-	if (fdtdec_setup_mem_size_base() != 0)
+	if (fdtdec_setup_memory_size() != 0)
 		return -EINVAL;
 
 	return 0;
@@ -108,9 +90,10 @@ int arch_early_init_r(void)
 	/* Cause the SATA device to do its early init */
 	uclass_first_device(UCLASS_AHCI, &dev);
 
+#ifdef CONFIG_DM_PCI
 	/* Trigger PCIe devices detection */
-	if (IS_ENABLED(CONFIG_PCI))
-		pci_init();
+	pci_init();
+#endif
 
 	return 0;
 }

@@ -1,18 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014, Staubli Faverges
  * Pierre Aubert
  *
  * eMMC- Replay Protected Memory Block
  * According to JEDEC Standard No. 84-A441
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
-#include <log.h>
 #include <memalign.h>
 #include <mmc.h>
-#include <sdhci.h>
 #include <u-boot/sha256.h>
 #include "mmc_private.h"
 
@@ -41,12 +40,6 @@
 #define RPMB_ERR_CNT_EXPIRED	0x80
 #define RPMB_ERR_MSK		0x7
 
-/* Sizes of RPMB data frame */
-#define RPMB_SZ_STUFF		196
-#define RPMB_SZ_MAC		32
-#define RPMB_SZ_DATA		256
-#define RPMB_SZ_NONCE		16
-
 #define SHA256_BLOCK_SIZE	64
 
 /* Error messages */
@@ -59,20 +52,6 @@ static const char * const rpmb_err_msg[] = {
 	"Write failure",
 	"Read failure",
 	"Authentication key not yet programmed",
-};
-
-
-/* Structure of RPMB data frame. */
-struct s_rpmb {
-	unsigned char stuff[RPMB_SZ_STUFF];
-	unsigned char mac[RPMB_SZ_MAC];
-	unsigned char data[RPMB_SZ_DATA];
-	unsigned char nonce[RPMB_SZ_NONCE];
-	unsigned int write_counter;
-	unsigned short address;
-	unsigned short block_count;
-	unsigned short result;
-	unsigned short request;
 };
 
 static int mmc_set_blockcount(struct mmc *mmc, unsigned int blockcount,
@@ -88,12 +67,11 @@ static int mmc_set_blockcount(struct mmc *mmc, unsigned int blockcount,
 
 	return mmc_send_cmd(mmc, &cmd, NULL);
 }
-static int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
+static int mmc_rpmb_request(struct mmc *mmc, const void *s,
 			    unsigned int count, bool is_rel_write)
 {
 	struct mmc_cmd cmd = {0};
 	struct mmc_data data;
-	struct sdhci_host *host = mmc->priv;
 	int ret;
 
 	ret = mmc_set_blockcount(mmc, count, is_rel_write);
@@ -108,11 +86,8 @@ static int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 	cmd.cmdarg = 0;
 	cmd.resp_type = MMC_RSP_R1;
 
-	if (host->quirks & SDHCI_QUIRK_BROKEN_R1B)
-		cmd.resp_type = MMC_RSP_R1;
-
 	data.src = (const char *)s;
-	data.blocks = 1;
+	data.blocks = count;
 	data.blocksize = MMC_MAX_BLOCK_LEN;
 	data.flags = MMC_DATA_WRITE;
 
@@ -126,13 +101,13 @@ static int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 	return 0;
 }
 static int mmc_rpmb_response(struct mmc *mmc, struct s_rpmb *s,
-			     unsigned short expected)
+			     unsigned short expected, unsigned short cnt)
 {
 	struct mmc_cmd cmd = {0};
 	struct mmc_data data;
 	int ret;
 
-	ret = mmc_set_blockcount(mmc, 1, false);
+	ret = mmc_set_blockcount(mmc, cnt, false);
 	if (ret) {
 #ifdef CONFIG_MMC_RPMB_TRACE
 		printf("%s:mmc_set_blockcount-> %d\n", __func__, ret);
@@ -144,7 +119,7 @@ static int mmc_rpmb_response(struct mmc *mmc, struct s_rpmb *s,
 	cmd.resp_type = MMC_RSP_R1;
 
 	data.dest = (char *)s;
-	data.blocks = 1;
+	data.blocks = cnt;
 	data.blocksize = MMC_MAX_BLOCK_LEN;
 	data.flags = MMC_DATA_READ;
 
@@ -183,7 +158,7 @@ static int mmc_rpmb_status(struct mmc *mmc, unsigned short expected)
 		return -1;
 
 	/* Read the result */
-	return mmc_rpmb_response(mmc, rpmb_frame, expected);
+	return mmc_rpmb_response(mmc, rpmb_frame, expected, 1);
 }
 static void rpmb_hmac(unsigned char *key, unsigned char *buff, int len,
 		      unsigned char *output)
@@ -241,7 +216,7 @@ int mmc_rpmb_get_counter(struct mmc *mmc, unsigned long *pcounter)
 		return -1;
 
 	/* Read the result */
-	ret = mmc_rpmb_response(mmc, rpmb_frame, RPMB_RESP_WCOUNTER);
+	ret = mmc_rpmb_response(mmc, rpmb_frame, RPMB_RESP_WCOUNTER, 1);
 	if (ret)
 		return ret;
 
@@ -265,239 +240,168 @@ int mmc_rpmb_set_key(struct mmc *mmc, void *key)
 int mmc_rpmb_read(struct mmc *mmc, void *addr, unsigned short blk,
 		  unsigned short cnt, unsigned char *key)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(struct s_rpmb, rpmb_frame, 1);
+	ALLOC_CACHE_ALIGN_BUFFER
+		(char, rpmb_frame_data,
+		sizeof(struct s_rpmb) * cnt);
+	ALLOC_CACHE_ALIGN_BUFFER
+		(char, rpmb_frame_data_verify,
+		sizeof(struct s_rpmb_verify) * cnt);
+	struct s_rpmb *rpmb_frame;
+	struct s_rpmb_verify *rpmb_frame_vrify;
 	int i;
 
-	for (i = 0; i < cnt; i++) {
-		/* Fill the request */
-		memset(rpmb_frame, 0, sizeof(struct s_rpmb));
-		rpmb_frame->address = cpu_to_be16(blk + i);
-		rpmb_frame->request = cpu_to_be16(RPMB_REQ_READ_DATA);
-		if (mmc_rpmb_request(mmc, rpmb_frame, 1, false))
-			break;
-
-		/* Read the result */
-		if (mmc_rpmb_response(mmc, rpmb_frame, RPMB_RESP_READ_DATA))
-			break;
-
-		/* Check the HMAC if key is provided */
-		if (key) {
-			unsigned char ret_hmac[RPMB_SZ_MAC];
-
-			rpmb_hmac(key, rpmb_frame->data, 284, ret_hmac);
-			if (memcmp(ret_hmac, rpmb_frame->mac, RPMB_SZ_MAC)) {
-				printf("MAC error on block #%d\n", i);
-				break;
-			}
-		}
-		/* Copy data */
-		memcpy(addr + i * RPMB_SZ_DATA, rpmb_frame->data, RPMB_SZ_DATA);
+	memset(rpmb_frame_data, 0, sizeof(struct s_rpmb) * cnt);
+	memset(rpmb_frame_data_verify, 0, sizeof(struct s_rpmb_verify) * cnt);
+	rpmb_frame = (struct s_rpmb *)rpmb_frame_data;
+	rpmb_frame->address = cpu_to_be16(blk);
+	rpmb_frame->request = cpu_to_be16(RPMB_REQ_READ_DATA);
+	if (mmc_rpmb_request(mmc, rpmb_frame, 1, false)) {
+		printf("mmc_rpmb_read request error\n");
+		return -1;
 	}
-	return i;
+
+	if (mmc_rpmb_response
+			(mmc,
+			(struct s_rpmb *)rpmb_frame_data,
+			RPMB_RESP_READ_DATA, cnt)) {
+		printf("mmc_rpmb_read response error\n");
+		return -1;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		rpmb_frame = (struct s_rpmb *)
+					(rpmb_frame_data +
+					i * sizeof(struct s_rpmb));
+
+		rpmb_frame_vrify = (struct s_rpmb_verify *)
+					(rpmb_frame_data_verify +
+					i * sizeof(struct s_rpmb_verify));
+		memcpy(addr + i * RPMB_SZ_DATA, rpmb_frame->data, RPMB_SZ_DATA);
+		memcpy(rpmb_frame_vrify->data, rpmb_frame->data, 284);
+	}
+
+	if (key) {
+		unsigned char ret_hmac[RPMB_SZ_MAC];
+		rpmb_hmac
+			(key, (unsigned char *)rpmb_frame_data_verify,
+			284 * cnt, ret_hmac);
+		if (memcmp(ret_hmac, rpmb_frame->mac, RPMB_SZ_MAC)) {
+			printf("MAC error on block #%d\n", i);
+			return -1;
+		}
+	}
+
+	return cnt;
 }
 int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 		  unsigned short cnt, unsigned char *key)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(struct s_rpmb, rpmb_frame, 1);
-	unsigned long wcount;
-	int i;
+	struct s_rpmb *rpmb_frame;
+	struct s_rpmb_verify *rpmb_frame_vrify;
+	ALLOC_CACHE_ALIGN_BUFFER
+		(char, rpmb_frame_data,
+		sizeof(struct s_rpmb) * cnt);
+	ALLOC_CACHE_ALIGN_BUFFER
+		(char, rpmb_frame_data_verify,
+		sizeof(struct s_rpmb_verify) * cnt);
 
+	unsigned long wcount;
+	unsigned short i;
+	unsigned short temp;
+
+	temp = cnt - 1;
+	memset(rpmb_frame_data, 0, sizeof(struct s_rpmb) * cnt);
+	memset(rpmb_frame_data_verify, 0, sizeof(struct s_rpmb_verify) * cnt);
 	for (i = 0; i < cnt; i++) {
-		if (mmc_rpmb_get_counter(mmc, &wcount)) {
-			printf("Cannot read RPMB write counter\n");
-			break;
+		if (i == 0) {
+			if (mmc_rpmb_get_counter(mmc, &wcount)) {
+				printf("Cannot read RPMB write counter\n");
+				break;
+			}
 		}
 
-		/* Fill the request */
-		memset(rpmb_frame, 0, sizeof(struct s_rpmb));
+		rpmb_frame = (struct s_rpmb *)
+			(rpmb_frame_data +
+			i * sizeof(struct s_rpmb));
+		rpmb_frame_vrify = (struct s_rpmb_verify *)
+			(rpmb_frame_data_verify +
+			i * sizeof(struct s_rpmb_verify));
 		memcpy(rpmb_frame->data, addr + i * RPMB_SZ_DATA, RPMB_SZ_DATA);
-		rpmb_frame->address = cpu_to_be16(blk + i);
-		rpmb_frame->block_count = cpu_to_be16(1);
+		memcpy(rpmb_frame_vrify->data, addr +
+			i * RPMB_SZ_DATA, RPMB_SZ_DATA);
+		rpmb_frame->address = cpu_to_be16(blk);
+		rpmb_frame_vrify->address = cpu_to_be16(blk);
+		rpmb_frame->block_count = cpu_to_be16(cnt);
+		rpmb_frame_vrify->block_count = cpu_to_be16(cnt);
 		rpmb_frame->write_counter = cpu_to_be32(wcount);
+		rpmb_frame_vrify->write_counter = cpu_to_be32(wcount);
 		rpmb_frame->request = cpu_to_be16(RPMB_REQ_WRITE_DATA);
-		/* Computes HMAC */
-		rpmb_hmac(key, rpmb_frame->data, 284, rpmb_frame->mac);
-
-		if (mmc_rpmb_request(mmc, rpmb_frame, 1, true))
-			break;
-
-		/* Get status */
-		if (mmc_rpmb_status(mmc, RPMB_RESP_WRITE_DATA))
-			break;
+		rpmb_frame_vrify->request = cpu_to_be16(RPMB_REQ_WRITE_DATA);
+		if (i == temp) {
+			rpmb_hmac
+				(key, (unsigned char *)rpmb_frame_data_verify,
+				284 * cnt, rpmb_frame->mac);
+		}
 	}
-	return i;
+	if (mmc_rpmb_request(mmc, rpmb_frame_data, cnt, true))
+		return -1;
+
+	if (mmc_rpmb_status(mmc, RPMB_RESP_WRITE_DATA))
+		return -1;
+	return cnt;
 }
 
-static int send_write_mult_block(struct mmc *mmc, const struct s_rpmb *frm,
-				 unsigned short cnt)
+int read_counter(struct mmc *mmc, struct s_rpmb *requestpackets)
 {
-	struct mmc_cmd cmd = {
-		.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK,
-		.resp_type = MMC_RSP_R1,
-	};
-	struct mmc_data data = {
-		.src = (const void *)frm,
-		.blocks = cnt,
-		.blocksize = sizeof(*frm),
-		.flags = MMC_DATA_WRITE,
-	};
+	if (mmc_rpmb_request(mmc, requestpackets, 1, false))
+		return -1;
 
-	return mmc_send_cmd(mmc, &cmd, &data);
+	if (mmc_rpmb_response(mmc, requestpackets, RPMB_RESP_WCOUNTER, 1))
+		return -1;
+
+	return 0;
 }
 
-static int send_read_mult_block(struct mmc *mmc, struct s_rpmb *frm,
-				unsigned short cnt)
+int program_key(struct mmc *mmc, struct s_rpmb *requestpackets)
 {
-	struct mmc_cmd cmd = {
-		.cmdidx = MMC_CMD_READ_MULTIPLE_BLOCK,
-		.resp_type = MMC_RSP_R1,
-	};
-	struct mmc_data data = {
-		.dest = (void *)frm,
-		.blocks = cnt,
-		.blocksize = sizeof(*frm),
-		.flags = MMC_DATA_READ,
-	};
+	if (mmc_rpmb_request(mmc, requestpackets, 1, true))
+		return -1;
 
-	return mmc_send_cmd(mmc, &cmd, &data);
+	memset(requestpackets, 0, sizeof(struct s_rpmb));
+
+	requestpackets->request = cpu_to_be16(RPMB_REQ_STATUS);
+
+	if (mmc_rpmb_request(mmc, requestpackets, 1, false))
+		return -1;
+
+	return mmc_rpmb_response(mmc, requestpackets, RPMB_RESP_KEY, 1);
 }
 
-static int rpmb_route_write_req(struct mmc *mmc, struct s_rpmb *req,
-				unsigned short req_cnt, struct s_rpmb *rsp,
-				unsigned short rsp_cnt)
+int authenticated_read(struct mmc *mmc,
+	struct s_rpmb *requestpackets, uint16_t block_count)
 {
-	int ret;
+	if (mmc_rpmb_request(mmc, requestpackets, 1, false))
+		return -1;
 
-	/*
-	 * Send the write request.
-	 */
-	ret = mmc_set_blockcount(mmc, req_cnt, true);
-	if (ret)
-		return ret;
+	if (mmc_rpmb_response
+		(mmc, requestpackets, RPMB_RESP_READ_DATA, block_count))
+		return -1;
 
-	ret = send_write_mult_block(mmc, req, req_cnt);
-	if (ret)
-		return ret;
-
-	/*
-	 * Read the result of the request.
-	 */
-	ret = mmc_set_blockcount(mmc, 1, false);
-	if (ret)
-		return ret;
-
-	memset(rsp, 0, sizeof(*rsp));
-	rsp->request = cpu_to_be16(RPMB_REQ_STATUS);
-	ret = send_write_mult_block(mmc, rsp, 1);
-	if (ret)
-		return ret;
-
-	ret = mmc_set_blockcount(mmc, 1, false);
-	if (ret)
-		return ret;
-
-	return send_read_mult_block(mmc, rsp, 1);
+	return 0;
 }
 
-static int rpmb_route_read_req(struct mmc *mmc, struct s_rpmb *req,
-			       unsigned short req_cnt, struct s_rpmb *rsp,
-			       unsigned short rsp_cnt)
+int authenticated_write(struct mmc *mmc, struct s_rpmb *requestpackets)
 {
-	int ret;
+	if (mmc_rpmb_request(mmc, requestpackets, 1, true))
+		return -1;
 
-	/*
-	 * Send the read request.
-	 */
-	ret = mmc_set_blockcount(mmc, 1, false);
-	if (ret)
-		return ret;
+	memset(requestpackets, 0, sizeof(struct s_rpmb));
 
-	ret = send_write_mult_block(mmc, req, 1);
-	if (ret)
-		return ret;
+	requestpackets->request = cpu_to_be16(RPMB_REQ_STATUS);
 
-	/*
-	 * Read the result of the request.
-	 */
+	if (mmc_rpmb_request(mmc, requestpackets, 1, false))
+		return -1;
 
-	ret = mmc_set_blockcount(mmc, rsp_cnt, false);
-	if (ret)
-		return ret;
-
-	return send_read_mult_block(mmc, rsp, rsp_cnt);
+	return mmc_rpmb_response(mmc, requestpackets, RPMB_RESP_WRITE_DATA, 1);
 }
 
-static int rpmb_route_frames(struct mmc *mmc, struct s_rpmb *req,
-			     unsigned short req_cnt, struct s_rpmb *rsp,
-			     unsigned short rsp_cnt)
-{
-	unsigned short n;
-
-	/*
-	 * If multiple request frames are provided, make sure that all are
-	 * of the same type.
-	 */
-	for (n = 1; n < req_cnt; n++)
-		if (req[n].request != req->request)
-			return -EINVAL;
-
-	switch (be16_to_cpu(req->request)) {
-	case RPMB_REQ_KEY:
-		if (req_cnt != 1 || rsp_cnt != 1)
-			return -EINVAL;
-		return rpmb_route_write_req(mmc, req, req_cnt, rsp, rsp_cnt);
-
-	case RPMB_REQ_WRITE_DATA:
-		if (!req_cnt || rsp_cnt != 1)
-			return -EINVAL;
-		return rpmb_route_write_req(mmc, req, req_cnt, rsp, rsp_cnt);
-
-	case RPMB_REQ_WCOUNTER:
-		if (req_cnt != 1 || rsp_cnt != 1)
-			return -EINVAL;
-		return rpmb_route_read_req(mmc, req, req_cnt, rsp, rsp_cnt);
-
-	case RPMB_REQ_READ_DATA:
-		if (req_cnt != 1 || !req_cnt)
-			return -EINVAL;
-		return rpmb_route_read_req(mmc, req, req_cnt, rsp, rsp_cnt);
-
-	default:
-		debug("Unsupported message type: %d\n",
-		      be16_to_cpu(req->request));
-		return -EINVAL;
-	}
-}
-
-int mmc_rpmb_route_frames(struct mmc *mmc, void *req, unsigned long reqlen,
-			  void *rsp, unsigned long rsplen)
-{
-	/*
-	 * Whoever crafted the data supplied to this function knows how to
-	 * format the PRMB frames and which response is expected. If
-	 * there's some unexpected mismatch it's more helpful to report an
-	 * error immediately than trying to guess what was the intention
-	 * and possibly just delay an eventual error which will be harder
-	 * to track down.
-	 */
-	void *rpmb_data = NULL;
-	int ret;
-
-	if (reqlen % sizeof(struct s_rpmb) || rsplen % sizeof(struct s_rpmb))
-		return -EINVAL;
-
-	if (!IS_ALIGNED((uintptr_t)req, ARCH_DMA_MINALIGN)) {
-		/* Memory alignment is required by MMC driver */
-		rpmb_data = malloc(reqlen);
-		if (!rpmb_data)
-			return -ENOMEM;
-
-		memcpy(rpmb_data, req, reqlen);
-		req = rpmb_data;
-	}
-
-	ret = rpmb_route_frames(mmc, req, reqlen / sizeof(struct s_rpmb),
-				rsp, rsplen / sizeof(struct s_rpmb));
-	free(rpmb_data);
-	return ret;
-}

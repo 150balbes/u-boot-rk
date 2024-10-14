@@ -10,11 +10,26 @@
 #ifndef __CONFIG_ZYNQMP_MINI_H
 #define __CONFIG_ZYNQMP_MINI_H
 
-#define CFG_EXTRA_ENV_SETTINGS
+#define CONFIG_SYS_MEMTEST_SCRATCH     0xfffc0000
 
 #include <configs/xilinx_zynqmp.h>
 
 /* Undef unneeded configs */
-#undef CFG_EXTRA_ENV_SETTINGS
+#undef CONFIG_EXTRA_ENV_SETTINGS
+#undef CONFIG_SYS_MALLOC_LEN
+#undef CONFIG_ZLIB
+#undef CONFIG_GZIP
+#undef CONFIG_CMD_ENV
+#undef CONFIG_SYS_INIT_SP_ADDR
+#undef CONFIG_BOOTM_NETBSD
+#undef CONFIG_BOOTM_VXWORKS
+#undef CONFIG_BOOTM_LINUX
+#undef CONFIG_BOARD_LATE_INIT
+
+/* BOOTP options */
+#undef CONFIG_BOOTP_BOOTFILESIZE
+#undef CONFIG_BOOTP_MAY_FAIL
+
+#undef CONFIG_NR_DRAM_BANKS
 
 #endif /* __CONFIG_ZYNQMP_MINI_H */

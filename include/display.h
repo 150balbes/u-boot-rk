@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Google Inc.
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef _DISPLAY_H
@@ -27,7 +28,7 @@ struct display_plat {
  * display_read_timing() - Read timing information
  *
  * @dev:	Device to read from
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int display_read_timing(struct udevice *dev, struct display_timing *timing);
 
@@ -37,7 +38,7 @@ int display_read_timing(struct udevice *dev, struct display_timing *timing);
  * @dev:	Device to enable
  * @panel_bpp:	Number of bits per pixel for panel
  * @timing:	Display timings
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int display_enable(struct udevice *dev, int panel_bpp,
 		   const struct display_timing *timing);
@@ -45,7 +46,7 @@ int display_enable(struct udevice *dev, int panel_bpp,
 /**
  * display_in_use() - Check if a display is in use by any device
  *
- * Return: true if the device is in use (display_enable() has been called
+ * @return true if the device is in use (display_enable() has been called
  * successfully), else false
  */
 bool display_in_use(struct udevice *dev);
@@ -80,16 +81,6 @@ struct dm_display_ops {
 	 */
 	int (*enable)(struct udevice *dev, int panel_bpp,
 		      const struct display_timing *timing);
-
-	/**
-	 * mode_valid() - Check if mode is supported
-	 *
-	 * @dev:	Device to enable
-	 * @timing:	Display timings
-	 * @return true if supported, false if not
-	 */
-	bool (*mode_valid)(struct udevice *dev,
-			   const struct display_timing *timing);
 };
 
 #define display_get_ops(dev)	((struct dm_display_ops *)(dev)->driver->ops)

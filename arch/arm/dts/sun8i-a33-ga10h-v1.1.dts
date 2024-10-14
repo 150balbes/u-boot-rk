@@ -58,10 +58,9 @@
 	status = "okay";
 };
 
-&touchscreen {
-	reg = <0x40>;
+&gsl1680 {
 	compatible = "silead,gsl3675";
-	firmware-name = "gsl3675-ga10h.fw";
+	touchscreen-fw-name = "silead/gsl3675-ga10h.fw";
 	touchscreen-size-x = <1630>;
 	touchscreen-size-y = <990>;
 	touchscreen-inverted-y;
@@ -69,7 +68,7 @@
 };
 
 &lradc {
-	button-600 {
+	button@600 {
 		label = "Back";
 		linux,code = <KEY_BACK>;
 		channel = <0>;
@@ -79,7 +78,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pg_pins>;
+	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_dldo1>;
 	bus-width = <4>;
 	non-removable;

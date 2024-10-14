@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * U-Boot EFI linker script
+ *
+ * SPDX-License-Identifier:	BSD-2-Clause
  *
  * Modified from usr/lib32/elf_x86_64_efi.lds in gnu-efi
  */
@@ -44,13 +45,13 @@ SECTIONS
 		*(.sbss)
 		*(.scommon)
 		*(.dynbss)
-		*(.bss*)
+		*(.bss)
 		*(COMMON)
 		*(.rel.local)
 
 		/* U-Boot lists and device tree */
 		. = ALIGN(8);
-		*(SORT(__u_boot_list*));
+		*(SORT(.u_boot_list*));
 		. = ALIGN(8);
 		*(.dtb*);
 	}
@@ -63,7 +64,6 @@ SECTIONS
 		*(.rela.data*)
 		*(.rela.got)
 		*(.rela.stab)
-                *(.rela__u_boot_list*)
 	}
 
 	. = ALIGN(4096);
@@ -71,11 +71,9 @@ SECTIONS
 	. = ALIGN(4096);
 	.dynstr : { *(.dynstr) }
 	. = ALIGN(4096);
-
-        /DISCARD/ : { *(.eh_frame) }
-
 	.ignored.reloc : {
 		*(.rela.reloc)
+		*(.eh_frame)
 		*(.note.GNU-stack)
 	}
 

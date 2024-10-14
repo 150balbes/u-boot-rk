@@ -1,7 +1,23 @@
-#include "rk3036-u-boot.dtsi"
-
-&uart2 {
+&cru {
 	u-boot,dm-pre-reloc;
+};
+
+&dmc {
+	u-boot,dm-pre-reloc;
+};
+
+&emmc {
+	u-boot,dm-pre-reloc;
+};
+
+&nandc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&sfc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
 };
 
 &grf {
@@ -9,5 +25,43 @@
 };
 
 &pinctrl {
+	u-boot,dm-pre-reloc;
+};
+
+&uart2 {
+	u-boot,dm-pre-reloc;
+};
+
+&psci {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&pinctrl {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio0 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio1 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio2 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usb2phy {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usb_otg {
 	u-boot,dm-pre-reloc;
 };

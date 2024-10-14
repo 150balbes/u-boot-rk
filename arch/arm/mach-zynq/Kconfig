@@ -1,6 +1,9 @@
 if ARCH_ZYNQ
 
-config SPL_FS_FAT
+config SPL_LDSCRIPT
+	default "arch/arm/mach-zynq/u-boot-spl.lds"
+
+config SPL_FAT_SUPPORT
 	default y
 
 config SPL_LIBCOMMON_SUPPORT
@@ -12,16 +15,16 @@ config SPL_LIBDISK_SUPPORT
 config SPL_LIBGENERIC_SUPPORT
 	default y
 
-config SPL_MMC
+config SPL_MMC_SUPPORT
 	default y if MMC_SDHCI_ZYNQ
 
-config SPL_SERIAL
+config SPL_SERIAL_SUPPORT
 	default y
 
 config SPL_SPI_FLASH_SUPPORT
 	default y if ZYNQ_QSPI
 
-config SPL_SPI
+config SPL_SPI_SUPPORT
 	default y if ZYNQ_QSPI
 
 config ZYNQ_DDRC_INIT
@@ -33,7 +36,6 @@ config ZYNQ_DDRC_INIT
 	  want to skip ddr init and this option is useful for it.
 
 config SYS_BOARD
-	string "Board name"
 	default "zynq"
 
 config SYS_VENDOR
@@ -52,10 +54,7 @@ config SYS_CONFIG_NAME
 	  will be used for board configuration.
 
 config SYS_MALLOC_F_LEN
-	default 0x800
-
-config SYS_MALLOC_LEN
-	default 0x1400000
+	default 0x600
 
 config BOOT_INIT_FILE
 	string "boot.bin init register filename"
@@ -63,11 +62,5 @@ config BOOT_INIT_FILE
 	help
 	  Add register writes to boot.bin format (max 256 pairs).
 	  Expect a table of register-value pairs, e.g. "0x12345678 0x4321"
-
-config ZYNQ_SDHCI_MAX_FREQ
-	default 52000000
-
-source "board/xilinx/Kconfig"
-source "board/xilinx/zynq/Kconfig"
 
 endif

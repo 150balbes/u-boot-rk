@@ -1,14 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
-#define LOG_CATEGORY UCLASS_KEYBOARD
 
 #include <common.h>
 #include <dm.h>
 #include <keyboard.h>
-#include <log.h>
 
 static int keyboard_start(struct stdio_dev *sdev)
 {
@@ -89,5 +87,5 @@ UCLASS_DRIVER(keyboard) = {
 	.id		= UCLASS_KEYBOARD,
 	.name		= "keyboard",
 	.pre_probe	= keyboard_pre_probe,
-	.per_device_auto	= sizeof(struct keyboard_priv),
+	.per_device_auto_alloc_size = sizeof(struct keyboard_priv),
 };

@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2004
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * (C) Copyright 2003
  * Kai-Uwe Bloem, Auerswald GmbH & Co KG, <linux-development@auerswald.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 
@@ -13,36 +14,31 @@
  */
 #include <common.h>
 #include <command.h>
-#include <cpu_func.h>
-#include <env.h>
-#include <gzip.h>
 #include <image.h>
-#include <malloc.h>
 #include <mapmem.h>
 #include <watchdog.h>
 #if defined(CONFIG_BZIP2)
 #include <bzlib.h>
 #endif
 #include <asm/byteorder.h>
-#include <asm/cache.h>
 #include <asm/io.h>
 
-#ifndef CFG_SYS_XIMG_LEN
+#ifndef CONFIG_SYS_XIMG_LEN
 /* use 8MByte as default max gunzip size */
-#define CFG_SYS_XIMG_LEN	0x800000
+#define CONFIG_SYS_XIMG_LEN	0x800000
 #endif
 
 static int
-do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	ulong		addr = image_load_addr;
+	ulong		addr = load_addr;
 	ulong		dest = 0;
 	ulong		data, len;
 	int		verify;
 	int		part = 0;
-#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 	ulong		count;
-	struct legacy_img_hdr	*hdr = NULL;
+	image_header_t	*hdr = NULL;
 #endif
 #if defined(CONFIG_FIT)
 	const char	*uname = NULL;
@@ -52,33 +48,33 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	size_t		fit_len;
 #endif
 #ifdef CONFIG_GZIP
-	uint		unc_len = CFG_SYS_XIMG_LEN;
+	uint		unc_len = CONFIG_SYS_XIMG_LEN;
 #endif
 	uint8_t		comp;
 
 	verify = env_get_yesno("verify");
 
 	if (argc > 1) {
-		addr = hextoul(argv[1], NULL);
+		addr = simple_strtoul(argv[1], NULL, 16);
 	}
 	if (argc > 2) {
-		part = hextoul(argv[2], NULL);
+		part = simple_strtoul(argv[2], NULL, 16);
 #if defined(CONFIG_FIT)
 		uname = argv[2];
 #endif
 	}
 	if (argc > 3) {
-		dest = hextoul(argv[3], NULL);
+		dest = simple_strtoul(argv[3], NULL, 16);
 	}
 
 	switch (genimg_get_format((void *)addr)) {
-#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 	case IMAGE_FORMAT_LEGACY:
 
 		printf("## Copying part %d from legacy image "
 			"at %08lx ...\n", part, addr);
 
-		hdr = (struct legacy_img_hdr *)addr;
+		hdr = (image_header_t *)addr;
 		if (!image_check_magic(hdr)) {
 			printf("Bad Magic Number\n");
 			return 1;
@@ -136,7 +132,7 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			"at %08lx ...\n", uname, addr);
 
 		fit_hdr = (const void *)addr;
-		if (fit_check_format(fit_hdr, IMAGE_SIZE_INVAL)) {
+		if (!fit_check_format(fit_hdr)) {
 			puts("Bad FIT image format\n");
 			return 1;
 		}
@@ -148,7 +144,7 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			return 1;
 		}
 
-		if (!fit_image_check_comp(fit_hdr, noffset, IH_COMP_NONE)
+		if (fit_image_check_comp(fit_hdr, noffset, IH_COMP_NONE)
 		    && (argc < 4)) {
 			printf("Must specify load address for %s command "
 				"with compressed image\n",
@@ -164,15 +160,18 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			}
 		}
 
-		/* get subimage/external data address and length */
-		if (fit_image_get_data_and_size(fit_hdr, noffset,
-					       &fit_data, &fit_len)) {
+		/* get subimage data address and length */
+		if (fit_image_get_data(fit_hdr, noffset,
+					&fit_data, &fit_len)) {
 			puts("Could not find script subimage data\n");
 			return 1;
 		}
 
-		if (fit_image_get_comp(fit_hdr, noffset, &comp))
-			comp = IH_COMP_NONE;
+		if (fit_image_get_comp(fit_hdr, noffset, &comp)) {
+			puts("Could not find script subimage "
+				"compression type\n");
+			return 1;
+		}
 
 		data = (ulong)fit_data;
 		len = (ulong)fit_len;
@@ -197,7 +196,7 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 				while (l > 0) {
 					tail = (l > CHUNKSZ) ? CHUNKSZ : l;
-					schedule();
+					WATCHDOG_RESET();
 					memmove(to, from, tail);
 					to += tail;
 					from += tail;
@@ -219,7 +218,7 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			}
 			break;
 #endif
-#if defined(CONFIG_BZIP2) && defined(CONFIG_LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_BZIP2) && defined(CONFIG_IMAGE_FORMAT_LEGACY)
 		case IH_COMP_BZIP2:
 			{
 				int i;
@@ -250,7 +249,7 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		puts("OK\n");
 	}
 
-	flush_cache(dest, ALIGN(len, ARCH_DMA_MINALIGN));
+	flush_cache(dest, len);
 
 	env_set_hex("fileaddr", data);
 	env_set_hex("filesize", len);

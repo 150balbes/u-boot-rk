@@ -1,14 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef __ASM_ARCH_MXC_MXC_I2C_H__
 #define __ASM_ARCH_MXC_MXC_I2C_H__
 #include <asm-generic/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
-#if CONFIG_IS_ENABLED(CLK)
-#include <clk.h>
-#endif
 
 struct i2c_pin_ctrl {
 	iomux_v3_cfg_t i2c_mode;
@@ -42,7 +40,7 @@ struct mxc_i2c_bus {
 	/*
 	 * board file can use this index to locate which i2c_pads_info is for
 	 * i2c_idle_bus. When pinmux is implement, this entry can be
-	 * discarded. Here we do not use dev_seq(dev), because we do not want to
+	 * discarded. Here we do not use dev->seq, because we do not want to
 	 * export device to board file.
 	 */
 	int index;
@@ -50,10 +48,7 @@ struct mxc_i2c_bus {
 	ulong driver_data;
 	int speed;
 	struct i2c_pads_info *pads_info;
-#if CONFIG_IS_ENABLED(CLK)
-	struct clk per_clk;
-#endif
-#if !CONFIG_IS_ENABLED(DM_I2C)
+#ifndef CONFIG_DM_I2C
 	int (*idle_bus_fn)(void *p);
 	void *idle_bus_data;
 #else
@@ -93,7 +88,8 @@ struct mxc_i2c_bus {
 
 
 #define I2C_PADS_INFO(name)	\
-	(is_mx6dq() || is_mx6dqp()) ? &mx6q_##name : &mx6s_##name
+	(is_cpu_type(MXC_CPU_MX6Q) || is_cpu_type(MXC_CPU_MX6D)) ? \
+					&mx6q_##name : &mx6s_##name
 #endif
 
 int setup_i2c(unsigned i2c_index, int speed, int slave_addr,

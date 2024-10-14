@@ -28,21 +28,19 @@
 
 #include <common.h>
 #include <command.h>
-#include <display_options.h>
-#ifdef CONFIG_SYS_DIRECT_FLASH_NFS
-#include <flash.h>
-#endif
-#include <image.h>
-#include <log.h>
 #include <net.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include "nfs.h"
 #include "bootp.h"
-#include <time.h>
 
 #define HASHES_PER_LINE 65	/* Number of "loading" hashes per line	*/
 #define NFS_RETRY_COUNT 30
+#ifndef CONFIG_NFS_TIMEOUT
+# define NFS_TIMEOUT 2000UL
+#else
+# define NFS_TIMEOUT CONFIG_NFS_TIMEOUT
+#endif
 
 #define NFS_RPC_ERR	1
 #define NFS_RPC_DROP	124
@@ -51,11 +49,11 @@ static int fs_mounted;
 static unsigned long rpc_id;
 static int nfs_offset = -1;
 static int nfs_len;
-static const ulong nfs_timeout = CONFIG_NFS_TIMEOUT;
+static ulong nfs_timeout = NFS_TIMEOUT;
 
 static char dirfh[NFS_FHSIZE];	/* NFSv2 / NFSv3 file handle of directory */
 static char filefh[NFS3_FHSIZE]; /* NFSv2 / NFSv3 file handle */
-static unsigned int filefh3_length;	/* (variable) length of filefh when NFSv3 */
+static int filefh3_length;	/* (variable) length of filefh when NFSv3 */
 
 static enum net_loop_state nfs_download_state;
 static struct in_addr nfs_server_ip;
@@ -88,15 +86,14 @@ static inline int store_block(uchar *src, unsigned offset, unsigned len)
 
 	for (i = 0; i < CONFIG_SYS_MAX_FLASH_BANKS; i++) {
 		/* start address in flash? */
-		if (image_load_addr + offset >= flash_info[i].start[0]) {
+		if (load_addr + offset >= flash_info[i].start[0]) {
 			rc = 1;
 			break;
 		}
 	}
 
 	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write((uchar *)src, (ulong)image_load_addr + offset,
-				 len);
+		rc = flash_write((uchar *)src, (ulong)(load_addr+offset), len);
 		if (rc) {
 			flash_perror(rc);
 			return -1;
@@ -104,7 +101,7 @@ static inline int store_block(uchar *src, unsigned offset, unsigned len)
 	} else
 #endif /* CONFIG_SYS_DIRECT_FLASH_NFS */
 	{
-		void *ptr = map_sysmem(image_load_addr + offset, len);
+		void *ptr = map_sysmem(load_addr + offset, len);
 
 		memcpy(ptr, src, len);
 		unmap_sysmem(ptr);
@@ -199,10 +196,10 @@ static void rpc_req(int rpc_prog, int rpc_proc, uint32_t *data, int datalen)
 		rpc_pkt.u.call.vers = htonl(2);	/* portmapper is version 2 */
 	}
 	rpc_pkt.u.call.proc = htonl(rpc_proc);
-	p = rpc_pkt.u.call.data;
+	p = (uint32_t *)&(rpc_pkt.u.call.data);
 
 	if (datalen)
-		memcpy(p, data, datalen * sizeof(uint32_t));
+		memcpy((char *)p, (char *)data, datalen*sizeof(uint32_t));
 
 	pktlen = (char *)p + datalen * sizeof(uint32_t) - (char *)&rpc_pkt;
 
@@ -536,7 +533,7 @@ static int nfs_lookup_reply(uchar *pkt, unsigned len)
 			switch (ntohl(rpc_pkt.u.reply.data[0])) {
 			/* Minimal supported NFS version */
 			case 3:
-				debug("*** Warning: NFS version not supported: Requested: V%d, accepted: min V%d - max V%d\n",
+				debug("*** Waring: NFS version not supported: Requested: V%d, accepted: min V%d - max V%d\n",
 				      (supported_nfs_versions & NFSV2_FLAG) ?
 						2 : 3,
 				      ntohl(rpc_pkt.u.reply.data[0]),
@@ -569,8 +566,6 @@ static int nfs_lookup_reply(uchar *pkt, unsigned len)
 	}
 
 	if (supported_nfs_versions & NFSV2_FLAG) {
-		if (((uchar *)&(rpc_pkt.u.reply.data[0]) - (uchar *)(&rpc_pkt) + NFS_FHSIZE) > len)
-			return -NFS_RPC_DROP;
 		memcpy(filefh, rpc_pkt.u.reply.data + 1, NFS_FHSIZE);
 	} else {  /* NFSV3_FLAG */
 		filefh3_length = ntohl(rpc_pkt.u.reply.data[1]);
@@ -584,7 +579,7 @@ static int nfs_lookup_reply(uchar *pkt, unsigned len)
 
 static int nfs3_get_attributes_offset(uint32_t *data)
 {
-	if (data[1]) {
+	if (ntohl(data[1]) != 0) {
 		/* 'attributes_follow' flag is TRUE,
 		 * so we have attributes on 21 dwords */
 		/* Skip unused values :
@@ -638,9 +633,6 @@ static int nfs_readlink_reply(uchar *pkt, unsigned len)
 
 	/* new path length */
 	rlen = ntohl(rpc_pkt.u.reply.data[1 + nfsv3_data_offset]);
-
-	if (((uchar *)&(rpc_pkt.u.reply.data[0]) - (uchar *)(&rpc_pkt) + rlen) > len)
-		return -NFS_RPC_DROP;
 
 	if (*((char *)&(rpc_pkt.u.reply.data[2 + nfsv3_data_offset])) != '/') {
 		int pathlen;
@@ -709,9 +701,6 @@ static int nfs_read_reply(uchar *pkt, unsigned len)
 			&(rpc_pkt.u.reply.data[4 + nfsv3_data_offset]);
 	}
 
-	if (((uchar *)&(rpc_pkt.u.reply.data[0]) - (uchar *)(&rpc_pkt) + rlen) > len)
-			return -9999;
-
 	if (store_block(data_ptr, nfs_offset, rlen))
 			return -9999;
 
@@ -729,7 +718,7 @@ static void nfs_timeout_handler(void)
 	} else {
 		puts("T ");
 		net_set_timeout_handler(nfs_timeout +
-					nfs_timeout * nfs_timeout_count,
+					NFS_TIMEOUT * nfs_timeout_count,
 					nfs_timeout_handler);
 		nfs_send();
 	}
@@ -742,9 +731,6 @@ static void nfs_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 	int reply;
 
 	debug("%s\n", __func__);
-
-	if (len > sizeof(struct rpc_t))
-		return;
 
 	if (dest != nfs_our_port)
 		return;
@@ -836,8 +822,6 @@ static void nfs_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 
 	case STATE_READ_REQ:
 		rlen = nfs_read_reply(pkt, len);
-		if (rlen == -NFS_RPC_DROP)
-			break;
 		net_set_timeout_handler(nfs_timeout, nfs_timeout_handler);
 		if (rlen > 0) {
 			nfs_offset += rlen;
@@ -869,29 +853,40 @@ void nfs_start(void)
 
 	if (nfs_path == NULL) {
 		net_set_state(NETLOOP_FAIL);
-		printf("*** ERROR: Fail allocate memory\n");
+		debug("*** ERROR: Fail allocate memory\n");
 		return;
 	}
 
-	if (!net_parse_bootfile(&nfs_server_ip, nfs_path,
-				sizeof(nfs_path_buff))) {
+	if (net_boot_file_name[0] == '\0') {
 		sprintf(nfs_path, "/nfsroot/%02X%02X%02X%02X.img",
 			net_ip.s_addr & 0xFF,
 			(net_ip.s_addr >>  8) & 0xFF,
 			(net_ip.s_addr >> 16) & 0xFF,
 			(net_ip.s_addr >> 24) & 0xFF);
 
-		printf("*** Warning: no boot file name; using '%s'\n",
-		       nfs_path);
+		debug("*** Warning: no boot file name; using '%s'\n",
+		      nfs_path);
+	} else {
+		char *p = net_boot_file_name;
+
+		p = strchr(p, ':');
+
+		if (p != NULL) {
+			nfs_server_ip = string_to_ip(net_boot_file_name);
+			++p;
+			strcpy(nfs_path, p);
+		} else {
+			strcpy(nfs_path, net_boot_file_name);
+		}
 	}
 
 	nfs_filename = basename(nfs_path);
 	nfs_path     = dirname(nfs_path);
 
-	printf("Using %s device\n", eth_get_name());
+	debug("Using %s device\n", eth_get_name());
 
-	printf("File transfer via NFS from server %pI4; our IP address is %pI4",
-	       &nfs_server_ip, &net_ip);
+	debug("File transfer via NFS from server %pI4; our IP address is %pI4",
+	      &nfs_server_ip, &net_ip);
 
 	/* Check if we need to send across this subnet */
 	if (net_gateway.s_addr && net_netmask.s_addr) {
@@ -899,19 +894,19 @@ void nfs_start(void)
 		struct in_addr server_net;
 
 		our_net.s_addr = net_ip.s_addr & net_netmask.s_addr;
-		server_net.s_addr = nfs_server_ip.s_addr & net_netmask.s_addr;
+		server_net.s_addr = net_server_ip.s_addr & net_netmask.s_addr;
 		if (our_net.s_addr != server_net.s_addr)
-			printf("; sending through gateway %pI4",
-			       &net_gateway);
+			debug("; sending through gateway %pI4",
+			      &net_gateway);
 	}
-	printf("\nFilename '%s/%s'.", nfs_path, nfs_filename);
+	debug("\nFilename '%s/%s'.", nfs_path, nfs_filename);
 
 	if (net_boot_file_expected_size_in_blocks) {
-		printf(" Size is 0x%x Bytes = ",
-		       net_boot_file_expected_size_in_blocks << 9);
+		debug(" Size is 0x%x Bytes = ",
+		      net_boot_file_expected_size_in_blocks << 9);
 		print_size(net_boot_file_expected_size_in_blocks << 9, "");
 	}
-	printf("\nLoad address: 0x%lx\nLoading: *\b", image_load_addr);
+	debug("\nLoad address: 0x%lx\nLoading: *\b", load_addr);
 
 	net_set_timeout_handler(nfs_timeout, nfs_timeout_handler);
 	net_set_udp_handler(nfs_handler);

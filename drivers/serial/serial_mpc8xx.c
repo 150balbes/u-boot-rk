@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <dm.h>
 #include <serial.h>
 #include <watchdog.h>
 #include <asm/cpm_8xx.h>
-#include <asm/global_data.h>
 #include <linux/compiler.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -37,9 +36,9 @@ struct serialbuffer {
 	uchar	txbuf;	/* tx buffers */
 };
 
-static void serial_setdivisor(cpm8xx_t __iomem *cp, int baudrate)
+static void serial_setdivisor(cpm8xx_t __iomem *cp)
 {
-	int divisor = (gd->cpu_clk + 8 * baudrate) / 16 / baudrate;
+	int divisor = (gd->cpu_clk + 8 * gd->baudrate) / 16 / gd->baudrate;
 
 	if (divisor / 16 > 0x1000) {
 		/* bad divisor, assume 50MHz clock and 9600 baud */
@@ -60,7 +59,7 @@ static void serial_setdivisor(cpm8xx_t __iomem *cp, int baudrate)
  * as serial console interface.
  */
 
-static int serial_mpc8xx_setbrg(struct udevice *dev, int baudrate)
+static void smc_setbrg(void)
 {
 	immap_t __iomem *im = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t __iomem *cp = &(im->im_cpm);
@@ -73,12 +72,10 @@ static int serial_mpc8xx_setbrg(struct udevice *dev, int baudrate)
 
 	out_be32(&cp->cp_simode, 0);
 
-	serial_setdivisor(cp, baudrate);
-
-	return 0;
+	serial_setdivisor(cp);
 }
 
-static int serial_mpc8xx_probe(struct udevice *dev)
+static int smc_init(void)
 {
 	immap_t __iomem *im = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	smc_t __iomem *sp;
@@ -143,7 +140,7 @@ static int serial_mpc8xx_probe(struct udevice *dev)
 	out_8(&sp->smc_smce, 0xff);
 
 	/* Set up the baud rate generator */
-	serial_mpc8xx_setbrg(dev, gd->baudrate);
+	smc_setbrg();
 
 	/* Make the first buffer the only buffer. */
 	setbits_be16(&rtx->txbd.cbd_sc, BD_SC_WRAP);
@@ -170,25 +167,33 @@ static int serial_mpc8xx_probe(struct udevice *dev)
 	return 0;
 }
 
-static int serial_mpc8xx_putc(struct udevice *dev, const char c)
+static void smc_putc(const char c)
 {
 	immap_t	__iomem *im = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t	__iomem *cpmp = &(im->im_cpm);
 	struct serialbuffer	__iomem *rtx;
 
+	if (c == '\n')
+		smc_putc('\r');
+
 	rtx = (struct serialbuffer __iomem *)&cpmp->cp_dpmem[CPM_SERIAL_BASE];
 
-	if (in_be16(&rtx->txbd.cbd_sc) & BD_SC_READY)
-		return -EAGAIN;
-
+	/* Wait for last character to go. */
 	out_8(&rtx->txbuf, c);
 	out_be16(&rtx->txbd.cbd_datlen, 1);
 	setbits_be16(&rtx->txbd.cbd_sc, BD_SC_READY);
 
-	return 0;
+	while (in_be16(&rtx->txbd.cbd_sc) & BD_SC_READY)
+		WATCHDOG_RESET();
 }
 
-static int serial_mpc8xx_getc(struct udevice *dev)
+static void smc_puts(const char *s)
+{
+	while (*s)
+		smc_putc(*s++);
+}
+
+static int smc_getc(void)
 {
 	immap_t	__iomem *im = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t	__iomem *cpmp = &(im->im_cpm);
@@ -198,8 +203,9 @@ static int serial_mpc8xx_getc(struct udevice *dev)
 
 	rtx = (struct serialbuffer __iomem *)&cpmp->cp_dpmem[CPM_SERIAL_BASE];
 
-	if (in_be16(&rtx->rxbd.cbd_sc) & BD_SC_EMPTY)
-		return -EAGAIN;
+	/* Wait for character to show up. */
+	while (in_be16(&rtx->rxbd.cbd_sc) & BD_SC_EMPTY)
+		WATCHDOG_RESET();
 
 	/* the characters are read one by one,
 	 * use the rxindex to know the next char to deliver
@@ -217,37 +223,34 @@ static int serial_mpc8xx_getc(struct udevice *dev)
 	return c;
 }
 
-static int serial_mpc8xx_pending(struct udevice *dev, bool input)
+static int smc_tstc(void)
 {
 	immap_t	__iomem *im = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t	__iomem *cpmp = &(im->im_cpm);
 	struct serialbuffer	__iomem *rtx;
-
-	if (!input)
-		return 0;
 
 	rtx = (struct serialbuffer __iomem *)&cpmp->cp_dpmem[CPM_SERIAL_BASE];
 
 	return !(in_be16(&rtx->rxbd.cbd_sc) & BD_SC_EMPTY);
 }
 
-static const struct dm_serial_ops serial_mpc8xx_ops = {
-	.putc = serial_mpc8xx_putc,
-	.pending = serial_mpc8xx_pending,
-	.getc = serial_mpc8xx_getc,
-	.setbrg = serial_mpc8xx_setbrg,
+struct serial_device serial_smc_device = {
+	.name	= "serial_smc",
+	.start	= smc_init,
+	.stop	= NULL,
+	.setbrg	= smc_setbrg,
+	.getc	= smc_getc,
+	.tstc	= smc_tstc,
+	.putc	= smc_putc,
+	.puts	= smc_puts,
 };
 
-static const struct udevice_id serial_mpc8xx_ids[] = {
-	{ .compatible = "fsl,pq1-smc" },
-	{ }
-};
+__weak struct serial_device *default_serial_console(void)
+{
+	return &serial_smc_device;
+}
 
-U_BOOT_DRIVER(serial_mpc8xx) = {
-	.name	= "serial_mpc8xx",
-	.id	= UCLASS_SERIAL,
-	.of_match = serial_mpc8xx_ids,
-	.probe = serial_mpc8xx_probe,
-	.ops	= &serial_mpc8xx_ops,
-	.flags = DM_FLAG_PRE_RELOC,
-};
+void mpc8xx_serial_initialize(void)
+{
+	serial_register(&serial_smc_device);
+}

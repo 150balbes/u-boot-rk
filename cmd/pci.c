@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001 Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Andreas Heppel <aheppel@sysgo.de>
@@ -6,6 +5,8 @@
  * (C) Copyright 2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  * Wolfgang Grandegger, DENX Software Engineering, wg@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -18,7 +19,6 @@
 #include <command.h>
 #include <console.h>
 #include <dm.h>
-#include <init.h>
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <pci.h>
@@ -291,24 +291,23 @@ static void pciinfo(struct udevice *bus, bool short_listing, bool multi)
 	struct udevice *dev;
 
 	if (!multi)
-		printf("Scanning PCI devices on bus %d\n", dev_seq(bus));
+		printf("Scanning PCI devices on bus %d\n", bus->seq);
 
-	if (!multi || dev_seq(bus) == 0)
+	if (!multi || bus->seq == 0)
 		pciinfo_header(short_listing);
 
 	for (device_find_first_child(bus, &dev);
 	     dev;
 	     device_find_next_child(&dev)) {
-		struct pci_child_plat *pplat;
+		struct pci_child_platdata *pplat;
 
-		pplat = dev_get_parent_plat(dev);
+		pplat = dev_get_parent_platdata(dev);
 		if (short_listing) {
-			printf("%02x.%02x.%02x   ", dev_seq(bus),
+			printf("%02x.%02x.%02x   ", bus->seq,
 			       PCI_DEV(pplat->devfn), PCI_FUNC(pplat->devfn));
 			pci_header_show_brief(dev);
 		} else {
-			printf("\nFound PCI device %02x.%02x.%02x:\n",
-			       dev_seq(bus),
+			printf("\nFound PCI device %02x.%02x.%02x:\n", bus->seq,
 			       PCI_DEV(pplat->devfn), PCI_FUNC(pplat->devfn));
 			pci_header_show(dev);
 		}
@@ -319,7 +318,7 @@ static void pciinfo(struct udevice *bus, bool short_listing, bool multi)
  * get_pci_dev() - Convert the "bus.device.function" identifier into a number
  *
  * @name: Device string in the form "bus.device.function" where each is in hex
- * Return: encoded pci_dev_t or -1 if the string was invalid
+ * @return encoded pci_dev_t or -1 if the string was invalid
  */
 static pci_dev_t get_pci_dev(char *name)
 {
@@ -334,14 +333,14 @@ static pci_dev_t get_pci_dev(char *name)
 		if (name[i] == '.') {
 			memcpy(cnum, &name[iold], i - iold);
 			cnum[i - iold] = '\0';
-			bdfs[n++] = hextoul(cnum, NULL);
+			bdfs[n++] = simple_strtoul(cnum, NULL, 16);
 			iold = i + 1;
 		}
 	}
 	strcpy(cnum, &name[iold]);
 	if (n == 0)
 		n = 1;
-	bdfs[n] = hextoul(cnum, NULL);
+	bdfs[n] = simple_strtoul(cnum, NULL, 16);
 
 	return PCI_BDF(bdfs[0], bdfs[1], bdfs[2]);
 }
@@ -357,9 +356,6 @@ static int pci_cfg_display(struct udevice *dev, ulong addr,
 	byte_size = pci_byte_size(size);
 	if (length == 0)
 		length = 0x40 / byte_size; /* Standard PCI config space */
-
-	if (addr >= 4096)
-		return 1;
 
 	/* Print the lines.
 	 * once, and all accesses are with the specified bus width.
@@ -381,10 +377,7 @@ static int pci_cfg_display(struct udevice *dev, ulong addr,
 			rc = 1;
 			break;
 		}
-	} while (nbytes > 0 && addr < 4096);
-
-	if (rc == 0 && nbytes > 0)
-		return 1;
+	} while (nbytes > 0);
 
 	return (rc);
 }
@@ -395,9 +388,6 @@ static int pci_cfg_modify(struct udevice *dev, ulong addr, ulong size,
 	ulong	i;
 	int	nbytes;
 	ulong val;
-
-	if (addr >= 4096)
-		return 1;
 
 	/* Print the address, followed by value.  Then accept input for
 	 * the next value.  A non-converted value exits.
@@ -425,7 +415,7 @@ static int pci_cfg_modify(struct udevice *dev, ulong addr, ulong size,
 #endif
 		else {
 			char *endp;
-			i = hextoul(console_buffer, &endp);
+			i = simple_strtoul(console_buffer, &endp, 16);
 			nbytes = endp - console_buffer;
 			if (nbytes) {
 				/* good enough to not time out
@@ -436,10 +426,7 @@ static int pci_cfg_modify(struct udevice *dev, ulong addr, ulong size,
 					addr += size;
 			}
 		}
-	} while (nbytes && addr < 4096);
-
-	if (nbytes)
-		return 1;
+	} while (nbytes);
 
 	return 0;
 }
@@ -452,6 +439,7 @@ static const struct pci_flag_info {
 	{ PCI_REGION_PREFETCH, "prefetch" },
 	{ PCI_REGION_SYS_MEMORY, "sysmem" },
 	{ PCI_REGION_RO, "readonly" },
+	{ PCI_REGION_IO, "io" },
 };
 
 static void pci_show_regions(struct udevice *bus)
@@ -491,7 +479,7 @@ static void pci_show_regions(struct udevice *bus)
  *      pci modify[.b, .w, .l] bus.device.function [addr]
  *      pci write[.b, .w, .l] bus.device.function addr value
  */
-static int do_pci(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_pci(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong addr = 0, value = 0, cmd_size = 0;
 	enum pci_size_t size = PCI_SIZE_32;
@@ -514,9 +502,9 @@ static int do_pci(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		cmd_size = cmd_get_data_size(argv[1], 4);
 		size = (cmd_size == 4) ? PCI_SIZE_32 : cmd_size - 1;
 		if (argc > 3)
-			addr = hextoul(argv[3], NULL);
+			addr = simple_strtoul(argv[3], NULL, 16);
 		if (argc > 4)
-			value = hextoul(argv[4], NULL);
+			value = simple_strtoul(argv[4], NULL, 16);
 	case 'h':		/* header */
 	case 'b':		/* bars */
 		if (argc < 3)
@@ -537,7 +525,7 @@ static int do_pci(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			}
 			if (argc > 2 || (argc > 1 && cmd != 'r' && argv[1][0] != 's')) {
 				if (argv[argc - 1][0] != '*') {
-					busnum = hextoul(argv[argc - 1], &endp);
+					busnum = simple_strtoul(argv[argc - 1], &endp, 16);
 					if (*endp)
 						goto usage;
 				}

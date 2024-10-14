@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  *  (C) Copyright 2003 - 2004
  *  Sysgo AG, <www.elinos.com>, Pavel Bartusek <pba@sysgo.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 
@@ -12,10 +13,10 @@
 #include "reiserfs_private.h"
 
 static struct blk_desc *reiserfs_blk_desc;
-static struct disk_partition *part_info;
+static disk_partition_t *part_info;
 
 
-void reiserfs_set_blk_dev(struct blk_desc *rbdd, struct disk_partition *info)
+void reiserfs_set_blk_dev(struct blk_desc *rbdd, disk_partition_t *info)
 {
 	reiserfs_blk_desc = rbdd;
 	part_info = info;

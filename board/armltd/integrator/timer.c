@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
@@ -14,12 +13,12 @@
  * (C) Copyright 2004
  * ARM Ltd.
  * Philippe Robin, <philippe.robin@arm.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <div64.h>
-#include <time.h>
-#include <linux/delay.h>
 
 #ifdef CONFIG_ARCH_CINTEGRATOR
 #define DIV_CLOCK_INIT	1
@@ -41,10 +40,10 @@ static unsigned long long div_clock = DIV_CLOCK_INIT;
 static unsigned long long div_timer = 1; /* Divisor to convert timer reading
 					  * change to U-Boot ticks
 					  */
-/* CONFIG_SYS_HZ = CFG_SYS_HZ_CLOCK/(div_clock * div_timer) */
+/* CONFIG_SYS_HZ = CONFIG_SYS_HZ_CLOCK/(div_clock * div_timer) */
 static ulong timestamp;		/* U-Boot ticks since startup */
 
-#define READ_TIMER (*(volatile ulong *)(CFG_SYS_TIMERBASE+4))
+#define READ_TIMER (*(volatile ulong *)(CONFIG_SYS_TIMERBASE+4))
 
 /* all function return values in U-Boot ticks i.e. (1/CONFIG_SYS_HZ) sec
  *  - unless otherwise stated
@@ -55,7 +54,7 @@ static ulong timestamp;		/* U-Boot ticks since startup */
 int timer_init (void)
 {
 	/* Load timer with initial value */
-	*(volatile ulong *)(CFG_SYS_TIMERBASE + 0) = TIMER_LOAD_VAL;
+	*(volatile ulong *)(CONFIG_SYS_TIMERBASE + 0) = TIMER_LOAD_VAL;
 #ifdef CONFIG_ARCH_CINTEGRATOR
 	/* Set timer to be
 	 *	enabled		 1
@@ -66,7 +65,7 @@ int timer_init (void)
 	 *	32 bit		 1
 	 *	wrapping	 0
 	 */
-	*(volatile ulong *)(CFG_SYS_TIMERBASE + 8) = 0x000000C2;
+	*(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8) = 0x000000C2;
 #else
 	/* Set timer to be
 	 *	enabled		 1
@@ -75,7 +74,7 @@ int timer_init (void)
 	 *	divider 256	10
 	 *	XX		00
 	 */
-	*(volatile ulong *)(CFG_SYS_TIMERBASE + 8) = 0x00000088;
+	*(volatile ulong *)(CONFIG_SYS_TIMERBASE + 8) = 0x00000088;
 #endif
 
 	/* init the timestamp */
@@ -85,7 +84,7 @@ int timer_init (void)
 	/* start "advancing" time stamp from 0 */
 	timestamp = 0L;
 
-	div_timer = CFG_SYS_HZ_CLOCK;
+	div_timer = CONFIG_SYS_HZ_CLOCK;
 	do_div(div_timer, CONFIG_SYS_HZ);
 	do_div(div_timer, div_clock);
 
@@ -95,10 +94,31 @@ int timer_init (void)
 /*
  * timer without interrupts
  */
+ulong get_timer (ulong base_ticks)
+{
+	return get_timer_masked () - base_ticks;
+}
+
+/* delay usec useconds */
+void __udelay (unsigned long usec)
+{
+	ulong tmo, tmp;
+
+	/* Convert to U-Boot ticks */
+	tmo  = usec * CONFIG_SYS_HZ;
+	tmo /= (1000000L);
+
+	tmp  = get_timer_masked();	/* get current timestamp */
+	tmo += tmp;			/* form target timestamp */
+
+	while (get_timer_masked () < tmo) {/* loop till event */
+		/*NOP*/;
+	}
+}
 
 /* converts the timer reading to U-Boot ticks	       */
 /* the timestamp is the number of ticks since reset    */
-static ulong get_timer_masked (void)
+ulong get_timer_masked (void)
 {
 	/* get current count */
 	unsigned long long now = READ_TIMER;
@@ -119,26 +139,10 @@ static ulong get_timer_masked (void)
 	return timestamp;
 }
 
-ulong get_timer (ulong base_ticks)
+/* waits specified delay value and resets timestamp */
+void udelay_masked (unsigned long usec)
 {
-	return get_timer_masked () - base_ticks;
-}
-
-/* delay usec useconds */
-void __udelay(unsigned long usec)
-{
-	ulong tmo, tmp;
-
-	/* Convert to U-Boot ticks */
-	tmo  = usec * CONFIG_SYS_HZ;
-	tmo /= (1000000L);
-
-	tmp  = get_timer_masked();	/* get current timestamp */
-	tmo += tmp;			/* form target timestamp */
-
-	while (get_timer_masked () < tmo) {/* loop till event */
-		/*NOP*/;
-	}
+	udelay(usec);
 }
 
 /*
@@ -154,9 +158,9 @@ unsigned long long get_ticks(void)
  * Return the timebase clock frequency
  * i.e. how often the timer decrements
  */
-ulong get_tbclk(void)
+ulong get_tbclk (void)
 {
-	unsigned long long tmp = CFG_SYS_HZ_CLOCK;
+	unsigned long long tmp = CONFIG_SYS_HZ_CLOCK;
 
 	do_div(tmp, div_clock);
 

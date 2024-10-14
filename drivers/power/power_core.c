@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Samsung Electronics
  * Lukasz Majewski <l.majewski@samsung.com>
@@ -7,11 +6,11 @@
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de
  *
  * (C) Copyright 2008-2009 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <command.h>
-#include <log.h>
 #include <malloc.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -48,6 +47,36 @@ int pmic_set_output(struct pmic *p, u32 reg, int out, int on)
 	return 0;
 }
 
+static void pmic_show_info(struct pmic *p)
+{
+	printf("PMIC: %s\n", p->name);
+}
+
+static int pmic_dump(struct pmic *p)
+{
+	int i, ret;
+	u32 val;
+
+	if (!p) {
+		puts("Wrong PMIC name!\n");
+		return -ENODEV;
+	}
+
+	pmic_show_info(p);
+	for (i = 0; i < p->number_of_regs; i++) {
+		ret = pmic_reg_read(p, i, &val);
+		if (ret)
+			puts("PMIC: Registers dump failed\n");
+
+		if (!(i % 8))
+			printf("\n0x%02x: ", i);
+
+		printf("%08x ", val);
+	}
+	puts("\n");
+	return 0;
+}
+
 struct pmic *pmic_alloc(void)
 {
 	struct pmic *p;
@@ -79,33 +108,7 @@ struct pmic *pmic_get(const char *s)
 	return NULL;
 }
 
-#ifndef CONFIG_SPL_BUILD
-static int pmic_dump(struct pmic *p)
-{
-	int i, ret;
-	u32 val;
-
-	if (!p) {
-		puts("Wrong PMIC name!\n");
-		return -ENODEV;
-	}
-
-	printf("PMIC: %s\n", p->name);
-	for (i = 0; i < p->number_of_regs; i++) {
-		ret = pmic_reg_read(p, i, &val);
-		if (ret)
-			puts("PMIC: Registers dump failed\n");
-
-		if (!(i % 8))
-			printf("\n0x%02x: ", i);
-
-		printf("%08x ", val);
-	}
-	puts("\n");
-	return 0;
-}
-
-static const char *power_get_interface(int interface)
+const char *power_get_interface(int interface)
 {
 	const char *power_interface[] = {"I2C", "SPI", "|+|-|"};
 	return power_interface[interface];
@@ -122,8 +125,7 @@ static void pmic_list_names(void)
 	}
 }
 
-static int do_pmic(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+int do_pmic(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	u32 ret, reg, val;
 	char *cmd, *name;
@@ -159,7 +161,7 @@ static int do_pmic(struct cmd_tbl *cmdtp, int flag, int argc,
 		if (argc < 4)
 			return CMD_RET_USAGE;
 
-		reg = hextoul(argv[3], NULL);
+		reg = simple_strtoul(argv[3], NULL, 16);
 		ret = pmic_reg_read(p, reg, &val);
 
 		if (ret)
@@ -174,8 +176,8 @@ static int do_pmic(struct cmd_tbl *cmdtp, int flag, int argc,
 		if (argc < 5)
 			return CMD_RET_USAGE;
 
-		reg = hextoul(argv[3], NULL);
-		val = hextoul(argv[4], NULL);
+		reg = simple_strtoul(argv[3], NULL, 16);
+		val = simple_strtoul(argv[4], NULL, 16);
 		pmic_reg_write(p, reg, val);
 
 		return CMD_RET_SUCCESS;
@@ -219,4 +221,3 @@ U_BOOT_CMD(
 	"pmic name bat state - write register\n"
 	"pmic name bat charge - write register\n"
 );
-#endif

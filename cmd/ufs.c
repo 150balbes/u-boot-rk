@@ -9,14 +9,14 @@
 #include <command.h>
 #include <ufs.h>
 
-static int do_ufs(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_ufs(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int dev, ret;
 
 	if (argc >= 2) {
 		if (!strcmp(argv[1], "init")) {
 			if (argc == 3) {
-				dev = dectoul(argv[2], NULL);
+				dev = simple_strtoul(argv[2], NULL, 10);
 				ret = ufs_probe_dev(dev);
 				if (ret)
 					return CMD_RET_FAILURE;

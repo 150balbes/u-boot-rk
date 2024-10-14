@@ -1,7 +1,8 @@
-# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2013 The Chromium OS Authors.
 #
 # Bloat-o-meter code used here Copyright 2004 Matt Mackall <mpm@selenic.com>
+#
+# SPDX-License-Identifier:	GPL-2.0+
 #
 
 import collections
@@ -9,7 +10,7 @@ from datetime import datetime, timedelta
 import glob
 import os
 import re
-import queue
+import Queue
 import shutil
 import signal
 import string
@@ -17,23 +18,13 @@ import sys
 import threading
 import time
 
-from buildman import builderthread
-from buildman import toolchain
-from patman import command
-from patman import gitutil
-from patman import terminal
-from patman.terminal import tprint
+import builderthread
+import command
+import gitutil
+import terminal
+from terminal import Print
+import toolchain
 
-# This indicates an new int or hex Kconfig property with no default
-# It hangs the build since the 'conf' tool cannot proceed without valid input.
-#
-# We get a repeat sequence of something like this:
-# >>
-# Break things (BREAK_ME) [] (NEW)
-# Error in reading or end of file.
-# <<
-# which indicates that BREAK_ME has an empty default
-RE_NO_DEFAULT = re.compile(b'\((\w+)\) \[] \(NEW\)')
 
 """
 Theory of Operation
@@ -81,12 +72,12 @@ As an example, say we are building branch 'us-net' for boards 'sandbox' and
 like this:
 
 us-net/             base directory
-    01_g4ed4ebc_net--Add-tftp-speed-/
+    01_of_02_g4ed4ebc_net--Add-tftp-speed-/
         sandbox/
             u-boot.bin
         seaboard/
             u-boot.bin
-    02_g4ed4ebc_net--Check-tftp-comp/
+    02_of_02_g4ed4ebc_net--Check-tftp-comp/
         sandbox/
             u-boot.bin
         seaboard/
@@ -101,20 +92,12 @@ u-boot/             source directory
     .git/           repository
 """
 
-"""Holds information about a particular error line we are outputing
-
-   char: Character representation: '+': error, '-': fixed error, 'w+': warning,
-       'w-' = fixed warning
-   boards: List of Board objects which have line in the error/warning output
-   errline: The text of the error line
-"""
-ErrLine = collections.namedtuple('ErrLine', 'char,brds,errline')
-
 # Possible build outcomes
-OUTCOME_OK, OUTCOME_WARNING, OUTCOME_ERROR, OUTCOME_UNKNOWN = list(range(4))
+OUTCOME_OK, OUTCOME_WARNING, OUTCOME_ERROR, OUTCOME_UNKNOWN = range(4)
 
 # Translate a commit subject into a valid filename (and handle unicode)
-trans_valid_chars = str.maketrans('/: ', '---')
+trans_valid_chars = string.maketrans('/: ', '---')
+trans_valid_chars = trans_valid_chars.decode('latin-1')
 
 BASE_CONFIG_FILENAMES = [
     'u-boot.cfg', 'u-boot-spl.cfg', 'u-boot-tpl.cfg'
@@ -140,19 +123,10 @@ class Config:
     def __hash__(self):
         val = 0
         for fname in self.config:
-            for key, value in self.config[fname].items():
-                print(key, value)
+            for key, value in self.config[fname].iteritems():
+                print key, value
                 val = val ^ hash(key) & hash(value)
         return val
-
-class Environment:
-    """Holds information about environment variables for a board."""
-    def __init__(self, target):
-        self.target = target
-        self.environment = {}
-
-    def Add(self, key, value):
-        self.environment[key] = value
 
 class Builder:
     """Class for building U-Boot for a particular commit.
@@ -173,6 +147,8 @@ class Builder:
         force_build_failures: If a previously-built build (i.e. built on
             a previous run of buildman) is marked as failed, rebuild it.
         git_dir: Git directory containing source repository
+        last_line_len: Length of the last line we printed (used for erasing
+            it with new progress information)
         num_jobs: Number of jobs to run at once (passed to make as -j)
         num_threads: Number of builder threads to run
         out_queue: Queue of results to process
@@ -191,9 +167,6 @@ class Builder:
         in_tree: Build U-Boot in-tree instead of specifying an output
             directory separate from the source code. This option is really
             only useful for testing in-tree builds.
-        work_in_output: Use the output directory as the work directory and
-            don't write to a separate output directory.
-        thread_exceptions: List of exceptions raised by thread jobs
 
     Private members:
         _base_board_dict: Last-summarised Dict of boards
@@ -204,17 +177,10 @@ class Builder:
         _next_delay_update: Next time we plan to display a progress update
                 (datatime)
         _show_unknown: Show unknown boards (those not built) in summary
-        _start_time: Start time for the build
         _timestamps: List of timestamps for the completion of the last
             last _timestamp_count builds. Each is a datetime object.
         _timestamp_count: Number of timestamps to keep in our list.
         _working_dir: Base working directory containing all threads
-        _single_builder: BuilderThread object for the singer builder, if
-            threading is not being used
-        _terminated: Thread was terminated due to an error
-        _restarting_config: True if 'Restart config' is detected in output
-        _ide: Produce output suitable for an Integrated Development Environment,
-            i.e. dont emit progress information and put errors/warnings on stderr
     """
     class Outcome:
         """Records a build outcome for a single make invocation
@@ -234,26 +200,19 @@ class Builder:
                     value is itself a dictionary:
                         key: config name
                         value: config value
-            environment: Dictionary keyed by environment variable, Each
-                     value is the value of environment variable.
         """
-        def __init__(self, rc, err_lines, sizes, func_sizes, config,
-                     environment):
+        def __init__(self, rc, err_lines, sizes, func_sizes, config):
             self.rc = rc
             self.err_lines = err_lines
             self.sizes = sizes
             self.func_sizes = func_sizes
             self.config = config
-            self.environment = environment
 
     def __init__(self, toolchains, base_dir, git_dir, num_threads, num_jobs,
                  gnu_make='make', checkout=True, show_unknown=True, step=1,
                  no_subdirs=False, full_path=False, verbose_build=False,
-                 mrproper=False, per_board_out_dir=False,
-                 config_only=False, squash_config_y=False,
-                 warnings_as_errors=False, work_in_output=False,
-                 test_thread_exceptions=False, adjust_cfg=None,
-                 allow_missing=False):
+                 incremental=False, per_board_out_dir=False,
+                 config_only=False, squash_config_y=False):
         """Create a new Builder object
 
         Args:
@@ -272,34 +231,16 @@ class Builder:
             full_path: Return the full path in CROSS_COMPILE and don't set
                 PATH
             verbose_build: Run build with V=1 and don't use 'make -s'
-            mrproper: Always run 'make mrproper' when configuring
+            incremental: Always perform incremental builds; don't run make
+                mrproper when configuring
             per_board_out_dir: Build in a separate persistent directory per
                 board rather than a thread-specific directory
             config_only: Only configure each build, don't build it
             squash_config_y: Convert CONFIG options with the value 'y' to '1'
-            warnings_as_errors: Treat all compiler warnings as errors
-            work_in_output: Use the output directory as the work directory and
-                don't write to a separate output directory.
-            test_thread_exceptions: Uses for tests only, True to make the
-                threads raise an exception instead of reporting their result.
-                This simulates a failure in the code somewhere
-            adjust_cfg_list (list of str): List of changes to make to .config
-                file before building. Each is one of (where C is the config
-                option with or without the CONFIG_ prefix)
-
-                    C to enable C
-                    ~C to disable C
-                    C=val to set the value of C (val must have quotes if C is
-                        a string Kconfig
-            allow_missing: Run build with BINMAN_ALLOW_MISSING=1
-
         """
         self.toolchains = toolchains
         self.base_dir = base_dir
-        if work_in_output:
-            self._working_dir = base_dir
-        else:
-            self._working_dir = os.path.join(base_dir, '.bm-work')
+        self._working_dir = os.path.join(base_dir, '.bm-work')
         self.threads = []
         self.do_make = self.Make
         self.gnu_make = gnu_make
@@ -314,7 +255,6 @@ class Builder:
         self._build_period_us = None
         self._complete_delay = None
         self._next_delay_update = datetime.now()
-        self._start_time = datetime.now()
         self.force_config_on_failure = True
         self.force_build_failures = False
         self.force_reconfig = False
@@ -327,48 +267,30 @@ class Builder:
         self.config_only = config_only
         self.squash_config_y = squash_config_y
         self.config_filenames = BASE_CONFIG_FILENAMES
-        self.work_in_output = work_in_output
-        self.adjust_cfg = adjust_cfg
-        self.allow_missing = allow_missing
-        self._ide = False
-
         if not self.squash_config_y:
             self.config_filenames += EXTRA_CONFIG_FILENAMES
-        self._terminated = False
-        self._restarting_config = False
 
-        self.warnings_as_errors = warnings_as_errors
         self.col = terminal.Color()
 
         self._re_function = re.compile('(.*): In function.*')
         self._re_files = re.compile('In file included from.*')
         self._re_warning = re.compile('(.*):(\d*):(\d*): warning: .*')
-        self._re_dtb_warning = re.compile('(.*): Warning .*')
         self._re_note = re.compile('(.*):(\d*):(\d*): note: this is the location of the previous.*')
-        self._re_migration_warning = re.compile(r'^={21} WARNING ={22}\n.*\n=+\n',
-                                                re.MULTILINE | re.DOTALL)
 
-        self.thread_exceptions = []
-        self.test_thread_exceptions = test_thread_exceptions
-        if self.num_threads:
-            self._single_builder = None
-            self.queue = queue.Queue()
-            self.out_queue = queue.Queue()
-            for i in range(self.num_threads):
-                t = builderthread.BuilderThread(
-                        self, i, mrproper, per_board_out_dir,
-                        test_exception=test_thread_exceptions)
-                t.setDaemon(True)
-                t.start()
-                self.threads.append(t)
-
-            t = builderthread.ResultThread(self)
+        self.queue = Queue.Queue()
+        self.out_queue = Queue.Queue()
+        for i in range(self.num_threads):
+            t = builderthread.BuilderThread(self, i, incremental,
+                    per_board_out_dir)
             t.setDaemon(True)
             t.start()
             self.threads.append(t)
-        else:
-            self._single_builder = builderthread.BuilderThread(
-                self, -1, mrproper, per_board_out_dir)
+
+        self.last_line_len = 0
+        t = builderthread.ResultThread(self)
+        t.setDaemon(True)
+        t.start()
+        self.threads.append(t)
 
         ignore_lines = ['(make.*Waiting for unfinished)', '(Segmentation fault)']
         self.re_make_err = re.compile('|'.join(ignore_lines))
@@ -386,25 +308,15 @@ class Builder:
 
     def SetDisplayOptions(self, show_errors=False, show_sizes=False,
                           show_detail=False, show_bloat=False,
-                          list_error_boards=False, show_config=False,
-                          show_environment=False, filter_dtb_warnings=False,
-                          filter_migration_warnings=False, ide=False):
+                          list_error_boards=False, show_config=False):
         """Setup display options for the builder.
 
-        Args:
-            show_errors: True to show summarised error/warning info
-            show_sizes: Show size deltas
-            show_detail: Show size delta detail for each board if show_sizes
-            show_bloat: Show detail for each function
-            list_error_boards: Show the boards which caused each error/warning
-            show_config: Show config deltas
-            show_environment: Show environment deltas
-            filter_dtb_warnings: Filter out any warnings from the device-tree
-                compiler
-            filter_migration_warnings: Filter out any warnings about migrating
-                a board to driver model
-            ide: Create output that can be parsed by an IDE. There is no '+' prefix on
-                error lines and output on stderr stays on stderr.
+        show_errors: True to show summarised error/warning info
+        show_sizes: Show size deltas
+        show_detail: Show detail for each board
+        show_bloat: Show detail for each function
+        list_error_boards: Show the boards which caused each error/warning
+        show_config: Show config deltas
         """
         self._show_errors = show_errors
         self._show_sizes = show_sizes
@@ -412,10 +324,6 @@ class Builder:
         self._show_bloat = show_bloat
         self._list_error_boards = list_error_boards
         self._show_config = show_config
-        self._show_environment = show_environment
-        self._filter_dtb_warnings = filter_dtb_warnings
-        self._filter_migration_warnings = filter_migration_warnings
-        self._ide = ide
 
     def _AddTimestamp(self):
         """Add a new timestamp to the list and record the build period.
@@ -446,12 +354,28 @@ class Builder:
             self._timestamps.popleft()
             count -= 1
 
+    def ClearLine(self, length):
+        """Clear any characters on the current line
+
+        Make way for a new line of length 'length', by outputting enough
+        spaces to clear out the old line. Then remember the new length for
+        next time.
+
+        Args:
+            length: Length of new line, in characters
+        """
+        if length < self.last_line_len:
+            Print(' ' * (self.last_line_len - length), newline=False)
+            Print('\r', newline=False)
+        self.last_line_len = length
+        sys.stdout.flush()
+
     def SelectCommit(self, commit, checkout=True):
         """Checkout the selected commit for this build
         """
         self.commit = commit
         if checkout and self.checkout:
-            gitutil.checkout(commit.hash)
+            gitutil.Checkout(commit.hash)
 
     def Make(self, commit, brd, stage, cwd, *args, **kwargs):
         """Run make
@@ -462,37 +386,11 @@ class Builder:
             stage: Stage that we are at (mrproper, config, build)
             cwd: Directory where make should be run
             args: Arguments to pass to make
-            kwargs: Arguments to pass to command.run_pipe()
+            kwargs: Arguments to pass to command.RunPipe()
         """
-
-        def check_output(stream, data):
-            if b'Restart config' in data:
-                self._restarting_config = True
-
-            # If we see 'Restart config' following by multiple errors
-            if self._restarting_config:
-                m = RE_NO_DEFAULT.findall(data)
-
-                # Number of occurences of each Kconfig item
-                multiple = [m.count(val) for val in set(m)]
-
-                # If any of them occur more than once, we have a loop
-                if [val for val in multiple if val > 1]:
-                    self._terminated = True
-                    return True
-            return False
-
-        self._restarting_config = False
-        self._terminated  = False
         cmd = [self.gnu_make] + list(args)
-        result = command.run_pipe([cmd], capture=True, capture_stderr=True,
-                cwd=cwd, raise_on_error=False, infile='/dev/null',
-                output_func=check_output, **kwargs)
-
-        if self._terminated:
-            # Try to be helpful
-            result.stderr += '(** did you define an int/hex Kconfig with no default? **)'
-
+        result = command.RunPipe([cmd], capture=True, capture_stderr=True,
+                cwd=cwd, raise_on_error=False, **kwargs)
         if self.verbose_build:
             result.stdout = '%s\n' % (' '.join(cmd)) + result.stdout
             result.combined = '%s\n' % (' '.join(cmd)) + result.combined
@@ -517,7 +415,8 @@ class Builder:
             if result.already_done:
                 self.already_done += 1
             if self._verbose:
-                terminal.print_clear()
+                Print('\r', newline=False)
+                self.ClearLine(0)
                 boards_selected = {target : result.brd}
                 self.ResetResultSummary(boards_selected)
                 self.ProduceResultSummary(result.commit_upto, self.commits,
@@ -527,26 +426,26 @@ class Builder:
 
         # Display separate counts for ok, warned and fail
         ok = self.upto - self.warned - self.fail
-        line = '\r' + self.col.build(self.col.GREEN, '%5d' % ok)
-        line += self.col.build(self.col.YELLOW, '%5d' % self.warned)
-        line += self.col.build(self.col.RED, '%5d' % self.fail)
+        line = '\r' + self.col.Color(self.col.GREEN, '%5d' % ok)
+        line += self.col.Color(self.col.YELLOW, '%5d' % self.warned)
+        line += self.col.Color(self.col.RED, '%5d' % self.fail)
 
-        line += ' /%-5d  ' % self.count
-        remaining = self.count - self.upto
-        if remaining:
-            line += self.col.build(self.col.MAGENTA, ' -%-5d  ' % remaining)
-        else:
-            line += ' ' * 8
+        name = ' /%-5d  ' % self.count
 
         # Add our current completion time estimate
         self._AddTimestamp()
         if self._complete_delay:
-            line += '%s  : ' % self._complete_delay
+            name += '%s  : ' % self._complete_delay
+        # When building all boards for a commit, we can print a commit
+        # progress message.
+        if result and result.commit_upto is None:
+            name += 'commit %2d/%-3d' % (self.commit_upto + 1,
+                    self.commit_count)
 
-        line += target
-        if not self._ide:
-            terminal.print_clear()
-            tprint(line, newline=False, limit_to_line=True)
+        name += target
+        Print(line + name, newline=False)
+        length = 16 + len(name)
+        self.ClearLine(length)
 
     def _GetOutputDir(self, commit_upto):
         """Get the name of the output directory for a commit number
@@ -556,16 +455,12 @@ class Builder:
         Args:
             commit_upto: Commit number to use (0..self.count-1)
         """
-        if self.work_in_output:
-            return self._working_dir
-
         commit_dir = None
         if self.commits:
             commit = self.commits[commit_upto]
             subject = commit.subject.translate(trans_valid_chars)
-            # See _GetOutputSpaceRemovals() which parses this name
-            commit_dir = ('%02d_g%s_%s' % (commit_upto + 1,
-                    commit.hash, subject[:20]))
+            commit_dir = ('%02d_of_%02d_g%s_%s' % (commit_upto + 1,
+                    self.commit_count, commit.hash, subject[:20]))
         elif not self.no_subdirs:
             commit_dir = 'current'
         if not commit_dir:
@@ -582,8 +477,6 @@ class Builder:
             target: Target name
         """
         output_dir = self._GetOutputDir(commit_upto)
-        if self.work_in_output:
-            return output_dir
         return os.path.join(output_dir, target)
 
     def GetDoneFile(self, commit_upto, target):
@@ -647,16 +540,9 @@ class Builder:
             New list with only interesting lines included
         """
         out_lines = []
-        if self._filter_migration_warnings:
-            text = '\n'.join(lines)
-            text = self._re_migration_warning.sub('', text)
-            lines = text.splitlines()
         for line in lines:
-            if self.re_make_err.search(line):
-                continue
-            if self._filter_dtb_warnings and self._re_dtb_warning.search(line):
-                continue
-            out_lines.append(line)
+            if not self.re_make_err.search(line):
+                out_lines.append(line)
         return out_lines
 
     def ReadFuncSizes(self, fname, fd):
@@ -672,15 +558,16 @@ class Builder:
         """
         sym = {}
         for line in fd.readlines():
-            line = line.strip()
-            parts = line.split()
-            if line and len(parts) == 3:
-                    size, type, name = line.split()
-                    if type in 'tTdDbB':
-                        # function names begin with '.' on 64-bit powerpc
-                        if '.' in name[1:]:
-                            name = 'static.' + name.split('.')[0]
-                        sym[name] = sym.get(name, 0) + int(size, 16)
+            try:
+                size, type, name = line[:-1].split()
+            except:
+                Print("Invalid line in file '%s': '%s'" % (fname, line[:-1]))
+                continue
+            if type in 'tTdDbB':
+                # function names begin with '.' on 64-bit powerpc
+                if '.' in name[1:]:
+                    name = 'static.' + name.split('.')[0]
+                sym[name] = sym.get(name, 0) + int(size, 16)
         return sym
 
     def _ProcessConfig(self, fname):
@@ -720,33 +607,8 @@ class Builder:
                     config[key] = value
         return config
 
-    def _ProcessEnvironment(self, fname):
-        """Read in a uboot.env file
-
-        This function reads in environment variables from a file.
-
-        Args:
-            fname: Filename to read
-
-        Returns:
-            Dictionary:
-                key: environment variable (e.g. bootlimit)
-                value: value of environment variable (e.g. 1)
-        """
-        environment = {}
-        if os.path.exists(fname):
-            with open(fname) as fd:
-                for line in fd.read().split('\0'):
-                    try:
-                        key, value = line.split('=', 1)
-                        environment[key] = value
-                    except ValueError:
-                        # ignore lines we can't parse
-                        pass
-        return environment
-
     def GetBuildOutcome(self, commit_upto, target, read_func_sizes,
-                        read_config, read_environment):
+                        read_config):
         """Work out the outcome of a build.
 
         Args:
@@ -754,7 +616,6 @@ class Builder:
             target: Target board to check
             read_func_sizes: True to read function size information
             read_config: True to read .config and autoconf.h files
-            read_environment: True to read uboot.env files
 
         Returns:
             Outcome object
@@ -764,15 +625,9 @@ class Builder:
         sizes = {}
         func_sizes = {}
         config = {}
-        environment = {}
         if os.path.exists(done_file):
             with open(done_file, 'r') as fd:
-                try:
-                    return_code = int(fd.readline())
-                except ValueError:
-                    # The file may be empty due to running out of disk space.
-                    # Try a rebuild
-                    return_code = 1
+                return_code = int(fd.readline())
                 err_lines = []
                 err_file = self.GetErrFile(commit_upto, target)
                 if os.path.exists(err_file):
@@ -819,18 +674,12 @@ class Builder:
                     fname = os.path.join(output_dir, name)
                     config[name] = self._ProcessConfig(fname)
 
-            if read_environment:
-                output_dir = self.GetBuildDir(commit_upto, target)
-                fname = os.path.join(output_dir, 'uboot.env')
-                environment = self._ProcessEnvironment(fname)
+            return Builder.Outcome(rc, err_lines, sizes, func_sizes, config)
 
-            return Builder.Outcome(rc, err_lines, sizes, func_sizes, config,
-                                   environment)
-
-        return Builder.Outcome(OUTCOME_UNKNOWN, [], {}, {}, {}, {})
+        return Builder.Outcome(OUTCOME_UNKNOWN, [], {}, {}, {})
 
     def GetResultSummary(self, boards_selected, commit_upto, read_func_sizes,
-                         read_config, read_environment):
+                         read_config):
         """Calculate a summary of the results of building a commit.
 
         Args:
@@ -838,13 +687,11 @@ class Builder:
             commit_upto: Commit number to summarize (0..self.count-1)
             read_func_sizes: True to read function size information
             read_config: True to read .config and autoconf.h files
-            read_environment: True to read uboot.env files
 
         Returns:
             Tuple:
-                Dict containing boards which built this commit:
-                    key: board.target
-                    value: Builder.Outcome object
+                Dict containing boards which passed building this commit.
+                    keyed by board.target
                 List containing a summary of error lines
                 Dict keyed by error line, containing a list of the Board
                     objects with that error
@@ -856,9 +703,6 @@ class Builder:
                     value is itself a dictionary:
                         key: config name
                         value: config value
-                Dictionary keyed by board.target. Each value is a dictionary:
-                    key: environment variable
-                    value: value of environment variable
         """
         def AddLine(lines_summary, lines_boards, line, board):
             line = line.rstrip()
@@ -874,13 +718,11 @@ class Builder:
         warn_lines_summary = []
         warn_lines_boards = {}
         config = {}
-        environment = {}
 
-        for brd in boards_selected.values():
-            outcome = self.GetBuildOutcome(commit_upto, brd.target,
-                                           read_func_sizes, read_config,
-                                           read_environment)
-            board_dict[brd.target] = outcome
+        for board in boards_selected.itervalues():
+            outcome = self.GetBuildOutcome(commit_upto, board.target,
+                                           read_func_sizes, read_config)
+            board_dict[board.target] = outcome
             last_func = None
             last_was_warning = False
             for line in outcome.err_lines:
@@ -889,38 +731,31 @@ class Builder:
                             self._re_files.match(line)):
                         last_func = line
                     else:
-                        is_warning = (self._re_warning.match(line) or
-                                      self._re_dtb_warning.match(line))
+                        is_warning = self._re_warning.match(line)
                         is_note = self._re_note.match(line)
                         if is_warning or (last_was_warning and is_note):
                             if last_func:
                                 AddLine(warn_lines_summary, warn_lines_boards,
-                                        last_func, brd)
+                                        last_func, board)
                             AddLine(warn_lines_summary, warn_lines_boards,
-                                    line, brd)
+                                    line, board)
                         else:
                             if last_func:
                                 AddLine(err_lines_summary, err_lines_boards,
-                                        last_func, brd)
+                                        last_func, board)
                             AddLine(err_lines_summary, err_lines_boards,
-                                    line, brd)
+                                    line, board)
                         last_was_warning = is_warning
                         last_func = None
-            tconfig = Config(self.config_filenames, brd.target)
+            tconfig = Config(self.config_filenames, board.target)
             for fname in self.config_filenames:
                 if outcome.config:
-                    for key, value in outcome.config[fname].items():
+                    for key, value in outcome.config[fname].iteritems():
                         tconfig.Add(fname, key, value)
-            config[brd.target] = tconfig
-
-            tenvironment = Environment(brd.target)
-            if outcome.environment:
-                for key, value in outcome.environment.items():
-                    tenvironment.Add(key, value)
-            environment[brd.target] = tenvironment
+            config[board.target] = tconfig
 
         return (board_dict, err_lines_summary, err_lines_boards,
-                warn_lines_summary, warn_lines_boards, config, environment)
+                warn_lines_summary, warn_lines_boards, config)
 
     def AddOutcome(self, board_dict, arch_list, changes, char, color):
         """Add an output to our list of outcomes for each architecture
@@ -942,9 +777,9 @@ class Builder:
                 arch = board_dict[target].arch
             else:
                 arch = 'unknown'
-            str = self.col.build(color, ' ' + target)
+            str = self.col.Color(color, ' ' + target)
             if not arch in done_arch:
-                str = ' %s  %s' % (self.col.build(color, char), str)
+                str = ' %s  %s' % (self.col.Color(color, char), str)
                 done_arch[arch] = True
             if not arch in arch_list:
                 arch_list[arch] = str
@@ -956,7 +791,7 @@ class Builder:
         color = self.col.RED if num > 0 else self.col.GREEN
         if num == 0:
             return '0'
-        return self.col.build(color, str(num))
+        return self.col.Color(color, str(num))
 
     def ResetResultSummary(self, board_selected):
         """Reset the results summary ready for use.
@@ -972,14 +807,13 @@ class Builder:
                 board.target
         """
         self._base_board_dict = {}
-        for brd in board_selected:
-            self._base_board_dict[brd] = Builder.Outcome(0, [], [], {}, {}, {})
+        for board in board_selected:
+            self._base_board_dict[board] = Builder.Outcome(0, [], [], {}, {})
         self._base_err_lines = []
         self._base_warn_lines = []
         self._base_err_line_boards = {}
         self._base_warn_line_boards = {}
         self._base_config = None
-        self._base_environment = None
 
     def PrintFuncSizeDetail(self, fname, old, new):
         grow, shrink, add, remove, up, down = 0, 0, 0, 0, 0, 0
@@ -1017,16 +851,16 @@ class Builder:
             return
         args = [self.ColourNum(x) for x in args]
         indent = ' ' * 15
-        tprint('%s%s: add: %s/%s, grow: %s/%s bytes: %s/%s (%s)' %
-              tuple([indent, self.col.build(self.col.YELLOW, fname)] + args))
-        tprint('%s  %-38s %7s %7s %+7s' % (indent, 'function', 'old', 'new',
+        Print('%s%s: add: %s/%s, grow: %s/%s bytes: %s/%s (%s)' %
+              tuple([indent, self.col.Color(self.col.YELLOW, fname)] + args))
+        Print('%s  %-38s %7s %7s %+7s' % (indent, 'function', 'old', 'new',
                                          'delta'))
         for diff, name in delta:
             if diff:
                 color = self.col.RED if diff > 0 else self.col.GREEN
                 msg = '%s  %-38s %7s %7s %+7d' % (indent, name,
                         old.get(name, '-'), new.get(name,'-'), diff)
-                tprint(msg, colour=color)
+                Print(msg, colour=color)
 
 
     def PrintSizeDetail(self, target_list, show_bloat):
@@ -1051,12 +885,12 @@ class Builder:
                     color = self.col.RED if diff > 0 else self.col.GREEN
                 msg = ' %s %+d' % (name, diff)
                 if not printed_target:
-                    tprint('%10s  %-15s:' % ('', result['_target']),
+                    Print('%10s  %-15s:' % ('', result['_target']),
                           newline=False)
                     printed_target = True
-                tprint(msg, colour=color, newline=False)
+                Print(msg, colour=color, newline=False)
             if printed_target:
-                tprint()
+                Print()
                 if show_bloat:
                     target = result['_target']
                     outcome = result['_outcome']
@@ -1073,19 +907,20 @@ class Builder:
 
         The summary takes the form of one line per architecture. The
         line contains deltas for each of the sections (+ means the section
-        got bigger, - means smaller). The numbers are the average number
+        got bigger, - means smaller). The nunmbers are the average number
         of bytes that a board in this section increased by.
 
         For example:
            powerpc: (622 boards)   text -0.0
           arm: (285 boards)   text -0.0
+          nds32: (3 boards)   text -8.0
 
         Args:
             board_selected: Dict containing boards to summarise, keyed by
                 board.target
             board_dict: Dict containing boards for which we built this
                 commit, keyed by board.target. The value is an Outcome object.
-            show_detail: Show size delta detail for each board
+            show_detail: Show detail for each board
             show_bloat: Show detail for each function
         """
         arch_list = {}
@@ -1133,12 +968,12 @@ class Builder:
 
         # We now have a list of image size changes sorted by arch
         # Print out a summary of these
-        for arch, target_list in arch_list.items():
+        for arch, target_list in arch_list.iteritems():
             # Get total difference for each type
             totals = {}
             for result in target_list:
                 total = 0
-                for name, diff in result.items():
+                for name, diff in result.iteritems():
                     if name.startswith('_'):
                         continue
                     total += diff
@@ -1160,21 +995,21 @@ class Builder:
                     color = self.col.RED if avg_diff > 0 else self.col.GREEN
                     msg = ' %s %+1.1f' % (name, avg_diff)
                     if not printed_arch:
-                        tprint('%10s: (for %d/%d boards)' % (arch, count,
+                        Print('%10s: (for %d/%d boards)' % (arch, count,
                               arch_count[arch]), newline=False)
                         printed_arch = True
-                    tprint(msg, colour=color, newline=False)
+                    Print(msg, colour=color, newline=False)
 
             if printed_arch:
-                tprint()
+                Print()
                 if show_detail:
                     self.PrintSizeDetail(target_list, show_bloat)
 
 
     def PrintResultSummary(self, board_selected, board_dict, err_lines,
                            err_line_boards, warn_lines, warn_line_boards,
-                           config, environment, show_sizes, show_detail,
-                           show_bloat, show_config, show_environment):
+                           config, show_sizes, show_detail, show_bloat,
+                           show_config):
         """Compare results with the base results and display delta.
 
         Only boards mentioned in board_selected will be considered. This
@@ -1199,65 +1034,42 @@ class Builder:
                     value is itself a dictionary:
                         key: config name
                         value: config value
-            environment: Dictionary keyed by environment variable, Each
-                     value is the value of environment variable.
             show_sizes: Show image size deltas
-            show_detail: Show size delta detail for each board if show_sizes
+            show_detail: Show detail for each board
             show_bloat: Show detail for each function
             show_config: Show config changes
-            show_environment: Show environment changes
         """
         def _BoardList(line, line_boards):
             """Helper function to get a line of boards containing a line
 
             Args:
                 line: Error line to search for
-                line_boards: boards to search, each a Board
             Return:
-                List of boards with that error line, or [] if the user has not
-                    requested such a list
+                String containing a list of boards with that error line, or
+                '' if the user has not requested such a list
             """
-            brds = []
-            board_set = set()
             if self._list_error_boards:
-                for brd in line_boards[line]:
-                    if not brd in board_set:
-                        brds.append(brd)
-                        board_set.add(brd)
-            return brds
+                names = []
+                for board in line_boards[line]:
+                    if not board.target in names:
+                        names.append(board.target)
+                names_str = '(%s) ' % ','.join(names)
+            else:
+                names_str = ''
+            return names_str
 
         def _CalcErrorDelta(base_lines, base_line_boards, lines, line_boards,
                             char):
-            """Calculate the required output based on changes in errors
-
-            Args:
-                base_lines: List of errors/warnings for previous commit
-                base_line_boards: Dict keyed by error line, containing a list
-                    of the Board objects with that error in the previous commit
-                lines: List of errors/warning for this commit, each a str
-                line_boards: Dict keyed by error line, containing a list
-                    of the Board objects with that error in this commit
-                char: Character representing error ('') or warning ('w'). The
-                    broken ('+') or fixed ('-') characters are added in this
-                    function
-
-            Returns:
-                Tuple
-                    List of ErrLine objects for 'better' lines
-                    List of ErrLine objects for 'worse' lines
-            """
             better_lines = []
             worse_lines = []
             for line in lines:
                 if line not in base_lines:
-                    errline = ErrLine(char + '+', _BoardList(line, line_boards),
-                                      line)
-                    worse_lines.append(errline)
+                    worse_lines.append(char + '+' +
+                            _BoardList(line, line_boards) + line)
             for line in base_lines:
                 if line not in lines:
-                    errline = ErrLine(char + '-',
-                                      _BoardList(line, base_line_boards), line)
-                    better_lines.append(errline)
+                    better_lines.append(char + '-' +
+                            _BoardList(line, base_line_boards) + line)
             return better_lines, worse_lines
 
         def _CalcConfig(delta, name, config):
@@ -1311,41 +1123,13 @@ class Builder:
                     col = self.col.RED
                 elif line[0] == 'c':
                     col = self.col.YELLOW
-                tprint('   ' + line, newline=True, colour=col)
-
-        def _OutputErrLines(err_lines, colour):
-            """Output the line of error/warning lines, if not empty
-
-            Also increments self._error_lines if err_lines not empty
-
-            Args:
-                err_lines: List of ErrLine objects, each an error or warning
-                    line, possibly including a list of boards with that
-                    error/warning
-                colour: Colour to use for output
-            """
-            if err_lines:
-                out_list = []
-                for line in err_lines:
-                    names = [brd.target for brd in line.brds]
-                    board_str = ' '.join(names) if names else ''
-                    if board_str:
-                        out = self.col.build(colour, line.char + '(')
-                        out += self.col.build(self.col.MAGENTA, board_str,
-                                              bright=False)
-                        out += self.col.build(colour, ') %s' % line.errline)
-                    else:
-                        out = self.col.build(colour, line.char + line.errline)
-                    out_list.append(out)
-                tprint('\n'.join(out_list))
-                self._error_lines += 1
+                Print('   ' + line, newline=True, colour=col)
 
 
-        ok_boards = []      # List of boards fixed since last commit
-        warn_boards = []    # List of boards with warnings since last commit
-        err_boards = []     # List of new broken boards since last commit
-        new_boards = []     # List of boards that didn't exist last time
-        unknown_boards = [] # List of boards that were not built
+        better = []     # List of boards fixed since last commit
+        worse = []      # List of new broken boards since last commit
+        new = []        # List of boards that didn't exist last time
+        unknown = []    # List of boards that were not built
 
         for target in board_dict:
             if target not in board_selected:
@@ -1356,87 +1140,51 @@ class Builder:
                 base_outcome = self._base_board_dict[target].rc
                 outcome = board_dict[target]
                 if outcome.rc == OUTCOME_UNKNOWN:
-                    unknown_boards.append(target)
+                    unknown.append(target)
                 elif outcome.rc < base_outcome:
-                    if outcome.rc == OUTCOME_WARNING:
-                        warn_boards.append(target)
-                    else:
-                        ok_boards.append(target)
+                    better.append(target)
                 elif outcome.rc > base_outcome:
-                    if outcome.rc == OUTCOME_WARNING:
-                        warn_boards.append(target)
-                    else:
-                        err_boards.append(target)
+                    worse.append(target)
             else:
-                new_boards.append(target)
+                new.append(target)
 
-        # Get a list of errors and warnings that have appeared, and disappeared
+        # Get a list of errors that have appeared, and disappeared
         better_err, worse_err = _CalcErrorDelta(self._base_err_lines,
                 self._base_err_line_boards, err_lines, err_line_boards, '')
         better_warn, worse_warn = _CalcErrorDelta(self._base_warn_lines,
                 self._base_warn_line_boards, warn_lines, warn_line_boards, 'w')
 
-        # For the IDE mode, print out all the output
-        if self._ide:
-            outcome = board_dict[target]
-            for line in outcome.err_lines:
-                sys.stderr.write(line)
-
         # Display results by arch
-        elif any((ok_boards, warn_boards, err_boards, unknown_boards, new_boards,
-                worse_err, better_err, worse_warn, better_warn)):
+        if (better or worse or unknown or new or worse_err or better_err
+                or worse_warn or better_warn):
             arch_list = {}
-            self.AddOutcome(board_selected, arch_list, ok_boards, '',
+            self.AddOutcome(board_selected, arch_list, better, '',
                     self.col.GREEN)
-            self.AddOutcome(board_selected, arch_list, warn_boards, 'w+',
-                    self.col.YELLOW)
-            self.AddOutcome(board_selected, arch_list, err_boards, '+',
+            self.AddOutcome(board_selected, arch_list, worse, '+',
                     self.col.RED)
-            self.AddOutcome(board_selected, arch_list, new_boards, '*', self.col.BLUE)
+            self.AddOutcome(board_selected, arch_list, new, '*', self.col.BLUE)
             if self._show_unknown:
-                self.AddOutcome(board_selected, arch_list, unknown_boards, '?',
+                self.AddOutcome(board_selected, arch_list, unknown, '?',
                         self.col.MAGENTA)
-            for arch, target_list in arch_list.items():
-                tprint('%10s: %s' % (arch, target_list))
+            for arch, target_list in arch_list.iteritems():
+                Print('%10s: %s' % (arch, target_list))
                 self._error_lines += 1
-            _OutputErrLines(better_err, colour=self.col.GREEN)
-            _OutputErrLines(worse_err, colour=self.col.RED)
-            _OutputErrLines(better_warn, colour=self.col.CYAN)
-            _OutputErrLines(worse_warn, colour=self.col.YELLOW)
+            if better_err:
+                Print('\n'.join(better_err), colour=self.col.GREEN)
+                self._error_lines += 1
+            if worse_err:
+                Print('\n'.join(worse_err), colour=self.col.RED)
+                self._error_lines += 1
+            if better_warn:
+                Print('\n'.join(better_warn), colour=self.col.CYAN)
+                self._error_lines += 1
+            if worse_warn:
+                Print('\n'.join(worse_warn), colour=self.col.MAGENTA)
+                self._error_lines += 1
 
         if show_sizes:
             self.PrintSizeSummary(board_selected, board_dict, show_detail,
                                   show_bloat)
-
-        if show_environment and self._base_environment:
-            lines = []
-
-            for target in board_dict:
-                if target not in board_selected:
-                    continue
-
-                tbase = self._base_environment[target]
-                tenvironment = environment[target]
-                environment_plus = {}
-                environment_minus = {}
-                environment_change = {}
-                base = tbase.environment
-                for key, value in tenvironment.environment.items():
-                    if key not in base:
-                        environment_plus[key] = value
-                for key, value in base.items():
-                    if key not in tenvironment.environment:
-                        environment_minus[key] = value
-                for key, value in base.items():
-                    new_value = tenvironment.environment.get(key)
-                    if new_value and value != new_value:
-                        desc = '%s -> %s' % (value, new_value)
-                        environment_change[key] = desc
-
-                _AddConfig(lines, target, environment_plus, environment_minus,
-                           environment_change)
-
-            _OutputConfigInfo(lines)
 
         if show_config and self._base_config:
             summary = {}
@@ -1480,15 +1228,15 @@ class Builder:
                     config_minus = {}
                     config_change = {}
                     base = tbase.config[name]
-                    for key, value in tconfig.config[name].items():
+                    for key, value in tconfig.config[name].iteritems():
                         if key not in base:
                             config_plus[key] = value
                             all_config_plus[key] = value
-                    for key, value in base.items():
+                    for key, value in base.iteritems():
                         if key not in tconfig.config[name]:
                             config_minus[key] = value
                             all_config_minus[key] = value
-                    for key, value in base.items():
+                    for key, value in base.iteritems():
                         new_value = tconfig.config.get(key)
                         if new_value and value != new_value:
                             desc = '%s -> %s' % (value, new_value)
@@ -1506,7 +1254,7 @@ class Builder:
                 summary[target] = '\n'.join(lines)
 
             lines_by_target = {}
-            for target, lines in summary.items():
+            for target, lines in summary.iteritems():
                 if lines in lines_by_target:
                     lines_by_target[lines].append(target)
                 else:
@@ -1527,13 +1275,13 @@ class Builder:
                 _AddConfig(lines, 'all', all_plus, all_minus, all_change)
                 #arch_summary[target] = '\n'.join(lines)
                 if lines:
-                    tprint('%s:' % arch)
+                    Print('%s:' % arch)
                     _OutputConfigInfo(lines)
 
-            for lines, targets in lines_by_target.items():
+            for lines, targets in lines_by_target.iteritems():
                 if not lines:
                     continue
-                tprint('%s :' % ' '.join(sorted(targets)))
+                Print('%s :' % ' '.join(sorted(targets)))
                 _OutputConfigInfo(lines.split('\n'))
 
 
@@ -1544,33 +1292,31 @@ class Builder:
         self._base_err_line_boards = err_line_boards
         self._base_warn_line_boards = warn_line_boards
         self._base_config = config
-        self._base_environment = environment
 
         # Get a list of boards that did not get built, if needed
         not_built = []
-        for brd in board_selected:
-            if not brd in board_dict:
-                not_built.append(brd)
+        for board in board_selected:
+            if not board in board_dict:
+                not_built.append(board)
         if not_built:
-            tprint("Boards not built (%d): %s" % (len(not_built),
+            Print("Boards not built (%d): %s" % (len(not_built),
                   ', '.join(not_built)))
 
     def ProduceResultSummary(self, commit_upto, commits, board_selected):
             (board_dict, err_lines, err_line_boards, warn_lines,
-             warn_line_boards, config, environment) = self.GetResultSummary(
+                    warn_line_boards, config) = self.GetResultSummary(
                     board_selected, commit_upto,
                     read_func_sizes=self._show_bloat,
-                    read_config=self._show_config,
-                    read_environment=self._show_environment)
+                    read_config=self._show_config)
             if commits:
                 msg = '%02d: %s' % (commit_upto + 1,
                         commits[commit_upto].subject)
-                tprint(msg, colour=self.col.BLUE)
+                Print(msg, colour=self.col.BLUE)
             self.PrintResultSummary(board_selected, board_dict,
                     err_lines if self._show_errors else [], err_line_boards,
                     warn_lines if self._show_errors else [], warn_line_boards,
-                    config, environment, self._show_sizes, self._show_detail,
-                    self._show_bloat, self._show_config, self._show_environment)
+                    config, self._show_sizes, self._show_detail,
+                    self._show_bloat, self._show_config)
 
     def ShowSummary(self, commits, board_selected):
         """Show a build summary for U-Boot for a given board list.
@@ -1590,7 +1336,7 @@ class Builder:
         for commit_upto in range(0, self.commit_count, self._step):
             self.ProduceResultSummary(commit_upto, commits, board_selected)
         if not self._error_lines:
-            tprint('(no errors to report)', colour=self.col.GREEN)
+            Print('(no errors to report)', colour=self.col.GREEN)
 
 
     def SetupBuild(self, board_selected, commits):
@@ -1601,7 +1347,7 @@ class Builder:
             commits: Selected commits to build
         """
         # First work out how many commits we will build
-        count = (self.commit_count + self._step - 1) // self._step
+        count = (self.commit_count + self._step - 1) / self._step
         self.count = len(board_selected) * count
         self.upto = self.warned = self.fail = 0
         self._timestamps = collections.deque()
@@ -1610,100 +1356,55 @@ class Builder:
         """Get the directory path to the working dir for a thread.
 
         Args:
-            thread_num: Number of thread to check (-1 for main process, which
-                is treated as 0)
+            thread_num: Number of thread to check.
         """
-        if self.work_in_output:
-            return self._working_dir
-        return os.path.join(self._working_dir, '%02d' % max(thread_num, 0))
+        return os.path.join(self._working_dir, '%02d' % thread_num)
 
     def _PrepareThread(self, thread_num, setup_git):
         """Prepare the working directory for a thread.
 
         This clones or fetches the repo into the thread's work directory.
-        Optionally, it can create a linked working tree of the repo in the
-        thread's work directory instead.
 
         Args:
             thread_num: Thread number (0, 1, ...)
-            setup_git:
-               'clone' to set up a git clone
-               'worktree' to set up a git worktree
+            setup_git: True to set up a git repo clone
         """
         thread_dir = self.GetThreadDir(thread_num)
         builderthread.Mkdir(thread_dir)
         git_dir = os.path.join(thread_dir, '.git')
 
-        # Create a worktree or a git repo clone for this thread if it
-        # doesn't already exist
+        # Clone the repo if it doesn't already exist
+        # TODO(sjg@chromium): Perhaps some git hackery to symlink instead, so
+        # we have a private index but uses the origin repo's contents?
         if setup_git and self.git_dir:
             src_dir = os.path.abspath(self.git_dir)
-            if os.path.isdir(git_dir):
-                # This is a clone of the src_dir repo, we can keep using
-                # it but need to fetch from src_dir.
-                tprint('\rFetching repo for thread %d' % thread_num,
-                      newline=False)
-                gitutil.fetch(git_dir, thread_dir)
-                terminal.print_clear()
-            elif os.path.isfile(git_dir):
-                # This is a worktree of the src_dir repo, we don't need to
-                # create it again or update it in any way.
-                pass
-            elif os.path.exists(git_dir):
-                # Don't know what could trigger this, but we probably
-                # can't create a git worktree/clone here.
-                raise ValueError('Git dir %s exists, but is not a file '
-                                 'or a directory.' % git_dir)
-            elif setup_git == 'worktree':
-                tprint('\rChecking out worktree for thread %d' % thread_num,
-                      newline=False)
-                gitutil.add_worktree(src_dir, thread_dir)
-                terminal.print_clear()
-            elif setup_git == 'clone' or setup_git == True:
-                tprint('\rCloning repo for thread %d' % thread_num,
-                      newline=False)
-                gitutil.clone(src_dir, thread_dir)
-                terminal.print_clear()
+            if os.path.exists(git_dir):
+                gitutil.Fetch(git_dir, thread_dir)
             else:
-                raise ValueError("Can't setup git repo with %s." % setup_git)
+                Print('\rCloning repo for thread %d' % thread_num,
+                      newline=False)
+                gitutil.Clone(src_dir, thread_dir)
+                Print('\r%s\r' % (' ' * 30), newline=False)
 
     def _PrepareWorkingSpace(self, max_threads, setup_git):
         """Prepare the working directory for use.
 
-        Set up the git repo for each thread. Creates a linked working tree
-        if git-worktree is available, or clones the repo if it isn't.
+        Set up the git repo for each thread.
 
         Args:
-            max_threads: Maximum number of threads we expect to need. If 0 then
-                1 is set up, since the main process still needs somewhere to
-                work
-            setup_git: True to set up a git worktree or a git clone
+            max_threads: Maximum number of threads we expect to need.
+            setup_git: True to set up a git repo clone
         """
         builderthread.Mkdir(self._working_dir)
-        if setup_git and self.git_dir:
-            src_dir = os.path.abspath(self.git_dir)
-            if gitutil.check_worktree_is_available(src_dir):
-                setup_git = 'worktree'
-                # If we previously added a worktree but the directory for it
-                # got deleted, we need to prune its files from the repo so
-                # that we can check out another in its place.
-                gitutil.prune_worktrees(src_dir)
-            else:
-                setup_git = 'clone'
-
-        # Always do at least one thread
-        for thread in range(max(max_threads, 1)):
+        for thread in range(max_threads):
             self._PrepareThread(thread, setup_git)
 
-    def _GetOutputSpaceRemovals(self):
+    def _PrepareOutputSpace(self):
         """Get the output directories ready to receive files.
 
-        Figure out what needs to be deleted in the output directory before it
-        can be used. We only delete old buildman directories which have the
-        expected name pattern. See _GetOutputDir().
-
-        Returns:
-            List of full paths of directories to remove
+        We delete any output directories which look like ones we need to
+        create. Having left over directories is confusing when the user wants
+        to check the output manually.
         """
         if not self.commits:
             return
@@ -1714,26 +1415,12 @@ class Builder:
         to_remove = []
         for dirname in glob.glob(os.path.join(self.base_dir, '*')):
             if dirname not in dir_list:
-                leaf = dirname[len(self.base_dir) + 1:]
-                m =  re.match('[0-9]+_g[0-9a-f]+_.*', leaf)
-                if m:
-                    to_remove.append(dirname)
-        return to_remove
-
-    def _PrepareOutputSpace(self):
-        """Get the output directories ready to receive files.
-
-        We delete any output directories which look like ones we need to
-        create. Having left over directories is confusing when the user wants
-        to check the output manually.
-        """
-        to_remove = self._GetOutputSpaceRemovals()
+                to_remove.append(dirname)
         if to_remove:
-            tprint('Removing %d old build directories...' % len(to_remove),
+            Print('Removing %d old build directories' % len(to_remove),
                   newline=False)
             for dirname in to_remove:
                 shutil.rmtree(dirname)
-            terminal.print_clear()
 
     def BuildBoards(self, commits, board_selected, keep_outputs, verbose):
         """Build all commits for a list of boards
@@ -1748,7 +1435,6 @@ class Builder:
             Tuple containing:
                 - number of boards that failed to build
                 - number of boards that issued warnings
-                - list of thread exceptions raised
         """
         self.commit_count = len(commits) if commits else 1
         self.commits = commits
@@ -1759,53 +1445,27 @@ class Builder:
         self._PrepareWorkingSpace(min(self.num_threads, len(board_selected)),
                 commits is not None)
         self._PrepareOutputSpace()
-        if not self._ide:
-            tprint('\rStarting build...', newline=False)
+        Print('\rStarting build...', newline=False)
         self.SetupBuild(board_selected, commits)
         self.ProcessResult(None)
-        self.thread_exceptions = []
+
         # Create jobs to build all commits for each board
-        for brd in board_selected.values():
+        for brd in board_selected.itervalues():
             job = builderthread.BuilderJob()
-            job.brd = brd
+            job.board = brd
             job.commits = commits
             job.keep_outputs = keep_outputs
-            job.work_in_output = self.work_in_output
-            job.adjust_cfg = self.adjust_cfg
             job.step = self._step
-            if self.num_threads:
-                self.queue.put(job)
-            else:
-                self._single_builder.RunJob(job)
+            self.queue.put(job)
 
-        if self.num_threads:
-            term = threading.Thread(target=self.queue.join)
-            term.setDaemon(True)
-            term.start()
-            while term.is_alive():
-                term.join(100)
+        term = threading.Thread(target=self.queue.join)
+        term.setDaemon(True)
+        term.start()
+        while term.isAlive():
+            term.join(100)
 
-            # Wait until we have processed all output
-            self.out_queue.join()
-        if not self._ide:
-            tprint()
-
-            msg = 'Completed: %d total built' % self.count
-            if self.already_done:
-                msg += ' (%d previously' % self.already_done
-            if self.already_done != self.count:
-                msg += ', %d newly' % (self.count - self.already_done)
-            msg += ')'
-            duration = datetime.now() - self._start_time
-            if duration > timedelta(microseconds=1000000):
-                if duration.microseconds >= 500000:
-                    duration = duration + timedelta(seconds=1)
-                duration = duration - timedelta(microseconds=duration.microseconds)
-                rate = float(self.count) / duration.total_seconds()
-                msg += ', duration %s, rate %1.2f' % (duration, rate)
-            tprint(msg)
-            if self.thread_exceptions:
-                tprint('Failed: %d thread exceptions' % len(self.thread_exceptions),
-                    colour=self.col.RED)
-
-        return (self.fail, self.warned, self.thread_exceptions)
+        # Wait until we have processed all output
+        self.out_queue.join()
+        Print()
+        self.ClearLine(0)
+        return (self.fail, self.warned)

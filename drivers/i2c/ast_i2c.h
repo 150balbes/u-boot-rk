@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012-2020  ASPEED Technology Inc.
  * Copyright 2016 IBM Corporation
  * Copyright 2017 Google, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef __AST_I2C_H_
 #define __AST_I2C_H_
@@ -125,5 +126,7 @@ struct ast_i2c_regs {
 
 #define I2CD_RX_DATA_SHIFT			8
 #define I2CD_RX_DATA_MASK			(0xff << I2CD_RX_DATA_SHIFT)
+
+#define I2C_HIGHSPEED_RATE    400000
 
 #endif				/* __AST_I2C_H_ */

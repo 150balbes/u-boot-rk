@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -10,14 +11,27 @@
 
 #include <common.h>
 #include <command.h>
-#include <dm.h>
 #include <miiphy.h>
+
+typedef struct _MII_reg_desc_t {
+	ushort regno;
+	char * name;
+} MII_reg_desc_t;
+
+static const MII_reg_desc_t reg_0_5_desc_tbl[] = {
+	{ MII_BMCR,      "PHY control register" },
+	{ MII_BMSR,      "PHY status register" },
+	{ MII_PHYSID1,   "PHY ID 1 register" },
+	{ MII_PHYSID2,   "PHY ID 2 register" },
+	{ MII_ADVERTISE, "Autonegotiation advertisement register" },
+	{ MII_LPA,       "Autonegotiation partner abilities register" },
+};
 
 typedef struct _MII_field_desc_t {
 	ushort hi;
 	ushort lo;
 	ushort mask;
-	const char *name;
+	char * name;
 } MII_field_desc_t;
 
 static const MII_field_desc_t reg_0_desc_tbl[] = {
@@ -74,7 +88,7 @@ static const MII_field_desc_t reg_4_desc_tbl[] = {
 	{  7,  7, 0x01, "100BASE-TX able"              },
 	{  6,  6, 0x01, "10BASE-T   full duplex able"  },
 	{  5,  5, 0x01, "10BASE-T   able"              },
-	{  4,  0, 0x1f, "selector"                     },
+	{  4,  0, 0x1f, "xxx to do"                    },
 };
 
 static const MII_field_desc_t reg_5_desc_tbl[] = {
@@ -89,91 +103,50 @@ static const MII_field_desc_t reg_5_desc_tbl[] = {
 	{  7,  7, 0x01, "100BASE-TX able"              },
 	{  6,  6, 0x01, "10BASE-T full duplex able"    },
 	{  5,  5, 0x01, "10BASE-T able"                },
-	{  4,  0, 0x1f, "partner selector"             },
+	{  4,  0, 0x1f, "xxx to do"                    },
 };
-
-static const MII_field_desc_t reg_9_desc_tbl[] = {
-	{ 15, 13, 0x07, "test mode"		       },
-	{ 12, 12, 0x01, "manual master/slave enable"   },
-	{ 11, 11, 0x01, "manual master/slave value"    },
-	{ 10, 10, 0x01, "multi/single port"            },
-	{  9,  9, 0x01, "1000BASE-T full duplex able"  },
-	{  8,  8, 0x01, "1000BASE-T half duplex able"  },
-	{  7,  7, 0x01, "automatic TDR on link down"   },
-	{  6,  6, 0x7f, "(reserved)"                   },
-};
-
-static const MII_field_desc_t reg_10_desc_tbl[] = {
-	{ 15, 15, 0x01, "master/slave config fault"    },
-	{ 14, 14, 0x01, "master/slave config result"   },
-	{ 13, 13, 0x01, "local receiver status OK"     },
-	{ 12, 12, 0x01, "remote receiver status OK"    },
-	{ 11, 11, 0x01, "1000BASE-T full duplex able"  },
-	{ 10, 10, 0x01, "1000BASE-T half duplex able"  },
-	{  9,  8, 0x03, "(reserved)"                   },
-	{  7,  0, 0xff, "1000BASE-T idle error counter"},
-};
-
-typedef struct _MII_reg_desc_t {
-	ushort regno;
+typedef struct _MII_field_desc_and_len_t {
 	const MII_field_desc_t *pdesc;
 	ushort len;
-	const char *name;
-} MII_reg_desc_t;
+} MII_field_desc_and_len_t;
 
-static const MII_reg_desc_t mii_reg_desc_tbl[] = {
-	{ MII_BMCR,      reg_0_desc_tbl, ARRAY_SIZE(reg_0_desc_tbl),
-		"PHY control register" },
-	{ MII_BMSR,      reg_1_desc_tbl, ARRAY_SIZE(reg_1_desc_tbl),
-		"PHY status register" },
-	{ MII_PHYSID1,   reg_2_desc_tbl, ARRAY_SIZE(reg_2_desc_tbl),
-		"PHY ID 1 register" },
-	{ MII_PHYSID2,   reg_3_desc_tbl, ARRAY_SIZE(reg_3_desc_tbl),
-		"PHY ID 2 register" },
-	{ MII_ADVERTISE, reg_4_desc_tbl, ARRAY_SIZE(reg_4_desc_tbl),
-		"Autonegotiation advertisement register" },
-	{ MII_LPA,       reg_5_desc_tbl, ARRAY_SIZE(reg_5_desc_tbl),
-		"Autonegotiation partner abilities register" },
-	{ MII_CTRL1000,	 reg_9_desc_tbl, ARRAY_SIZE(reg_9_desc_tbl),
-		"1000BASE-T control register" },
-	{ MII_STAT1000,	 reg_10_desc_tbl, ARRAY_SIZE(reg_10_desc_tbl),
-		"1000BASE-T status register" },
+static const MII_field_desc_and_len_t desc_and_len_tbl[] = {
+	{ reg_0_desc_tbl, ARRAY_SIZE(reg_0_desc_tbl)   },
+	{ reg_1_desc_tbl, ARRAY_SIZE(reg_1_desc_tbl)   },
+	{ reg_2_desc_tbl, ARRAY_SIZE(reg_2_desc_tbl)   },
+	{ reg_3_desc_tbl, ARRAY_SIZE(reg_3_desc_tbl)   },
+	{ reg_4_desc_tbl, ARRAY_SIZE(reg_4_desc_tbl)   },
+	{ reg_5_desc_tbl, ARRAY_SIZE(reg_5_desc_tbl)   },
 };
 
 static void dump_reg(
 	ushort             regval,
-	const MII_reg_desc_t *prd);
+	const MII_reg_desc_t *prd,
+	const MII_field_desc_and_len_t *pdl);
 
-static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
-			  ushort regval);
+static int special_field(
+	ushort regno,
+	const MII_field_desc_t *pdesc,
+	ushort regval);
 
-static void MII_dump(const ushort *regvals, uchar reglo, uchar reghi)
+static void MII_dump_0_to_5(
+	ushort regvals[6],
+	uchar reglo,
+	uchar reghi)
 {
 	ulong i;
 
-	for (i = 0; i < ARRAY_SIZE(mii_reg_desc_tbl); i++) {
-		const uchar reg = mii_reg_desc_tbl[i].regno;
-
-		if (reg >= reglo && reg <= reghi)
-			dump_reg(regvals[reg - reglo], &mii_reg_desc_tbl[i]);
+	for (i = 0; i < 6; i++) {
+		if ((reglo <= i) && (i <= reghi))
+			dump_reg(regvals[i], &reg_0_5_desc_tbl[i],
+				&desc_and_len_tbl[i]);
 	}
-}
-
-/* Print out field position, value, name */
-static void dump_field(const MII_field_desc_t *pdesc, ushort regval)
-{
-	if (pdesc->hi == pdesc->lo)
-		printf("%2u   ", pdesc->lo);
-	else
-		printf("%2u-%2u", pdesc->hi, pdesc->lo);
-
-	printf(" = %5u	  %s", (regval >> pdesc->lo) & pdesc->mask,
-	       pdesc->name);
 }
 
 static void dump_reg(
 	ushort             regval,
-	const MII_reg_desc_t *prd)
+	const MII_reg_desc_t *prd,
+	const MII_field_desc_and_len_t *pdl)
 {
 	ulong i;
 	ushort mask_in_place;
@@ -182,8 +155,8 @@ static void dump_reg(
 	printf("%u.     (%04hx)                 -- %s --\n",
 		prd->regno, regval, prd->name);
 
-	for (i = 0; i < prd->len; i++) {
-		pdesc = &prd->pdesc[i];
+	for (i = 0; i < pdl->len; i++) {
+		pdesc = &pdl->pdesc[i];
 
 		mask_in_place = pdesc->mask << pdesc->lo;
 
@@ -192,8 +165,17 @@ static void dump_reg(
 		       regval & mask_in_place,
 		       prd->regno);
 
-		if (!special_field(prd->regno, pdesc, regval))
-			dump_field(pdesc, regval);
+		if (special_field(prd->regno, pdesc, regval)) {
+		}
+		else {
+			if (pdesc->hi == pdesc->lo)
+				printf("%2u   ", pdesc->lo);
+			else
+				printf("%2u-%2u", pdesc->hi, pdesc->lo);
+			printf(" = %5u    %s",
+				(regval & mask_in_place) >> pdesc->lo,
+				pdesc->name);
+		}
 		printf("\n");
 
 	}
@@ -209,11 +191,11 @@ static void dump_reg(
 ** 5.4-0
 */
 
-static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
-			  ushort regval)
+static int special_field(
+	ushort regno,
+	const MII_field_desc_t *pdesc,
+	ushort regval)
 {
-	const ushort sel_bits = (regval >> pdesc->lo) & pdesc->mask;
-
 	if ((regno == MII_BMCR) && (pdesc->lo == 6)) {
 		ushort speed_bits = regval & (BMCR_SPEED1000 | BMCR_SPEED100);
 		printf("%2u,%2u =   b%u%u    speed selection = %s Mbps",
@@ -227,26 +209,34 @@ static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
 	}
 
 	else if ((regno == MII_BMCR) && (pdesc->lo == 8)) {
-		dump_field(pdesc, regval);
-		printf(" = %s", ((regval >> pdesc->lo) & 1) ? "full" : "half");
+		printf("%2u    = %5u    duplex = %s",
+			pdesc->lo,
+			(regval >>  pdesc->lo) & 1,
+			((regval >> pdesc->lo) & 1) ? "full" : "half");
 		return 1;
 	}
 
 	else if ((regno == MII_ADVERTISE) && (pdesc->lo == 0)) {
-		dump_field(pdesc, regval);
-		printf(" = %s",
-		       sel_bits == PHY_ANLPAR_PSB_802_3 ? "IEEE 802.3 CSMA/CD" :
-		       sel_bits == PHY_ANLPAR_PSB_802_9 ?
-		       "IEEE 802.9 ISLAN-16T" : "???");
+		ushort sel_bits = (regval >> pdesc->lo) & pdesc->mask;
+		printf("%2u-%2u = %5u    selector = %s",
+			pdesc->hi, pdesc->lo, sel_bits,
+			sel_bits == PHY_ANLPAR_PSB_802_3 ?
+				"IEEE 802.3" :
+			sel_bits == PHY_ANLPAR_PSB_802_9 ?
+				"IEEE 802.9 ISLAN-16T" :
+			"???");
 		return 1;
 	}
 
 	else if ((regno == MII_LPA) && (pdesc->lo == 0)) {
-		dump_field(pdesc, regval);
-		printf(" = %s",
-		       sel_bits == PHY_ANLPAR_PSB_802_3 ? "IEEE 802.3 CSMA/CD" :
-		       sel_bits == PHY_ANLPAR_PSB_802_9 ?
-		       "IEEE 802.9 ISLAN-16T" : "???");
+		ushort sel_bits = (regval >> pdesc->lo) & pdesc->mask;
+		printf("%2u-%2u =     %u    selector = %s",
+			pdesc->hi, pdesc->lo, sel_bits,
+			sel_bits == PHY_ANLPAR_PSB_802_3 ?
+				"IEEE 802.3" :
+			sel_bits == PHY_ANLPAR_PSB_802_9 ?
+				"IEEE 802.9 ISLAN-16T" :
+			"???");
 		return 1;
 	}
 
@@ -267,10 +257,10 @@ static void extract_range(
 	unsigned char * phi)
 {
 	char * end;
-	*plo = hextoul(input, &end);
+	*plo = simple_strtoul(input, &end, 16);
 	if (*end == '-') {
 		end++;
-		*phi = hextoul(end, NULL);
+		*phi = simple_strtoul(end, NULL, 16);
 	}
 	else {
 		*phi = *plo;
@@ -278,7 +268,7 @@ static void extract_range(
 }
 
 /* ---------------------------------------------------------------- */
-static int do_mii(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char		op[2];
 	unsigned char	addrlo, addrhi, reglo, reghi;
@@ -319,12 +309,12 @@ static int do_mii(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		if (argc >= 4)
 			extract_range(argv[3], &reglo, &reghi);
 		if (argc >= 5)
-			data = hextoul(argv[4], NULL);
+			data = simple_strtoul(argv[4], NULL, 16);
 		if (argc >= 6)
-			mask = hextoul(argv[5], NULL);
+			mask = simple_strtoul(argv[5], NULL, 16);
 	}
 
-	if (addrhi > 31 && strncmp(op, "de", 2)) {
+	if (addrhi > 31) {
 		printf("Incorrect PHY address. Range should be 0-31\n");
 		return CMD_RET_USAGE;
 	}
@@ -417,16 +407,17 @@ static int do_mii(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			}
 		}
 	} else if (strncmp(op, "du", 2) == 0) {
-		ushort regs[MII_STAT1000 + 1];  /* Last reg is 0x0a */
+		ushort regs[6];
 		int ok = 1;
-		if (reglo > MII_STAT1000 || reghi > MII_STAT1000) {
-			printf("The MII dump command only formats the standard MII registers, 0-5, 9-a.\n");
+		if ((reglo > 5) || (reghi > 5)) {
+			printf(
+				"The MII dump command only formats the "
+				"standard MII registers, 0-5.\n");
 			return 1;
 		}
 		for (addr = addrlo; addr <= addrhi; addr++) {
-			for (reg = reglo; reg <= reghi; reg++) {
-				if (miiphy_read(devname, addr, reg,
-						&regs[reg - reglo]) != 0) {
+			for (reg = reglo; reg < reghi + 1; reg++) {
+				if (miiphy_read(devname, addr, reg, &regs[reg]) != 0) {
 					ok = 0;
 					printf(
 					"Error reading from the PHY addr=%02x reg=%02x\n",
@@ -435,7 +426,7 @@ static int do_mii(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 				}
 			}
 			if (ok)
-				MII_dump(regs, reglo, reghi);
+				MII_dump_0_to_5(regs, reglo, reghi);
 			printf("\n");
 		}
 	} else if (strncmp(op, "de", 2) == 0) {

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __USB_ETHER_H__
@@ -8,13 +9,29 @@
 
 #include <net.h>
 
-/* TODO(sjg@chromium.org): Remove @pusb_dev now that all boards use CONFIG_DM_ETH */
+/*
+ *	IEEE 802.3 Ethernet magic constants.  The frame sizes omit the preamble
+ *	and FCS/CRC (frame check sequence).
+ */
+#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
+#define ETH_HLEN	14		/* Total octets in header.	 */
+#define ETH_ZLEN	60		/* Min. octets in frame sans FCS */
+#define ETH_DATA_LEN	1500		/* Max. octets in payload	 */
+#define ETH_FRAME_LEN	PKTSIZE_ALIGN	/* Max. octets in frame sans FCS */
+
+/* TODO(sjg@chromium.org): Remove @pusb_dev when all boards use CONFIG_DM_ETH */
 struct ueth_data {
 	/* eth info */
+#ifdef CONFIG_DM_ETH
 	uint8_t *rxbuf;
 	int rxsize;
 	int rxlen;			/* Total bytes available in rxbuf */
 	int rxptr;			/* Current position in rxbuf */
+#else
+	struct eth_device eth_dev;	/* used with eth_register */
+	/* driver private */
+	void *dev_priv;
+#endif
 	int phy_id;			/* mii phy id */
 
 	/* usb info */
@@ -28,6 +45,7 @@ struct ueth_data {
 	unsigned char	irqinterval;	/* Intervall for IRQ Pipe */
 };
 
+#ifdef CONFIG_DM_ETH
 /**
  * usb_ether_register() - register a new USB ethernet device
  *
@@ -36,7 +54,7 @@ struct ueth_data {
  * @dev:	USB device
  * @ss:		Place to put USB ethernet data
  * @rxsize:	Maximum size to allocate for the receive buffer
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int usb_ether_register(struct udevice *dev, struct ueth_data *ueth, int rxsize);
 
@@ -44,7 +62,7 @@ int usb_ether_register(struct udevice *dev, struct ueth_data *ueth, int rxsize);
  * usb_ether_deregister() - deregister a USB ethernet device
  *
  * @ueth:	USB Ethernet device
- * Return: 0
+ * @return 0
  */
 int usb_ether_deregister(struct ueth_data *ueth);
 
@@ -55,7 +73,7 @@ int usb_ether_deregister(struct ueth_data *ueth);
  *
  * @ueth:	USB Ethernet device
  * @rxsize:	Maximum size to receive
- * Return: 0 if a packet was received, -EAGAIN if not, -ENOSPC if @rxsize is
+ * @return 0 if a packet was received, -EAGAIN if not, -ENOSPC if @rxsize is
  * larger than the size passed ot usb_ether_register(), other -ve on error
  */
 int usb_ether_receive(struct ueth_data *ueth, int rxsize);
@@ -70,7 +88,7 @@ int usb_ether_receive(struct ueth_data *ueth, int rxsize);
  * @ueth:	USB Ethernet device
  * @ptrp:	Returns a pointer to the start of the next packet if there is
  *		one available
- * Return: number of bytes available, or 0 if none
+ * @return number of bytes available, or 0 if none
  */
 int usb_ether_get_rx_bytes(struct ueth_data *ueth, uint8_t **ptrp);
 
@@ -85,5 +103,40 @@ int usb_ether_get_rx_bytes(struct ueth_data *ueth, uint8_t **ptrp);
  * @num_bytes:	Number of bytes to skip, or -1 to skip all bytes
  */
 void usb_ether_advance_rxbuf(struct ueth_data *ueth, int num_bytes);
+#else
+/*
+ * Function definitions for each USB ethernet driver go here
+ * (declaration is unconditional, compilation is conditional)
+ */
+void asix_eth_before_probe(void);
+int asix_eth_probe(struct usb_device *dev, unsigned int ifnum,
+		      struct ueth_data *ss);
+int asix_eth_get_info(struct usb_device *dev, struct ueth_data *ss,
+		      struct eth_device *eth);
+
+void ax88179_eth_before_probe(void);
+int ax88179_eth_probe(struct usb_device *dev, unsigned int ifnum,
+		      struct ueth_data *ss);
+int ax88179_eth_get_info(struct usb_device *dev, struct ueth_data *ss,
+		      struct eth_device *eth);
+
+void mcs7830_eth_before_probe(void);
+int mcs7830_eth_probe(struct usb_device *dev, unsigned int ifnum,
+		      struct ueth_data *ss);
+int mcs7830_eth_get_info(struct usb_device *dev, struct ueth_data *ss,
+			 struct eth_device *eth);
+
+void smsc95xx_eth_before_probe(void);
+int smsc95xx_eth_probe(struct usb_device *dev, unsigned int ifnum,
+			struct ueth_data *ss);
+int smsc95xx_eth_get_info(struct usb_device *dev, struct ueth_data *ss,
+			struct eth_device *eth);
+
+void r8152_eth_before_probe(void);
+int r8152_eth_probe(struct usb_device *dev, unsigned int ifnum,
+		    struct ueth_data *ss);
+int r8152_eth_get_info(struct usb_device *dev, struct ueth_data *ss,
+		       struct eth_device *eth);
+#endif
 
 #endif /* __USB_ETHER_H__ */

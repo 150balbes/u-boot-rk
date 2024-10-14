@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2008 Semihalf
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FDT_HOST_H__
@@ -27,15 +28,6 @@
  */
 int fdt_remove_unused_strings(const void *old, void *new);
 
-/**
- * fit_check_sign() - Check a signature in a FIT
- *
- * @fit: FIT to check
- * @key: Key FDT blob to check against
- * @fit_uname_config: Name of configuration to check (NULL for default)
- * @return 0 if OK, -ve if signature failed
- */
-int fit_check_sign(const void *fit, const void *key,
-		   const char *fit_uname_config);
+int fit_check_sign(const void *working_fdt, const void *key, int is_spl);
 
 #endif /* __FDT_HOST_H__ */

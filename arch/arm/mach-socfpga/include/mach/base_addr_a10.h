@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2014-2017 Altera Corporation <www.altera.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SOCFPGA_A10_BASE_HARDWARE_H_
@@ -46,7 +47,5 @@
 #define SOCFPGA_SDR_FIREWALL_MPU_FPGA_ADDRESS	0xffd13300
 #define SOCFPGA_SDR_FIREWALL_L3_ADDRESS		0xffd13400
 #define SOCFPGA_NOC_FW_H2F_SCR_OFST		0xffd13500
-
-#define SOCFPGA_PHYS_OCRAM_SIZE			0x40000
 
 #endif /* _SOCFPGA_A10_BASE_HARDWARE_H_ */

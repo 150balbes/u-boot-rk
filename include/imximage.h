@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _IMXIMAGE_H_
@@ -12,9 +13,6 @@
 #define MAX_HW_CFG_SIZE_V1 60  /* Max number of registers imx can set for v1 */
 #define APP_CODE_BARKER	0xB1
 #define DCD_BARKER	0xB17219E9
-
-/* Specify the offset of the IVT in the IMX header as expected by BootROM */
-#define BOOTROM_IVT_HDR_OFFSET	0xC00
 
 /*
  * NOTE: This file must be kept in sync with arch/arm/include/asm/\
@@ -33,7 +31,6 @@
 #define FLASH_OFFSET_NOR	0x1000
 #define FLASH_OFFSET_SATA	FLASH_OFFSET_STANDARD
 #define FLASH_OFFSET_QSPI	0x1000
-#define FLASH_OFFSET_FLEXSPI	0x1000
 
 /* Initial Load Region Size */
 #define FLASH_LOADSIZE_UNDEFINED	0xFFFFFFFF
@@ -49,7 +46,6 @@
 /* Command tags and parameters */
 #define IVT_HEADER_TAG			0xD1
 #define IVT_VERSION			0x40
-#define IVT_VERSION_V3			0x41
 #define DCD_HEADER_TAG			0xD2
 #define DCD_VERSION			0x40
 #define DCD_WRITE_DATA_COMMAND_TAG	0xCC
@@ -60,7 +56,6 @@
 #define DCD_CHECK_BITS_SET_PARAM	0x14
 #define DCD_CHECK_BITS_CLR_PARAM	0x04
 
-#ifndef __ASSEMBLY__
 enum imximage_cmd {
 	CMD_INVALID,
 	CMD_IMAGE_VERSION,
@@ -73,13 +68,6 @@ enum imximage_cmd {
 	CMD_CHECK_BITS_CLR,
 	CMD_CSF,
 	CMD_PLUGIN,
-	/* Following on i.MX8MQ/MM */
-	CMD_FIT,
-	CMD_SIGNED_HDMI,
-	CMD_LOADER,
-	CMD_SECOND_LOADER,
-	CMD_DDR_FW,
-	CMD_ROM_VERSION,
 };
 
 enum imximage_fld_types {
@@ -93,8 +81,7 @@ enum imximage_fld_types {
 enum imximage_version {
 	IMXIMAGE_VER_INVALID = -1,
 	IMXIMAGE_V1 = 1,
-	IMXIMAGE_V2,
-	IMXIMAGE_V3
+	IMXIMAGE_V2
 };
 
 typedef struct {
@@ -124,7 +111,7 @@ typedef struct {
 } flash_header_v1_t;
 
 typedef struct {
-	uint32_t length;	/* Length of data to be read from flash */
+	uint32_t length; 	/* Length of data to be read from flash */
 } flash_cfg_parms_t;
 
 typedef struct {
@@ -187,12 +174,6 @@ typedef struct {
 	} data;
 } imx_header_v2_t;
 
-typedef struct {
-	flash_header_v2_t fhdr;
-	boot_data_t boot_data;
-	uint32_t padding[5];
-} imx_header_v3_t;
-
 /* The header must be aligned to 4k on MX53 for NAND boot */
 struct imx_header {
 	union {
@@ -200,44 +181,6 @@ struct imx_header {
 		imx_header_v2_t hdr_v2;
 	} header;
 };
-
-typedef struct {
-	uint8_t tag[4];
-	uint8_t version[4];
-	uint8_t reserved_1[4];
-	uint8_t read_sample;
-	uint8_t datahold;
-	uint8_t datasetup;
-	uint8_t coladdrwidth;
-	uint8_t devcfgenable;
-	uint8_t reserved_2[3];
-	uint8_t devmodeseq[4];
-	uint8_t devmodearg[4];
-	uint8_t cmd_enable;
-	uint8_t reserved_3[3];
-	uint8_t cmd_seq[16] ;
-	uint8_t cmd_arg[16];
-	uint8_t controllermisc[4];
-	uint8_t dev_type;
-	uint8_t sflash_pad;
-	uint8_t serial_clk;
-	uint8_t lut_custom ;
-	uint8_t reserved_4[8];
-	uint8_t sflashA1[4];
-	uint8_t sflashA2[4];
-	uint8_t sflashB1[4];
-	uint8_t sflashB2[4];
-	uint8_t cspadover[4];
-	uint8_t sclkpadover[4];
-	uint8_t datapadover[4];
-	uint8_t dqspadover[4];
-	uint8_t timeout[4];
-	uint8_t commandInt[4];
-	uint8_t datavalid[4];
-	uint8_t busyoffset[2];
-	uint8_t busybitpolarity[2];
-	uint8_t lut[256];
-} __attribute__((packed)) fspi_conf;
 
 typedef void (*set_dcd_val_t)(struct imx_header *imxhdr,
 					char *name, int lineno,
@@ -254,5 +197,4 @@ typedef void (*set_dcd_rst_t)(struct imx_header *imxhdr,
 typedef void (*set_imx_hdr_t)(struct imx_header *imxhdr, uint32_t dcd_len,
 		uint32_t entry_point, uint32_t flash_offset);
 
-#endif /* __ASSEMBLY__ */
 #endif /* _IMXIMAGE_H_ */

@@ -1,47 +1,48 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
- * Author(s): Patrice Chotard, <patrice.chotard@foss.st.com> for STMicroelectronics.
+ * (C) Copyright 2017
+ * Patrice Chotard, <patrice.chotard@st.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#include <linux/sizes.h>
-
 /* ram memory-related information */
+#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM_1			0x40000000
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
-#define PHYS_SDRAM_1_SIZE		0x3E000000
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define PHYS_SDRAM_1_SIZE		0x3FE00000
+#define CONFIG_SYS_TEXT_BASE		0x7D600000
+#define CONFIG_SYS_LOAD_ADDR		PHYS_SDRAM_1	/* default load addr */
 
-#define CFG_SYS_HZ_CLOCK		750000000	/* 750 MHz */
+#define CONFIG_SYS_HZ_CLOCK		1000000000	/* 1 GHz */
 
 /* Environment */
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"board= B2260" \
+	"load_addr= #CONFIG_SYS_LOAD_ADDR \0"
 
-/*
- * For booting Linux, use the first 256 MB of memory, since this is
- * the maximum mapped by the Linux kernel during initialization.
- */
-#define CFG_SYS_BOOTMAPSZ		SZ_256M
-
-#define BOOT_TARGET_DEVICES(func) \
-	func(MMC, mmc, 0) \
-	func(USB, usb, 0) \
-	func(DHCP, dhcp, na)
-#include <config_distro_bootcmd.h>
-#define CFG_EXTRA_ENV_SETTINGS				\
-			"kernel_addr_r=0x40000000\0"		\
-			"fdtfile=stih410-b2260.dtb\0"		\
-			"fdt_addr_r=0x47000000\0"		\
-			"scriptaddr=0x50000000\0"		\
-			"pxefile_addr_r=0x50100000\0"		\
-			"ramdisk_addr_r=0x48000000\0"		\
-			BOOTENV
+#define CONFIG_ENV_SIZE 0x4000
 
 /* Extra Commands */
+#define CONFIG_CMD_ASKENV
+#define CONFIG_SYS_LONGHELP
 
-/* USB Configs */
+#define CONFIG_SETUP_MEMORY_TAGS
 
-/* NET Configs */
+/* Size of malloc() pool */
+#define CONFIG_SYS_MALLOC_LEN		0x1800000
+#define CONFIG_SYS_GBL_DATA_SIZE	1024	/* Global data structures */
+#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_TEXT_BASE - \
+					 CONFIG_SYS_MALLOC_LEN - \
+					 CONFIG_SYS_GBL_DATA_SIZE)
+
+/* Monitor Command Prompt */
+#define CONFIG_SYS_CBSIZE		1024	/* Console I/O Buffer Size */
+
+#define CONFIG_SYS_MAX_FLASH_BANKS	1
+
+#define CONFIG_SKIP_LOWLEVEL_INIT
 
 #endif /* __CONFIG_H */

@@ -1,16 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
- * Dirk Eibach,  Guntermann & Drunck GmbH, dirk.eibach@gdsys.cc
+ * Dirk Eibach,  Guntermann & Drunck GmbH, eibach@gdsys.de
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifdef CONFIG_GDSYS_LEGACY_DRIVERS
-
 #include <common.h>
-#include <command.h>
 #include <i2c.h>
 #include <malloc.h>
-#include <linux/stringify.h>
 
 #include "ch7301.h"
 #include "dp501.h"
@@ -261,8 +258,7 @@ static int osd_write_videomem(unsigned screen, unsigned offset,
 	return charcount;
 }
 
-static int osd_print(struct cmd_tbl *cmdtp, int flag, int argc,
-		     char *const argv[])
+static int osd_print(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned screen;
 
@@ -284,9 +280,9 @@ static int osd_print(struct cmd_tbl *cmdtp, int flag, int argc,
 		if (!(osd_screen_mask & (1 << screen)))
 			continue;
 
-		x = hextoul(argv[1], NULL);
-		y = hextoul(argv[2], NULL);
-		color = hextoul(argv[3], NULL);
+		x = simple_strtoul(argv[1], NULL, 16);
+		y = simple_strtoul(argv[2], NULL, 16);
+		color = simple_strtoul(argv[3], NULL, 16);
 		text = argv[4];
 		charcount = strlen(text);
 		len = (charcount > bufsize) ? bufsize : charcount;
@@ -399,7 +395,7 @@ int osd_probe(unsigned screen)
 	return 0;
 }
 
-int osd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int osd_write(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned screen;
 
@@ -416,13 +412,13 @@ int osd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		char *rp;
 		u16 *wp = buffer;
 		unsigned count = (argc > 4) ?
-			hextoul(argv[4], NULL) : 1;
+			simple_strtoul(argv[4], NULL, 16) : 1;
 
 		if (!(osd_screen_mask & (1 << screen)))
 			continue;
 
-		x = hextoul(argv[1], NULL);
-		y = hextoul(argv[2], NULL);
+		x = simple_strtoul(argv[1], NULL, 16);
+		y = simple_strtoul(argv[2], NULL, 16);
 		rp = argv[3];
 
 
@@ -431,7 +427,7 @@ int osd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 			memcpy(substr, rp, 4);
 			substr[4] = 0;
-			*wp = hextoul(substr, NULL);
+			*wp = simple_strtoul(substr, NULL, 16);
 
 			rp += 4;
 			wp++;
@@ -452,7 +448,7 @@ int osd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return 0;
 }
 
-int osd_size(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int osd_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned screen;
 	unsigned x;
@@ -463,8 +459,8 @@ int osd_size(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		return 1;
 	}
 
-	x = hextoul(argv[1], NULL);
-	y = hextoul(argv[2], NULL);
+	x = simple_strtoul(argv[1], NULL, 16);
+	y = simple_strtoul(argv[2], NULL, 16);
 
 	if (!x || (x > 64) || (x > MAX_X_CHARS) ||
 	    !y || (y > 32) || (y > MAX_Y_CHARS)) {
@@ -502,5 +498,3 @@ U_BOOT_CMD(
 	"size_x(max. " __stringify(MAX_X_CHARS)
 	") size_y(max. " __stringify(MAX_Y_CHARS) ")\n"
 );
-
-#endif /* CONFIG_GDSYS_LEGACY_DRIVERS */

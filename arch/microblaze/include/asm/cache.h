@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MICROBLAZE_CACHE_H__
@@ -17,10 +18,5 @@
 #else
 #define ARCH_DMA_MINALIGN	16
 #endif
-
-/**
- * flush_cache_all - flush the entire instruction/data caches
- */
-void flush_cache_all(void);
 
 #endif /* __MICROBLAZE_CACHE_H__ */

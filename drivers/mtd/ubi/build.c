@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) International Business Machines Corp., 2006
  * Copyright (c) Nokia Corporation, 2007
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  * Author: Artem Bityutskiy (Битюцкий Артём),
  *         Frank Haverkamp
@@ -17,8 +18,6 @@
  */
 
 #ifndef __UBOOT__
-#include <log.h>
-#include <dm/devres.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
@@ -86,7 +85,13 @@ static bool fm_debug;
 #endif
 #else
 #ifdef CONFIG_MTD_UBI_FASTMAP
+#if !defined(CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT)
+#define CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT 0
+#endif
 static bool fm_autoconvert = CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT;
+#if !defined(CONFIG_MTD_UBI_FM_DEBUG)
+#define CONFIG_MTD_UBI_FM_DEBUG 0
+#endif
 static bool fm_debug = CONFIG_MTD_UBI_FM_DEBUG;
 #endif
 #endif
@@ -109,7 +114,7 @@ static struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
 #else
 struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
 #endif
-
+ 
 #ifndef __UBOOT__
 /* Serializes UBI devices creations and removals */
 DEFINE_MUTEX(ubi_devices_mutex);

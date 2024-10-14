@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Keystone2: Common SoC definitions, structures etc.
  *
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
@@ -11,7 +12,6 @@
 #include <config.h>
 
 #ifndef __ASSEMBLY__
-#include <linux/bitops.h>
 
 #include <linux/sizes.h>
 #include <asm/io.h>
@@ -78,7 +78,6 @@ typedef volatile unsigned int   *dv_reg_p;
 #define KS2_DDR3A_EMIF_CTRL_BASE	0x21010000
 #define KS2_DDR3A_EMIF_DATA_BASE	0x80000000
 #define KS2_DDR3A_DDRPHYC		0x02329000
-#define EMIF1_BASE			KS2_DDR3A_EMIF_CTRL_BASE
 
 #define KS2_DDR3_MIDR_OFFSET            0x00
 #define KS2_DDR3_STATUS_OFFSET          0x04
@@ -148,8 +147,8 @@ typedef volatile unsigned int   *dv_reg_p;
 #define KS2_CIC_HOST_ENABLE_IDX_SET	0x34
 #define KS2_CIC_CHAN_MAP(n)		(0x0400 + (n << 2))
 
-#define KS2_UART0_BASE			0x02530c00
-#define KS2_UART1_BASE			0x02531000
+#define KS2_UART0_BASE                	0x02530c00
+#define KS2_UART1_BASE                	0x02531000
 
 /* Boot Config */
 #define KS2_DEVICE_STATE_CTRL_BASE	0x02620000
@@ -210,7 +209,7 @@ typedef volatile unsigned int   *dv_reg_p;
 #endif
 
 /* AEMIF */
-#define KS2_AEMIF_CNTRL_BASE		0x21000a00
+#define KS2_AEMIF_CNTRL_BASE       	0x21000a00
 #define DAVINCI_ASYNC_EMIF_CNTRL_BASE   KS2_AEMIF_CNTRL_BASE
 
 /* Flag from ks2_debug options to check if DSPs need to stay ON */
@@ -263,7 +262,7 @@ typedef volatile unsigned int   *dv_reg_p;
 /* MSMC segment size shift bits */
 #define KS2_MSMC_SEG_SIZE_SHIFT		12
 #define KS2_MSMC_MAP_SEG_NUM		(2 << (30 - KS2_MSMC_SEG_SIZE_SHIFT))
-#define KS2_MSMC_DST_SEG_BASE		(CFG_SYS_LPAE_SDRAM_BASE >> \
+#define KS2_MSMC_DST_SEG_BASE		(CONFIG_SYS_LPAE_SDRAM_BASE >> \
 					KS2_MSMC_SEG_SIZE_SHIFT)
 
 /* Device speed */
@@ -326,9 +325,6 @@ typedef volatile unsigned int   *dv_reg_p;
 #define CPU_66AK2Ex	0xb9a6
 #define CPU_66AK2Lx	0xb9a7
 #define CPU_66AK2Gx	0xbb06
-
-/* Variant definitions */
-#define CPU_66AK2G1x	0x08
 
 /* DEVSPEED register */
 #define DEVSPEED_DEVSPEED_SHIFT	16

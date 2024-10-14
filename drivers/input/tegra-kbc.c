@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  *  (C) Copyright 2011
  *  NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,15 +11,15 @@
 #include <input.h>
 #include <keyboard.h>
 #include <key_matrix.h>
-#include <log.h>
 #include <stdio_dev.h>
 #include <tegra-kbc.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/funcmux.h>
 #include <asm/arch-tegra/timer.h>
-#include <linux/delay.h>
 #include <linux/input.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 enum {
 	KBC_MAX_GPIO		= 24,
@@ -66,7 +67,7 @@ struct tegra_kbd_priv {
  * @param priv		Keyboard private data
  * @param fifo		Place to put fifo results
  * @param max_keycodes	Maximum number of key codes to put in the fifo
- * Return: number of items put into fifo
+ * @return number of items put into fifo
  */
 static int tegra_kbc_find_keys(struct tegra_kbd_priv *priv, int *fifo,
 			       int max_keycodes)
@@ -179,7 +180,7 @@ static void kbd_wait_for_fifo_init(struct tegra_kbd_priv *priv)
  * characters
  *
  * @param input		Input configuration
- * Return: 1, to indicate that we have something to look at
+ * @return 1, to indicate that we have something to look at
  */
 static int tegra_kbc_check(struct input_config *input)
 {
@@ -281,7 +282,7 @@ static int tegra_kbd_start(struct udevice *dev)
  * wait for the keyboard to init. We do this only when a key is first
  * read - see kbd_wait_for_fifo_init().
  *
- * Return: 0 if ok, -ve on error
+ * @return 0 if ok, -ve on error
  */
 static int tegra_kbd_probe(struct udevice *dev)
 {
@@ -291,7 +292,7 @@ static int tegra_kbd_probe(struct udevice *dev)
 	struct input_config *input = &uc_priv->input;
 	int ret;
 
-	priv->kbc = dev_read_addr_ptr(dev);
+	priv->kbc = (struct kbc_tegra *)devfdt_get_addr(dev);
 	if ((fdt_addr_t)priv->kbc == FDT_ADDR_T_NONE) {
 		debug("%s: No keyboard register found\n", __func__);
 		return -EINVAL;
@@ -350,5 +351,5 @@ U_BOOT_DRIVER(tegra_kbd) = {
 	.of_match = tegra_kbd_ids,
 	.probe = tegra_kbd_probe,
 	.ops	= &tegra_kbd_ops,
-	.priv_auto	= sizeof(struct tegra_kbd_priv),
+	.priv_auto_alloc_size = sizeof(struct tegra_kbd_priv),
 };

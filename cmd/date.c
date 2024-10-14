@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,7 +13,6 @@
 #include <dm.h>
 #include <rtc.h>
 #include <i2c.h>
-#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -30,8 +30,7 @@ int mk_date (const char *, struct rtc_time *);
 
 static struct rtc_time default_tm = { 0, 0, 0, 1, 1, 2000, 6, 0, 0 };
 
-static int do_date(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_date(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct rtc_time tm;
 	int rcode = 0;
@@ -41,20 +40,17 @@ static int do_date(struct cmd_tbl *cmdtp, int flag, int argc,
 #ifdef CONFIG_DM_RTC
 	struct udevice *dev;
 
-	rcode = uclass_get_device_by_seq(UCLASS_RTC, 0, &dev);
+	rcode = uclass_get_device(UCLASS_RTC, 0, &dev);
 	if (rcode) {
-		rcode = uclass_get_device(UCLASS_RTC, 0, &dev);
-		if (rcode) {
-			printf("Cannot find RTC: err=%d\n", rcode);
-			return CMD_RET_FAILURE;
-		}
+		printf("Cannot find RTC: err=%d\n", rcode);
+		return CMD_RET_FAILURE;
 	}
-#elif CONFIG_IS_ENABLED(SYS_I2C_LEGACY)
+#elif defined(CONFIG_SYS_I2C)
 	old_bus = i2c_get_bus_num();
-	i2c_set_bus_num(CFG_SYS_RTC_BUS_NUM);
+	i2c_set_bus_num(CONFIG_SYS_RTC_BUS_NUM);
 #else
 	old_bus = I2C_GET_BUS();
-	I2C_SET_BUS(CFG_SYS_RTC_BUS_NUM);
+	I2C_SET_BUS(CONFIG_SYS_RTC_BUS_NUM);
 #endif
 
 	switch (argc) {
@@ -122,7 +118,7 @@ static int do_date(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	/* switch back to original I2C bus */
-#if CONFIG_IS_ENABLED(SYS_I2C_LEGACY)
+#ifdef CONFIG_SYS_I2C
 	i2c_set_bus_num(old_bus);
 #elif !defined(CONFIG_DM_RTC)
 	I2C_SET_BUS(old_bus);
@@ -164,18 +160,18 @@ int mk_date (const char *datestr, struct rtc_time *tmp)
 	int len, val;
 	char *ptr;
 
-	ptr = strchr(datestr, '.');
-	len = strlen(datestr);
+	ptr = strchr (datestr,'.');
+	len = strlen (datestr);
 
 	/* Set seconds */
 	if (ptr) {
 		int sec;
 
-		ptr++;
+		*ptr++ = '\0';
 		if ((len - (ptr - datestr)) != 2)
 			return (-1);
 
-		len -= 3;
+		len = strlen (datestr);
 
 		if (cnvrt2 (ptr, &sec))
 			return (-1);

@@ -1,33 +1,21 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016 Carlo Caione <carlo@caione.org>
+ *
+ * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #include <common.h>
-#include <clk.h>
-#include <cpu_func.h>
 #include <dm.h>
 #include <fdtdec.h>
 #include <malloc.h>
-#include <pwrseq.h>
 #include <mmc.h>
 #include <asm/io.h>
-#include <asm/gpio.h>
-#include <linux/delay.h>
+#include <asm/arch/sd_emmc.h>
 #include <linux/log2.h>
-#include "meson_gx_mmc.h"
-
-bool meson_gx_mmc_is_compatible(struct udevice *dev,
-				enum meson_gx_mmc_compatible family)
-{
-	enum meson_gx_mmc_compatible compat = dev_get_driver_data(dev);
-
-	return compat == family;
-}
 
 static inline void *get_regbase(const struct mmc *mmc)
 {
-	struct meson_mmc_plat *pdata = mmc->priv;
+	struct meson_mmc_platdata *pdata = mmc->priv;
 
 	return pdata->regbase;
 }
@@ -47,11 +35,6 @@ static void meson_mmc_config_clock(struct mmc *mmc)
 	uint32_t meson_mmc_clk = 0;
 	unsigned int clk, clk_src, clk_div;
 
-	if (!mmc->clock)
-		return;
-
-	/* TOFIX This should use the proper clock taken from DT */
-
 	/* 1GHz / CLK_MAX_DIV = 15,9 MHz */
 	if (mmc->clock > 16000000) {
 		clk = SD_EMMC_CLKSRC_DIV2;
@@ -62,16 +45,8 @@ static void meson_mmc_config_clock(struct mmc *mmc)
 	}
 	clk_div = DIV_ROUND_UP(clk, mmc->clock);
 
-	/*
-	 * SM1 SoCs doesn't work fine over 50MHz with CLK_CO_PHASE_180
-	 * If CLK_CO_PHASE_270 is used, it's more stable than other.
-	 * Other SoCs use CLK_CO_PHASE_180 by default.
-	 * It needs to find what is a proper value about each SoCs.
-	 */
-	if (meson_gx_mmc_is_compatible(mmc->dev, MMC_COMPATIBLE_SM1))
-		meson_mmc_clk |= CLK_CO_PHASE_270;
-	else
-		meson_mmc_clk |= CLK_CO_PHASE_180;
+	/* 180 phase core clock */
+	meson_mmc_clk |= CLK_CO_PHASE_180;
 
 	/* 180 phase tx clock */
 	meson_mmc_clk |= CLK_TX_PHASE_000;
@@ -160,7 +135,7 @@ static void meson_mmc_setup_cmd(struct mmc *mmc, struct mmc_data *data,
 
 static void meson_mmc_setup_addr(struct mmc *mmc, struct mmc_data *data)
 {
-	struct meson_mmc_plat *pdata = mmc->priv;
+	struct meson_mmc_platdata *pdata = mmc->priv;
 	unsigned int data_size;
 	uint32_t data_addr = 0;
 
@@ -198,7 +173,7 @@ static int meson_dm_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 				 struct mmc_data *data)
 {
 	struct mmc *mmc = mmc_get_mmc_dev(dev);
-	struct meson_mmc_plat *pdata = mmc->priv;
+	struct meson_mmc_platdata *pdata = mmc->priv;
 	uint32_t status;
 	ulong start;
 	int ret = 0;
@@ -241,12 +216,12 @@ static const struct dm_mmc_ops meson_dm_mmc_ops = {
 	.set_ios = meson_dm_mmc_set_ios,
 };
 
-static int meson_mmc_of_to_plat(struct udevice *dev)
+static int meson_mmc_ofdata_to_platdata(struct udevice *dev)
 {
-	struct meson_mmc_plat *pdata = dev_get_plat(dev);
+	struct meson_mmc_platdata *pdata = dev_get_platdata(dev);
 	fdt_addr_t addr;
 
-	addr = dev_read_addr(dev);
+	addr = devfdt_get_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
@@ -257,22 +232,11 @@ static int meson_mmc_of_to_plat(struct udevice *dev)
 
 static int meson_mmc_probe(struct udevice *dev)
 {
-	struct meson_mmc_plat *pdata = dev_get_plat(dev);
+	struct meson_mmc_platdata *pdata = dev_get_platdata(dev);
 	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
 	struct mmc *mmc = &pdata->mmc;
 	struct mmc_config *cfg = &pdata->cfg;
-	struct clk_bulk clocks;
 	uint32_t val;
-	int ret;
-
-	/* Enable the clocks feeding the MMC controller */
-	ret = clk_get_bulk(dev, &clocks);
-	if (ret)
-		return ret;
-
-	ret = clk_enable_bulk(&clocks);
-	if (ret)
-		return ret;
 
 	cfg->voltages = MMC_VDD_33_34 | MMC_VDD_32_33 |
 			MMC_VDD_31_32 | MMC_VDD_165_195;
@@ -286,17 +250,7 @@ static int meson_mmc_probe(struct udevice *dev)
 	mmc->priv = pdata;
 	upriv->mmc = mmc;
 
-	mmc_set_clock(mmc, cfg->f_min, MMC_CLK_ENABLE);
-
-#ifdef CONFIG_MMC_PWRSEQ
-	/* Enable power if needed */
-	ret = mmc_pwrseq_get_power(dev, cfg);
-	if (!ret) {
-		ret = pwrseq_set_power(cfg->pwr_dev, true);
-		if (ret)
-			return ret;
-	}
-#endif
+	mmc_set_clock(mmc, cfg->f_min);
 
 	/* reset all status bits */
 	meson_write(mmc, STATUS_MASK, MESON_SD_EMMC_STATUS);
@@ -315,15 +269,13 @@ static int meson_mmc_probe(struct udevice *dev)
 
 int meson_mmc_bind(struct udevice *dev)
 {
-	struct meson_mmc_plat *pdata = dev_get_plat(dev);
+	struct meson_mmc_platdata *pdata = dev_get_platdata(dev);
 
 	return mmc_bind(dev, &pdata->mmc, &pdata->cfg);
 }
 
 static const struct udevice_id meson_mmc_match[] = {
-	{ .compatible = "amlogic,meson-gx-mmc", .data = MMC_COMPATIBLE_GX },
-	{ .compatible = "amlogic,meson-axg-mmc", .data = MMC_COMPATIBLE_GX },
-	{ .compatible = "amlogic,meson-sm1-mmc", .data = MMC_COMPATIBLE_SM1 },
+	{ .compatible = "amlogic,meson-gx-mmc" },
 	{ /* sentinel */ }
 };
 
@@ -334,6 +286,6 @@ U_BOOT_DRIVER(meson_mmc) = {
 	.ops = &meson_dm_mmc_ops,
 	.probe = meson_mmc_probe,
 	.bind = meson_mmc_bind,
-	.of_to_plat = meson_mmc_of_to_plat,
-	.plat_auto	= sizeof(struct meson_mmc_plat),
+	.ofdata_to_platdata = meson_mmc_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct meson_mmc_platdata),
 };

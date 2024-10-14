@@ -7,6 +7,8 @@
 #ifndef _ASM_ARCH_CRU_RV1126_H
 #define _ASM_ARCH_CRU_RV1126_H
 
+#include <common.h>
+
 #define MHz		1000000
 #define KHz		1000
 #define OSC_HZ		(24 * MHz)

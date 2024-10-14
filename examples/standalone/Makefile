@@ -1,11 +1,16 @@
-# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2000-2006
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+#
+# SPDX-License-Identifier:	GPL-2.0+
+#
 
 extra-y        := hello_world
+extra-$(CONFIG_SMC91111)           += smc91111_eeprom
+extra-$(CONFIG_SMC911X)            += smc911x_eeprom
 extra-$(CONFIG_SPI_FLASH_ATMEL)    += atmel_df_pow2
 extra-$(CONFIG_PPC)                += sched
+extra-$(CONFIG_ROCKCHIP_SPI)       += rkspi
 
 #
 # Some versions of make do not handle trailing white spaces properly;
@@ -24,6 +29,7 @@ LIB	= $(obj)/libstubs.o
 LIBOBJS-$(CONFIG_PPC) += ppc_longjmp.o ppc_setjmp.o
 LIBOBJS-y += stubs.o
 
+.SECONDARY: $(call objectify,$(COBJS))
 targets += $(patsubst $(obj)/%,%,$(LIB)) $(COBJS) $(LIBOBJS-y)
 
 LIBOBJS	:= $(addprefix $(obj)/,$(LIBOBJS-y))
@@ -42,8 +48,6 @@ endif
 # source file.
 ccflags-y += $(call cc-option,-fno-toplevel-reorder)
 
-LDFLAGS_STANDALONE	+= -Ttext $(CONFIG_STANDALONE_LOAD_ADDR)
-
 #########################################################################
 
 quiet_cmd_link_lib = LD      $@
@@ -53,17 +57,17 @@ $(LIB):	$(LIBOBJS) FORCE
 	$(call if_changed,link_lib)
 
 quiet_cmd_link_elf = LD      $@
-      cmd_link_elf = $(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_STANDALONE) -g  \
+      cmd_link_elf = $(LD) $(LDFLAGS) -g -Ttext $(CONFIG_STANDALONE_LOAD_ADDR) \
 		     -o $@ -e $(SYM_PREFIX)$(@F) $< $(LIB) $(PLATFORM_LIBGCC)
 
 $(ELF): $(obj)/%: $(obj)/%.o $(LIB) FORCE
 	$(call if_changed,link_elf)
 
-$(obj)/%.srec: OBJCOPYFLAGS += -O srec
+$(obj)/%.srec: OBJCOPYFLAGS := -O srec
 $(obj)/%.srec: $(obj)/% FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/%.bin: OBJCOPYFLAGS += -O binary
+$(obj)/%.bin: OBJCOPYFLAGS := -O binary
 $(obj)/%.bin: $(obj)/% FORCE
 	$(call if_changed,objcopy)
 

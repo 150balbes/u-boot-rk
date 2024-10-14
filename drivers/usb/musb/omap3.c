@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2009 Wind River Systems, Inc.
  * Tom Rix <Tom.Rix@windriver.com>
@@ -14,9 +13,10 @@
  * Copyright (c) 2009 Texas Instruments
  *
  * ------------------------------------------------------------------------
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <serial.h>
 #include <asm/omap_common.h>
 #include <twl4030.h>
 #include <twl6030.h>

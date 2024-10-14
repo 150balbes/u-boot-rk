@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Samsung Electronics
  *
  * Author: Donghwa Lee <dh09.lee@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _DP_INFO_H
@@ -197,5 +198,4 @@ unsigned int exynos_init_dp(void)
 }
 #endif
 
-#include <linux/delay.h>
 #endif /* _DP_INFO_H */

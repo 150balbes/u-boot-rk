@@ -3,50 +3,40 @@
 # subdirectories here. Add them in the ".gitignore" file
 # in that subdirectory instead.
 #
-# Normal rules (sorted alphabetically)
+# Normal rules
 #
 .*
-!.checkpatch.conf
-*.a
-*.asn1.[ch]
-*.bin
-*.cfgout
-*.cover
-*.dtb
-*.dtbo
-*.dtb.S
-*.elf
-*.exe
-*.gcda
-*.gcno
-*.i
-*.img
-*.lex.c
-*.lst
-*.mod.c
-*.mbx
 *.o
 *.o.*
-*.order
-*.patch
+*.a
 *.s
 *.su
+*.mod.c
+*.i
+*.lst
+*.order
+*.elf
 *.swp
-*.tab.[ch]
+*.bin
+*.patch
+*.cfgtmp
+*.img
+
+# host programs on Cygwin
+*.exe
 
 # Build tree
 /build-*
-
+/rockdev
 #
 # Top-level generic files
 #
-fit-dtb.blob*
+fit-dtb.blob
 /MLO*
 /SPL*
 /System.map
 /u-boot*
 /boards.cfg
-/*.log
 
 #
 # git files that we don't want to ignore even it they are dot-files
@@ -57,6 +47,8 @@ fit-dtb.blob*
 #
 # Generated files
 #
+/LOG
+/fit/
 /spl/
 /tpl/
 /defconfig
@@ -95,16 +87,5 @@ GTAGS
 *.orig
 *~
 \#*#
-
-# Python cache
-__pycache__
-
-# Python code coverage output (python3-coverage html)
-/htmlcov/
-
-# pylint files
-/pylint.cur
-/pylint.out/
-
-# moveconfig database
-/moveconfig.db
+/compile_commands.json
+/build_uboot.sh

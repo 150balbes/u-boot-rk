@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_LPC_COMMON_H
@@ -49,7 +50,7 @@
  * also puts the RCB in the correct place so that RCB_REG() works.
  *
  * @dev:	LPC device (a child of the PCH)
- * Return: 0 on success, -ve on error
+ * @return 0 on success, -ve on error
  */
 int lpc_common_early_init(struct udevice *dev);
 

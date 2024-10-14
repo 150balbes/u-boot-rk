@@ -3,15 +3,13 @@
  * Copyright (C) 2020 Linaro Limited.
  */
 
-#define LOG_CATEGORY UCLASS_SCMI_AGENT
-
 #include <common.h>
 #include <dm.h>
+#include <dm/device_compat.h>
 #include <errno.h>
 #include <mailbox.h>
 #include <scmi_agent.h>
 #include <scmi_agent-uclass.h>
-#include <dm/device_compat.h>
 #include <dm/devres.h>
 #include <linux/compat.h>
 
@@ -31,19 +29,9 @@ struct scmi_mbox_channel {
 	ulong timeout_us;
 };
 
-/**
- * struct scmi_channel - Channel instance referenced in SCMI drivers
- * @ref: Reference to local channel instance
- **/
-struct scmi_channel {
-	struct scmi_mbox_channel ref;
-};
-
-static int scmi_mbox_process_msg(struct udevice *dev,
-				 struct scmi_channel *channel,
-				 struct scmi_msg *msg)
+static int scmi_mbox_process_msg(struct udevice *dev, struct scmi_msg *msg)
 {
-	struct scmi_mbox_channel *chan = &channel->ref;
+	struct scmi_mbox_channel *chan = dev_get_priv(dev);
 	int ret;
 
 	ret = scmi_write_msg_to_smt(dev, &chan->smt, msg);
@@ -72,62 +60,28 @@ out:
 	return ret;
 }
 
-static int setup_channel(struct udevice *dev, struct scmi_mbox_channel *chan)
+int scmi_mbox_probe(struct udevice *dev)
 {
+	struct scmi_mbox_channel *chan = dev_get_priv(dev);
 	int ret;
+
+	chan->timeout_us = TIMEOUT_US_10MS;
 
 	ret = mbox_get_by_index(dev, 0, &chan->mbox);
 	if (ret) {
 		dev_err(dev, "Failed to find mailbox: %d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	ret = scmi_dt_get_smt_buffer(dev, &chan->smt);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to get shm resources: %d\n", ret);
-		return ret;
-	}
 
-	chan->timeout_us = TIMEOUT_US_10MS;
+out:
+	if (ret)
+		devm_kfree(dev, chan);
 
-	return 0;
-}
-
-static int scmi_mbox_get_channel(struct udevice *dev,
-				 struct scmi_channel **channel)
-{
-	struct scmi_mbox_channel *base_chan = dev_get_plat(dev);
-	struct scmi_mbox_channel *chan;
-	int ret;
-
-	if (!dev_read_prop(dev, "shmem", NULL)) {
-		/* Uses agent base channel */
-		*channel = container_of(base_chan, struct scmi_channel, ref);
-
-		return 0;
-	}
-
-	chan = calloc(1, sizeof(*chan));
-	if (!chan)
-		return -ENOMEM;
-
-	/* Setup a dedicated channel for the protocol */
-	ret = setup_channel(dev, chan);
-	if (ret) {
-		free(chan);
-		return ret;
-	}
-
-	*channel = (void *)chan;
-
-	return 0;
-}
-
-int scmi_mbox_of_to_plat(struct udevice *dev)
-{
-	struct scmi_mbox_channel *chan = dev_get_plat(dev);
-
-	return setup_channel(dev, chan);
+	return ret;
 }
 
 static const struct udevice_id scmi_mbox_ids[] = {
@@ -136,7 +90,6 @@ static const struct udevice_id scmi_mbox_ids[] = {
 };
 
 static const struct scmi_agent_ops scmi_mbox_ops = {
-	.of_get_channel = scmi_mbox_get_channel,
 	.process_msg = scmi_mbox_process_msg,
 };
 
@@ -144,7 +97,7 @@ U_BOOT_DRIVER(scmi_mbox) = {
 	.name		= "scmi-over-mailbox",
 	.id		= UCLASS_SCMI_AGENT,
 	.of_match	= scmi_mbox_ids,
-	.plat_auto	= sizeof(struct scmi_mbox_channel),
-	.of_to_plat	= scmi_mbox_of_to_plat,
+	.priv_auto_alloc_size = sizeof(struct scmi_mbox_channel),
+	.probe		= scmi_mbox_probe,
 	.ops		= &scmi_mbox_ops,
 };

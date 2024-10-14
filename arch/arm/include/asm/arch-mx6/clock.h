@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_CLOCK_H
 #define __ASM_ARCH_CLOCK_H
 
-#include <linux/types.h>
+#include <common.h>
 
 #ifdef CONFIG_SYS_MX6_HCLK
 #define MXC_HCLK	CONFIG_SYS_MX6_HCLK
@@ -20,8 +21,6 @@
 #else
 #define MXC_CLK32	32768
 #endif
-
-struct cmd_tbl;
 
 enum mxc_clock {
 	MXC_ARM_CLK = 0,
@@ -73,7 +72,6 @@ int enable_pcie_clock(void);
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num);
 int enable_spi_clk(unsigned char enable, unsigned spi_num);
 void enable_ipu_clock(void);
-void disable_ipu_clock(void);
 int enable_fec_anatop_clock(int fec_id, enum enet_freq freq);
 void enable_enet_clk(unsigned char enable);
 int enable_lcdif_clock(u32 base_addr, bool enable);
@@ -82,6 +80,4 @@ void enable_thermal_clk(void);
 void mxs_set_lcdclk(u32 base_addr, u32 freq);
 void select_ldb_di_clock_source(enum ldb_di_clock clk);
 void enable_eim_clk(unsigned char enable);
-int do_mx6_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[]);
 #endif /* __ASM_ARCH_CLOCK_H */

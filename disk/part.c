@@ -1,19 +1,24 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <blk.h>
 #include <command.h>
-#include <env.h>
 #include <errno.h>
 #include <ide.h>
-#include <log.h>
 #include <malloc.h>
 #include <part.h>
+#ifdef CONFIG_SPL_AB
+#include <spl_ab.h>
+#endif
 #include <ubifs_uboot.h>
+#ifdef CONFIG_ANDROID_AB
+#include <android_avb/avb_ops_user.h>
+#include <android_avb/rk_avb_ops_user.h>
+#endif
 
 #undef	PART_DEBUG
 
@@ -23,9 +28,9 @@
 #define PRINTF(fmt,args...)
 #endif
 
-/* Check all partition types */
-#define PART_TYPE_ALL		-1
+DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef HAVE_BLOCK_DEVICE
 static struct part_driver *part_driver_lookup_type(struct blk_desc *dev_desc)
 {
 	struct part_driver *drv =
@@ -59,9 +64,7 @@ static struct blk_desc *get_dev_hwpart(const char *ifname, int dev, int hwpart)
 	struct blk_desc *dev_desc;
 	int ret;
 
-	if (!blk_enabled())
-		return NULL;
-	dev_desc = blk_get_devnum_by_uclass_idname(ifname, dev);
+	dev_desc = blk_get_devnum_by_typename(ifname, dev);
 	if (!dev_desc) {
 		debug("%s: No device for iface '%s', dev %d\n", __func__,
 		      ifname, dev);
@@ -79,11 +82,21 @@ static struct blk_desc *get_dev_hwpart(const char *ifname, int dev, int hwpart)
 
 struct blk_desc *blk_get_dev(const char *ifname, int dev)
 {
-	if (!blk_enabled())
-		return NULL;
-
 	return get_dev_hwpart(ifname, dev, 0);
 }
+#else
+struct blk_desc *get_dev_hwpart(const char *ifname, int dev, int hwpart)
+{
+	return NULL;
+}
+
+struct blk_desc *blk_get_dev(const char *ifname, int dev)
+{
+	return NULL;
+}
+#endif
+
+#ifdef HAVE_BLOCK_DEVICE
 
 /* ------------------------------------------------------------------------- */
 /*
@@ -97,21 +110,20 @@ typedef lbaint_t lba512_t;
 #endif
 
 /*
- * Overflowless variant of (block_count * mul_by / 2**right_shift)
- * when 2**right_shift > mul_by
+ * Overflowless variant of (block_count * mul_by / div_by)
+ * when div_by > mul_by
  */
-static lba512_t lba512_muldiv(lba512_t block_count, lba512_t mul_by,
-			      int right_shift)
+static lba512_t lba512_muldiv(lba512_t block_count, lba512_t mul_by, lba512_t div_by)
 {
 	lba512_t bc_quot, bc_rem;
 
 	/* x * m / d == x / d * m + (x % d) * m / d */
-	bc_quot = block_count >> right_shift;
-	bc_rem  = block_count - (bc_quot << right_shift);
-	return bc_quot * mul_by + ((bc_rem * mul_by) >> right_shift);
+	bc_quot = block_count / div_by;
+	bc_rem  = block_count - div_by * bc_quot;
+	return bc_quot * mul_by + (bc_rem * mul_by) / div_by;
 }
 
-void dev_print(struct blk_desc *dev_desc)
+void dev_print (struct blk_desc *dev_desc)
 {
 	lba512_t lba512; /* number of blocks if 512bytes block size */
 
@@ -120,42 +132,43 @@ void dev_print(struct blk_desc *dev_desc)
 		return;
 	}
 
-	switch (dev_desc->uclass_id) {
-	case UCLASS_SCSI:
+	switch (dev_desc->if_type) {
+	case IF_TYPE_SCSI:
 		printf ("(%d:%d) Vendor: %s Prod.: %s Rev: %s\n",
 			dev_desc->target,dev_desc->lun,
 			dev_desc->vendor,
 			dev_desc->product,
 			dev_desc->revision);
 		break;
-	case UCLASS_IDE:
-	case UCLASS_AHCI:
+	case IF_TYPE_ATAPI:
+	case IF_TYPE_IDE:
+	case IF_TYPE_SATA:
 		printf ("Model: %s Firm: %s Ser#: %s\n",
 			dev_desc->vendor,
 			dev_desc->revision,
 			dev_desc->product);
 		break;
-	case UCLASS_MMC:
-	case UCLASS_USB:
-	case UCLASS_NVME:
-	case UCLASS_PVBLOCK:
-	case UCLASS_HOST:
-		printf ("Vendor: %s Rev: %s Prod: %s\n",
-			dev_desc->vendor,
-			dev_desc->revision,
-			dev_desc->product);
+	case IF_TYPE_SD:
+	case IF_TYPE_MMC:
+	case IF_TYPE_MTD:
+	case IF_TYPE_USB:
+	case IF_TYPE_NVME:
+	case IF_TYPE_RKNAND:
+	case IF_TYPE_SPINAND:
+	case IF_TYPE_SPINOR:
+		printf("Vendor: %s Rev: %s Prod: %s\n",
+		       dev_desc->vendor,
+		       dev_desc->revision,
+		       dev_desc->product);
 		break;
-	case UCLASS_VIRTIO:
-		printf("%s VirtIO Block Device\n", dev_desc->vendor);
-		break;
-	case UCLASS_EFI_MEDIA:
-		printf("EFI media Block Device %d\n", dev_desc->devnum);
-		break;
-	case UCLASS_INVALID:
+	case IF_TYPE_DOC:
+		puts("device type DOC\n");
+		return;
+	case IF_TYPE_UNKNOWN:
 		puts("device type unknown\n");
 		return;
 	default:
-		printf("Unhandled device type: %i\n", dev_desc->uclass_id);
+		printf("Unhandled device type: %i\n", dev_desc->if_type);
 		return;
 	}
 	puts ("            Type: ");
@@ -188,7 +201,7 @@ void dev_print(struct blk_desc *dev_desc)
 		lba512 = (lba * (dev_desc->blksz/512));
 		/* round to 1 digit */
 		/* 2048 = (1024 * 1024) / 512 MB */
-		mb = lba512_muldiv(lba512, 10, 11);
+		mb = lba512_muldiv(lba512, 10, 2048);
 
 		mb_quot	= mb / 10;
 		mb_rem	= mb - (10 * mb_quot);
@@ -217,6 +230,9 @@ void dev_print(struct blk_desc *dev_desc)
 		puts ("            Capacity: not available\n");
 	}
 }
+#endif
+
+#ifdef HAVE_BLOCK_DEVICE
 
 void part_init(struct blk_desc *dev_desc)
 {
@@ -225,7 +241,7 @@ void part_init(struct blk_desc *dev_desc)
 	const int n_ents = ll_entry_count(struct part_driver, part_driver);
 	struct part_driver *entry;
 
-	blkcache_invalidate(dev_desc->uclass_id, dev_desc->devnum);
+	blkcache_invalidate(dev_desc->if_type, dev_desc->devnum);
 
 	dev_desc->part_type = PART_TYPE_UNKNOWN;
 	for (entry = drv; entry != drv + n_ents; entry++) {
@@ -248,39 +264,48 @@ static void print_part_header(const char *type, struct blk_desc *dev_desc)
 	CONFIG_IS_ENABLED(AMIGA_PARTITION) || \
 	CONFIG_IS_ENABLED(EFI_PARTITION)
 	puts ("\nPartition Map for ");
-	switch (dev_desc->uclass_id) {
-	case UCLASS_IDE:
+	switch (dev_desc->if_type) {
+	case IF_TYPE_IDE:
 		puts ("IDE");
 		break;
-	case UCLASS_AHCI:
+	case IF_TYPE_SATA:
 		puts ("SATA");
 		break;
-	case UCLASS_SCSI:
+	case IF_TYPE_SCSI:
 		puts ("SCSI");
 		break;
-	case UCLASS_USB:
+	case IF_TYPE_ATAPI:
+		puts ("ATAPI");
+		break;
+	case IF_TYPE_USB:
 		puts ("USB");
 		break;
-	case UCLASS_MMC:
+	case IF_TYPE_DOC:
+		puts ("DOC");
+		break;
+	case IF_TYPE_MMC:
 		puts ("MMC");
 		break;
-	case UCLASS_HOST:
+	case IF_TYPE_MTD:
+		puts("MTD");
+		break;
+	case IF_TYPE_HOST:
 		puts ("HOST");
 		break;
-	case UCLASS_NVME:
+	case IF_TYPE_NVME:
 		puts ("NVMe");
 		break;
-	case UCLASS_PVBLOCK:
-		puts("PV BLOCK");
+	case IF_TYPE_RKNAND:
+		puts("RKNAND");
 		break;
-	case UCLASS_VIRTIO:
-		puts("VirtIO");
+	case IF_TYPE_SPINAND:
+		puts("SPINAND");
 		break;
-	case UCLASS_EFI_MEDIA:
-		puts("EFI");
+	case IF_TYPE_SPINOR:
+		puts("SPINOR");
 		break;
 	default:
-		puts("UNKNOWN");
+		puts ("UNKNOWN");
 		break;
 	}
 	printf (" device %d  --   Partition Type: %s\n\n",
@@ -305,42 +330,56 @@ void part_print(struct blk_desc *dev_desc)
 		drv->print(dev_desc);
 }
 
-int part_get_info(struct blk_desc *dev_desc, int part,
-		       struct disk_partition *info)
+const char *part_get_type(struct blk_desc *dev_desc)
 {
 	struct part_driver *drv;
 
-	if (blk_enabled()) {
-#if CONFIG_IS_ENABLED(PARTITION_UUIDS)
-		/* The common case is no UUID support */
-		info->uuid[0] = 0;
-#endif
-#ifdef CONFIG_PARTITION_TYPE_GUID
-		info->type_guid[0] = 0;
-#endif
-
-		drv = part_driver_lookup_type(dev_desc);
-		if (!drv) {
-			debug("## Unknown partition table type %x\n",
-			      dev_desc->part_type);
-			return -EPROTONOSUPPORT;
-		}
-		if (!drv->get_info) {
-			PRINTF("## Driver %s does not have the get_info() method\n",
-			       drv->name);
-			return -ENOSYS;
-		}
-		if (drv->get_info(dev_desc, part, info) == 0) {
-			PRINTF("## Valid %s partition found ##\n", drv->name);
-			return 0;
-		}
+	drv = part_driver_lookup_type(dev_desc);
+	if (!drv) {
+		printf("## Unknown partition table type %x\n",
+		       dev_desc->part_type);
+		return NULL;
 	}
 
-	return -ENOENT;
+	return drv->name;
+}
+#endif /* HAVE_BLOCK_DEVICE */
+
+int part_get_info(struct blk_desc *dev_desc, int part,
+		       disk_partition_t *info)
+{
+#ifdef HAVE_BLOCK_DEVICE
+	struct part_driver *drv;
+
+#if CONFIG_IS_ENABLED(PARTITION_UUIDS)
+	/* The common case is no UUID support */
+	info->uuid[0] = 0;
+#endif
+#ifdef CONFIG_PARTITION_TYPE_GUID
+	info->type_guid[0] = 0;
+#endif
+
+	drv = part_driver_lookup_type(dev_desc);
+	if (!drv) {
+		debug("## Unknown partition table type %x\n",
+		      dev_desc->part_type);
+		return -EPROTONOSUPPORT;
+	}
+	if (!drv->get_info) {
+		PRINTF("## Driver %s does not have the get_info() method\n",
+		       drv->name);
+		return -ENOSYS;
+	}
+	if (drv->get_info(dev_desc, part, info) == 0) {
+		PRINTF("## Valid %s partition found ##\n", drv->name);
+		return 0;
+	}
+#endif /* HAVE_BLOCK_DEVICE */
+
+	return -1;
 }
 
-int part_get_info_whole_disk(struct blk_desc *dev_desc,
-			     struct disk_partition *info)
+int part_get_info_whole_disk(struct blk_desc *dev_desc, disk_partition_t *info)
 {
 	info->start = 0;
 	info->size = dev_desc->lba;
@@ -377,7 +416,7 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 		hwpart = 0;
 	}
 
-	dev = hextoul(dev_str, &ep);
+	dev = simple_strtoul(dev_str, &ep, 16);
 	if (*ep) {
 		printf("** Bad device specification %s %s **\n",
 		       ifname, dev_str);
@@ -386,7 +425,7 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 	}
 
 	if (hwpart_str) {
-		hwpart = hextoul(hwpart_str, &ep);
+		hwpart = simple_strtoul(hwpart_str, &ep, 16);
 		if (*ep) {
 			printf("** Bad HW partition specification %s %s **\n",
 			    ifname, hwpart_str);
@@ -397,20 +436,20 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 
 	*dev_desc = get_dev_hwpart(ifname, dev, hwpart);
 	if (!(*dev_desc) || ((*dev_desc)->type == DEV_TYPE_UNKNOWN)) {
-		debug("** Bad device %s %s **\n", ifname, dev_hwpart_str);
-		dev = -ENODEV;
+		printf("** Bad device %s %s **\n", ifname, dev_hwpart_str);
+		dev = -ENOENT;
 		goto cleanup;
 	}
 
-	if (blk_enabled()) {
-		/*
-		 * Updates the partition table for the specified hw partition.
-		 * Always should be done, otherwise hw partition 0 will return
-		 * stale data after displaying a non-zero hw partition.
-		 */
-		if ((*dev_desc)->uclass_id == UCLASS_MMC)
-			part_init(*dev_desc);
-	}
+#ifdef HAVE_BLOCK_DEVICE
+	/*
+	 * Updates the partition table for the specified hw partition.
+	 * Does not need to be done for hwpart 0 since it is default and
+	 * already loaded.
+	 */
+	if(hwpart != 0)
+		part_init(*dev_desc);
+#endif
 
 cleanup:
 	free(dup_str);
@@ -421,9 +460,9 @@ cleanup:
 #define PART_AUTO -1
 int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 			     struct blk_desc **dev_desc,
-			     struct disk_partition *info, int allow_whole_dev)
+			     disk_partition_t *info, int allow_whole_dev)
 {
-	int ret;
+	int ret = -1;
 	const char *part_str;
 	char *dup_str = NULL;
 	const char *dev_str;
@@ -431,37 +470,50 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	char *ep;
 	int p;
 	int part;
-	struct disk_partition tmpinfo;
+	disk_partition_t tmpinfo;
 
-	*dev_desc = NULL;
-	memset(info, 0, sizeof(*info));
-
-#if IS_ENABLED(CONFIG_SANDBOX) || IS_ENABLED(CONFIG_SEMIHOSTING)
+#ifdef CONFIG_SANDBOX
 	/*
 	 * Special-case a pseudo block device "hostfs", to allow access to the
 	 * host's own filesystem.
 	 */
-	if (!strcmp(ifname, "hostfs")) {
+	if (0 == strcmp(ifname, "hostfs")) {
+		*dev_desc = NULL;
+		info->start = 0;
+		info->size = 0;
+		info->blksz = 0;
+		info->bootable = 0;
 		strcpy((char *)info->type, BOOT_PART_TYPE);
-		strcpy((char *)info->name, "Host filesystem");
+		strcpy((char *)info->name, "Sandbox host");
+#if CONFIG_IS_ENABLED(PARTITION_UUIDS)
+		info->uuid[0] = 0;
+#endif
+#ifdef CONFIG_PARTITION_TYPE_GUID
+		info->type_guid[0] = 0;
+#endif
 
 		return 0;
 	}
 #endif
 
-#if IS_ENABLED(CONFIG_CMD_UBIFS) && !IS_ENABLED(CONFIG_SPL_BUILD)
+#ifdef CONFIG_CMD_UBIFS
 	/*
-	 * Special-case ubi, ubi goes through a mtd, rather than through
+	 * Special-case ubi, ubi goes through a mtd, rathen then through
 	 * a regular block device.
 	 */
-	if (!strcmp(ifname, "ubi")) {
+	if (0 == strcmp(ifname, "ubi")) {
 		if (!ubifs_is_mounted()) {
 			printf("UBIFS not mounted, use ubifsmount to mount volume first!\n");
-			return -EINVAL;
+			return -1;
 		}
 
+		*dev_desc = NULL;
+		memset(info, 0, sizeof(*info));
 		strcpy((char *)info->type, BOOT_PART_TYPE);
 		strcpy((char *)info->name, "UBI");
+#if CONFIG_IS_ENABLED(PARTITION_UUIDS)
+		info->uuid[0] = 0;
+#endif
 		return 0;
 	}
 #endif
@@ -474,7 +526,6 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	/* If still no dev_part_str, it's an error */
 	if (!dev_part_str) {
 		printf("** No device specified **\n");
-		ret = -ENODEV;
 		goto cleanup;
 	}
 
@@ -491,12 +542,8 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 
 	/* Look up the device */
 	dev = blk_get_device_by_str(ifname, dev_str, dev_desc);
-	if (dev < 0) {
-		printf("** Bad device specification %s %s **\n",
-		       ifname, dev_str);
-		ret = dev;
+	if (dev < 0)
 		goto cleanup;
-	}
 
 	/* Convert partition ID string to number */
 	if (!part_str || !*part_str) {
@@ -505,7 +552,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		part = PART_AUTO;
 	} else {
 		/* Something specified -> use exactly that */
-		part = (int)hextoul(part_str, &ep);
+		part = (int)simple_strtoul(part_str, &ep, 16);
 		/*
 		 * Less than whole string converted,
 		 * or request for whole device, but caller requires partition.
@@ -513,7 +560,6 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		if (*ep || (part == 0 && !allow_whole_dev)) {
 			printf("** Bad partition specification %s %s **\n",
 			    ifname, dev_part_str);
-			ret = -ENOENT;
 			goto cleanup;
 		}
 	}
@@ -527,7 +573,6 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		if (!(*dev_desc)->lba) {
 			printf("** Bad device size - %s %s **\n", ifname,
 			       dev_str);
-			ret = -EINVAL;
 			goto cleanup;
 		}
 
@@ -539,7 +584,6 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		if ((part > 0) || (!allow_whole_dev)) {
 			printf("** No partition table - %s %s **\n", ifname,
 			       dev_str);
-			ret = -EPROTONOSUPPORT;
 			goto cleanup;
 		}
 
@@ -608,6 +652,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 				*info = tmpinfo;
 		} else {
 			printf("** No valid partitions found **\n");
+			ret = -1;
 			goto cleanup;
 		}
 	}
@@ -615,7 +660,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		printf("** Invalid partition type \"%.32s\""
 			" (expect \"" BOOT_PART_TYPE "\")\n",
 			info->type);
-		ret  = -EINVAL;
+		ret  = -1;
 		goto cleanup;
 	}
 
@@ -629,119 +674,82 @@ cleanup:
 	return ret;
 }
 
-int part_get_info_by_name_type(struct blk_desc *dev_desc, const char *name,
-			       struct disk_partition *info, int part_type)
+/*
+ * For android A/B system, we append the current slot suffix quietly,
+ * this takes over the responsibility of slot suffix appending from
+ * developer to framework.
+ */
+static int part_get_info_by_name_option(struct blk_desc *dev_desc,
+					const char *name,
+					disk_partition_t *info,
+					bool strict)
 {
+	__maybe_unused char name_slot[32] = {0};
 	struct part_driver *part_drv;
-	int ret;
-	int i;
+	const char *full_name = name;
+	int none_slot_try = 1;
+	int ret, i;
 
 	part_drv = part_driver_lookup_type(dev_desc);
 	if (!part_drv)
 		return -1;
 
-	if (!part_drv->get_info) {
-		log_debug("## Driver %s does not have the get_info() method\n",
-			  part_drv->name);
-		return -ENOSYS;
+	if (strict) {
+		none_slot_try = 0;
+		goto lookup;
 	}
 
+	/* 1. Query partition with A/B slot suffix */
+#if defined(CONFIG_ANDROID_AB) || defined(CONFIG_SPL_AB)
+	char *slot = (char *)name + strlen(name) - 2;
+
+	if (!strcmp(slot, "_a") || !strcmp(slot, "_b"))
+		goto lookup;
+#endif
+#if defined(CONFIG_ANDROID_AB) && !defined(CONFIG_SPL_BUILD)
+	if (rk_avb_append_part_slot(name, name_slot))
+		return -1;
+	full_name = name_slot;
+#elif defined(CONFIG_SPL_AB) && defined(CONFIG_SPL_BUILD)
+	if (spl_ab_append_part_slot(dev_desc, name, name_slot))
+		return -1;
+	full_name = name_slot;
+#endif
+
+lookup:
+	debug("## Query partition(%d): %s\n", none_slot_try, full_name);
 	for (i = 1; i < part_drv->max_entries; i++) {
 		ret = part_drv->get_info(dev_desc, i, info);
 		if (ret != 0) {
 			/* no more entries in table */
 			break;
 		}
-		if (strcmp(name, (const char *)info->name) == 0) {
+		if (strcmp(full_name, (const char *)info->name) == 0) {
 			/* matched */
 			return i;
 		}
 	}
 
-	return -ENOENT;
+	/* 2. Query partition without A/B slot suffix if above failed */
+	if (none_slot_try) {
+		none_slot_try = 0;
+		full_name = name;
+		goto lookup;
+	}
+
+	return -1;
 }
 
 int part_get_info_by_name(struct blk_desc *dev_desc, const char *name,
-			  struct disk_partition *info)
+			  disk_partition_t *info)
 {
-	return part_get_info_by_name_type(dev_desc, name, info, PART_TYPE_ALL);
+	return part_get_info_by_name_option(dev_desc, name, info, false);
 }
 
-/**
- * Get partition info from device number and partition name.
- *
- * Parse a device number and partition name string in the form of
- * "devicenum.hwpartnum#partition_name", for example "0.1#misc". devicenum and
- * hwpartnum are both optional, defaulting to 0. If the partition is found,
- * sets dev_desc and part_info accordingly with the information of the
- * partition with the given partition_name.
- *
- * @param[in] dev_iface Device interface
- * @param[in] dev_part_str Input string argument, like "0.1#misc"
- * @param[out] dev_desc Place to store the device description pointer
- * @param[out] part_info Place to store the partition information
- * Return: 0 on success, or a negative on error
- */
-static int part_get_info_by_dev_and_name(const char *dev_iface,
-					 const char *dev_part_str,
-					 struct blk_desc **dev_desc,
-					 struct disk_partition *part_info)
+int part_get_info_by_name_strict(struct blk_desc *dev_desc, const char *name,
+				 disk_partition_t *info)
 {
-	char *dup_str = NULL;
-	const char *dev_str, *part_str;
-	int ret;
-
-	/* Separate device and partition name specification */
-	if (dev_part_str)
-		part_str = strchr(dev_part_str, '#');
-	else
-		part_str = NULL;
-
-	if (part_str) {
-		dup_str = strdup(dev_part_str);
-		dup_str[part_str - dev_part_str] = 0;
-		dev_str = dup_str;
-		part_str++;
-	} else {
-		return -EINVAL;
-	}
-
-	ret = blk_get_device_by_str(dev_iface, dev_str, dev_desc);
-	if (ret < 0)
-		goto cleanup;
-
-	ret = part_get_info_by_name(*dev_desc, part_str, part_info);
-	if (ret < 0)
-		printf("Could not find \"%s\" partition\n", part_str);
-
-cleanup:
-	free(dup_str);
-	return ret;
-}
-
-int part_get_info_by_dev_and_name_or_num(const char *dev_iface,
-					 const char *dev_part_str,
-					 struct blk_desc **dev_desc,
-					 struct disk_partition *part_info,
-					 int allow_whole_dev)
-{
-	int ret;
-
-	/* Split the part_name if passed as "$dev_num#part_name". */
-	ret = part_get_info_by_dev_and_name(dev_iface, dev_part_str,
-					    dev_desc, part_info);
-	if (ret >= 0)
-		return ret;
-	/*
-	 * Couldn't lookup by name, try looking up the partition description
-	 * directly.
-	 */
-	ret = blk_get_device_part_str(dev_iface, dev_part_str,
-				      dev_desc, part_info, allow_whole_dev);
-	if (ret < 0)
-		printf("Couldn't find partition %s %s\n",
-		       dev_iface, dev_part_str);
-	return ret;
+	return part_get_info_by_name_option(dev_desc, name, info, true);
 }
 
 void part_set_generic_name(const struct blk_desc *dev_desc,
@@ -749,18 +757,23 @@ void part_set_generic_name(const struct blk_desc *dev_desc,
 {
 	char *devtype;
 
-	switch (dev_desc->uclass_id) {
-	case UCLASS_IDE:
-	case UCLASS_AHCI:
+	switch (dev_desc->if_type) {
+	case IF_TYPE_IDE:
+	case IF_TYPE_SATA:
+	case IF_TYPE_ATAPI:
 		devtype = "hd";
 		break;
-	case UCLASS_SCSI:
+	case IF_TYPE_SCSI:
 		devtype = "sd";
 		break;
-	case UCLASS_USB:
+	case IF_TYPE_USB:
 		devtype = "usbd";
 		break;
-	case UCLASS_MMC:
+	case IF_TYPE_DOC:
+		devtype = "docd";
+		break;
+	case IF_TYPE_MMC:
+	case IF_TYPE_SD:
 		devtype = "mmcsd";
 		break;
 	default:
@@ -769,20 +782,4 @@ void part_set_generic_name(const struct blk_desc *dev_desc,
 	}
 
 	sprintf(name, "%s%c%d", devtype, 'a' + dev_desc->devnum, part_num);
-}
-
-int part_get_bootable(struct blk_desc *desc)
-{
-	struct disk_partition info;
-	int p;
-
-	for (p = 1; p <= MAX_SEARCH_PARTITIONS; p++) {
-		int ret;
-
-		ret = part_get_info(desc, p, &info);
-		if (!ret && info.bootable)
-			return p;
-	}
-
-	return 0;
 }

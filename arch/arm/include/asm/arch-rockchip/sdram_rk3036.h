@@ -1,9 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2015 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 #ifndef _ASM_ARCH_SDRAM_RK3036_H
 #define _ASM_ARCH_SDRAM_RK3036_H
+
+#include <common.h>
 
 struct rk3036_ddr_pctl {
 	u32 scfg;
@@ -328,7 +331,7 @@ struct rk3036_ddr_config {
 };
 
 /* rk3036 sdram initial */
-void sdram_init(void);
+int sdram_init(void);
 
 /* get ddr die config, implement in specific board */
 void get_ddr_config(struct rk3036_ddr_config *config);

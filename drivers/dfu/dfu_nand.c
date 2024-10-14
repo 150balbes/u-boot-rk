@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * dfu_nand.c -- DFU for NAND routines.
  *
@@ -7,10 +6,11 @@
  * Based on dfu_mmc.c which is:
  * Copyright (C) 2012 Samsung Electronics
  * author: Lukasz Majewski <l.majewski@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
 #include <malloc.h>
 #include <errno.h>
 #include <div64.h>
@@ -51,7 +51,6 @@ static int nand_block_op(enum dfu_op op, struct dfu_entity *dfu,
 					 lim, buf);
 	} else {
 		nand_erase_options_t opts;
-		int write_flags = WITH_WR_VERIFY;
 
 		memset(&opts, 0, sizeof(opts));
 		opts.offset = start;
@@ -64,12 +63,8 @@ static int nand_block_op(enum dfu_op op, struct dfu_entity *dfu,
 		if (ret)
 			return ret;
 		/* then write */
-#ifdef CONFIG_DFU_NAND_TRIMFFS
-		if (dfu->data.nand.ubi)
-			write_flags |= WITH_DROP_FFS;
-#endif
 		ret = nand_write_skip_bad(mtd, start, &count, &actual,
-					  lim, buf, write_flags);
+					  lim, buf, WITH_WR_VERIFY);
 	}
 
 	if (ret != 0) {
@@ -194,25 +189,22 @@ unsigned int dfu_polltimeout_nand(struct dfu_entity *dfu)
 	return DFU_DEFAULT_POLL_TIMEOUT;
 }
 
-int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char **argv, int argc)
+int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char *s)
 {
-	char *s;
+	char *st;
+#ifndef CONFIG_SPL_BUILD
 	int ret, dev, part;
-
+#endif
 	dfu->data.nand.ubi = 0;
 	dfu->dev_type = DFU_DEV_NAND;
-	if (argc != 3)
-		return -EINVAL;
-
-	if (!strcmp(argv[0], "raw")) {
+	st = strsep(&s, " ");
+	if (!strcmp(st, "raw")) {
 		dfu->layout = DFU_RAW_ADDR;
-		dfu->data.nand.start = hextoul(argv[1], &s);
-		if (*s)
-			return -EINVAL;
-		dfu->data.nand.size = hextoul(argv[2], &s);
-		if (*s)
-			return -EINVAL;
-	} else if ((!strcmp(argv[0], "part")) || (!strcmp(argv[0], "partubi"))) {
+		dfu->data.nand.start = simple_strtoul(s, &s, 16);
+		s++;
+		dfu->data.nand.size = simple_strtoul(s, &s, 16);
+	} else if ((!strcmp(st, "part")) || (!strcmp(st, "partubi"))) {
+#ifndef CONFIG_SPL_BUILD
 		char mtd_id[32];
 		struct mtd_device *mtd_dev;
 		u8 part_num;
@@ -220,15 +212,12 @@ int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char **argv, int 
 
 		dfu->layout = DFU_RAW_ADDR;
 
-		dev = dectoul(argv[1], &s);
-		if (*s)
-			return -EINVAL;
-		part = dectoul(argv[2], &s);
-		if (*s)
-			return -EINVAL;
+		dev = simple_strtoul(s, &s, 10);
+		s++;
+		part = simple_strtoul(s, &s, 10);
 
 		sprintf(mtd_id, "%s%d,%d", "nand", dev, part - 1);
-		debug("using id '%s'\n", mtd_id);
+		printf("using id '%s'\n", mtd_id);
 
 		mtdparts_init();
 
@@ -240,10 +229,11 @@ int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char **argv, int 
 
 		dfu->data.nand.start = pi->offset;
 		dfu->data.nand.size = pi->size;
-		if (!strcmp(argv[0], "partubi"))
+		if (!strcmp(st, "partubi"))
 			dfu->data.nand.ubi = 1;
+#endif
 	} else {
-		printf("%s: Memory layout (%s) not supported!\n", __func__, argv[0]);
+		printf("%s: Memory layout (%s) not supported!\n", __func__, st);
 		return -1;
 	}
 

@@ -1,13 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <clock_legacy.h>
-#include <command.h>
 #include <div64.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <errno.h>
 #include <asm/arch/clock.h>
@@ -17,10 +15,10 @@ DECLARE_GLOBAL_DATA_PTR;
 
 int get_clocks(void)
 {
-#ifdef CONFIG_FSL_ESDHC_IMX
-#if CFG_SYS_FSL_ESDHC_ADDR == USDHC0_RBASE
+#ifdef CONFIG_FSL_ESDHC
+#if CONFIG_SYS_FSL_ESDHC_ADDR == USDHC0_RBASE
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-#elif CFG_SYS_FSL_ESDHC_ADDR == USDHC1_RBASE
+#elif CONFIG_SYS_FSL_ESDHC_ADDR == USDHC1_RBASE
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
 #endif
 #endif
@@ -75,7 +73,7 @@ u32 get_lpuart_clk(void)
 	return pcc_clock_get_rate(lpuart_pcc_clks[index - 4]);
 }
 
-#ifdef CONFIG_SYS_I2C_IMX_LPI2C
+#ifdef CONFIG_SYS_LPI2C_IMX
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 {
 	/* Set parent to FIRC DIV2 clock */
@@ -303,11 +301,9 @@ void clock_init(void)
 
 	scg_a7_soscdiv_init();
 
-	scg_a7_init_core_clk();
-
-	/* APLL PFD1 = 270Mhz, PFD2=345.6Mhz, PFD3=800Mhz */
+	/* APLL PFD1 = 270Mhz, PFD2=480Mhz, PFD3=800Mhz */
 	scg_enable_pll_pfd(SCG_APLL_PFD1_CLK, 35);
-	scg_enable_pll_pfd(SCG_APLL_PFD2_CLK, 28);
+	scg_enable_pll_pfd(SCG_APLL_PFD2_CLK, 20);
 	scg_enable_pll_pfd(SCG_APLL_PFD3_CLK, 12);
 
 	init_clk_lpuart();
@@ -317,7 +313,7 @@ void clock_init(void)
 	enable_usboh3_clk(1);
 }
 
-#ifdef CONFIG_IMX_HAB
+#ifdef CONFIG_SECURE_BOOT
 void hab_caam_clock_enable(unsigned char enable)
 {
        if (enable)
@@ -327,14 +323,12 @@ void hab_caam_clock_enable(unsigned char enable)
 }
 #endif
 
-#ifndef CONFIG_SPL_BUILD
 /*
  * Dump some core clockes.
  */
-int do_mx7_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[])
+int do_mx7_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-
+	u32 addr = 0;
 	u32 freq;
 	freq = decode_pll(PLL_A7_SPLL);
 	printf("PLL_A7_SPLL    %8d MHz\n", freq / 1000000);
@@ -343,7 +337,7 @@ int do_mx7_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
 	printf("PLL_A7_APLL    %8d MHz\n", freq / 1000000);
 
 	freq = decode_pll(PLL_USB);
-	printf("PLL_USB        %8d MHz\n", freq / 1000000);
+	printf("PLL_USB    %8d MHz\n", freq / 1000000);
 
 	printf("\n");
 
@@ -357,6 +351,8 @@ int do_mx7_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
 	printf("USDHC2     %8d kHz\n", mxc_get_clock(MXC_ESDHC2_CLK) / 1000);
 	printf("I2C4       %8d kHz\n", mxc_get_clock(MXC_I2C_CLK) / 1000);
 
+	addr = (u32) clock_init;
+	printf("[%s] addr = 0x%08X\r\n", __func__, addr);
 	scg_a7_info();
 
 	return 0;
@@ -367,4 +363,3 @@ U_BOOT_CMD(
 	"display clocks",
 	""
 );
-#endif

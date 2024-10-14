@@ -1,16 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Amarula Solutions B.V.
  * Copyright (C) 2016 Engicam S.r.l.
  * Author: Jagan Teki <jagan@amarulasolutions.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <image.h>
-#include <init.h>
-#include <serial.h>
 #include <spl.h>
-#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/gpio.h>
@@ -26,51 +23,21 @@
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/video.h>
 
-#ifdef CONFIG_SPL_LOAD_FIT
-int board_fit_config_name_match(const char *name)
-{
-        if (is_mx6dq() && !strcmp(name, "imx6q-icore"))
-                return 0;
-        else if (is_mx6dq() && !strcmp(name, "imx6q-icore-rqs"))
-                return 0;
-        else if (is_mx6dq() && !strcmp(name, "imx6q-icore-mipi"))
-                return 0;
-        else if ((is_mx6dl() || is_mx6solo()) && !strcmp(name, "imx6dl-icore"))
-                return 0;
-        else if ((is_mx6dl() || is_mx6solo()) && !strcmp(name, "imx6dl-icore-rqs"))
-                return 0;
-        else if ((is_mx6dl() || is_mx6solo()) && !strcmp(name, "imx6dl-icore-mipi"))
-                return 0;
-        else
-                return -1;
-}
+DECLARE_GLOBAL_DATA_PTR;
+
+#define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |             \
+        PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |               \
+        PAD_CTL_DSE_40ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
+
+static iomux_v3_cfg_t const uart_pads[] = {
+#ifdef CONFIG_MX6QDL
+        IOMUX_PADS(PAD_KEY_COL0__UART4_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+        IOMUX_PADS(PAD_KEY_ROW0__UART4_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+#elif CONFIG_MX6UL
+	IOMUX_PADS(PAD_UART1_TX_DATA__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL)),
+	IOMUX_PADS(PAD_UART1_RX_DATA__UART1_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL)),
 #endif
-
-#ifdef CONFIG_ENV_IS_IN_MMC
-void board_boot_order(u32 *spl_boot_list)
-{
-	u32 bmode = imx6_src_get_boot_mode();
-	u8 boot_dev = BOOT_DEVICE_MMC1;
-
-	switch ((bmode & IMX6_BMODE_MASK) >> IMX6_BMODE_SHIFT) {
-	case IMX6_BMODE_SD:
-	case IMX6_BMODE_ESD:
-		/* SD/eSD - BOOT_DEVICE_MMC1 */
-		break;
-	case IMX6_BMODE_MMC:
-	case IMX6_BMODE_EMMC:
-		/* MMC/eMMC */
-		boot_dev = BOOT_DEVICE_MMC2;
-		break;
-	default:
-		/* Default - BOOT_DEVICE_MMC1 */
-		printf("Wrong board boot order\n");
-		break;
-	}
-
-	spl_boot_list[0] = boot_dev;
-}
-#endif
+};
 
 #ifdef CONFIG_SPL_OS_BOOT
 int spl_start_uboot(void)
@@ -404,18 +371,23 @@ void board_init_f(ulong dummy)
 	/* setup AIPS and disable watchdog */
 	arch_cpu_init();
 
-	if (!(is_mx6ul()))
-		gpr_init();
+	gpr_init();
+
+	/* iomux */
+	SETUP_IOMUX_PADS(uart_pads);
 
 	/* setup GP timer */
 	timer_init();
-
-	/* Enable device tree and early DM support*/
-	spl_early_init();
 
 	/* UART clocks enabled and gd valid - init serial console */
 	preloader_console_init();
 
 	/* DDR initialization */
 	spl_dram_init();
+
+	/* Clear the BSS. */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	/* load/boot image from boot device */
+	board_init_r(NULL, 0);
 }

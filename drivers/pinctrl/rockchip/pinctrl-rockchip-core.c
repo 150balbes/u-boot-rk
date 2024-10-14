@@ -5,14 +5,12 @@
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
 #include <dm/pinctrl.h>
 #include <regmap.h>
 #include <syscon.h>
 #include <fdtdec.h>
-#include <linux/bitops.h>
-#include <linux/libfdt.h>
-#include <asm/global_data.h>
+#include <dm/uclass-internal.h>
+#include <asm/gpio.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -127,7 +125,7 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 
 	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
 		debug("pin %d is unrouted\n", pin);
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY)
@@ -169,7 +167,7 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
 
 	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
 		debug("pin %d is unrouted\n", pin);
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY) {
@@ -204,7 +202,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 
 	ret = rockchip_verify_mux(bank, pin, mux);
 	if (ret < 0)
-		return ret;
+		return ret == -ENOTSUPP ? 0 : ret;
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY)
 		return 0;
@@ -241,8 +239,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		case ROUTE_TYPE_PMUGRF:
 			regmap_write(priv->regmap_pmu, route_reg, route_val);
 			break;
-		case ROUTE_TYPE_INVALID:
-			fallthrough;
+		case ROUTE_TYPE_INVALID: /* Fall through */
 		default:
 			break;
 		}
@@ -358,6 +355,11 @@ static int rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 				u32 pin, u32 param, u32 arg)
 {
 	int rc;
+#if CONFIG_IS_ENABLED(DM_GPIO) && \
+	(CONFIG_IS_ENABLED(SPL_GPIO_SUPPORT) || !defined(CONFIG_SPL_BUILD))
+	struct gpio_desc desc;
+	char gpio_name[16];
+#endif
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -382,6 +384,32 @@ static int rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 			return rc;
 		break;
 
+	case PIN_CONFIG_OUTPUT:
+#if CONFIG_IS_ENABLED(DM_GPIO) && \
+	(CONFIG_IS_ENABLED(SPL_GPIO_SUPPORT) || !defined(CONFIG_SPL_BUILD))
+		desc.flags = GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE;
+		if (!arg) desc.flags |= GPIOD_ACTIVE_LOW;
+		snprintf(gpio_name, 16, "%s%d", bank->name, pin);
+		rc = dm_gpio_lookup_name(gpio_name, &desc);
+		if (rc < 0) {
+			debug("%s: GPIO %s-%d lookup failed (ret=%d)\n", __func__,
+				bank->name, pin, rc);
+			return rc;
+		}
+
+		rc = dm_gpio_request(&desc, gpio_name);
+		if (rc < 0) {
+			debug("%s: GPIO %s-%d request failed (ret=%d)\n", __func__,
+				bank->name, pin, rc);
+			return rc;
+		}
+		dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT);
+		dm_gpio_set_value(&desc, arg ? 1 : 0);
+		debug("%s: GPIO %s-%d set to %d\n", __func__, bank->name, pin, arg);
+#else
+		return -ENOSYS;
+#endif
+		break;
 	default:
 		break;
 	}
@@ -398,6 +426,8 @@ static const struct pinconf_param rockchip_conf_params[] = {
 	{ "drive-strength", PIN_CONFIG_DRIVE_STRENGTH, 0 },
 	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
 	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
+	{ "output-high", PIN_CONFIG_OUTPUT, 1, },
+	{ "output-low", PIN_CONFIG_OUTPUT, 0, },
 };
 
 static int rockchip_pinconf_prop_name_to_param(const char *property,
@@ -510,7 +540,16 @@ static int rockchip_pinctrl_set_state(struct udevice *dev,
 	return 0;
 }
 
+static int rockchip_pinctrl_get_pins_count(struct udevice *dev)
+{
+	struct rockchip_pinctrl_priv *priv = dev_get_priv(dev);
+	struct rockchip_pin_ctrl *ctrl = priv->ctrl;
+
+	return ctrl->nr_pins;
+}
+
 const struct pinctrl_ops rockchip_pinctrl_ops = {
+	.get_pins_count			= rockchip_pinctrl_get_pins_count,
 	.set_state			= rockchip_pinctrl_set_state,
 	.get_gpio_mux			= rockchip_pinctrl_get_gpio_mux,
 };
@@ -523,6 +562,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			(struct rockchip_pin_ctrl *)dev_get_driver_data(dev);
 	struct rockchip_pin_bank *bank;
 	int grf_offs, pmu_offs, drv_grf_offs, drv_pmu_offs, i, j;
+	u32 nr_pins;
 
 	grf_offs = ctrl->grf_mux_offset;
 	pmu_offs = ctrl->pmu_mux_offset;
@@ -530,12 +570,13 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 	drv_grf_offs = ctrl->grf_drv_offset;
 	bank = ctrl->pin_banks;
 
+	nr_pins = 0;
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		int bank_pins = 0;
 
 		bank->priv = priv;
-		bank->pin_base = ctrl->nr_pins;
-		ctrl->nr_pins += bank->nr_pins;
+		bank->pin_base = nr_pins;
+		nr_pins += bank->nr_pins;
 
 		/* calculate iomux and drv offsets */
 		for (j = 0; j < 4; j++) {
@@ -543,7 +584,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			struct rockchip_drv *drv = &bank->drv[j];
 			int inc;
 
-			if (bank_pins >= bank->nr_pins)
+			if (bank_pins >= nr_pins)
 				break;
 
 			/* preset iomux offset value, set new start value */
@@ -622,6 +663,8 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(struct udevice *d
 			}
 		}
 	}
+
+	WARN_ON(nr_pins != ctrl->nr_pins);
 
 	return ctrl;
 }

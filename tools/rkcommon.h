@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2015 Google,  Inc
  * Written by Simon Glass <sjg@chromium.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _RKCOMMON_H
@@ -19,7 +20,7 @@ enum {
 /**
  * rkcommon_check_params() - check params
  *
- * Return: 0 if OK, -1 if ERROR.
+ * @return 0 if OK, -1 if ERROR.
  */
 int rkcommon_check_params(struct image_tool_params *params);
 
@@ -56,7 +57,7 @@ void rkcommon_set_header(void *buf,  struct stat *sbuf,  int ifd,
  *
  * @buf:	Pointer to the image file
  * @file_size:	Size of entire bootable image file (incl. all padding)
- * Return: 0 if OK
+ * @return 0 if OK
  */
 int rkcommon_verify_header(unsigned char *buf, int size,
 			   struct image_tool_params *params);
@@ -76,7 +77,7 @@ void rkcommon_print_header(const void *buf);
  * Some socs cannot disable the rc4-encryption of the spl binary.
  * rc4 encryption is disabled normally except on socs that cannot
  * handle unencrypted binaries.
- * Return: true or false depending on rc4 being required.
+ * @return true or false depending on rc4 being required.
  */
 bool rkcommon_need_rc4_spl(struct image_tool_params *params);
 
@@ -99,7 +100,7 @@ void rkcommon_rc4_encode_spl(void *buf, unsigned int offset, unsigned int size);
  * @tparams:    Pointer tot the image type structure (for setting
  *              the header and header_size)
  *
- * Return: 0 (always)
+ * @return 0 (always)
  */
 int rkcommon_vrec_header(struct image_tool_params *params,
 			 struct image_type_params *tparams);

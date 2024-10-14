@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) Marvell International Ltd. and its affiliates
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __DDR3_AXP_H
@@ -19,10 +20,10 @@
 #define FAR_END_DIMM_ADDR		0x50
 #define MAX_DIMM_ADDR			0x60
 
-#ifndef CFG_SYS_SDRAM_SIZE
+#ifndef CONFIG_DDR_FIXED_SIZE
 #define SDRAM_CS_SIZE			0xFFFFFFF
 #else
-#define SDRAM_CS_SIZE			((CFG_SYS_SDRAM_SIZE >> 10) - 1)
+#define SDRAM_CS_SIZE			(CONFIG_DDR_FIXED_SIZE - 1)
 #endif
 #define SDRAM_CS_BASE			0x0
 #define SDRAM_DIMM_SIZE			0x80000000
@@ -37,7 +38,7 @@
 #define ECC_SUPPORT
 #endif
 #define NEW_FABRIC_TWSI_ADDR		0x4E
-#ifdef CONFIG_TARGET_DB_MV784MP_GP
+#ifdef CONFIG_DB_784MP_GP
 #define BUS_WIDTH_ECC_TWSI_ADDR		0x4E
 #else
 #define BUS_WIDTH_ECC_TWSI_ADDR		0x4F

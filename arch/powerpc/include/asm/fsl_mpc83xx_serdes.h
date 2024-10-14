@@ -1,12 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2010 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FSL_MPC83XX_SERDES_H
 #define __FSL_MPC83XX_SERDES_H
-
-#ifndef CONFIG_MPC83XX_SERDES
 
 #include <config.h>
 
@@ -20,7 +19,5 @@
 #define FSL_SERDES_VDD_1V		1
 
 extern void fsl_setup_serdes(u32 offset, char proto, u32 rfcks, char vdd);
-
-#endif /* !CONFIG_MPC83XX_SERDES */
 
 #endif /* __FSL_MPC83XX_SERDES_H */

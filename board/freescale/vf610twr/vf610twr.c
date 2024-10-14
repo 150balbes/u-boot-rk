@@ -1,11 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/iomux-vf610.h>
@@ -13,7 +12,7 @@
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/clock.h>
 #include <mmc.h>
-#include <fsl_esdhc_imx.h>
+#include <fsl_esdhc.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include <i2c.h>
@@ -236,7 +235,7 @@ static void setup_iomux_qspi(void)
 	imx_iomux_v3_setup_multiple_pads(qspi0_pads, ARRAY_SIZE(qspi0_pads));
 }
 
-#ifdef CONFIG_FSL_ESDHC_IMX
+#ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[1] = {
 	{ESDHC1_BASE_ADDR},
 };
@@ -247,7 +246,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return 1;
 }
 
-int board_mmc_init(struct bd_info *bis)
+int board_mmc_init(bd_t *bis)
 {
 	static const iomux_v3_cfg_t esdhc1_pads[] = {
 		NEW_PAD_CTRL(VF610_PAD_PTA24__ESDHC1_CLK, ESDHC_PAD_CTRL),

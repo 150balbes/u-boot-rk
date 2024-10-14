@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Masami Komiya <mkomiya@sonare.it> 2004
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __NFS_H__
@@ -42,7 +43,6 @@
  * case, most NFS servers are optimized for a power of 2.
  */
 #define NFS_READ_SIZE	1024	/* biggest power of two that fits Ether frame */
-#define NFS_MAX_ATTRS	26
 
 /* Values for Accept State flag on RPC answers (See: rfc1831) */
 enum rpc_accept_stat {
@@ -56,8 +56,7 @@ enum rpc_accept_stat {
 
 struct rpc_t {
 	union {
-		uint8_t data[NFS_READ_SIZE + (6 + NFS_MAX_ATTRS) *
-			sizeof(uint32_t)];
+		uint8_t data[2048];
 		struct {
 			uint32_t id;
 			uint32_t type;
@@ -74,11 +73,10 @@ struct rpc_t {
 			uint32_t verifier;
 			uint32_t v2;
 			uint32_t astatus;
-			uint32_t data[NFS_READ_SIZE / sizeof(uint32_t) +
-				NFS_MAX_ATTRS];
+			uint32_t data[NFS_READ_SIZE];
 		} reply;
 	} u;
-};
+} __attribute__((packed));
 void nfs_start(void);	/* Begin NFS */
 
 

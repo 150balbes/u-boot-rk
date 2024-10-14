@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2011-2013, NVIDIA Corporation.
  * Copyright 2014 Google Inc.
+ *
+ * SPDX-License-Identifier:     GPL-2.0
  */
 
 #include <common.h>
@@ -9,15 +10,15 @@
 #include <dm.h>
 #include <div64.h>
 #include <errno.h>
-#include <log.h>
 #include <video_bridge.h>
 #include <asm/io.h>
 #include <asm/arch-tegra/dc.h>
-#include <linux/delay.h>
 #include "display.h"
 #include "edid.h"
 #include "sor.h"
 #include "displayport.h"
+
+DECLARE_GLOBAL_DATA_PTR;
 
 #define DO_FAST_LINK_TRAINING		1
 
@@ -1494,8 +1495,8 @@ int tegra_dp_enable(struct udevice *dev, int panel_bpp,
 		return -ENOLINK;
 	}
 
-	ret = uclass_first_device_err(UCLASS_VIDEO_BRIDGE, &sor);
-	if (ret) {
+	ret = uclass_first_device(UCLASS_VIDEO_BRIDGE, &sor);
+	if (ret || !sor) {
 		debug("dp: failed to find SOR device: ret=%d\n", ret);
 		return ret;
 	}
@@ -1566,9 +1567,9 @@ error_enable:
 	return 0;
 }
 
-static int tegra_dp_of_to_plat(struct udevice *dev)
+static int tegra_dp_ofdata_to_platdata(struct udevice *dev)
 {
-	struct tegra_dp_plat *plat = dev_get_plat(dev);
+	struct tegra_dp_plat *plat = dev_get_platdata(dev);
 
 	plat->base = dev_read_addr(dev);
 
@@ -1594,9 +1595,9 @@ static const struct dm_display_ops dp_tegra_ops = {
 
 static int dp_tegra_probe(struct udevice *dev)
 {
-	struct tegra_dp_plat *plat = dev_get_plat(dev);
+	struct tegra_dp_plat *plat = dev_get_platdata(dev);
 	struct tegra_dp_priv *priv = dev_get_priv(dev);
-	struct display_plat *disp_uc_plat = dev_get_uclass_plat(dev);
+	struct display_plat *disp_uc_plat = dev_get_uclass_platdata(dev);
 
 	priv->regs = (struct dpaux_ctlr *)plat->base;
 	priv->enabled = false;
@@ -1609,7 +1610,6 @@ static int dp_tegra_probe(struct udevice *dev)
 
 static const struct udevice_id tegra_dp_ids[] = {
 	{ .compatible = "nvidia,tegra124-dpaux" },
-	{ .compatible = "nvidia,tegra210-dpaux" },
 	{ }
 };
 
@@ -1617,9 +1617,9 @@ U_BOOT_DRIVER(dp_tegra) = {
 	.name	= "dpaux_tegra",
 	.id	= UCLASS_DISPLAY,
 	.of_match = tegra_dp_ids,
-	.of_to_plat = tegra_dp_of_to_plat,
+	.ofdata_to_platdata = tegra_dp_ofdata_to_platdata,
 	.probe	= dp_tegra_probe,
 	.ops	= &dp_tegra_ops,
-	.priv_auto	= sizeof(struct tegra_dp_priv),
-	.plat_auto	= sizeof(struct tegra_dp_plat),
+	.priv_auto_alloc_size = sizeof(struct tegra_dp_priv),
+	.platdata_auto_alloc_size = sizeof(struct tegra_dp_plat),
 };

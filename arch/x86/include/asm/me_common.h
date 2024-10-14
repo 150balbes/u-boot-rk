@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * From Coreboot src/southbridge/intel/bd82x6x/me.h
  *
@@ -7,6 +6,8 @@
  * easier to add new platform.
  *
  * Copyright (C) 2016 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __ASM_ME_COMMON_H
@@ -325,7 +326,7 @@ void intel_me_status(struct udevice *me_dev);
  * intel_early_me_init() - Early Intel Management Engine init
  *
  * @me_dev:	Management engine PCI device
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int intel_early_me_init(struct udevice *me_dev);
 
@@ -333,7 +334,7 @@ int intel_early_me_init(struct udevice *me_dev);
  * intel_early_me_uma_size() - Get UMA size from the Intel Management Engine
  *
  * @me_dev:	Management engine PCI device
- * Return: UMA size if OK, -EINVAL on error
+ * @return UMA size if OK, -EINVAL on error
  */
 int intel_early_me_uma_size(struct udevice *me_dev);
 
@@ -343,7 +344,7 @@ int intel_early_me_uma_size(struct udevice *me_dev);
  * @dev:	Northbridge device
  * @me_dev:	Management engine PCI device
  * @status:	Status result (ME_INIT_...)
- * Return: 0 to continue to boot, -EINVAL on unknown result data, -ETIMEDOUT
+ * @return 0 to continue to boot, -EINVAL on unknown result data, -ETIMEDOUT
  * if ME did not respond
  */
 int intel_early_me_init_done(struct udevice *dev, struct udevice *me_dev,

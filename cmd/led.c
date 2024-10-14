@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -54,7 +55,7 @@ static int list_leds(void)
 	for (uclass_find_first_device(UCLASS_LED, &dev);
 	     dev;
 	     uclass_find_next_device(&dev)) {
-		struct led_uc_plat *plat = dev_get_uclass_plat(dev);
+		struct led_uc_plat *plat = dev_get_uclass_platdata(dev);
 
 		if (!plat->label)
 			continue;
@@ -71,7 +72,7 @@ static int list_leds(void)
 	return 0;
 }
 
-int do_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	enum led_state_t cmd;
 	const char *led_label;
@@ -85,7 +86,7 @@ int do_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (argc < 2)
 		return CMD_RET_USAGE;
 	led_label = argv[1];
-	if (strncmp(led_label, "list", 4) == 0)
+	if (*led_label == 'l')
 		return list_leds();
 
 	cmd = argc > 2 ? get_led_cmd(argv[2]) : LEDST_COUNT;
@@ -93,7 +94,7 @@ int do_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (cmd == LEDST_BLINK) {
 		if (argc < 4)
 			return CMD_RET_USAGE;
-		freq_ms = dectoul(argv[3], NULL);
+		freq_ms = simple_strtoul(argv[3], NULL, 10);
 	}
 #endif
 	ret = led_get_by_label(led_label, &dev);
@@ -137,6 +138,6 @@ U_BOOT_CMD(
 	led, 4, 1, do_led,
 	"manage LEDs",
 	"<led_label> on|off|toggle" BLINK "\tChange LED state\n"
-	"led <led_label>\tGet LED state\n"
+	"led [<led_label>\tGet LED state\n"
 	"led list\t\tshow a list of LEDs"
 );

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -14,6 +13,8 @@
  *
  * (C) Copyright 2003 - 2004
  * Sysgo AG, <www.elinos.com>, Pavel Bartusek <pba@sysgo.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -29,14 +30,13 @@
 #include <ext4fs.h>
 #include <ext_common.h>
 #include "ext4_common.h"
-#include <log.h>
 
 lbaint_t part_offset;
 
 static struct blk_desc *ext4fs_blk_desc;
-static struct disk_partition *part_info;
+static disk_partition_t *part_info;
 
-void ext4fs_set_blk_dev(struct blk_desc *rbdd, struct disk_partition *info)
+void ext4fs_set_blk_dev(struct blk_desc *rbdd, disk_partition_t *info)
 {
 	assert(rbdd->blksz == (1 << rbdd->log2blksz));
 	ext4fs_blk_desc = rbdd;

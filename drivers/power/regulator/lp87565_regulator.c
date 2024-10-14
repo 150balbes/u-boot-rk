@@ -1,19 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2017
  * Texas Instruments Incorporated, <www.ti.com>
  *
  * Keerthy <j-keerthy@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <fdtdec.h>
 #include <errno.h>
 #include <dm.h>
-#include <log.h>
+#include <i2c.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 #include <power/lp87565.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 static const char lp87565_buck_ctrl1[LP87565_BUCK_NUM] = {0x2, 0x4, 0x6, 0x8, 0x2, 0x6};
 static const char lp87565_buck_vout[LP87565_BUCK_NUM] = {0xA, 0xC, 0xE, 0x10, 0xA, 0xE };
@@ -22,9 +25,9 @@ static int lp87565_buck_enable(struct udevice *dev, int op, bool *enable)
 {
 	int ret;
 	unsigned int adr;
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	adr = uc_pdata->ctrl_reg;
 
 	ret = pmic_reg_read(dev->parent, adr);
@@ -85,9 +88,9 @@ static int lp87565_buck_val(struct udevice *dev, int op, int *uV)
 {
 	unsigned int hex, adr;
 	int ret;
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 
 	if (op == PMIC_OP_GET)
 		*uV = 0;
@@ -122,10 +125,10 @@ static int lp87565_buck_val(struct udevice *dev, int op, int *uV)
 
 static int lp87565_buck_probe(struct udevice *dev)
 {
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 	int idx;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	uc_pdata->type = REGULATOR_TYPE_BUCK;
 
 	idx = dev->driver_data;

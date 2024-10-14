@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) 2015 Hans de Goede <hdegoede@redhat.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -16,10 +17,9 @@
 #define ANX9804_DATA_RATE_2700M				0x0a
 
 #ifdef CONFIG_VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804
-void anx9804_init(struct udevice *i2c_bus, u8 lanes, u8 data_rate, int bpp);
+void anx9804_init(unsigned int i2c_bus, u8 lanes, u8 data_rate, int bpp);
 #else
-static inline void anx9804_init(struct udevice *i2c_bus, u8 lanes, u8 data_rate,
+static inline void anx9804_init(unsigned int i2c_bus, u8 lanes, u8 data_rate,
 				int bpp) {}
 #endif
-
 #endif

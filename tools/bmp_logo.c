@@ -2,8 +2,7 @@
 
 enum {
 	MODE_GEN_INFO,
-	MODE_GEN_DATA,
-	MODE_GEN_BMP
+	MODE_GEN_DATA
 };
 
 typedef struct bitmap_s {		/* bitmap description */
@@ -17,8 +16,7 @@ typedef struct bitmap_s {		/* bitmap description */
 
 void usage(const char *prog)
 {
-	fprintf(stderr, "Usage: %s [--gen-info|--gen-data|--gen-bmp] file\n",
-		prog);
+	fprintf(stderr, "Usage: %s [--gen-info|--gen-data] file\n", prog);
 }
 
 /*
@@ -75,11 +73,10 @@ void gen_info(bitmap_t *b, uint16_t n_colors)
 int main (int argc, char *argv[])
 {
 	int	mode, i, x;
-	int	size;
 	FILE	*fp;
 	bitmap_t bmp;
 	bitmap_t *b = &bmp;
-	uint16_t data_offset, n_colors, hdr_size;
+	uint16_t data_offset, n_colors;
 
 	if (argc < 3) {
 		usage(argv[0]);
@@ -90,8 +87,6 @@ int main (int argc, char *argv[])
 		mode = MODE_GEN_INFO;
 	else if (!strcmp(argv[1], "--gen-data"))
 		mode = MODE_GEN_DATA;
-	else if (!strcmp(argv[1], "--gen-bmp"))
-		mode = MODE_GEN_BMP;
 	else {
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
@@ -113,12 +108,7 @@ int main (int argc, char *argv[])
 	skip_bytes (fp, 8);
 	if (fread (&data_offset, sizeof (uint16_t), 1, fp) != 1)
 		error ("Couldn't read bitmap data offset", fp);
-	skip_bytes(fp, 2);
-	if (fread(&hdr_size,   sizeof(uint16_t), 1, fp) != 1)
-		error("Couldn't read bitmap header size", fp);
-	if (hdr_size < 40)
-		error("Invalid bitmap header", fp);
-	skip_bytes(fp, 2);
+	skip_bytes (fp, 6);
 	if (fread (&b->width,   sizeof (uint16_t), 1, fp) != 1)
 		error ("Couldn't read bitmap width", fp);
 	skip_bytes (fp, 2);
@@ -127,7 +117,7 @@ int main (int argc, char *argv[])
 	skip_bytes (fp, 22);
 	if (fread (&n_colors, sizeof (uint16_t), 1, fp) != 1)
 		error ("Couldn't read bitmap colors", fp);
-	skip_bytes(fp, hdr_size - 34);
+	skip_bytes (fp, 6);
 
 	/*
 	 * Repair endianess.
@@ -136,7 +126,6 @@ int main (int argc, char *argv[])
 	b->width = le_short(b->width);
 	b->height = le_short(b->height);
 	n_colors = le_short(n_colors);
-	size = b->width * b->height;
 
 	/* assume we are working with an 8-bit file */
 	if ((n_colors == 0) || (n_colors > 256 - DEFAULT_CMAP_SIZE)) {
@@ -158,6 +147,10 @@ int main (int argc, char *argv[])
 		"#ifndef __BMP_LOGO_DATA_H__\n"
 		"#define __BMP_LOGO_DATA_H__\n\n");
 
+	/* allocate memory */
+	if ((b->data = (uint8_t *)malloc(b->width * b->height)) == NULL)
+		error ("Error allocating memory for file", fp);
+
 	/* read and print the palette information */
 	printf("unsigned short bmp_logo_palette[] = {\n");
 
@@ -177,39 +170,21 @@ int main (int argc, char *argv[])
 	}
 
 	/* seek to offset indicated by file header */
-	if (mode == MODE_GEN_BMP) {
-		/* copy full bmp file */
-		fseek(fp, 0L, SEEK_END);
-		size = ftell(fp);
-		fseek(fp, 0L, SEEK_SET);
-	} else {
-		fseek(fp, (long)data_offset, SEEK_SET);
-	}
-
-	/* allocate memory */
-	b->data = (uint8_t *)malloc(size);
-	if (!b->data)
-		error("Error allocating memory for file", fp);
+	fseek(fp, (long)data_offset, SEEK_SET);
 
 	/* read the bitmap; leave room for default color map */
 	printf ("\n");
 	printf ("};\n");
 	printf ("\n");
 	printf("unsigned char bmp_logo_bitmap[] = {\n");
-	if (mode == MODE_GEN_BMP) {
-		/* write full bmp */
-		for (i = 0; i < size; i++)
-			b->data[i] = (uint8_t)fgetc(fp);
-	} else {
-		for (i = (b->height - 1) * b->width; i >= 0; i -= b->width) {
-			for (x = 0; x < b->width; x++) {
-				b->data[i + x] = (uint8_t)fgetc(fp)
+	for (i=(b->height-1)*b->width; i>=0; i-=b->width) {
+		for (x = 0; x < b->width; x++) {
+			b->data[i + x] = (uint8_t) fgetc(fp)
 						+ DEFAULT_CMAP_SIZE;
-			}
 		}
 	}
 
-	for (i = 0; i < size; ++i) {
+	for (i=0; i<(b->height*b->width); ++i) {
 		if ((i%8) == 0)
 			putchar ('\t');
 		printf ("0x%02X,%c",

@@ -1,42 +1,31 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Faraday FTMAC100 Ethernet
  *
  * (C) Copyright 2009 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <common.h>
-#include <cpu_func.h>
-#include <env.h>
 #include <malloc.h>
 #include <net.h>
-#include <phy.h>
-#include <miiphy.h>
-#include <dm/device_compat.h>
-#include <asm/global_data.h>
-#include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/iopoll.h>
 
 #include "ftmac100.h"
+#ifdef CONFIG_DM_ETH
 #include <dm.h>
-
 DECLARE_GLOBAL_DATA_PTR;
-
+#endif
 #define ETH_ZLEN	60
-
-/* Timeout for a mdio read/write operation */
-#define FTMAC100_MDIO_TIMEOUT_USEC     10000
 
 struct ftmac100_data {
 	struct ftmac100_txdes txdes[1];
 	struct ftmac100_rxdes rxdes[PKTBUFSRX];
 	int rx_index;
 	const char *name;
-	struct ftmac100 *ftmac100;
-	struct mii_dev *bus;
+	phys_addr_t iobase;
 };
 
 /*
@@ -44,19 +33,14 @@ struct ftmac100_data {
  */
 static void ftmac100_reset(struct ftmac100_data *priv)
 {
-	struct ftmac100 *ftmac100 = priv->ftmac100;
+	struct ftmac100 *ftmac100 = (struct ftmac100 *)priv->iobase;
 
 	debug ("%s()\n", __func__);
 
 	writel (FTMAC100_MACCR_SW_RST, &ftmac100->maccr);
 
 	while (readl (&ftmac100->maccr) & FTMAC100_MACCR_SW_RST)
-		mdelay(1);
-	/*
-	 * When soft reset complete, write mac address immediately maybe fail somehow
-	 *  Wait for a while can avoid this problem
-	 */
-	mdelay(1);
+		;
 }
 
 /*
@@ -65,7 +49,7 @@ static void ftmac100_reset(struct ftmac100_data *priv)
 static void ftmac100_set_mac(struct ftmac100_data *priv ,
 	const unsigned char *mac)
 {
-	struct ftmac100 *ftmac100 = priv->ftmac100;
+	struct ftmac100 *ftmac100 = (struct ftmac100 *)priv->iobase;
 	unsigned int maddr = mac[0] << 8 | mac[1];
 	unsigned int laddr = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
 
@@ -80,7 +64,7 @@ static void ftmac100_set_mac(struct ftmac100_data *priv ,
  */
 static void _ftmac100_halt(struct ftmac100_data *priv)
 {
-	struct ftmac100 *ftmac100 = priv->ftmac100;
+	struct ftmac100 *ftmac100 = (struct ftmac100 *)priv->iobase;
 	debug ("%s()\n", __func__);
 	writel (0, &ftmac100->maccr);
 }
@@ -90,11 +74,12 @@ static void _ftmac100_halt(struct ftmac100_data *priv)
  */
 static int _ftmac100_init(struct ftmac100_data *priv, unsigned char enetaddr[6])
 {
-	struct ftmac100 *ftmac100 = priv->ftmac100;
+	struct ftmac100 *ftmac100 = (struct ftmac100 *)priv->iobase;
 	struct ftmac100_txdes *txdes = priv->txdes;
 	struct ftmac100_rxdes *rxdes = priv->rxdes;
 	unsigned int maccr;
 	int i;
+
 	debug ("%s()\n", __func__);
 
 	ftmac100_reset(priv);
@@ -116,18 +101,18 @@ static int _ftmac100_init(struct ftmac100_data *priv, unsigned char enetaddr[6])
 
 	for (i = 0; i < PKTBUFSRX; i++) {
 		/* RXBUF_BADR */
-		rxdes[i].rxdes2 = (unsigned int)(unsigned long)net_rx_packets[i];
+		rxdes[i].rxdes2 = (unsigned int)net_rx_packets[i];
 		rxdes[i].rxdes1 |= FTMAC100_RXDES1_RXBUF_SIZE (PKTSIZE_ALIGN);
 		rxdes[i].rxdes0 = FTMAC100_RXDES0_RXDMA_OWN;
 	}
 
 	/* transmit ring */
 
-	writel ((unsigned long)txdes, &ftmac100->txr_badr);
+	writel ((unsigned int)txdes, &ftmac100->txr_badr);
 
 	/* receive ring */
 
-	writel ((unsigned long)rxdes, &ftmac100->rxr_badr);
+	writel ((unsigned int)rxdes, &ftmac100->rxr_badr);
 
 	/* poll receive descriptor automatically */
 
@@ -171,6 +156,7 @@ static int __ftmac100_recv(struct ftmac100_data *priv)
 	unsigned short rxlen;
 
 	curr_des = &priv->rxdes[priv->rx_index];
+
 	if (curr_des->rxdes0 & FTMAC100_RXDES0_RXDMA_OWN)
 		return 0;
 
@@ -183,7 +169,7 @@ static int __ftmac100_recv(struct ftmac100_data *priv)
 	}
 
 	rxlen = FTMAC100_RXDES0_RFL (curr_des->rxdes0);
-	invalidate_dcache_range(curr_des->rxdes2,curr_des->rxdes2+rxlen);
+
 	debug ("%s(): RX buffer %d, %x received\n",
 	       __func__, priv->rx_index, rxlen);
 
@@ -195,7 +181,7 @@ static int __ftmac100_recv(struct ftmac100_data *priv)
  */
 static int _ftmac100_send(struct ftmac100_data *priv, void *packet, int length)
 {
-	struct ftmac100 *ftmac100 = priv->ftmac100;
+	struct ftmac100 *ftmac100 = (struct ftmac100 *)priv->iobase;
 	struct ftmac100_txdes *curr_des = priv->txdes;
 	ulong start;
 
@@ -204,14 +190,13 @@ static int _ftmac100_send(struct ftmac100_data *priv, void *packet, int length)
 		return -1;
 	}
 
-	debug ("%s(%lx, %x)\n", __func__, (unsigned long)packet, length);
+	debug ("%s(%x, %x)\n", __func__, (int)packet, length);
 
 	length = (length < ETH_ZLEN) ? ETH_ZLEN : length;
 
 	/* initiate a transmit sequence */
 
-	flush_dcache_range((unsigned long)packet,(unsigned long)packet+length);
-	curr_des->txdes2 = (unsigned int)(unsigned long)packet;	/* TXBUF_BADR */
+	curr_des->txdes2 = (unsigned int)packet;	/* TXBUF_BADR */
 
 	curr_des->txdes1 &= FTMAC100_TXDES1_EDOTR;
 	curr_des->txdes1 |= FTMAC100_TXDES1_FTS |
@@ -239,9 +224,95 @@ static int _ftmac100_send(struct ftmac100_data *priv, void *packet, int length)
 	return 0;
 }
 
+#ifndef CONFIG_DM_ETH
+/*
+ * disable transmitter, receiver
+ */
+static void ftmac100_halt(struct eth_device *dev)
+{
+	struct ftmac100_data *priv = dev->priv;
+	return _ftmac100_halt(priv);
+}
+
+static int ftmac100_init(struct eth_device *dev, bd_t *bd)
+{
+	struct ftmac100_data *priv = dev->priv;
+	return _ftmac100_init(priv , dev->enetaddr);
+}
+
+static int _ftmac100_recv(struct ftmac100_data *priv)
+{
+	struct ftmac100_rxdes *curr_des;
+	unsigned short len;
+	curr_des = &priv->rxdes[priv->rx_index];
+	len = __ftmac100_recv(priv);
+	if (len) {
+		/* pass the packet up to the protocol layers. */
+		net_process_received_packet((void *)curr_des->rxdes2, len);
+		_ftmac100_free_pkt(priv);
+	}
+	return len ? 1 : 0;
+}
+
+/*
+ * Get a data block via Ethernet
+ */
+static int ftmac100_recv(struct eth_device *dev)
+{
+	struct ftmac100_data *priv = dev->priv;
+	return _ftmac100_recv(priv);
+}
+
+/*
+ * Send a data block via Ethernet
+ */
+static int ftmac100_send(struct eth_device *dev, void *packet, int length)
+{
+	struct ftmac100_data *priv = dev->priv;
+	return _ftmac100_send(priv , packet , length);
+}
+
+int ftmac100_initialize (bd_t *bd)
+{
+	struct eth_device *dev;
+	struct ftmac100_data *priv;
+	dev = malloc (sizeof *dev);
+	if (!dev) {
+		printf ("%s(): failed to allocate dev\n", __func__);
+		goto out;
+	}
+	/* Transmit and receive descriptors should align to 16 bytes */
+	priv = memalign (16, sizeof (struct ftmac100_data));
+	if (!priv) {
+		printf ("%s(): failed to allocate priv\n", __func__);
+		goto free_dev;
+	}
+	memset (dev, 0, sizeof (*dev));
+	memset (priv, 0, sizeof (*priv));
+
+	strcpy(dev->name, "FTMAC100");
+	dev->iobase	= CONFIG_FTMAC100_BASE;
+	dev->init	= ftmac100_init;
+	dev->halt	= ftmac100_halt;
+	dev->send	= ftmac100_send;
+	dev->recv	= ftmac100_recv;
+	dev->priv	= priv;
+	priv->iobase	= dev->iobase;
+	eth_register (dev);
+
+	return 1;
+
+free_dev:
+	free (dev);
+out:
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_DM_ETH
 static int ftmac100_start(struct udevice *dev)
 {
-	struct eth_pdata *plat = dev_get_plat(dev);
+	struct eth_pdata *plat = dev_get_platdata(dev);
 	struct ftmac100_data *priv = dev_get_priv(dev);
 
 	return _ftmac100_init(priv, plat->enetaddr);
@@ -269,7 +340,7 @@ static int ftmac100_recv(struct udevice *dev, int flags, uchar **packetp)
 	int len;
 	len = __ftmac100_recv(priv);
 	if (len)
-		*packetp = (uchar *)(unsigned long)curr_des->rxdes2;
+		*packetp = (void *)curr_des->rxdes2;
 
 	return len ? len : -EAGAIN;
 }
@@ -283,7 +354,7 @@ static int ftmac100_free_pkt(struct udevice *dev, uchar *packet, int length)
 
 int ftmac100_read_rom_hwaddr(struct udevice *dev)
 {
-	struct eth_pdata *pdata = dev_get_plat(dev);
+	struct eth_pdata *pdata = dev_get_platdata(dev);
 	eth_env_get_enetaddr("ethaddr", pdata->enetaddr);
 	return 0;
 }
@@ -316,91 +387,16 @@ static const char *dtbmacaddr(u32 ifno)
 	return NULL;
 }
 
-static int ftmac100_of_to_plat(struct udevice *dev)
+static int ftmac100_ofdata_to_platdata(struct udevice *dev)
 {
 	struct ftmac100_data *priv = dev_get_priv(dev);
-	struct eth_pdata *pdata = dev_get_plat(dev);
+	struct eth_pdata *pdata = dev_get_platdata(dev);
 	const char *mac;
-	pdata->iobase = dev_read_addr(dev);
-	priv->ftmac100 = phys_to_virt(pdata->iobase);
+	pdata->iobase = devfdt_get_addr(dev);
+	priv->iobase = pdata->iobase;
 	mac = dtbmacaddr(0);
 	if (mac)
 		memcpy(pdata->enetaddr , mac , 6);
-
-	return 0;
-}
-
-/*
- * struct mii_bus functions
- */
-static int ftmac100_mdio_read(struct mii_dev *bus, int addr, int devad,
-			      int reg)
-{
-	struct ftmac100_data *priv = bus->priv;
-	struct ftmac100 *ftmac100 = priv->ftmac100;
-	int phycr = FTMAC100_PHYCR_PHYAD(addr) |
-		    FTMAC100_PHYCR_REGAD(reg) |
-		    FTMAC100_PHYCR_MIIRD;
-	int ret;
-
-	writel(phycr, &ftmac100->phycr);
-
-	ret = readl_poll_timeout(&ftmac100->phycr, phycr,
-				 !(phycr & FTMAC100_PHYCR_MIIRD),
-				 FTMAC100_MDIO_TIMEOUT_USEC);
-	if (ret)
-		pr_err("%s: mdio read failed (addr=0x%x reg=0x%x)\n",
-		       bus->name, addr, reg);
-	else
-		ret = phycr & FTMAC100_PHYCR_MIIRDATA;
-
-	return ret;
-}
-
-static int ftmac100_mdio_write(struct mii_dev *bus, int addr, int devad,
-			       int reg, u16 value)
-{
-	struct ftmac100_data *priv = bus->priv;
-	struct ftmac100 *ftmac100 = priv->ftmac100;
-	int phycr = FTMAC100_PHYCR_PHYAD(addr) |
-		    FTMAC100_PHYCR_REGAD(reg) |
-		    FTMAC100_PHYCR_MIIWR;
-	int ret;
-
-	writel(value, &ftmac100->phywdata);
-	writel(phycr, &ftmac100->phycr);
-
-	ret = readl_poll_timeout(&ftmac100->phycr, phycr,
-				 !(phycr & FTMAC100_PHYCR_MIIWR),
-				 FTMAC100_MDIO_TIMEOUT_USEC);
-	if (ret)
-		pr_err("%s: mdio write failed (addr=0x%x reg=0x%x)\n",
-		       bus->name, addr, reg);
-
-	return ret;
-}
-
-static int ftmac100_mdio_init(struct udevice *dev)
-{
-	struct ftmac100_data *priv = dev_get_priv(dev);
-	struct mii_dev *bus;
-	int ret;
-
-	bus = mdio_alloc();
-	if (!bus)
-		return -ENOMEM;
-
-	bus->read  = ftmac100_mdio_read;
-	bus->write = ftmac100_mdio_write;
-	bus->priv  = priv;
-
-	ret = mdio_register_seq(bus, dev_seq(dev));
-	if (ret) {
-		mdio_free(bus);
-		return ret;
-	}
-
-	priv->bus = bus;
 
 	return 0;
 }
@@ -409,25 +405,6 @@ static int ftmac100_probe(struct udevice *dev)
 {
 	struct ftmac100_data *priv = dev_get_priv(dev);
 	priv->name = dev->name;
-	int ret = 0;
-
-	ret = ftmac100_mdio_init(dev);
-	if (ret) {
-		dev_err(dev, "Failed to initialize mdiobus: %d\n", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static int ftmac100_remove(struct udevice *dev)
-{
-	struct ftmac100_data *priv = dev_get_priv(dev);
-
-	mdio_unregister(priv->bus);
-	mdio_free(priv->bus);
-
 	return 0;
 }
 
@@ -450,15 +427,15 @@ static const struct udevice_id ftmac100_ids[] = {
 };
 
 U_BOOT_DRIVER(ftmac100) = {
-	.name	= "ftmac100",
+	.name	= "nds32_mac",
 	.id	= UCLASS_ETH,
 	.of_match = ftmac100_ids,
 	.bind	= ftmac100_bind,
-	.of_to_plat = ftmac100_of_to_plat,
+	.ofdata_to_platdata = ftmac100_ofdata_to_platdata,
 	.probe	= ftmac100_probe,
-	.remove = ftmac100_remove,
 	.ops	= &ftmac100_ops,
-	.priv_auto	= sizeof(struct ftmac100_data),
-	.plat_auto	= sizeof(struct eth_pdata),
+	.priv_auto_alloc_size = sizeof(struct ftmac100_data),
+	.platdata_auto_alloc_size = sizeof(struct eth_pdata),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
+#endif

@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -11,7 +12,7 @@
 #include <command.h>
 #include <post.h>
 
-int do_diag(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_diag (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned int i;
 

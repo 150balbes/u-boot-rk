@@ -4,23 +4,13 @@
  * Author: Christophe Kerello <christophe.kerello@st.com>
  */
 
-#define LOG_CATEGORY UCLASS_MTD
-
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
-#include <log.h>
 #include <nand.h>
 #include <reset.h>
-#include <asm/gpio.h>
-#include <dm/device_compat.h>
-#include <linux/bitfield.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
-#include <linux/err.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
-#include <linux/mtd/rawnand.h>
 
 /* Bad block marker length */
 #define FMC2_BBM_LEN			2
@@ -66,16 +56,20 @@
 /* Register: FMC2_PCR */
 #define FMC2_PCR_PWAITEN		BIT(1)
 #define FMC2_PCR_PBKEN			BIT(2)
-#define FMC2_PCR_PWID			GENMASK(5, 4)
+#define FMC2_PCR_PWID_MASK		GENMASK(5, 4)
+#define FMC2_PCR_PWID(x)		(((x) & 0x3) << 4)
 #define FMC2_PCR_PWID_BUSWIDTH_8	0
 #define FMC2_PCR_PWID_BUSWIDTH_16	1
 #define FMC2_PCR_ECCEN			BIT(6)
 #define FMC2_PCR_ECCALG			BIT(8)
-#define FMC2_PCR_TCLR			GENMASK(12, 9)
+#define FMC2_PCR_TCLR_MASK		GENMASK(12, 9)
+#define FMC2_PCR_TCLR(x)		(((x) & 0xf) << 9)
 #define FMC2_PCR_TCLR_DEFAULT		0xf
-#define FMC2_PCR_TAR			GENMASK(16, 13)
+#define FMC2_PCR_TAR_MASK		GENMASK(16, 13)
+#define FMC2_PCR_TAR(x)			(((x) & 0xf) << 13)
 #define FMC2_PCR_TAR_DEFAULT		0xf
-#define FMC2_PCR_ECCSS			GENMASK(19, 17)
+#define FMC2_PCR_ECCSS_MASK		GENMASK(19, 17)
+#define FMC2_PCR_ECCSS(x)		(((x) & 0x7) << 17)
 #define FMC2_PCR_ECCSS_512		1
 #define FMC2_PCR_ECCSS_2048		3
 #define FMC2_PCR_BCHECC			BIT(24)
@@ -85,17 +79,17 @@
 #define FMC2_SR_NWRF			BIT(6)
 
 /* Register: FMC2_PMEM */
-#define FMC2_PMEM_MEMSET		GENMASK(7, 0)
-#define FMC2_PMEM_MEMWAIT		GENMASK(15, 8)
-#define FMC2_PMEM_MEMHOLD		GENMASK(23, 16)
-#define FMC2_PMEM_MEMHIZ		GENMASK(31, 24)
+#define FMC2_PMEM_MEMSET(x)		(((x) & 0xff) << 0)
+#define FMC2_PMEM_MEMWAIT(x)		(((x) & 0xff) << 8)
+#define FMC2_PMEM_MEMHOLD(x)		(((x) & 0xff) << 16)
+#define FMC2_PMEM_MEMHIZ(x)		(((x) & 0xff) << 24)
 #define FMC2_PMEM_DEFAULT		0x0a0a0a0a
 
 /* Register: FMC2_PATT */
-#define FMC2_PATT_ATTSET		GENMASK(7, 0)
-#define FMC2_PATT_ATTWAIT		GENMASK(15, 8)
-#define FMC2_PATT_ATTHOLD		GENMASK(23, 16)
-#define FMC2_PATT_ATTHIZ		GENMASK(31, 24)
+#define FMC2_PATT_ATTSET(x)		(((x) & 0xff) << 0)
+#define FMC2_PATT_ATTWAIT(x)		(((x) & 0xff) << 8)
+#define FMC2_PATT_ATTHOLD(x)		(((x) & 0xff) << 16)
+#define FMC2_PATT_ATTHIZ(x)		(((x) & 0xff) << 24)
 #define FMC2_PATT_DEFAULT		0x0a0a0a0a
 
 /* Register: FMC2_BCHISR */
@@ -108,27 +102,30 @@
 /* Register: FMC2_BCHDSR0 */
 #define FMC2_BCHDSR0_DUE		BIT(0)
 #define FMC2_BCHDSR0_DEF		BIT(1)
-#define FMC2_BCHDSR0_DEN		GENMASK(7, 4)
+#define FMC2_BCHDSR0_DEN_MASK		GENMASK(7, 4)
+#define FMC2_BCHDSR0_DEN_SHIFT		4
 
 /* Register: FMC2_BCHDSR1 */
-#define FMC2_BCHDSR1_EBP1		GENMASK(12, 0)
-#define FMC2_BCHDSR1_EBP2		GENMASK(28, 16)
+#define FMC2_BCHDSR1_EBP1_MASK		GENMASK(12, 0)
+#define FMC2_BCHDSR1_EBP2_MASK		GENMASK(28, 16)
+#define FMC2_BCHDSR1_EBP2_SHIFT		16
 
 /* Register: FMC2_BCHDSR2 */
-#define FMC2_BCHDSR2_EBP3		GENMASK(12, 0)
-#define FMC2_BCHDSR2_EBP4		GENMASK(28, 16)
+#define FMC2_BCHDSR2_EBP3_MASK		GENMASK(12, 0)
+#define FMC2_BCHDSR2_EBP4_MASK		GENMASK(28, 16)
+#define FMC2_BCHDSR2_EBP4_SHIFT		16
 
 /* Register: FMC2_BCHDSR3 */
-#define FMC2_BCHDSR3_EBP5		GENMASK(12, 0)
-#define FMC2_BCHDSR3_EBP6		GENMASK(28, 16)
+#define FMC2_BCHDSR3_EBP5_MASK		GENMASK(12, 0)
+#define FMC2_BCHDSR3_EBP6_MASK		GENMASK(28, 16)
+#define FMC2_BCHDSR3_EBP6_SHIFT		16
 
 /* Register: FMC2_BCHDSR4 */
-#define FMC2_BCHDSR4_EBP7		GENMASK(12, 0)
-#define FMC2_BCHDSR4_EBP8		GENMASK(28, 16)
+#define FMC2_BCHDSR4_EBP7_MASK		GENMASK(12, 0)
+#define FMC2_BCHDSR4_EBP8_MASK		GENMASK(28, 16)
+#define FMC2_BCHDSR4_EBP8_SHIFT		16
 
 #define FMC2_NSEC_PER_SEC		1000000000L
-
-#define FMC2_TIMEOUT_5S			5000000
 
 enum stm32_fmc2_ecc {
 	FMC2_ECC_HAM = 1,
@@ -150,7 +147,6 @@ struct stm32_fmc2_timings {
 struct stm32_fmc2_nand {
 	struct nand_chip chip;
 	struct stm32_fmc2_timings timings;
-	struct gpio_desc wp_gpio;
 	int ncs;
 	int cs_used[FMC2_MAX_CE];
 };
@@ -164,10 +160,10 @@ struct stm32_fmc2_nfc {
 	struct nand_hw_control base;
 	struct stm32_fmc2_nand nand;
 	struct nand_ecclayout ecclayout;
-	fdt_addr_t io_base;
-	fdt_addr_t data_base[FMC2_MAX_CE];
-	fdt_addr_t cmd_base[FMC2_MAX_CE];
-	fdt_addr_t addr_base[FMC2_MAX_CE];
+	void __iomem *io_base;
+	void __iomem *data_base[FMC2_MAX_CE];
+	void __iomem *cmd_base[FMC2_MAX_CE];
+	void __iomem *addr_base[FMC2_MAX_CE];
 	struct clk clk;
 
 	u8 cs_assigned;
@@ -179,42 +175,47 @@ static inline struct stm32_fmc2_nfc *to_stm32_nfc(struct nand_hw_control *base)
 	return container_of(base, struct stm32_fmc2_nfc, base);
 }
 
-static void stm32_fmc2_nfc_timings_init(struct nand_chip *chip)
+/* Timings configuration */
+static void stm32_fmc2_timings_init(struct nand_chip *chip)
 {
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	struct stm32_fmc2_nand *nand = to_fmc2_nand(chip);
 	struct stm32_fmc2_timings *timings = &nand->timings;
+	u32 pcr = readl(fmc2->io_base + FMC2_PCR);
 	u32 pmem, patt;
 
 	/* Set tclr/tar timings */
-	clrsetbits_le32(nfc->io_base + FMC2_PCR,
-			FMC2_PCR_TCLR | FMC2_PCR_TAR,
-			FIELD_PREP(FMC2_PCR_TCLR, timings->tclr) |
-			FIELD_PREP(FMC2_PCR_TAR, timings->tar));
+	pcr &= ~FMC2_PCR_TCLR_MASK;
+	pcr |= FMC2_PCR_TCLR(timings->tclr);
+	pcr &= ~FMC2_PCR_TAR_MASK;
+	pcr |= FMC2_PCR_TAR(timings->tar);
 
 	/* Set tset/twait/thold/thiz timings in common bank */
-	pmem = FIELD_PREP(FMC2_PMEM_MEMSET, timings->tset_mem);
-	pmem |= FIELD_PREP(FMC2_PMEM_MEMWAIT, timings->twait);
-	pmem |= FIELD_PREP(FMC2_PMEM_MEMHOLD, timings->thold_mem);
-	pmem |= FIELD_PREP(FMC2_PMEM_MEMHIZ, timings->thiz);
-	writel(pmem, nfc->io_base + FMC2_PMEM);
+	pmem = FMC2_PMEM_MEMSET(timings->tset_mem);
+	pmem |= FMC2_PMEM_MEMWAIT(timings->twait);
+	pmem |= FMC2_PMEM_MEMHOLD(timings->thold_mem);
+	pmem |= FMC2_PMEM_MEMHIZ(timings->thiz);
 
 	/* Set tset/twait/thold/thiz timings in attribut bank */
-	patt = FIELD_PREP(FMC2_PATT_ATTSET, timings->tset_att);
-	patt |= FIELD_PREP(FMC2_PATT_ATTWAIT, timings->twait);
-	patt |= FIELD_PREP(FMC2_PATT_ATTHOLD, timings->thold_att);
-	patt |= FIELD_PREP(FMC2_PATT_ATTHIZ, timings->thiz);
-	writel(patt, nfc->io_base + FMC2_PATT);
+	patt = FMC2_PATT_ATTSET(timings->tset_att);
+	patt |= FMC2_PATT_ATTWAIT(timings->twait);
+	patt |= FMC2_PATT_ATTHOLD(timings->thold_att);
+	patt |= FMC2_PATT_ATTHIZ(timings->thiz);
+
+	writel(pcr, fmc2->io_base + FMC2_PCR);
+	writel(pmem, fmc2->io_base + FMC2_PMEM);
+	writel(patt, fmc2->io_base + FMC2_PATT);
 }
 
-static void stm32_fmc2_nfc_setup(struct nand_chip *chip)
+/* Controller configuration */
+static void stm32_fmc2_setup(struct nand_chip *chip)
 {
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
-	u32 pcr = 0, pcr_mask;
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
+	u32 pcr = readl(fmc2->io_base + FMC2_PCR);
 
 	/* Configure ECC algorithm (default configuration is Hamming) */
-	pcr_mask = FMC2_PCR_ECCALG;
-	pcr_mask |= FMC2_PCR_BCHECC;
+	pcr &= ~FMC2_PCR_ECCALG;
+	pcr &= ~FMC2_PCR_BCHECC;
 	if (chip->ecc.strength == FMC2_ECC_BCH8) {
 		pcr |= FMC2_PCR_ECCALG;
 		pcr |= FMC2_PCR_BCHECC;
@@ -223,95 +224,111 @@ static void stm32_fmc2_nfc_setup(struct nand_chip *chip)
 	}
 
 	/* Set buswidth */
-	pcr_mask |= FMC2_PCR_PWID;
+	pcr &= ~FMC2_PCR_PWID_MASK;
 	if (chip->options & NAND_BUSWIDTH_16)
-		pcr |= FIELD_PREP(FMC2_PCR_PWID, FMC2_PCR_PWID_BUSWIDTH_16);
+		pcr |= FMC2_PCR_PWID(FMC2_PCR_PWID_BUSWIDTH_16);
 
 	/* Set ECC sector size */
-	pcr_mask |= FMC2_PCR_ECCSS;
-	pcr |= FIELD_PREP(FMC2_PCR_ECCSS, FMC2_PCR_ECCSS_512);
+	pcr &= ~FMC2_PCR_ECCSS_MASK;
+	pcr |= FMC2_PCR_ECCSS(FMC2_PCR_ECCSS_512);
 
-	clrsetbits_le32(nfc->io_base + FMC2_PCR, pcr_mask, pcr);
+	writel(pcr, fmc2->io_base + FMC2_PCR);
 }
 
-static void stm32_fmc2_nfc_select_chip(struct mtd_info *mtd, int chipnr)
+/* Select target */
+static void stm32_fmc2_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	struct stm32_fmc2_nand *nand = to_fmc2_nand(chip);
 
 	if (chipnr < 0 || chipnr >= nand->ncs)
 		return;
 
-	if (nand->cs_used[chipnr] == nfc->cs_sel)
+	if (nand->cs_used[chipnr] == fmc2->cs_sel)
 		return;
 
-	nfc->cs_sel = nand->cs_used[chipnr];
-	chip->IO_ADDR_R = (void __iomem *)nfc->data_base[nfc->cs_sel];
-	chip->IO_ADDR_W = (void __iomem *)nfc->data_base[nfc->cs_sel];
+	fmc2->cs_sel = nand->cs_used[chipnr];
+	chip->IO_ADDR_R = fmc2->data_base[fmc2->cs_sel];
+	chip->IO_ADDR_W = fmc2->data_base[fmc2->cs_sel];
 
-	stm32_fmc2_nfc_setup(chip);
-	stm32_fmc2_nfc_timings_init(chip);
+	/* FMC2 setup routine */
+	stm32_fmc2_setup(chip);
+
+	/* Apply timings */
+	stm32_fmc2_timings_init(chip);
 }
 
-static void stm32_fmc2_nfc_set_buswidth_16(struct stm32_fmc2_nfc *nfc,
-					   bool set)
+/* Set bus width to 16-bit or 8-bit */
+static void stm32_fmc2_set_buswidth_16(struct stm32_fmc2_nfc *fmc2, bool set)
 {
-	u32 pcr;
+	u32 pcr = readl(fmc2->io_base + FMC2_PCR);
 
-	pcr = set ? FIELD_PREP(FMC2_PCR_PWID, FMC2_PCR_PWID_BUSWIDTH_16) :
-		    FIELD_PREP(FMC2_PCR_PWID, FMC2_PCR_PWID_BUSWIDTH_8);
-
-	clrsetbits_le32(nfc->io_base + FMC2_PCR, FMC2_PCR_PWID, pcr);
+	pcr &= ~FMC2_PCR_PWID_MASK;
+	if (set)
+		pcr |= FMC2_PCR_PWID(FMC2_PCR_PWID_BUSWIDTH_16);
+	writel(pcr, fmc2->io_base + FMC2_PCR);
 }
 
-static void stm32_fmc2_nfc_set_ecc(struct stm32_fmc2_nfc *nfc, bool enable)
+/* Enable/disable ECC */
+static void stm32_fmc2_set_ecc(struct stm32_fmc2_nfc *fmc2, bool enable)
 {
-	clrsetbits_le32(nfc->io_base + FMC2_PCR, FMC2_PCR_ECCEN,
-			enable ? FMC2_PCR_ECCEN : 0);
+	u32 pcr = readl(fmc2->io_base + FMC2_PCR);
+
+	pcr &= ~FMC2_PCR_ECCEN;
+	if (enable)
+		pcr |= FMC2_PCR_ECCEN;
+	writel(pcr, fmc2->io_base + FMC2_PCR);
 }
 
-static void stm32_fmc2_nfc_clear_bch_irq(struct stm32_fmc2_nfc *nfc)
+/* Clear irq sources in case of bch is used */
+static inline void stm32_fmc2_clear_bch_irq(struct stm32_fmc2_nfc *fmc2)
 {
-	writel(FMC2_BCHICR_CLEAR_IRQ, nfc->io_base + FMC2_BCHICR);
+	writel(FMC2_BCHICR_CLEAR_IRQ, fmc2->io_base + FMC2_BCHICR);
 }
 
-static void stm32_fmc2_nfc_cmd_ctrl(struct mtd_info *mtd, int cmd,
-				    unsigned int ctrl)
+/* Send command and address cycles */
+static void stm32_fmc2_cmd_ctrl(struct mtd_info *mtd, int cmd,
+				unsigned int ctrl)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE) {
-		writeb(cmd, nfc->cmd_base[nfc->cs_sel]);
+		writeb(cmd, fmc2->cmd_base[fmc2->cs_sel]);
 		return;
 	}
 
-	writeb(cmd, nfc->addr_base[nfc->cs_sel]);
+	writeb(cmd, fmc2->addr_base[fmc2->cs_sel]);
 }
 
 /*
  * Enable ECC logic and reset syndrome/parity bits previously calculated
  * Syndrome/parity bits is cleared by setting the ECCEN bit to 0
  */
-static void stm32_fmc2_nfc_hwctl(struct mtd_info *mtd, int mode)
+static void stm32_fmc2_hwctl(struct mtd_info *mtd, int mode)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 
-	stm32_fmc2_nfc_set_ecc(nfc, false);
+	stm32_fmc2_set_ecc(fmc2, false);
 
 	if (chip->ecc.strength != FMC2_ECC_HAM) {
-		clrsetbits_le32(nfc->io_base + FMC2_PCR, FMC2_PCR_WEN,
-				mode == NAND_ECC_WRITE ? FMC2_PCR_WEN : 0);
+		u32 pcr = readl(fmc2->io_base + FMC2_PCR);
 
-		stm32_fmc2_nfc_clear_bch_irq(nfc);
+		if (mode == NAND_ECC_WRITE)
+			pcr |= FMC2_PCR_WEN;
+		else
+			pcr &= ~FMC2_PCR_WEN;
+		writel(pcr, fmc2->io_base + FMC2_PCR);
+
+		stm32_fmc2_clear_bch_irq(fmc2);
 	}
 
-	stm32_fmc2_nfc_set_ecc(nfc, true);
+	stm32_fmc2_set_ecc(fmc2, true);
 }
 
 /*
@@ -319,34 +336,35 @@ static void stm32_fmc2_nfc_hwctl(struct mtd_info *mtd, int mode)
  * ECC is 3 bytes for 512 bytes of data (supports error correction up to
  * max of 1-bit)
  */
-static int stm32_fmc2_nfc_ham_calculate(struct mtd_info *mtd, const u8 *data,
-					u8 *ecc)
+static int stm32_fmc2_ham_calculate(struct mtd_info *mtd, const u8 *data,
+				    u8 *ecc)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	u32 heccr, sr;
 	int ret;
 
-	ret = readl_poll_timeout(nfc->io_base + FMC2_SR, sr,
-				 sr & FMC2_SR_NWRF, FMC2_TIMEOUT_5S);
+	ret = readl_poll_timeout(fmc2->io_base + FMC2_SR, sr,
+				 sr & FMC2_SR_NWRF, 10000);
 	if (ret < 0) {
-		log_err("Ham timeout\n");
+		pr_err("Ham timeout\n");
 		return ret;
 	}
 
-	heccr = readl(nfc->io_base + FMC2_HECCR);
+	heccr = readl(fmc2->io_base + FMC2_HECCR);
 
 	ecc[0] = heccr;
 	ecc[1] = heccr >> 8;
 	ecc[2] = heccr >> 16;
 
-	stm32_fmc2_nfc_set_ecc(nfc, false);
+	/* Disable ecc */
+	stm32_fmc2_set_ecc(fmc2, false);
 
 	return 0;
 }
 
-static int stm32_fmc2_nfc_ham_correct(struct mtd_info *mtd, u8 *dat,
-				      u8 *read_ecc, u8 *calc_ecc)
+static int stm32_fmc2_ham_correct(struct mtd_info *mtd, u8 *dat,
+				  u8 *read_ecc, u8 *calc_ecc)
 {
 	u8 bit_position = 0, b0, b1, b2;
 	u32 byte_addr = 0, b;
@@ -403,30 +421,30 @@ static int stm32_fmc2_nfc_ham_correct(struct mtd_info *mtd, u8 *dat,
  * max of 4-bit/8-bit)
  */
 
-static int stm32_fmc2_nfc_bch_calculate(struct mtd_info *mtd, const u8 *data,
-					u8 *ecc)
+static int stm32_fmc2_bch_calculate(struct mtd_info *mtd, const u8 *data,
+				    u8 *ecc)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	u32 bchpbr, bchisr;
 	int ret;
 
 	/* Wait until the BCH code is ready */
-	ret = readl_poll_timeout(nfc->io_base + FMC2_BCHISR, bchisr,
-				 bchisr & FMC2_BCHISR_EPBRF, FMC2_TIMEOUT_5S);
+	ret = readl_poll_timeout(fmc2->io_base + FMC2_BCHISR, bchisr,
+				 bchisr & FMC2_BCHISR_EPBRF, 10000);
 	if (ret < 0) {
-		log_err("Bch timeout\n");
+		pr_err("Bch timeout\n");
 		return ret;
 	}
 
 	/* Read parity bits */
-	bchpbr = readl(nfc->io_base + FMC2_BCHPBR1);
+	bchpbr = readl(fmc2->io_base + FMC2_BCHPBR1);
 	ecc[0] = bchpbr;
 	ecc[1] = bchpbr >> 8;
 	ecc[2] = bchpbr >> 16;
 	ecc[3] = bchpbr >> 24;
 
-	bchpbr = readl(nfc->io_base + FMC2_BCHPBR2);
+	bchpbr = readl(fmc2->io_base + FMC2_BCHPBR2);
 	ecc[4] = bchpbr;
 	ecc[5] = bchpbr >> 8;
 	ecc[6] = bchpbr >> 16;
@@ -434,46 +452,49 @@ static int stm32_fmc2_nfc_bch_calculate(struct mtd_info *mtd, const u8 *data,
 	if (chip->ecc.strength == FMC2_ECC_BCH8) {
 		ecc[7] = bchpbr >> 24;
 
-		bchpbr = readl(nfc->io_base + FMC2_BCHPBR3);
+		bchpbr = readl(fmc2->io_base + FMC2_BCHPBR3);
 		ecc[8] = bchpbr;
 		ecc[9] = bchpbr >> 8;
 		ecc[10] = bchpbr >> 16;
 		ecc[11] = bchpbr >> 24;
 
-		bchpbr = readl(nfc->io_base + FMC2_BCHPBR4);
+		bchpbr = readl(fmc2->io_base + FMC2_BCHPBR4);
 		ecc[12] = bchpbr;
 	}
 
-	stm32_fmc2_nfc_set_ecc(nfc, false);
+	/* Disable ecc */
+	stm32_fmc2_set_ecc(fmc2, false);
 
 	return 0;
 }
 
-static int stm32_fmc2_nfc_bch_correct(struct mtd_info *mtd, u8 *dat,
-				      u8 *read_ecc, u8 *calc_ecc)
+/* BCH algorithm correction */
+static int stm32_fmc2_bch_correct(struct mtd_info *mtd, u8 *dat,
+				  u8 *read_ecc, u8 *calc_ecc)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	u32 bchdsr0, bchdsr1, bchdsr2, bchdsr3, bchdsr4, bchisr;
 	u16 pos[8];
 	int i, ret, den, eccsize = chip->ecc.size;
 	unsigned int nb_errs = 0;
 
 	/* Wait until the decoding error is ready */
-	ret = readl_poll_timeout(nfc->io_base + FMC2_BCHISR, bchisr,
-				 bchisr & FMC2_BCHISR_DERF, FMC2_TIMEOUT_5S);
+	ret = readl_poll_timeout(fmc2->io_base + FMC2_BCHISR, bchisr,
+				 bchisr & FMC2_BCHISR_DERF, 10000);
 	if (ret < 0) {
-		log_err("Bch timeout\n");
+		pr_err("Bch timeout\n");
 		return ret;
 	}
 
-	bchdsr0 = readl(nfc->io_base + FMC2_BCHDSR0);
-	bchdsr1 = readl(nfc->io_base + FMC2_BCHDSR1);
-	bchdsr2 = readl(nfc->io_base + FMC2_BCHDSR2);
-	bchdsr3 = readl(nfc->io_base + FMC2_BCHDSR3);
-	bchdsr4 = readl(nfc->io_base + FMC2_BCHDSR4);
+	bchdsr0 = readl(fmc2->io_base + FMC2_BCHDSR0);
+	bchdsr1 = readl(fmc2->io_base + FMC2_BCHDSR1);
+	bchdsr2 = readl(fmc2->io_base + FMC2_BCHDSR2);
+	bchdsr3 = readl(fmc2->io_base + FMC2_BCHDSR3);
+	bchdsr4 = readl(fmc2->io_base + FMC2_BCHDSR4);
 
-	stm32_fmc2_nfc_set_ecc(nfc, false);
+	/* Disable ECC */
+	stm32_fmc2_set_ecc(fmc2, false);
 
 	/* No errors found */
 	if (likely(!(bchdsr0 & FMC2_BCHDSR0_DEF)))
@@ -483,16 +504,16 @@ static int stm32_fmc2_nfc_bch_correct(struct mtd_info *mtd, u8 *dat,
 	if (unlikely(bchdsr0 & FMC2_BCHDSR0_DUE))
 		return -EBADMSG;
 
-	pos[0] = FIELD_GET(FMC2_BCHDSR1_EBP1, bchdsr1);
-	pos[1] = FIELD_GET(FMC2_BCHDSR1_EBP2, bchdsr1);
-	pos[2] = FIELD_GET(FMC2_BCHDSR2_EBP3, bchdsr2);
-	pos[3] = FIELD_GET(FMC2_BCHDSR2_EBP4, bchdsr2);
-	pos[4] = FIELD_GET(FMC2_BCHDSR3_EBP5, bchdsr3);
-	pos[5] = FIELD_GET(FMC2_BCHDSR3_EBP6, bchdsr3);
-	pos[6] = FIELD_GET(FMC2_BCHDSR4_EBP7, bchdsr4);
-	pos[7] = FIELD_GET(FMC2_BCHDSR4_EBP8, bchdsr4);
+	pos[0] = bchdsr1 & FMC2_BCHDSR1_EBP1_MASK;
+	pos[1] = (bchdsr1 & FMC2_BCHDSR1_EBP2_MASK) >> FMC2_BCHDSR1_EBP2_SHIFT;
+	pos[2] = bchdsr2 & FMC2_BCHDSR2_EBP3_MASK;
+	pos[3] = (bchdsr2 & FMC2_BCHDSR2_EBP4_MASK) >> FMC2_BCHDSR2_EBP4_SHIFT;
+	pos[4] = bchdsr3 & FMC2_BCHDSR3_EBP5_MASK;
+	pos[5] = (bchdsr3 & FMC2_BCHDSR3_EBP6_MASK) >> FMC2_BCHDSR3_EBP6_SHIFT;
+	pos[6] = bchdsr4 & FMC2_BCHDSR4_EBP7_MASK;
+	pos[7] = (bchdsr4 & FMC2_BCHDSR4_EBP8_MASK) >> FMC2_BCHDSR4_EBP8_SHIFT;
 
-	den = FIELD_GET(FMC2_BCHDSR0_DEN, bchdsr0);
+	den = (bchdsr0 & FMC2_BCHDSR0_DEN_MASK) >> FMC2_BCHDSR0_DEN_SHIFT;
 	for (i = 0; i < den; i++) {
 		if (pos[i] < eccsize * 8) {
 			__change_bit(pos[i], (unsigned long *)dat);
@@ -503,9 +524,9 @@ static int stm32_fmc2_nfc_bch_correct(struct mtd_info *mtd, u8 *dat,
 	return nb_errs;
 }
 
-static int stm32_fmc2_nfc_read_page(struct mtd_info *mtd,
-				    struct nand_chip *chip, u8 *buf,
-				    int oob_required, int page)
+static int stm32_fmc2_read_page(struct mtd_info *mtd,
+				struct nand_chip *chip, u8 *buf,
+				int oob_required, int page)
 {
 	int i, s, stat, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -554,19 +575,21 @@ static int stm32_fmc2_nfc_read_page(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static void stm32_fmc2_nfc_init(struct stm32_fmc2_nfc *nfc, bool has_parent)
+/* Controller initialization */
+static void stm32_fmc2_init(struct stm32_fmc2_nfc *fmc2)
 {
-	u32 pcr = readl(nfc->io_base + FMC2_PCR);
+	u32 pcr = readl(fmc2->io_base + FMC2_PCR);
+	u32 bcr1 = readl(fmc2->io_base + FMC2_BCR1);
 
 	/* Set CS used to undefined */
-	nfc->cs_sel = -1;
+	fmc2->cs_sel = -1;
 
 	/* Enable wait feature and nand flash memory bank */
 	pcr |= FMC2_PCR_PWAITEN;
 	pcr |= FMC2_PCR_PBKEN;
 
 	/* Set buswidth to 8 bits mode for identification */
-	pcr &= ~FMC2_PCR_PWID;
+	pcr &= ~FMC2_PCR_PWID_MASK;
 
 	/* ECC logic is disabled */
 	pcr &= ~FMC2_PCR_ECCEN;
@@ -577,42 +600,48 @@ static void stm32_fmc2_nfc_init(struct stm32_fmc2_nfc *nfc, bool has_parent)
 	pcr &= ~FMC2_PCR_WEN;
 
 	/* Set default ECC sector size */
-	pcr &= ~FMC2_PCR_ECCSS;
-	pcr |= FIELD_PREP(FMC2_PCR_ECCSS, FMC2_PCR_ECCSS_2048);
+	pcr &= ~FMC2_PCR_ECCSS_MASK;
+	pcr |= FMC2_PCR_ECCSS(FMC2_PCR_ECCSS_2048);
 
 	/* Set default tclr/tar timings */
-	pcr &= ~FMC2_PCR_TCLR;
-	pcr |= FIELD_PREP(FMC2_PCR_TCLR, FMC2_PCR_TCLR_DEFAULT);
-	pcr &= ~FMC2_PCR_TAR;
-	pcr |= FIELD_PREP(FMC2_PCR_TAR, FMC2_PCR_TAR_DEFAULT);
+	pcr &= ~FMC2_PCR_TCLR_MASK;
+	pcr |= FMC2_PCR_TCLR(FMC2_PCR_TCLR_DEFAULT);
+	pcr &= ~FMC2_PCR_TAR_MASK;
+	pcr |= FMC2_PCR_TAR(FMC2_PCR_TAR_DEFAULT);
 
 	/* Enable FMC2 controller */
-	if (!has_parent)
-		setbits_le32(nfc->io_base + FMC2_BCR1, FMC2_BCR1_FMC2EN);
+	bcr1 |= FMC2_BCR1_FMC2EN;
 
-	writel(pcr, nfc->io_base + FMC2_PCR);
-	writel(FMC2_PMEM_DEFAULT, nfc->io_base + FMC2_PMEM);
-	writel(FMC2_PATT_DEFAULT, nfc->io_base + FMC2_PATT);
+	writel(bcr1, fmc2->io_base + FMC2_BCR1);
+	writel(pcr, fmc2->io_base + FMC2_PCR);
+	writel(FMC2_PMEM_DEFAULT, fmc2->io_base + FMC2_PMEM);
+	writel(FMC2_PATT_DEFAULT, fmc2->io_base + FMC2_PATT);
 }
 
-static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
-					const struct nand_sdr_timings *sdrt)
+/* Controller timings */
+static void stm32_fmc2_calc_timings(struct nand_chip *chip,
+				    const struct nand_sdr_timings *sdrt)
 {
-	struct stm32_fmc2_nfc *nfc = to_stm32_nfc(chip->controller);
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
 	struct stm32_fmc2_nand *nand = to_fmc2_nand(chip);
 	struct stm32_fmc2_timings *tims = &nand->timings;
-	unsigned long hclk = clk_get_rate(&nfc->clk);
+	unsigned long hclk = clk_get_rate(&fmc2->clk);
 	unsigned long hclkp = FMC2_NSEC_PER_SEC / (hclk / 1000);
-	unsigned long timing, tar, tclr, thiz, twait;
-	unsigned long tset_mem, tset_att, thold_mem, thold_att;
+	int tar, tclr, thiz, twait, tset_mem, tset_att, thold_mem, thold_att;
 
-	tar = max_t(unsigned long, hclkp, sdrt->tAR_min);
-	timing = DIV_ROUND_UP(tar, hclkp) - 1;
-	tims->tar = min_t(unsigned long, timing, FMC2_PCR_TIMING_MASK);
+	tar = hclkp;
+	if (tar < sdrt->tAR_min)
+		tar = sdrt->tAR_min;
+	tims->tar = DIV_ROUND_UP(tar, hclkp) - 1;
+	if (tims->tar > FMC2_PCR_TIMING_MASK)
+		tims->tar = FMC2_PCR_TIMING_MASK;
 
-	tclr = max_t(unsigned long, hclkp, sdrt->tCLR_min);
-	timing = DIV_ROUND_UP(tclr, hclkp) - 1;
-	tims->tclr = min_t(unsigned long, timing, FMC2_PCR_TIMING_MASK);
+	tclr = hclkp;
+	if (tclr < sdrt->tCLR_min)
+		tclr = sdrt->tCLR_min;
+	tims->tclr = DIV_ROUND_UP(tclr, hclkp) - 1;
+	if (tims->tclr > FMC2_PCR_TIMING_MASK)
+		tims->tclr = FMC2_PCR_TIMING_MASK;
 
 	tims->thiz = FMC2_THIZ;
 	thiz = (tims->thiz + 1) * hclkp;
@@ -622,11 +651,18 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	 * tWAIT > tWP
 	 * tWAIT > tREA + tIO
 	 */
-	twait = max_t(unsigned long, hclkp, sdrt->tRP_min);
-	twait = max_t(unsigned long, twait, sdrt->tWP_min);
-	twait = max_t(unsigned long, twait, sdrt->tREA_max + FMC2_TIO);
-	timing = DIV_ROUND_UP(twait, hclkp);
-	tims->twait = clamp_val(timing, 1, FMC2_PMEM_PATT_TIMING_MASK);
+	twait = hclkp;
+	if (twait < sdrt->tRP_min)
+		twait = sdrt->tRP_min;
+	if (twait < sdrt->tWP_min)
+		twait = sdrt->tWP_min;
+	if (twait < sdrt->tREA_max + FMC2_TIO)
+		twait = sdrt->tREA_max + FMC2_TIO;
+	tims->twait = DIV_ROUND_UP(twait, hclkp);
+	if (tims->twait == 0)
+		tims->twait = 1;
+	else if (tims->twait > FMC2_PMEM_PATT_TIMING_MASK)
+		tims->twait = FMC2_PMEM_PATT_TIMING_MASK;
 
 	/*
 	 * tSETUP_MEM > tCS - tWAIT
@@ -641,15 +677,20 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	if (twait > thiz && (sdrt->tDS_min > twait - thiz) &&
 	    (tset_mem < sdrt->tDS_min - (twait - thiz)))
 		tset_mem = sdrt->tDS_min - (twait - thiz);
-	timing = DIV_ROUND_UP(tset_mem, hclkp);
-	tims->tset_mem = clamp_val(timing, 1, FMC2_PMEM_PATT_TIMING_MASK);
+	tims->tset_mem = DIV_ROUND_UP(tset_mem, hclkp);
+	if (tims->tset_mem == 0)
+		tims->tset_mem = 1;
+	else if (tims->tset_mem > FMC2_PMEM_PATT_TIMING_MASK)
+		tims->tset_mem = FMC2_PMEM_PATT_TIMING_MASK;
 
 	/*
 	 * tHOLD_MEM > tCH
 	 * tHOLD_MEM > tREH - tSETUP_MEM
 	 * tHOLD_MEM > max(tRC, tWC) - (tSETUP_MEM + tWAIT)
 	 */
-	thold_mem = max_t(unsigned long, hclkp, sdrt->tCH_min);
+	thold_mem = hclkp;
+	if (thold_mem < sdrt->tCH_min)
+		thold_mem = sdrt->tCH_min;
 	if (sdrt->tREH_min > tset_mem &&
 	    (thold_mem < sdrt->tREH_min - tset_mem))
 		thold_mem = sdrt->tREH_min - tset_mem;
@@ -659,8 +700,11 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	if ((sdrt->tWC_min > tset_mem + twait) &&
 	    (thold_mem < sdrt->tWC_min - (tset_mem + twait)))
 		thold_mem = sdrt->tWC_min - (tset_mem + twait);
-	timing = DIV_ROUND_UP(thold_mem, hclkp);
-	tims->thold_mem = clamp_val(timing, 1, FMC2_PMEM_PATT_TIMING_MASK);
+	tims->thold_mem = DIV_ROUND_UP(thold_mem, hclkp);
+	if (tims->thold_mem == 0)
+		tims->thold_mem = 1;
+	else if (tims->thold_mem > FMC2_PMEM_PATT_TIMING_MASK)
+		tims->thold_mem = FMC2_PMEM_PATT_TIMING_MASK;
 
 	/*
 	 * tSETUP_ATT > tCS - tWAIT
@@ -682,8 +726,11 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	if (twait > thiz && (sdrt->tDS_min > twait - thiz) &&
 	    (tset_att < sdrt->tDS_min - (twait - thiz)))
 		tset_att = sdrt->tDS_min - (twait - thiz);
-	timing = DIV_ROUND_UP(tset_att, hclkp);
-	tims->tset_att = clamp_val(timing, 1, FMC2_PMEM_PATT_TIMING_MASK);
+	tims->tset_att = DIV_ROUND_UP(tset_att, hclkp);
+	if (tims->tset_att == 0)
+		tims->tset_att = 1;
+	else if (tims->tset_att > FMC2_PMEM_PATT_TIMING_MASK)
+		tims->tset_att = FMC2_PMEM_PATT_TIMING_MASK;
 
 	/*
 	 * tHOLD_ATT > tALH
@@ -698,11 +745,17 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	 * tHOLD_ATT > tRC - (tSETUP_ATT + tWAIT)
 	 * tHOLD_ATT > tWC - (tSETUP_ATT + tWAIT)
 	 */
-	thold_att = max_t(unsigned long, hclkp, sdrt->tALH_min);
-	thold_att = max_t(unsigned long, thold_att, sdrt->tCH_min);
-	thold_att = max_t(unsigned long, thold_att, sdrt->tCLH_min);
-	thold_att = max_t(unsigned long, thold_att, sdrt->tCOH_min);
-	thold_att = max_t(unsigned long, thold_att, sdrt->tDH_min);
+	thold_att = hclkp;
+	if (thold_att < sdrt->tALH_min)
+		thold_att = sdrt->tALH_min;
+	if (thold_att < sdrt->tCH_min)
+		thold_att = sdrt->tCH_min;
+	if (thold_att < sdrt->tCLH_min)
+		thold_att = sdrt->tCLH_min;
+	if (thold_att < sdrt->tCOH_min)
+		thold_att = sdrt->tCOH_min;
+	if (thold_att < sdrt->tDH_min)
+		thold_att = sdrt->tDH_min;
 	if ((sdrt->tWB_max + FMC2_TIO + FMC2_TSYNC > tset_mem) &&
 	    (thold_att < sdrt->tWB_max + FMC2_TIO + FMC2_TSYNC - tset_mem))
 		thold_att = sdrt->tWB_max + FMC2_TIO + FMC2_TSYNC - tset_mem;
@@ -721,32 +774,38 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 	if ((sdrt->tWC_min > tset_att + twait) &&
 	    (thold_att < sdrt->tWC_min - (tset_att + twait)))
 		thold_att = sdrt->tWC_min - (tset_att + twait);
-	timing = DIV_ROUND_UP(thold_att, hclkp);
-	tims->thold_att = clamp_val(timing, 1, FMC2_PMEM_PATT_TIMING_MASK);
+	tims->thold_att = DIV_ROUND_UP(thold_att, hclkp);
+	if (tims->thold_att == 0)
+		tims->thold_att = 1;
+	else if (tims->thold_att > FMC2_PMEM_PATT_TIMING_MASK)
+		tims->thold_att = FMC2_PMEM_PATT_TIMING_MASK;
 }
 
-static int stm32_fmc2_nfc_setup_interface(struct mtd_info *mtd, int chipnr,
-					  const struct nand_data_interface *cf)
+static int stm32_fmc2_setup_interface(struct mtd_info *mtd, int chipnr,
+				      const struct nand_data_interface *conf)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	const struct nand_sdr_timings *sdrt;
 
-	sdrt = nand_get_sdr_timings(cf);
+	sdrt = nand_get_sdr_timings(conf);
 	if (IS_ERR(sdrt))
 		return PTR_ERR(sdrt);
 
 	if (chipnr == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
-	stm32_fmc2_nfc_calc_timings(chip, sdrt);
-	stm32_fmc2_nfc_timings_init(chip);
+	stm32_fmc2_calc_timings(chip, sdrt);
+
+	/* Apply timings */
+	stm32_fmc2_timings_init(chip);
 
 	return 0;
 }
 
-static void stm32_fmc2_nfc_nand_callbacks_setup(struct nand_chip *chip)
+/* NAND callbacks setup */
+static void stm32_fmc2_nand_callbacks_setup(struct nand_chip *chip)
 {
-	chip->ecc.hwctl = stm32_fmc2_nfc_hwctl;
+	chip->ecc.hwctl = stm32_fmc2_hwctl;
 
 	/*
 	 * Specific callbacks to read/write a page depending on
@@ -754,17 +813,17 @@ static void stm32_fmc2_nfc_nand_callbacks_setup(struct nand_chip *chip)
 	 */
 	if (chip->ecc.strength == FMC2_ECC_HAM) {
 		/* Hamming is used */
-		chip->ecc.calculate = stm32_fmc2_nfc_ham_calculate;
-		chip->ecc.correct = stm32_fmc2_nfc_ham_correct;
+		chip->ecc.calculate = stm32_fmc2_ham_calculate;
+		chip->ecc.correct = stm32_fmc2_ham_correct;
 		chip->ecc.bytes = chip->options & NAND_BUSWIDTH_16 ? 4 : 3;
 		chip->ecc.options |= NAND_ECC_GENERIC_ERASED_CHECK;
 		return;
 	}
 
 	/* BCH is used */
-	chip->ecc.read_page = stm32_fmc2_nfc_read_page;
-	chip->ecc.calculate = stm32_fmc2_nfc_bch_calculate;
-	chip->ecc.correct = stm32_fmc2_nfc_bch_correct;
+	chip->ecc.read_page = stm32_fmc2_read_page;
+	chip->ecc.calculate = stm32_fmc2_bch_calculate;
+	chip->ecc.correct = stm32_fmc2_bch_correct;
 
 	if (chip->ecc.strength == FMC2_ECC_BCH8)
 		chip->ecc.bytes = chip->options & NAND_BUSWIDTH_16 ? 14 : 13;
@@ -772,7 +831,8 @@ static void stm32_fmc2_nfc_nand_callbacks_setup(struct nand_chip *chip)
 		chip->ecc.bytes = chip->options & NAND_BUSWIDTH_16 ? 8 : 7;
 }
 
-static int stm32_fmc2_nfc_calc_ecc_bytes(int step_size, int strength)
+/* FMC2 caps */
+static int stm32_fmc2_calc_ecc_bytes(int step_size, int strength)
 {
 	/* Hamming */
 	if (strength == FMC2_ECC_HAM)
@@ -786,13 +846,15 @@ static int stm32_fmc2_nfc_calc_ecc_bytes(int step_size, int strength)
 	return 8;
 }
 
-NAND_ECC_CAPS_SINGLE(stm32_fmc2_nfc_ecc_caps, stm32_fmc2_nfc_calc_ecc_bytes,
+NAND_ECC_CAPS_SINGLE(stm32_fmc2_ecc_caps, stm32_fmc2_calc_ecc_bytes,
 		     FMC2_ECC_STEP_SIZE,
 		     FMC2_ECC_HAM, FMC2_ECC_BCH4, FMC2_ECC_BCH8);
 
-static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc, ofnode node)
+/* FMC2 probe */
+static int stm32_fmc2_parse_child(struct stm32_fmc2_nfc *fmc2,
+				  ofnode node)
 {
-	struct stm32_fmc2_nand *nand = &nfc->nand;
+	struct stm32_fmc2_nand *nand = &fmc2->nand;
 	u32 cs[FMC2_MAX_CE];
 	int ret, i;
 
@@ -801,41 +863,40 @@ static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc, ofnode node)
 
 	nand->ncs /= sizeof(u32);
 	if (!nand->ncs) {
-		log_err("Invalid reg property size\n");
+		pr_err("Invalid reg property size\n");
 		return -EINVAL;
 	}
 
 	ret = ofnode_read_u32_array(node, "reg", cs, nand->ncs);
 	if (ret < 0) {
-		log_err("Could not retrieve reg property\n");
+		pr_err("Could not retrieve reg property\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < nand->ncs; i++) {
-		if (cs[i] >= FMC2_MAX_CE) {
-			log_err("Invalid reg value: %d\n", nand->cs_used[i]);
+		if (cs[i] > FMC2_MAX_CE) {
+			pr_err("Invalid reg value: %d\n",
+			       nand->cs_used[i]);
 			return -EINVAL;
 		}
 
-		if (nfc->cs_assigned & BIT(cs[i])) {
-			log_err("Cs already assigned: %d\n", nand->cs_used[i]);
+		if (fmc2->cs_assigned & BIT(cs[i])) {
+			pr_err("Cs already assigned: %d\n",
+			       nand->cs_used[i]);
 			return -EINVAL;
 		}
 
-		nfc->cs_assigned |= BIT(cs[i]);
+		fmc2->cs_assigned |= BIT(cs[i]);
 		nand->cs_used[i] = cs[i];
 	}
 
-	gpio_request_by_name_nodev(node, "wp-gpios", 0, &nand->wp_gpio,
-				   GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
-
-	nand->chip.flash_node = node;
+	nand->chip.flash_node = ofnode_to_offset(node);
 
 	return 0;
 }
 
-static int stm32_fmc2_nfc_parse_dt(struct udevice *dev,
-				   struct stm32_fmc2_nfc *nfc)
+static int stm32_fmc2_parse_dt(struct udevice *dev,
+			       struct stm32_fmc2_nfc *fmc2)
 {
 	ofnode child;
 	int ret, nchips = 0;
@@ -844,17 +905,17 @@ static int stm32_fmc2_nfc_parse_dt(struct udevice *dev,
 		nchips++;
 
 	if (!nchips) {
-		log_err("NAND chip not defined\n");
+		pr_err("NAND chip not defined\n");
 		return -EINVAL;
 	}
 
 	if (nchips > 1) {
-		log_err("Too many NAND chips defined\n");
+		pr_err("Too many NAND chips defined\n");
 		return -EINVAL;
 	}
 
 	dev_for_each_subnode(child, dev) {
-		ret = stm32_fmc2_nfc_parse_child(nfc, child);
+		ret = stm32_fmc2_parse_child(fmc2, child);
 		if (ret)
 			return ret;
 	}
@@ -862,95 +923,68 @@ static int stm32_fmc2_nfc_parse_dt(struct udevice *dev,
 	return 0;
 }
 
-static struct udevice *stm32_fmc2_nfc_get_cdev(struct udevice *dev)
+static int stm32_fmc2_probe(struct udevice *dev)
 {
-	struct udevice *pdev = dev_get_parent(dev);
-	struct udevice *cdev = NULL;
-	bool ebi_found = false;
-
-	if (pdev && ofnode_device_is_compatible(dev_ofnode(pdev),
-						"st,stm32mp1-fmc2-ebi"))
-		ebi_found = true;
-
-	if (ofnode_device_is_compatible(dev_ofnode(dev),
-					"st,stm32mp1-fmc2-nfc")) {
-		if (ebi_found)
-			cdev = pdev;
-
-		return cdev;
-	}
-
-	if (!ebi_found)
-		cdev = dev;
-
-	return cdev;
-}
-
-static int stm32_fmc2_nfc_probe(struct udevice *dev)
-{
-	struct stm32_fmc2_nfc *nfc = dev_get_priv(dev);
-	struct stm32_fmc2_nand *nand = &nfc->nand;
+	struct stm32_fmc2_nfc *fmc2 = dev_get_priv(dev);
+	struct stm32_fmc2_nand *nand = &fmc2->nand;
 	struct nand_chip *chip = &nand->chip;
 	struct mtd_info *mtd = &chip->mtd;
 	struct nand_ecclayout *ecclayout;
-	struct udevice *cdev;
+	struct resource resource;
 	struct reset_ctl reset;
-	int oob_index, chip_cs, mem_region, ret;
-	unsigned int i;
-	int start_region = 0;
-	fdt_addr_t addr;
+	int oob_index, chip_cs, mem_region, ret, i;
 
-	spin_lock_init(&nfc->controller.lock);
-	init_waitqueue_head(&nfc->controller.wq);
+	spin_lock_init(&fmc2->controller.lock);
+	init_waitqueue_head(&fmc2->controller.wq);
 
-	cdev = stm32_fmc2_nfc_get_cdev(dev);
-	if (!cdev)
-		return -EINVAL;
-
-	ret = stm32_fmc2_nfc_parse_dt(dev, nfc);
+	ret = stm32_fmc2_parse_dt(dev, fmc2);
 	if (ret)
 		return ret;
 
-	nfc->io_base = dev_read_addr(cdev);
-	if (nfc->io_base == FDT_ADDR_T_NONE)
-		return -EINVAL;
+	/* Get resources */
+	ret = dev_read_resource(dev, 0, &resource);
+	if (ret) {
+		pr_err("Resource io_base not found");
+		return ret;
+	}
+	fmc2->io_base = (void __iomem *)resource.start;
 
-	if (dev == cdev)
-		start_region = 1;
-
-	for (chip_cs = 0, mem_region = start_region; chip_cs < FMC2_MAX_CE;
+	for (chip_cs = 0, mem_region = 1; chip_cs < FMC2_MAX_CE;
 	     chip_cs++, mem_region += 3) {
-		if (!(nfc->cs_assigned & BIT(chip_cs)))
+		if (!(fmc2->cs_assigned & BIT(chip_cs)))
 			continue;
 
-		addr = dev_read_addr_index(dev, mem_region);
-		if (addr == FDT_ADDR_T_NONE) {
-			dev_err(dev, "Resource data_base not found for cs%d", chip_cs);
+		ret = dev_read_resource(dev, mem_region, &resource);
+		if (ret) {
+			pr_err("Resource data_base not found for cs%d",
+			       chip_cs);
 			return ret;
 		}
-		nfc->data_base[chip_cs] = addr;
+		fmc2->data_base[chip_cs] = (void __iomem *)resource.start;
 
-		addr = dev_read_addr_index(dev, mem_region + 1);
-		if (addr == FDT_ADDR_T_NONE) {
-			dev_err(dev, "Resource cmd_base not found for cs%d", chip_cs);
+		ret = dev_read_resource(dev, mem_region + 1, &resource);
+		if (ret) {
+			pr_err("Resource cmd_base not found for cs%d",
+			       chip_cs);
 			return ret;
 		}
-		nfc->cmd_base[chip_cs] = addr;
+		fmc2->cmd_base[chip_cs] = (void __iomem *)resource.start;
 
-		addr = dev_read_addr_index(dev, mem_region + 2);
-		if (addr == FDT_ADDR_T_NONE) {
-			dev_err(dev, "Resource addr_base not found for cs%d", chip_cs);
+		ret = dev_read_resource(dev, mem_region + 2, &resource);
+		if (ret) {
+			pr_err("Resource addr_base not found for cs%d",
+			       chip_cs);
 			return ret;
 		}
-		nfc->addr_base[chip_cs] = addr;
+		fmc2->addr_base[chip_cs] = (void __iomem *)resource.start;
 	}
 
 	/* Enable the clock */
-	ret = clk_get_by_index(cdev, 0, &nfc->clk);
+	ret = clk_get_by_index(dev, 0, &fmc2->clk);
 	if (ret)
 		return ret;
 
-	ret = clk_enable(&nfc->clk);
+	ret = clk_enable(&fmc2->clk);
 	if (ret)
 		return ret;
 
@@ -962,12 +996,13 @@ static int stm32_fmc2_nfc_probe(struct udevice *dev)
 		reset_deassert(&reset);
 	}
 
-	stm32_fmc2_nfc_init(nfc, dev != cdev);
+	/* FMC2 init routine */
+	stm32_fmc2_init(fmc2);
 
-	chip->controller = &nfc->base;
-	chip->select_chip = stm32_fmc2_nfc_select_chip;
-	chip->setup_data_interface = stm32_fmc2_nfc_setup_interface;
-	chip->cmd_ctrl = stm32_fmc2_nfc_cmd_ctrl;
+	chip->controller = &fmc2->base;
+	chip->select_chip = stm32_fmc2_select_chip;
+	chip->setup_data_interface = stm32_fmc2_setup_interface;
+	chip->cmd_ctrl = stm32_fmc2_cmd_ctrl;
 	chip->chip_delay = FMC2_RB_DELAY_US;
 	chip->options |= NAND_BUSWIDTH_AUTO | NAND_NO_SUBPAGE_WRITE |
 			 NAND_USE_BOUNCE_BUFFER;
@@ -977,10 +1012,7 @@ static int stm32_fmc2_nfc_probe(struct udevice *dev)
 	chip->ecc.size = FMC2_ECC_STEP_SIZE;
 	chip->ecc.strength = FMC2_ECC_BCH8;
 
-	/* Disable Write Protect */
-	if (dm_gpio_is_valid(&nand->wp_gpio))
-		dm_gpio_set_value(&nand->wp_gpio, 0);
-
+	/* Scan to find existence of the device */
 	ret = nand_scan_ident(mtd, nand->ncs, NULL);
 	if (ret)
 		return ret;
@@ -993,24 +1025,25 @@ static int stm32_fmc2_nfc_probe(struct udevice *dev)
 	 * ECC sector size = 512
 	 */
 	if (chip->ecc.mode != NAND_ECC_HW) {
-		dev_err(dev, "Nand_ecc_mode is not well defined in the DT\n");
+		pr_err("Nand_ecc_mode is not well defined in the DT\n");
 		return -EINVAL;
 	}
 
-	ret = nand_check_ecc_caps(chip, &stm32_fmc2_nfc_ecc_caps,
+	ret = nand_check_ecc_caps(chip, &stm32_fmc2_ecc_caps,
 				  mtd->oobsize - FMC2_BBM_LEN);
 	if (ret) {
-		dev_err(dev, "No valid ECC settings set\n");
+		pr_err("No valid ECC settings set\n");
 		return ret;
 	}
 
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		chip->bbt_options |= NAND_BBT_NO_OOB;
 
-	stm32_fmc2_nfc_nand_callbacks_setup(chip);
+	/* NAND callbacks setup */
+	stm32_fmc2_nand_callbacks_setup(chip);
 
 	/* Define ECC layout */
-	ecclayout = &nfc->ecclayout;
+	ecclayout = &fmc2->ecclayout;
 	ecclayout->eccbytes = chip->ecc.bytes *
 			      (mtd->writesize / chip->ecc.size);
 	oob_index = FMC2_BBM_LEN;
@@ -1020,9 +1053,11 @@ static int stm32_fmc2_nfc_probe(struct udevice *dev)
 	ecclayout->oobfree->length = mtd->oobsize - ecclayout->oobfree->offset;
 	chip->ecc.layout = ecclayout;
 
+	/* Configure bus width to 16-bit */
 	if (chip->options & NAND_BUSWIDTH_16)
-		stm32_fmc2_nfc_set_buswidth_16(nfc, true);
+		stm32_fmc2_set_buswidth_16(fmc2, true);
 
+	/* Scan the device to fill MTD data-structures */
 	ret = nand_scan_tail(mtd);
 	if (ret)
 		return ret;
@@ -1030,18 +1065,17 @@ static int stm32_fmc2_nfc_probe(struct udevice *dev)
 	return nand_register(0, mtd);
 }
 
-static const struct udevice_id stm32_fmc2_nfc_match[] = {
+static const struct udevice_id stm32_fmc2_match[] = {
 	{ .compatible = "st,stm32mp15-fmc2" },
-	{ .compatible = "st,stm32mp1-fmc2-nfc" },
 	{ /* Sentinel */ }
 };
 
-U_BOOT_DRIVER(stm32_fmc2_nfc) = {
-	.name = "stm32_fmc2_nfc",
+U_BOOT_DRIVER(stm32_fmc2_nand) = {
+	.name = "stm32_fmc2_nand",
 	.id = UCLASS_MTD,
-	.of_match = stm32_fmc2_nfc_match,
-	.probe = stm32_fmc2_nfc_probe,
-	.priv_auto	= sizeof(struct stm32_fmc2_nfc),
+	.of_match = stm32_fmc2_match,
+	.probe = stm32_fmc2_probe,
+	.priv_auto_alloc_size = sizeof(struct stm32_fmc2_nfc),
 };
 
 void board_nand_init(void)
@@ -1050,9 +1084,9 @@ void board_nand_init(void)
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_MTD,
-					  DM_DRIVER_GET(stm32_fmc2_nfc),
+					  DM_GET_DRIVER(stm32_fmc2_nand),
 					  &dev);
 	if (ret && ret != -ENODEV)
-		log_err("Failed to initialize STM32 FMC2 NFC controller. (error %d)\n",
-			ret);
+		pr_err("Failed to initialize STM32 FMC2 NAND controller. (error %d)\n",
+		       ret);
 }

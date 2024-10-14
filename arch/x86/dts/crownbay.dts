@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014, Bin Meng <bmeng.cn@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /dts-v1/;
@@ -10,12 +11,8 @@
 /include/ "skeleton.dtsi"
 /include/ "serial.dtsi"
 /include/ "keyboard.dtsi"
-/include/ "pcspkr.dtsi"
-/include/ "reset.dtsi"
 /include/ "rtc.dtsi"
-
-#include "tsc_timer.dtsi"
-#include "smbios.dtsi"
+/include/ "tsc_timer.dtsi"
 
 / {
 	model = "Intel Crown Bay";
@@ -155,7 +152,7 @@
 			#size-cells = <1>;
 
 			irq-router {
-				compatible = "intel,irq-router";
+				compatible = "intel,queensbay-irq-router";
 				intel,pirq-config = "pci";
 				intel,actl-addr = <0x58>;
 				intel,pirq-link = <0x60 8>;
@@ -226,7 +223,7 @@
 				spi-flash@0 {
 					reg = <0>;
 					compatible = "sst,25vf016b",
-						"jedec,spi-nor";
+						"spi-flash";
 					memory-map = <0xffe00000 0x00200000>;
 				};
 			};

@@ -1,15 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2014, STMicroelectronics - All Rights Reserved
- * Author(s): Vikas Manocha, <vikas.manocha@st.com> for STMicroelectronics.
+ * (C) Copyright 2014
+ * Vikas Manocha, ST Micoelectronics, vikas.manocha@st.com.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <cpu_func.h>
 #include <asm/io.h>
 #include <asm/arch/stv0991_wdru.h>
-#include <linux/delay.h>
-void reset_cpu(void)
+void reset_cpu(ulong ignored)
 {
 	puts("System is going to reboot ...\n");
 	/*

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -17,8 +18,8 @@
 #include <asm/mpc85xx_gpio.h>
 #endif
 
-struct mpc8xxx_gpio_plat {
-	phys_addr_t addr;
+struct mpc85xx_gpio_plat {
+	ulong addr;
 	unsigned long size;
 	uint ngpios;
 };

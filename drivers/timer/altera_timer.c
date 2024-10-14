@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * (C) Copyright 2004, Psyent Corporation <www.psyent.com>
  * Scott McNutt <smcnutt@psyent.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,7 +13,8 @@
 #include <errno.h>
 #include <timer.h>
 #include <asm/io.h>
-#include <linux/bitops.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /* control register */
 #define ALTERA_TIMER_CONT	BIT(1)	/* Continuous mode */
@@ -28,13 +30,13 @@ struct altera_timer_regs {
 	u32	snaph;		/* Snapshot high */
 };
 
-struct altera_timer_plat {
+struct altera_timer_platdata {
 	struct altera_timer_regs *regs;
 };
 
-static u64 altera_timer_get_count(struct udevice *dev)
+static int altera_timer_get_count(struct udevice *dev, u64 *count)
 {
-	struct altera_timer_plat *plat = dev_get_plat(dev);
+	struct altera_timer_platdata *plat = dev->platdata;
 	struct altera_timer_regs *const regs = plat->regs;
 	u32 val;
 
@@ -44,12 +46,14 @@ static u64 altera_timer_get_count(struct udevice *dev)
 	/* Read timer value */
 	val = readl(&regs->snapl) & 0xffff;
 	val |= (readl(&regs->snaph) & 0xffff) << 16;
-	return timer_conv_64(~val);
+	*count = timer_conv_64(~val);
+
+	return 0;
 }
 
 static int altera_timer_probe(struct udevice *dev)
 {
-	struct altera_timer_plat *plat = dev_get_plat(dev);
+	struct altera_timer_platdata *plat = dev->platdata;
 	struct altera_timer_regs *const regs = plat->regs;
 
 	writel(0, &regs->status);
@@ -63,11 +67,11 @@ static int altera_timer_probe(struct udevice *dev)
 	return 0;
 }
 
-static int altera_timer_of_to_plat(struct udevice *dev)
+static int altera_timer_ofdata_to_platdata(struct udevice *dev)
 {
-	struct altera_timer_plat *plat = dev_get_plat(dev);
+	struct altera_timer_platdata *plat = dev_get_platdata(dev);
 
-	plat->regs = map_physmem(dev_read_addr(dev),
+	plat->regs = map_physmem(devfdt_get_addr(dev),
 				 sizeof(struct altera_timer_regs),
 				 MAP_NOCACHE);
 
@@ -87,8 +91,9 @@ U_BOOT_DRIVER(altera_timer) = {
 	.name	= "altera_timer",
 	.id	= UCLASS_TIMER,
 	.of_match = altera_timer_ids,
-	.of_to_plat = altera_timer_of_to_plat,
-	.plat_auto	= sizeof(struct altera_timer_plat),
+	.ofdata_to_platdata = altera_timer_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct altera_timer_platdata),
 	.probe = altera_timer_probe,
 	.ops	= &altera_timer_ops,
+	.flags = DM_FLAG_PRE_RELOC,
 };

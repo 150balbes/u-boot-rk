@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
- * Author: Elaine <zhangqing@rock-chips.com>
+ * (C) Copyright 2016 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK3328_H
@@ -163,8 +163,7 @@
 #define PCLK_HDCP		232
 #define PCLK_DCF		233
 #define PCLK_SARADC		234
-#define PCLK_ACODECPHY		235
-#define PCLK_WDT		236
+#define PCLK_ACODEC		235
 
 /* hclk gates */
 #define HCLK_PERI		308
@@ -186,6 +185,7 @@
 #define HCLK_VPU_PRE		324
 #define HCLK_VIO_PRE		325
 #define HCLK_VPU		326
+#define HCLK_VIO		327
 #define HCLK_BUS_PRE		328
 #define HCLK_PERI_PRE		329
 #define HCLK_H264		330

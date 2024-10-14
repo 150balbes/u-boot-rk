@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2015 Freescale Semiconductor
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CPLD_H__
@@ -41,6 +42,5 @@ void cpld_rev_bit(unsigned char *value);
 #define CPLD_BANK_SEL_ALTBANK	0x04
 #define CPLD_CFG_RCW_SRC_NOR	0x025
 #define CPLD_CFG_RCW_SRC_NAND	0x106
-#define CPLD_CFG_RCW_SRC_NAND_4K	0x118
 #define CPLD_CFG_RCW_SRC_SD	0x040
 #endif

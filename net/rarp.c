@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <log.h>
 #include <net.h>
 #include <net/tftp.h>
 #include "nfs.h"
@@ -14,6 +14,11 @@
 #include "rarp.h"
 
 #define TIMEOUT 5000UL /* Milliseconds before trying BOOTP again */
+#ifndef	CONFIG_NET_RETRY_COUNT
+#define TIMEOUT_COUNT 5 /* # of timeouts before giving up  */
+#else
+#define TIMEOUT_COUNT (CONFIG_NET_RETRY_COUNT)
+#endif
 
 int rarp_try;
 
@@ -52,7 +57,7 @@ void rarp_receive(struct ip_udp_hdr *ip, unsigned len)
  */
 static void rarp_timeout_handler(void)
 {
-	if (rarp_try >= CONFIG_NET_RETRY_COUNT) {
+	if (rarp_try >= TIMEOUT_COUNT) {
 		puts("\nRetry count exceeded; starting again\n");
 		net_start_again();
 	} else {

@@ -1,68 +1,48 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2013-2015 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ARCH_FSL_LSCH2_IMMAP_H__
 #define __ARCH_FSL_LSCH2_IMMAP_H__
 
 #include <fsl_immap.h>
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
 
-#define CFG_SYS_DCSRBAR			0x20000000
-#define CFG_SYS_DCSR_DCFG_ADDR	(CFG_SYS_DCSRBAR + 0x00140000)
+#define CONFIG_SYS_IMMR				0x01000000
+#define CONFIG_SYS_DCSRBAR			0x20000000
+#define CONFIG_SYS_DCSR_DCFG_ADDR	(CONFIG_SYS_DCSRBAR + 0x00140000)
+#define CONFIG_SYS_DCSR_COP_CCP_ADDR	(CONFIG_SYS_DCSRBAR + 0x02008040)
 
-#define CFG_SYS_FSL_DDR_ADDR			(CONFIG_SYS_IMMR + 0x00080000)
-#define CFG_SYS_IFC_ADDR			(CONFIG_SYS_IMMR + 0x00530000)
+#define CONFIG_SYS_FSL_DDR_ADDR			(CONFIG_SYS_IMMR + 0x00080000)
+#define CONFIG_SYS_CCI400_ADDR			(CONFIG_SYS_IMMR + 0x00180000)
+#define CONFIG_SYS_GIC400_ADDR			(CONFIG_SYS_IMMR + 0x00400000)
+#define CONFIG_SYS_IFC_ADDR			(CONFIG_SYS_IMMR + 0x00530000)
 #define SYS_FSL_QSPI_ADDR			(CONFIG_SYS_IMMR + 0x00550000)
-#define CFG_SYS_FSL_ESDHC_ADDR		(CONFIG_SYS_IMMR + 0x00560000)
-#define CFG_SYS_FSL_CSU_ADDR			(CONFIG_SYS_IMMR + 0x00510000)
-#define CFG_SYS_FSL_GUTS_ADDR		(CONFIG_SYS_IMMR + 0x00ee0000)
-#define CFG_SYS_FSL_RST_ADDR			(CONFIG_SYS_IMMR + 0x00ee00b0)
-#define CFG_SYS_FSL_SCFG_ADDR		(CONFIG_SYS_IMMR + 0x00570000)
-#define CFG_SYS_FSL_BMAN_ADDR		(CONFIG_SYS_IMMR + 0x00890000)
-#define CFG_SYS_FSL_QMAN_ADDR		(CONFIG_SYS_IMMR + 0x00880000)
-#define CFG_SYS_FSL_SERDES_ADDR		(CONFIG_SYS_IMMR + 0x00ea0000)
-#define CFG_SYS_FSL_CLK_ADDR			(CONFIG_SYS_IMMR + 0x00ee1000)
-#define CFG_SYS_NS16550_COM1			(CONFIG_SYS_IMMR + 0x011c0500)
-#define CFG_SYS_NS16550_COM2			(CONFIG_SYS_IMMR + 0x011c0600)
-#define CFG_SYS_NS16550_COM3			(CONFIG_SYS_IMMR + 0x011d0500)
-#define CFG_SYS_NS16550_COM4			(CONFIG_SYS_IMMR + 0x011d0600)
-#define CFG_SYS_XHCI_USB1_ADDR		(CONFIG_SYS_IMMR + 0x01f00000)
-#define CFG_SYS_XHCI_USB2_ADDR		(CONFIG_SYS_IMMR + 0x02000000)
-#define CFG_SYS_XHCI_USB3_ADDR		(CONFIG_SYS_IMMR + 0x02100000)
-#define CFG_SYS_PCIE1_ADDR			(CONFIG_SYS_IMMR + 0x2400000)
-#define CFG_SYS_PCIE2_ADDR			(CONFIG_SYS_IMMR + 0x2500000)
-#define CFG_SYS_SEC_MON_ADDR			(CONFIG_SYS_IMMR + 0xe90000)
-#define CFG_SYS_SFP_ADDR			(CONFIG_SYS_IMMR + 0xe80200)
+#define CONFIG_SYS_FSL_ESDHC_ADDR		(CONFIG_SYS_IMMR + 0x00560000)
+#define CONFIG_SYS_FSL_CSU_ADDR			(CONFIG_SYS_IMMR + 0x00510000)
+#define CONFIG_SYS_FSL_GUTS_ADDR		(CONFIG_SYS_IMMR + 0x00ee0000)
+#define CONFIG_SYS_FSL_RST_ADDR			(CONFIG_SYS_IMMR + 0x00ee00b0)
+#define CONFIG_SYS_FSL_SCFG_ADDR		(CONFIG_SYS_IMMR + 0x00570000)
+#define CONFIG_SYS_FSL_FMAN_ADDR		(CONFIG_SYS_IMMR + 0x00a00000)
+#define CONFIG_SYS_FSL_SERDES_ADDR		(CONFIG_SYS_IMMR + 0x00ea0000)
+#define CONFIG_SYS_FSL_DCFG_ADDR		(CONFIG_SYS_IMMR + 0x00ee0000)
+#define CONFIG_SYS_FSL_CLK_ADDR			(CONFIG_SYS_IMMR + 0x00ee1000)
+#define CONFIG_SYS_NS16550_COM1			(CONFIG_SYS_IMMR + 0x011c0500)
+#define CONFIG_SYS_NS16550_COM2			(CONFIG_SYS_IMMR + 0x011c0600)
+#define CONFIG_SYS_NS16550_COM3			(CONFIG_SYS_IMMR + 0x011d0500)
+#define CONFIG_SYS_NS16550_COM4			(CONFIG_SYS_IMMR + 0x011d0600)
+#define CONFIG_SYS_XHCI_USB1_ADDR		(CONFIG_SYS_IMMR + 0x01f00000)
+#define CONFIG_SYS_XHCI_USB2_ADDR		(CONFIG_SYS_IMMR + 0x02000000)
+#define CONFIG_SYS_XHCI_USB3_ADDR		(CONFIG_SYS_IMMR + 0x02100000)
+#define CONFIG_SYS_EHCI_USB1_ADDR		(CONFIG_SYS_IMMR + 0x07600000)
+#define CONFIG_SYS_PCIE1_ADDR			(CONFIG_SYS_IMMR + 0x2400000)
+#define CONFIG_SYS_PCIE2_ADDR			(CONFIG_SYS_IMMR + 0x2500000)
+#define CONFIG_SYS_PCIE3_ADDR			(CONFIG_SYS_IMMR + 0x2600000)
+#define CONFIG_SYS_SEC_MON_ADDR			(CONFIG_SYS_IMMR + 0xe90000)
+#define CONFIG_SYS_SFP_ADDR			(CONFIG_SYS_IMMR + 0xe80200)
 
-#define CFG_SYS_BMAN_NUM_PORTALS	10
-#define CFG_SYS_BMAN_MEM_BASE	0x508000000
-#define CFG_SYS_BMAN_MEM_PHYS	(0xf00000000ull + \
-						CFG_SYS_BMAN_MEM_BASE)
-#define CFG_SYS_BMAN_MEM_SIZE	0x08000000
-#define CFG_SYS_BMAN_SP_CENA_SIZE    0x10000
-#define CFG_SYS_BMAN_SP_CINH_SIZE    0x10000
-#define CFG_SYS_BMAN_CENA_BASE       CFG_SYS_BMAN_MEM_BASE
-#define CFG_SYS_BMAN_CENA_SIZE       (CFG_SYS_BMAN_MEM_SIZE >> 1)
-#define CFG_SYS_BMAN_CINH_BASE       (CFG_SYS_BMAN_MEM_BASE + \
-					CFG_SYS_BMAN_CENA_SIZE)
-#define CFG_SYS_BMAN_CINH_SIZE       (CFG_SYS_BMAN_MEM_SIZE >> 1)
-#define CFG_SYS_BMAN_SWP_ISDR_REG    0x3E80
-#define CFG_SYS_QMAN_NUM_PORTALS	10
-#define CFG_SYS_QMAN_MEM_BASE	0x500000000
-#define CFG_SYS_QMAN_MEM_PHYS	CFG_SYS_QMAN_MEM_BASE
-#define CFG_SYS_QMAN_MEM_SIZE	0x08000000
-#define CFG_SYS_QMAN_SP_CINH_SIZE    0x10000
-#define CFG_SYS_QMAN_CENA_SIZE       (CFG_SYS_QMAN_MEM_SIZE >> 1)
-#define CFG_SYS_QMAN_CINH_BASE       (CFG_SYS_QMAN_MEM_BASE + \
-					CFG_SYS_QMAN_CENA_SIZE)
-#define CFG_SYS_QMAN_CINH_SIZE       (CFG_SYS_QMAN_MEM_SIZE >> 1)
-#define CFG_SYS_QMAN_SWP_ISDR_REG	0x3680
-
-#define CFG_SYS_FSL_TIMER_ADDR		0x02b00000
+#define CONFIG_SYS_FSL_TIMER_ADDR		0x02b00000
 
 #define I2C1_BASE_ADDR				(CONFIG_SYS_IMMR + 0x01180000)
 #define I2C2_BASE_ADDR				(CONFIG_SYS_IMMR + 0x01190000)
@@ -74,25 +54,13 @@
 #define QSPI0_BASE_ADDR				(CONFIG_SYS_IMMR + 0x00550000)
 #define DSPI1_BASE_ADDR				(CONFIG_SYS_IMMR + 0x01100000)
 
-#define GPIO1_BASE_ADDR				(CONFIG_SYS_IMMR + 0x1300000)
-#define GPIO2_BASE_ADDR				(CONFIG_SYS_IMMR + 0x1310000)
-#define GPIO3_BASE_ADDR				(CONFIG_SYS_IMMR + 0x1320000)
-#define GPIO4_BASE_ADDR				(CONFIG_SYS_IMMR + 0x1330000)
-
-#define QE_BASE_ADDR				(CONFIG_SYS_IMMR + 0x1400000)
-
 #define LPUART_BASE				(CONFIG_SYS_IMMR + 0x01950000)
-
-#define EDMA_BASE_ADDR				(CONFIG_SYS_IMMR + 0x01c00000)
 
 #define AHCI_BASE_ADDR				(CONFIG_SYS_IMMR + 0x02200000)
 
-#define QDMA_BASE_ADDR				(CONFIG_SYS_IMMR + 0x07380000)
-#define QMAN_CQSIDR_REG				0x20a80
-
-#define CFG_SYS_PCIE1_PHYS_ADDR		0x4000000000ULL
-#define CFG_SYS_PCIE2_PHYS_ADDR		0x4800000000ULL
-#define CFG_SYS_PCIE3_PHYS_ADDR		0x5000000000ULL
+#define CONFIG_SYS_PCIE1_PHYS_ADDR		0x4000000000ULL
+#define CONFIG_SYS_PCIE2_PHYS_ADDR		0x4800000000ULL
+#define CONFIG_SYS_PCIE3_PHYS_ADDR		0x5000000000ULL
 /* LUT registers */
 #ifdef CONFIG_ARCH_LS1012A
 #define PCIE_LUT_BASE				0xC0000
@@ -134,20 +102,39 @@
 #define TP_CLUSTER_INIT_MASK    0x0000003f      /* initiator mask */
 #define TP_INIT_PER_CLUSTER     4
 
-#ifndef CFG_SYS_CCSRBAR
-#define CFG_SYS_CCSRBAR		0x01000000
+/*
+ * Define default values for some CCSR macros to make header files cleaner*
+ *
+ * To completely disable CCSR relocation in a board header file, define
+ * CONFIG_SYS_CCSR_DO_NOT_RELOCATE.  This will force CONFIG_SYS_CCSRBAR_PHYS
+ * to a value that is the same as CONFIG_SYS_CCSRBAR.
+ */
+
+#ifdef CONFIG_SYS_CCSRBAR_PHYS
+#error "Do not define CONFIG_SYS_CCSRBAR_PHYS directly.  Use \
+CONFIG_SYS_CCSRBAR_PHYS_LOW and/or CONFIG_SYS_CCSRBAR_PHYS_HIGH instead."
 #endif
 
-#ifndef CFG_SYS_CCSRBAR_PHYS_HIGH
-#define CFG_SYS_CCSRBAR_PHYS_HIGH	0
+#ifdef CONFIG_SYS_CCSR_DO_NOT_RELOCATE
+#undef CONFIG_SYS_CCSRBAR_PHYS_HIGH
+#undef CONFIG_SYS_CCSRBAR_PHYS_LOW
+#define CONFIG_SYS_CCSRBAR_PHYS_HIGH	0
 #endif
 
-#ifndef CFG_SYS_CCSRBAR_PHYS_LOW
-#define CFG_SYS_CCSRBAR_PHYS_LOW	0x01000000
+#ifndef CONFIG_SYS_CCSRBAR
+#define CONFIG_SYS_CCSRBAR		0x01000000
 #endif
 
-#define CFG_SYS_CCSRBAR_PHYS ((CFG_SYS_CCSRBAR_PHYS_HIGH * 1ull) << 32 | \
-				 CFG_SYS_CCSRBAR_PHYS_LOW)
+#ifndef CONFIG_SYS_CCSRBAR_PHYS_HIGH
+#define CONFIG_SYS_CCSRBAR_PHYS_HIGH	0
+#endif
+
+#ifndef CONFIG_SYS_CCSRBAR_PHYS_LOW
+#define CONFIG_SYS_CCSRBAR_PHYS_LOW	0x01000000
+#endif
+
+#define CONFIG_SYS_CCSRBAR_PHYS ((CONFIG_SYS_CCSRBAR_PHYS_HIGH * 1ull) << 32 | \
+				 CONFIG_SYS_CCSRBAR_PHYS_LOW)
 
 struct sys_info {
 	unsigned long freq_processor[CONFIG_MAX_CPUS];
@@ -155,40 +142,36 @@ struct sys_info {
 	unsigned long freq_systembus;
 	unsigned long freq_ddrbus;
 	unsigned long freq_localbus;
-	unsigned long freq_cga_m2;
+	unsigned long freq_sdhc;
 #ifdef CONFIG_SYS_DPAA_FMAN
-	unsigned long freq_fman[CFG_SYS_NUM_FMAN];
+	unsigned long freq_fman[CONFIG_SYS_NUM_FMAN];
 #endif
 	unsigned long freq_qman;
 };
 
-#define CFG_SYS_FSL_FM1_OFFSET		0xa00000
+#define CONFIG_SYS_FSL_FM1_OFFSET		0xa00000
+#define CONFIG_SYS_FSL_FM1_RX0_1G_OFFSET	0xa88000
+#define CONFIG_SYS_FSL_FM1_RX1_1G_OFFSET	0xa89000
+#define CONFIG_SYS_FSL_FM1_RX2_1G_OFFSET	0xa8a000
+#define CONFIG_SYS_FSL_FM1_RX3_1G_OFFSET	0xa8b000
+#define CONFIG_SYS_FSL_FM1_RX4_1G_OFFSET	0xa8c000
+#define CONFIG_SYS_FSL_FM1_RX5_1G_OFFSET	0xa8d000
 
-#define CFG_SYS_FSL_FM1_DTSEC1_OFFSET	0xae0000
-#define CFG_SYS_FSL_FM1_ADDR			\
-		(CONFIG_SYS_IMMR + CFG_SYS_FSL_FM1_OFFSET)
-#define CFG_SYS_FSL_FM1_DTSEC1_ADDR		\
-		(CONFIG_SYS_IMMR + CFG_SYS_FSL_FM1_DTSEC1_OFFSET)
+#define CONFIG_SYS_FSL_FM1_DTSEC1_OFFSET	0xae0000
+#define CONFIG_SYS_FSL_FM1_ADDR			\
+		(CONFIG_SYS_IMMR + CONFIG_SYS_FSL_FM1_OFFSET)
+#define CONFIG_SYS_FSL_FM1_DTSEC1_ADDR		\
+		(CONFIG_SYS_IMMR + CONFIG_SYS_FSL_FM1_DTSEC1_OFFSET)
 
-#define CFG_SYS_FSL_SEC_OFFSET		0x700000ull
-#define CFG_SYS_FSL_JR0_OFFSET		0x710000ull
-#define FSL_SEC_JR0_OFFSET			CFG_SYS_FSL_JR0_OFFSET
-#define FSL_SEC_JR1_OFFSET			0x720000ull
-#define FSL_SEC_JR2_OFFSET			0x730000ull
-#define FSL_SEC_JR3_OFFSET			0x740000ull
-#define CFG_SYS_FSL_SEC_ADDR \
-	(CONFIG_SYS_IMMR + CFG_SYS_FSL_SEC_OFFSET)
-#define CFG_SYS_FSL_JR0_ADDR \
-	(CONFIG_SYS_IMMR + CFG_SYS_FSL_JR0_OFFSET)
-#define FSL_SEC_JR0_BASE_ADDR (CONFIG_SYS_IMMR + FSL_SEC_JR0_OFFSET)
-#define FSL_SEC_JR1_BASE_ADDR (CONFIG_SYS_IMMR + FSL_SEC_JR1_OFFSET)
-#define FSL_SEC_JR2_BASE_ADDR (CONFIG_SYS_IMMR + FSL_SEC_JR2_OFFSET)
-#define FSL_SEC_JR3_BASE_ADDR (CONFIG_SYS_IMMR + FSL_SEC_JR3_OFFSET)
+#define CONFIG_SYS_FSL_SEC_OFFSET		0x700000ull
+#define CONFIG_SYS_FSL_JR0_OFFSET		0x710000ull
+#define CONFIG_SYS_FSL_SEC_ADDR \
+	(CONFIG_SYS_IMMR + CONFIG_SYS_FSL_SEC_OFFSET)
+#define CONFIG_SYS_FSL_JR0_ADDR \
+	(CONFIG_SYS_IMMR + CONFIG_SYS_FSL_JR0_OFFSET)
 
 /* Device Configuration and Pin Control */
 #define DCFG_DCSR_PORCR1		0x0
-#define DCFG_DCSR_ECCCR2		0x524
-#define DISABLE_PFE_ECC			BIT(13)
 
 struct ccsr_gur {
 	u32     porsr1;         /* POR status 1 */
@@ -355,59 +338,10 @@ struct ccsr_gur {
 #define SCFG_USBPWRFAULT_USB2_SHIFT	2
 #define SCFG_USBPWRFAULT_USB1_SHIFT	0
 
-#define SCFG_BASE			0x01570000
-#define SCFG_USB3PRM1CR_USB1		0x070
-#define SCFG_USB3PRM2CR_USB1		0x074
-#define SCFG_USB3PRM1CR_USB2		0x07C
-#define SCFG_USB3PRM2CR_USB2		0x080
-#define SCFG_USB3PRM1CR_USB3		0x088
-#define SCFG_USB3PRM2CR_USB3		0x08c
-#define SCFG_USB_TXVREFTUNE			0x9
-#define SCFG_USB_SQRXTUNE_MASK		0x7
-#define SCFG_USB_PCSTXSWINGFULL		0x47
-#define SCFG_USB_PHY1			0x084F0000
-#define SCFG_USB_PHY2			0x08500000
-#define SCFG_USB_PHY3			0x08510000
-#define SCFG_USB_PHY_RX_OVRD_IN_HI		0x200c
-#define USB_PHY_RX_EQ_VAL_1		0x0000
-#define USB_PHY_RX_EQ_VAL_2		0x0080
-#define USB_PHY_RX_EQ_VAL_3		0x0380
-#define USB_PHY_RX_EQ_VAL_4		0x0b80
-
 #define SCFG_SNPCNFGCR_SECRDSNP		0x80000000
 #define SCFG_SNPCNFGCR_SECWRSNP		0x40000000
 #define SCFG_SNPCNFGCR_SATARDSNP	0x00800000
 #define SCFG_SNPCNFGCR_SATAWRSNP	0x00400000
-#define SCFG_SNPCNFGCR_USB1RDSNP	0x00200000
-#define SCFG_SNPCNFGCR_USB1WRSNP	0x00100000
-#define SCFG_SNPCNFGCR_EDMASNP		0x00020000
-#define SCFG_SNPCNFGCR_USB2RDSNP	0x00008000
-#define SCFG_SNPCNFGCR_USB2WRSNP	0x00010000
-#define SCFG_SNPCNFGCR_USB3RDSNP	0x00002000
-#define SCFG_SNPCNFGCR_USB3WRSNP	0x00004000
-
-/* RGMIIPCR bit definitions*/
-#define SCFG_RGMIIPCR_EN_AUTO		BIT(3)
-#define SCFG_RGMIIPCR_SETSP_1000M	BIT(2)
-#define SCFG_RGMIIPCR_SETSP_100M	0
-#define SCFG_RGMIIPCR_SETSP_10M		BIT(1)
-#define SCFG_RGMIIPCR_SETFD		BIT(0)
-
-/* PFEASBCR bit definitions */
-#define SCFG_PFEASBCR_ARCACHE0		BIT(31)
-#define SCFG_PFEASBCR_AWCACHE0		BIT(30)
-#define SCFG_PFEASBCR_ARCACHE1		BIT(29)
-#define SCFG_PFEASBCR_AWCACHE1		BIT(28)
-#define SCFG_PFEASBCR_ARSNP		BIT(27)
-#define SCFG_PFEASBCR_AWSNP		BIT(26)
-
-/* WR_QoS1 PFE bit definitions */
-#define SCFG_WR_QOS1_PFE1_QOS		GENMASK(27, 24)
-#define SCFG_WR_QOS1_PFE2_QOS		GENMASK(23, 20)
-
-/* RD_QoS1 PFE bit definitions */
-#define SCFG_RD_QOS1_PFE1_QOS		GENMASK(27, 24)
-#define SCFG_RD_QOS1_PFE2_QOS		GENMASK(23, 20)
 
 /* Supplemental Configuration Unit */
 struct ccsr_scfg {
@@ -426,12 +360,7 @@ struct ccsr_scfg {
 	u8 res_140[0x158-0x140];
 	u32 altcbar;
 	u32 qspi_cfg;
-	u8 res_160[0x164 - 0x160];
-	u32 wr_qos1;
-	u32 wr_qos2;
-	u32 rd_qos1;
-	u32 rd_qos2;
-	u8 res_174[0x180 - 0x174];
+	u8 res_160[0x180-0x160];
 	u32 dmamcr;
 	u8 res_184[0x188-0x184];
 	u32 gic_align;
@@ -462,21 +391,7 @@ struct ccsr_scfg {
 	u32 usb_refclk_selcr1;
 	u32 usb_refclk_selcr2;
 	u32 usb_refclk_selcr3;
-	u8 res_424[0x434 - 0x424];
-	u32 rgmiipcr;
-	u32 res_438;
-	u32 rgmiipsr;
-	u32 pfepfcssr1;
-	u32 pfeintencr1;
-	u32 pfepfcssr2;
-	u32 pfeintencr2;
-	u32 pfeerrcr;
-	u32 pfeeerrintencr;
-	u32 pfeasbcr;
-	u32 pfebsbcr;
-	u8 res_460[0x484 - 0x460];
-	u32 mdioselcr;
-	u8 res_468[0x600 - 0x488];
+	u8 res_424[0x600-0x424];
 	u32 scratchrw[4];
 	u8 res_610[0x680-0x610];
 	u32 corebcr;
@@ -629,14 +544,52 @@ struct ccsr_serdes {
 	u8	res_19a0[0x2000-0x19a0];	/* from 0x19a0 to 0x1fff */
 };
 
-struct ccsr_gpio {
-	u32	gpdir;
-	u32	gpodr;
-	u32	gpdat;
-	u32	gpier;
-	u32	gpimr;
-	u32	gpicr;
-	u32	gpibe;
+#define CCI400_CTRLORD_TERM_BARRIER	0x00000008
+#define CCI400_CTRLORD_EN_BARRIER	0
+#define CCI400_SHAORD_NON_SHAREABLE	0x00000002
+#define CCI400_DVM_MESSAGE_REQ_EN	0x00000002
+#define CCI400_SNOOP_REQ_EN		0x00000001
+
+/* CCI-400 registers */
+struct ccsr_cci400 {
+	u32 ctrl_ord;			/* Control Override */
+	u32 spec_ctrl;			/* Speculation Control */
+	u32 secure_access;		/* Secure Access */
+	u32 status;			/* Status */
+	u32 impr_err;			/* Imprecise Error */
+	u8 res_14[0x100 - 0x14];
+	u32 pmcr;			/* Performance Monitor Control */
+	u8 res_104[0xfd0 - 0x104];
+	u32 pid[8];			/* Peripheral ID */
+	u32 cid[4];			/* Component ID */
+	struct {
+		u32 snoop_ctrl;		/* Snoop Control */
+		u32 sha_ord;		/* Shareable Override */
+		u8 res_1008[0x1100 - 0x1008];
+		u32 rc_qos_ord;		/* read channel QoS Value Override */
+		u32 wc_qos_ord;		/* read channel QoS Value Override */
+		u8 res_1108[0x110c - 0x1108];
+		u32 qos_ctrl;		/* QoS Control */
+		u32 max_ot;		/* Max OT */
+		u8 res_1114[0x1130 - 0x1114];
+		u32 target_lat;		/* Target Latency */
+		u32 latency_regu;	/* Latency Regulation */
+		u32 qos_range;		/* QoS Range */
+		u8 res_113c[0x2000 - 0x113c];
+	} slave[5];			/* Slave Interface */
+	u8 res_6000[0x9004 - 0x6000];
+	u32 cycle_counter;		/* Cycle counter */
+	u32 count_ctrl;			/* Count Control */
+	u32 overflow_status;		/* Overflow Flag Status */
+	u8 res_9010[0xa000 - 0x9010];
+	struct {
+		u32 event_select;	/* Event Select */
+		u32 event_count;	/* Event Count */
+		u32 counter_ctrl;	/* Counter Control */
+		u32 overflow_status;	/* Overflow Flag Status */
+		u8 res_a010[0xb000 - 0xa010];
+	} pcounter[4];			/* Performance Counter */
+	u8 res_e004[0x10000 - 0xe004];
 };
 
 /* MMU 500 */
@@ -653,26 +606,6 @@ struct ccsr_gpio {
 
 #define SCR0_CLIENTPD_MASK		0x00000001
 #define SCR0_USFCFG_MASK		0x00000400
-
-#ifdef CONFIG_TFABOOT
-#define RCW_SRC_MASK			(0xFF800000)
-#define RCW_SRC_BIT			23
-
-/* RCW SRC NAND */
-#define RCW_SRC_NAND_MASK		(0x100)
-#define RCW_SRC_NAND_VAL		(0x100)
-#define NAND_RESERVED_MASK		(0xFC)
-#define NAND_RESERVED_1			(0x0)
-#define NAND_RESERVED_2			(0x80)
-
-/* RCW SRC NOR */
-#define RCW_SRC_NOR_MASK		(0x1F0)
-#define NOR_8B_VAL			(0x10)
-#define NOR_16B_VAL			(0x20)
-#define SD_VAL				(0x40)
-#define QSPI_VAL1			(0x44)
-#define QSPI_VAL2			(0x45)
-#endif
 
 uint get_svr(void);
 

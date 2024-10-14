@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: BSD-3-Clause
 /*
  * reloc_arm.c - position-independent ARM ELF shared object relocator
  *
@@ -8,13 +7,16 @@
  *
  * All rights reserved.
  *
+ * SPDX-License-Identifier:	BSD-3-Clause
+ *
  * This file is taken and modified from the gnu-efi project.
  */
 
 #include <efi.h>
 #include <elf.h>
 
-efi_status_t EFIAPI _relocate(long ldbase, Elf32_Dyn *dyn)
+efi_status_t _relocate(long ldbase, Elf32_Dyn *dyn, efi_handle_t image,
+		       struct efi_system_table *systab)
 {
 	long relsz = 0, relent = 0;
 	Elf32_Rel *rel = 0;

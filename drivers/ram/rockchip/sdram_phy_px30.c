@@ -6,10 +6,9 @@
 #include <common.h>
 #include <ram.h>
 #include <asm/io.h>
-#include <asm/arch-rockchip/sdram.h>
-#include <asm/arch-rockchip/sdram_common.h>
-#include <asm/arch-rockchip/sdram_phy_px30.h>
-#include <linux/delay.h>
+#include <asm/arch/sdram.h>
+#include <asm/arch/sdram_common.h>
+#include <asm/arch/sdram_phy_px30.h>
 
 static void sdram_phy_dll_bypass_set(void __iomem *phy_base, u32 freq)
 {
@@ -204,3 +203,4 @@ void phy_cfg(void __iomem *phy_base,
 	sdram_copy_to_reg(PHY_REG(phy_base, 0xc0),
 			  &skew->cs1_dm0_skew[0], 44 * 4);
 }
+

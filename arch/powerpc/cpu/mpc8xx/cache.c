@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2017
  * Christophe Leroy, CS Systemes d'Information, christophe.leroy@c-s.fr
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <cpu_func.h>
 #include <asm/processor.h>
 #include <asm/ppc.h>
 #include <asm/io.h>

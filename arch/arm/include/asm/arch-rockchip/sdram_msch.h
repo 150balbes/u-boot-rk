@@ -43,6 +43,16 @@ union noc_ddrtimingc0 {
 	} b;
 };
 
+union noc_ddrtimingl {
+	u32 d32;
+	struct {
+		unsigned ccdl : 3;
+		unsigned wrtordl : 5;
+		unsigned rrdl : 4;
+		unsigned reserved : 20;
+	} b;
+};
+
 union noc_devtodev0 {
 	u32 d32;
 	struct {

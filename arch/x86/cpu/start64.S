@@ -1,14 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * 64-bit x86 Startup Code
  *
- * Copyright 2019 Google, Inc
+ * (C) Copyright 216 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 
-.section .text.start
+.section .text
 .code64
 .globl _start
 .type _start, @function
@@ -20,7 +21,6 @@ _start:
 
 	call	board_init_f_init_reserve
 
-	xor	%rdi, %rdi
 	call	board_init_f
 	call	board_init_f_r
 

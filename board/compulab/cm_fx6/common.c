@@ -1,20 +1,23 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Code used by both U-Boot and SPL for Compulab CM-FX6
  *
  * Copyright (C) 2014, Compulab Ltd - http://compulab.co.il/
  *
  * Author: Nikita Kiryanov <nikita@compulab.co.il>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/spi.h>
-#include <fsl_esdhc_imx.h>
+#include <fsl_esdhc.h>
 #include "common.h"
 
-#ifdef CONFIG_FSL_ESDHC_IMX
+DECLARE_GLOBAL_DATA_PTR;
+
+#ifdef CONFIG_FSL_ESDHC
 #define USDHC_PAD_CTRL (PAD_CTL_PUS_47K_UP |			\
 	PAD_CTL_SPEED_LOW | PAD_CTL_DSE_80ohm |			\
 	PAD_CTL_SRE_FAST  | PAD_CTL_HYS)

@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI OMAP timer driver
  *
  * Copyright (C) 2015, Texas Instruments, Incorporated
+ *
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <common.h>
@@ -11,14 +12,16 @@
 #include <timer.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
-#include <asm/omap_common.h>
-#include <linux/bitops.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /* Timer register bits */
 #define TCLR_START			BIT(0)	/* Start=1 */
 #define TCLR_AUTO_RELOAD		BIT(1)	/* Auto reload */
 #define TCLR_PRE_EN			BIT(5)	/* Pre-scaler enable */
 #define TCLR_PTV_SHIFT			(2)	/* Pre-scaler shift value */
+
+#define TIMER_CLOCK             (V_SCLK / (2 << CONFIG_SYS_PTV))
 
 struct omap_gptimer_regs {
 	unsigned int tidr;		/* offset 0x00 */
@@ -47,11 +50,13 @@ struct omap_timer_priv {
 	struct omap_gptimer_regs *regs;
 };
 
-static u64 omap_timer_get_count(struct udevice *dev)
+static int omap_timer_get_count(struct udevice *dev, u64 *count)
 {
 	struct omap_timer_priv *priv = dev_get_priv(dev);
 
-	return timer_conv_64(readl(&priv->regs->tcrr));
+	*count = readl(&priv->regs->tcrr);
+
+	return 0;
 }
 
 static int omap_timer_probe(struct udevice *dev)
@@ -59,52 +64,27 @@ static int omap_timer_probe(struct udevice *dev)
 	struct timer_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 	struct omap_timer_priv *priv = dev_get_priv(dev);
 
-	if (!uc_priv->clock_rate)
-		uc_priv->clock_rate = V_SCLK;
-
-	uc_priv->clock_rate /= (2 << SYS_PTV);
+	uc_priv->clock_rate = TIMER_CLOCK;
 
 	/* start the counter ticking up, reload value on overflow */
 	writel(0, &priv->regs->tldr);
-	writel(0, &priv->regs->tcrr);
 	/* enable timer */
-	writel((SYS_PTV << 2) | TCLR_PRE_EN | TCLR_AUTO_RELOAD |
+	writel((CONFIG_SYS_PTV << 2) | TCLR_PRE_EN | TCLR_AUTO_RELOAD |
 	       TCLR_START, &priv->regs->tclr);
 
 	return 0;
 }
 
-static int omap_timer_of_to_plat(struct udevice *dev)
+static int omap_timer_ofdata_to_platdata(struct udevice *dev)
 {
 	struct omap_timer_priv *priv = dev_get_priv(dev);
 
-	priv->regs = map_physmem(dev_read_addr(dev),
+	priv->regs = map_physmem(devfdt_get_addr(dev),
 				 sizeof(struct omap_gptimer_regs), MAP_NOCACHE);
 
 	return 0;
 }
 
-#if CONFIG_IS_ENABLED(BOOTSTAGE)
-ulong timer_get_boot_us(void)
-{
-	u64 ticks = 0;
-	u32 rate = 1;
-	u64 us;
-	int ret;
-
-	ret = dm_timer_init();
-	if (!ret) {
-		/* The timer is available */
-		rate = timer_get_rate(gd->timer);
-		timer_get_count(gd->timer, &ticks);
-	} else {
-		return 0;
-	}
-
-	us = (ticks * 1000) / rate;
-	return us;
-}
-#endif
 
 static const struct timer_ops omap_timer_ops = {
 	.get_count = omap_timer_get_count,
@@ -121,8 +101,9 @@ U_BOOT_DRIVER(omap_timer) = {
 	.name	= "omap_timer",
 	.id	= UCLASS_TIMER,
 	.of_match = omap_timer_ids,
-	.of_to_plat = omap_timer_of_to_plat,
-	.priv_auto	= sizeof(struct omap_timer_priv),
+	.ofdata_to_platdata = omap_timer_ofdata_to_platdata,
+	.priv_auto_alloc_size = sizeof(struct omap_timer_priv),
 	.probe = omap_timer_probe,
 	.ops	= &omap_timer_ops,
+	.flags = DM_FLAG_PRE_RELOC,
 };

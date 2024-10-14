@@ -1,19 +1,83 @@
-// SPDX-License-Identifier: GPL-2.0+
-
-#include "rockchip-u-boot.dtsi"
+/*
+ * (C) Copyright 2018 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
+ */
 
 / {
-	dmc: dmc@20004000 {
-		compatible = "rockchip,rk3128-dmc", "syscon";
-		reg = <0x0 0x20004000 0x0 0x1000>;
-		u-boot,dm-pre-reloc;
+	aliases {
+		mmc0 = &emmc;
+		mmc1 = &sdmmc;
 	};
+
+	chosen {
+		stdout-path = &uart2;
+	};
+};
+
+&psci {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&dmc {
+	u-boot,dm-pre-reloc;
+};
+
+&nandc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand@0 {
+		u-boot,dm-spl;
+		reg = <0>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
+
+&sfc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&emmc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&grf {
+	u-boot,dm-pre-reloc;
 };
 
 &cru {
 	u-boot,dm-pre-reloc;
 };
 
-&grf {
+&uart1 {
+	clock-frequency = <24000000>;
 	u-boot,dm-pre-reloc;
+};
+
+&uart2 {
+	u-boot,dm-pre-reloc;
+	clock-frequency = <24000000>;
+};
+
+&u2phy {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&u2phy_otg {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usb_otg {
+	u-boot,dm-pre-reloc;
+	status = "okay";
 };

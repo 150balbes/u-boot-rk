@@ -1,7 +1,8 @@
-# SPDX-License-Identifier: GPL-2.0+
 #
 # Copyright 2014 Freescale Semiconductor, Inc.
-# Copyright 2018 NXP
+#
+# SPDX-License-Identifier:	GPL-2.0+
+#
 
 # Layerscape MC driver
 obj-y += mc.o \
@@ -10,6 +11,5 @@ obj-y += mc.o \
 	dprc.o	\
 	dpbp.o	\
 	dpni.o	\
-	dpmac.o	\
-	dpsparser.o
+	dpmac.o
 obj-y += dpio/

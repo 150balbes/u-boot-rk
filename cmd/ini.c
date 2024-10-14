@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: BSD-3-Clause
 /*
  * inih -- simple .INI file parser
  *
@@ -7,13 +6,15 @@
  *              Joe Hershberger, National Instruments, joe.hershberger@ni.com
  * All rights reserved.
  *
+ * SPDX-License-Identifier:	BSD-3-Clause
+ *
  * Go to the project home page for more info:
  * http://code.google.com/p/inih/
  */
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
+#include <environment.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 
@@ -226,7 +227,7 @@ static int ini_handler(void *user, char *section, char *name, char *value)
 	return 1;
 }
 
-static int do_ini(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_ini(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *section;
 	char *file_address;
@@ -236,10 +237,10 @@ static int do_ini(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		return CMD_RET_USAGE;
 
 	section = argv[1];
-	file_address = (char *)hextoul(argc < 3 ? env_get("loadaddr") : argv[2],
-					NULL);
-	file_size = (size_t)hextoul(argc < 4 ? env_get("filesize") : argv[3],
-				     NULL);
+	file_address = (char *)simple_strtoul(
+		argc < 3 ? env_get("loadaddr") : argv[2], NULL, 16);
+	file_size = (size_t)simple_strtoul(
+		argc < 4 ? env_get("filesize") : argv[3], NULL, 16);
 
 	return ini_parse(file_address, file_size, ini_handler, (void *)section);
 }

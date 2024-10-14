@@ -1,21 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2017 Linaro
  * Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <common.h>
-#include <cpu_func.h>
 #include <dm.h>
-#include <init.h>
-#include <asm/cache.h>
-#include <asm/global_data.h>
+#include <common.h>
 #include <asm/io.h>
 #include <dm/platform_data/serial_pl01x.h>
 #include <asm/arch/hi3798cv200.h>
+#include <asm/arch/dwmmc.h>
 #include <asm/armv8/mmu.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -40,18 +36,16 @@ static struct mm_region poplar_mem_map[] = {
 
 struct mm_region *mem_map = poplar_mem_map;
 
-#if !CONFIG_IS_ENABLED(OF_CONTROL)
-static const struct pl01x_serial_plat serial_plat = {
+static const struct pl01x_serial_platdata serial_platdata = {
 	.base = REG_BASE_UART0,
 	.type = TYPE_PL010,
 	.clock = 75000000,
 };
 
-U_BOOT_DRVINFO(poplar_serial) = {
+U_BOOT_DEVICE(poplar_serial) = {
 	.name = "serial_pl01x",
-	.plat = &serial_plat,
+	.platdata = &serial_platdata,
 };
-#endif
 
 int checkboard(void)
 {
@@ -60,7 +54,7 @@ int checkboard(void)
 	return 0;
 }
 
-void reset_cpu(void)
+void reset_cpu(ulong addr)
 {
 	psci_system_reset();
 }
@@ -160,34 +154,16 @@ static void usb2_phy_init(void)
 	udelay(200);
 }
 
-#if defined(CONFIG_USB_GADGET) && defined(CONFIG_USB_GADGET_DWC2_OTG)
-#include <env.h>
-#include <usb.h>
-#include <usb/dwc2_udc.h>
-#include <g_dnl.h>
-
-static struct dwc2_plat_otg_data poplar_otg_data = {
-	.regs_otg = HIOTG_BASE_ADDR
-};
-
-static void set_usb_to_device(void)
+int board_mmc_init(bd_t *bis)
 {
-	setbits_le32(PERI_CTRL_USB3, USB2_2P_CHIPID);
-}
+	int ret;
 
-int board_usb_init(int index, enum usb_init_type init)
-{
-	set_usb_to_device();
-	return dwc2_udc_probe(&poplar_otg_data);
-}
+	ret = hi6220_dwmci_add_port(0, REG_BASE_MCI, 8);
+	if (ret)
+		printf("mmc init error (%d)\n", ret);
 
-int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
-{
-	if (!env_get("serial#"))
-		g_dnl_set_serialnumber("0123456789POPLAR");
-	return 0;
+	return ret;
 }
-#endif
 
 int board_init(void)
 {
@@ -195,3 +171,4 @@ int board_init(void)
 
 	return 0;
 }
+

@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
 #ifndef __DT_BINDINGS_POWER_PX30_POWER_H__
 #define __DT_BINDINGS_POWER_PX30_POWER_H__
 

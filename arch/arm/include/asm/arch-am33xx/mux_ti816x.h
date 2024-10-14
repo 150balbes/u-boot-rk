@@ -17,6 +17,7 @@
 #ifndef _MUX_TI816X_H_
 #define _MUX_TI816X_H_
 
+#include <common.h>
 #include <asm/io.h>
 
 #define MUX_CFG(value, offset)  \

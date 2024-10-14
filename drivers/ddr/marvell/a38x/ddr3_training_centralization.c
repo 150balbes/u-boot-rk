@@ -1,10 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Marvell International Ltd. and its affiliates
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
+#include <common.h>
+#include <spl.h>
+#include <asm/io.h>
+#include <asm/arch/cpu.h>
+#include <asm/arch/soc.h>
+
 #include "ddr3_init.h"
-#include "mv_ddr_regs.h"
 
 #define VALIDATE_WIN_LENGTH(e1, e2, maxsize)		\
 	(((e2) + 1 > (e1) + (u8)MIN_WINDOW_SIZE) &&	\
@@ -16,12 +22,7 @@
 #define CENTRAL_RX		1
 #define NUM_OF_CENTRAL_TYPES	2
 
-#if   defined(CONFIG_DDR4) /* DDR4 16/32-bit */
-u32 start_pattern = PATTERN_KILLER_DQ0, end_pattern = PATTERN_KILLER_DQ7_INV;
-#else /* DDR3 16/32-bit */
 u32 start_pattern = PATTERN_KILLER_DQ0, end_pattern = PATTERN_KILLER_DQ7;
-#endif /* CONFIG_64BIT */
-
 u32 start_if = 0, end_if = (MAX_INTERFACE_NUM - 1);
 u8 bus_end_window[NUM_OF_CENTRAL_TYPES][MAX_INTERFACE_NUM][MAX_BUS_NUM];
 u8 bus_start_window[NUM_OF_CENTRAL_TYPES][MAX_INTERFACE_NUM][MAX_BUS_NUM];
@@ -59,15 +60,13 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 	enum hws_training_ip_stat training_result[MAX_INTERFACE_NUM];
 	u32 if_id, pattern_id, bit_id;
 	u8 bus_id;
-	u8 current_byte_status;
 	u8 cur_start_win[BUS_WIDTH_IN_BITS];
 	u8 centralization_result[MAX_INTERFACE_NUM][BUS_WIDTH_IN_BITS];
 	u8 cur_end_win[BUS_WIDTH_IN_BITS];
 	u8 current_window[BUS_WIDTH_IN_BITS];
 	u8 opt_window, waste_window, start_window_skew, end_window_skew;
 	u8 final_pup_window[MAX_INTERFACE_NUM][BUS_WIDTH_IN_BITS];
-	u32 octets_per_if_num = ddr3_tip_dev_attr_get(dev_num, MV_ATTR_OCTET_PER_INTERFACE);
-	struct mv_ddr_topology_map *tm = mv_ddr_topology_map_get();
+	struct hws_topology_map *tm = ddr3_get_topology_map();
 	enum hws_training_result result_type = RESULT_PER_BIT;
 	enum hws_dir direction;
 	u32 *result[HWS_SEARCH_DIR_LIMIT];
@@ -83,33 +82,33 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 	u8 cons_tap = (mode == CENTRAL_TX) ? (64) : (0);
 
 	for (if_id = 0; if_id <= MAX_INTERFACE_NUM - 1; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 		/* save current cs enable reg val */
 		CHECK_STATUS(ddr3_tip_if_read
 			     (dev_num, ACCESS_TYPE_UNICAST, if_id,
-			      DUAL_DUNIT_CFG_REG, cs_enable_reg_val, MASK_ALL_BITS));
+			      CS_ENABLE_REG, cs_enable_reg_val, MASK_ALL_BITS));
 		/* enable single cs */
 		CHECK_STATUS(ddr3_tip_if_write
 			     (dev_num, ACCESS_TYPE_UNICAST, if_id,
-			      DUAL_DUNIT_CFG_REG, (1 << 3), (1 << 3)));
+			      CS_ENABLE_REG, (1 << 3), (1 << 3)));
 	}
 
 	if (mode == CENTRAL_TX) {
 		max_win_size = MAX_WINDOW_SIZE_TX;
-		reg_phy_off = CTX_PHY_REG(effective_cs);
+		reg_phy_off = WRITE_CENTRALIZATION_PHY_REG + (effective_cs * 4);
 		direction = OPER_WRITE;
 	} else {
 		max_win_size = MAX_WINDOW_SIZE_RX;
-		reg_phy_off = CRX_PHY_REG(effective_cs);
+		reg_phy_off = READ_CENTRALIZATION_PHY_REG + (effective_cs * 4);
 		direction = OPER_READ;
 	}
 
 	/* DB initialization */
 	for (if_id = 0; if_id <= MAX_INTERFACE_NUM - 1; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 		for (bus_id = 0;
-		     bus_id < octets_per_if_num; bus_id++) {
-			VALIDATE_BUS_ACTIVE(tm->bus_act_mask, bus_id);
+		     bus_id < tm->num_of_bus_per_interface; bus_id++) {
+			VALIDATE_ACTIVE(tm->bus_act_mask, bus_id);
 			centralization_state[if_id][bus_id] = 0;
 			bus_end_window[mode][if_id][bus_id] =
 				(max_win_size - 1) + cons_tap;
@@ -135,11 +134,11 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 					     PARAM_NOT_CARE, training_result);
 
 		for (if_id = start_if; if_id <= end_if; if_id++) {
-			VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+			VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 			for (bus_id = 0;
-			     bus_id <= octets_per_if_num - 1;
+			     bus_id <= tm->num_of_bus_per_interface - 1;
 			     bus_id++) {
-				VALIDATE_BUS_ACTIVE(tm->bus_act_mask, bus_id);
+				VALIDATE_ACTIVE(tm->bus_act_mask, bus_id);
 
 				for (search_dir_id = HWS_LOW2HIGH;
 				     search_dir_id <= HWS_HIGH2LOW;
@@ -171,10 +170,6 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 						  result[search_dir_id][7]));
 				}
 
-				current_byte_status =
-					mv_ddr_tip_sub_phy_byte_status_get(if_id,
-									   bus_id);
-
 				for (bit_id = 0; bit_id < BUS_WIDTH_IN_BITS;
 				     bit_id++) {
 					/* check if this code is valid for 2 edge, probably not :( */
@@ -183,34 +178,11 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 							       [HWS_LOW2HIGH]
 							       [bit_id],
 							       EDGE_1);
-					if (current_byte_status &
-					    (BYTE_SPLIT_OUT_MIX |
-					     BYTE_HOMOGENEOUS_SPLIT_OUT)) {
-						if (cur_start_win[bit_id] >= 64)
-							cur_start_win[bit_id] -= 64;
-						else
-							cur_start_win[bit_id] = 0;
-						DEBUG_CENTRALIZATION_ENGINE
-							(DEBUG_LEVEL_INFO,
-							 ("pattern %d IF %d pup %d bit %d subtract 64 adll from start\n",
-							  pattern_id, if_id, bus_id, bit_id));
-					}
 					cur_end_win[bit_id] =
 						GET_TAP_RESULT(result
 							       [HWS_HIGH2LOW]
 							       [bit_id],
 							       EDGE_1);
-					if (cur_end_win[bit_id] >= 64 &&
-					    (current_byte_status &
-					     (BYTE_SPLIT_OUT_MIX |
-					      BYTE_HOMOGENEOUS_SPLIT_OUT))) {
-						cur_end_win[bit_id] -= 64;
-						DEBUG_CENTRALIZATION_ENGINE
-							(DEBUG_LEVEL_INFO,
-							 ("pattern %d IF %d pup %d bit %d subtract 64 adll from end\n",
-							  pattern_id, if_id, bus_id, bit_id));
-					}
-
 					/* window length */
 					current_window[bit_id] =
 						cur_end_win[bit_id] -
@@ -365,10 +337,8 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 							  [if_id][bus_id]));
 						centralization_state[if_id]
 							[bus_id] = 1;
-						if (debug_mode == 0) {
-							flow_result[if_id] = TEST_FAILED;
+						if (debug_mode == 0)
 							return MV_FAIL;
-						}
 					}
 				}	/* ddr3_tip_centr_skip_min_win_check */
 			}	/* pup */
@@ -376,14 +346,15 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 	}			/* pattern */
 
 	for (if_id = start_if; if_id <= end_if; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		if (IS_ACTIVE(tm->if_act_mask, if_id) == 0)
+			continue;
 
 		is_if_fail = 0;
 		flow_result[if_id] = TEST_SUCCESS;
 
 		for (bus_id = 0;
-		     bus_id <= (octets_per_if_num - 1); bus_id++) {
-			VALIDATE_BUS_ACTIVE(tm->bus_act_mask, bus_id);
+		     bus_id <= (tm->num_of_bus_per_interface - 1); bus_id++) {
+			VALIDATE_ACTIVE(tm->bus_act_mask, bus_id);
 
 			/* continue only if lock */
 			if (centralization_state[if_id][bus_id] != 1) {
@@ -470,21 +441,21 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 				ddr3_tip_bus_read(dev_num, if_id,
 						  ACCESS_TYPE_UNICAST, bus_id,
 						  DDR_PHY_DATA,
-						  RESULT_PHY_REG +
+						  RESULT_DB_PHY_REG_ADDR +
 						  effective_cs, &reg);
 				reg = (reg & (~0x1f <<
 					      ((mode == CENTRAL_TX) ?
-					       (RESULT_PHY_TX_OFFS) :
-					       (RESULT_PHY_RX_OFFS))))
+					       (RESULT_DB_PHY_REG_TX_OFFSET) :
+					       (RESULT_DB_PHY_REG_RX_OFFSET))))
 					| pup_win_length <<
 					((mode == CENTRAL_TX) ?
-					 (RESULT_PHY_TX_OFFS) :
-					 (RESULT_PHY_RX_OFFS));
+					 (RESULT_DB_PHY_REG_TX_OFFSET) :
+					 (RESULT_DB_PHY_REG_RX_OFFSET));
 				CHECK_STATUS(ddr3_tip_bus_write
 					     (dev_num, ACCESS_TYPE_UNICAST,
 					      if_id, ACCESS_TYPE_UNICAST,
 					      bus_id, DDR_PHY_DATA,
-					      RESULT_PHY_REG +
+					      RESULT_DB_PHY_REG_ADDR +
 					      effective_cs, reg));
 
 				/* offset per CS is calculated earlier */
@@ -510,9 +481,9 @@ static int ddr3_tip_centralization(u32 dev_num, u32 mode)
 
 	for (if_id = 0; if_id <= MAX_INTERFACE_NUM - 1; if_id++) {
 		/* restore cs enable value */
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 		CHECK_STATUS(ddr3_tip_if_write(dev_num, ACCESS_TYPE_UNICAST,
-					       if_id, DUAL_DUNIT_CFG_REG,
+					       if_id, CS_ENABLE_REG,
 					       cs_enable_reg_val[if_id],
 					       MASK_ALL_BITS));
 	}
@@ -538,30 +509,29 @@ int ddr3_tip_special_rx(u32 dev_num)
 	u32 cs_enable_reg_val[MAX_INTERFACE_NUM];
 	u32 temp = 0;
 	int pad_num = 0;
-	u32 octets_per_if_num = ddr3_tip_dev_attr_get(dev_num, MV_ATTR_OCTET_PER_INTERFACE);
-	struct mv_ddr_topology_map *tm = mv_ddr_topology_map_get();
+	struct hws_topology_map *tm = ddr3_get_topology_map();
 
-	if ((ddr3_tip_special_rx_run_once_flag & (1 << effective_cs)) == (1 << effective_cs))
+	if (ddr3_tip_special_rx_run_once_flag != 0)
 		return MV_OK;
 
-	ddr3_tip_special_rx_run_once_flag |= (1 << effective_cs);
+	ddr3_tip_special_rx_run_once_flag = 1;
 
 	for (if_id = 0; if_id < MAX_INTERFACE_NUM; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 		/* save current cs enable reg val */
 		CHECK_STATUS(ddr3_tip_if_read(dev_num, ACCESS_TYPE_UNICAST,
-					      if_id, DUAL_DUNIT_CFG_REG,
+					      if_id, CS_ENABLE_REG,
 					      cs_enable_reg_val,
 					      MASK_ALL_BITS));
 		/* enable single cs */
 		CHECK_STATUS(ddr3_tip_if_write(dev_num, ACCESS_TYPE_UNICAST,
-					       if_id, DUAL_DUNIT_CFG_REG,
+					       if_id, CS_ENABLE_REG,
 					       (1 << 3), (1 << 3)));
 	}
 
 	max_win_size = MAX_WINDOW_SIZE_RX;
 	direction = OPER_READ;
-	pattern_id = PATTERN_FULL_SSO1;
+	pattern_id = PATTERN_VREF;
 
 	/* start flow */
 	ddr3_tip_ip_training_wrapper(dev_num, ACCESS_TYPE_MULTICAST,
@@ -575,10 +545,10 @@ int ddr3_tip_special_rx(u32 dev_num)
 				     PARAM_NOT_CARE, training_result);
 
 	for (if_id = start_if; if_id <= end_if; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
 		for (pup_id = 0;
-		     pup_id <= octets_per_if_num; pup_id++) {
-			VALIDATE_BUS_ACTIVE(tm->bus_act_mask, pup_id);
+		     pup_id <= tm->num_of_bus_per_interface; pup_id++) {
+			VALIDATE_ACTIVE(tm->bus_act_mask, pup_id);
 
 			for (search_dir_id = HWS_LOW2HIGH;
 			     search_dir_id <= HWS_HIGH2LOW;
@@ -651,12 +621,13 @@ int ddr3_tip_special_rx(u32 dev_num)
 							     BUS_WIDTH_IN_BITS +
 							     if_id *
 							     BUS_WIDTH_IN_BITS *
-							     MAX_BUS_NUM];
+							     tm->
+							     num_of_bus_per_interface];
 					CHECK_STATUS(ddr3_tip_bus_read
 						     (dev_num, if_id,
 						      ACCESS_TYPE_UNICAST,
 						      pup_id, DDR_PHY_DATA,
-						      PBS_RX_PHY_REG(effective_cs, pad_num),
+						      PBS_RX_PHY_REG + pad_num,
 						      &temp));
 					temp = (temp + 0xa > 31) ?
 						(31) : (temp + 0xa);
@@ -666,7 +637,7 @@ int ddr3_tip_special_rx(u32 dev_num)
 						      if_id,
 						      ACCESS_TYPE_UNICAST,
 						      pup_id, DDR_PHY_DATA,
-						      PBS_RX_PHY_REG(effective_cs, pad_num),
+						      PBS_RX_PHY_REG + pad_num,
 						      temp));
 				}
 				DEBUG_CENTRALIZATION_ENGINE(
@@ -679,29 +650,25 @@ int ddr3_tip_special_rx(u32 dev_num)
 				CHECK_STATUS(ddr3_tip_bus_read
 					     (dev_num, if_id,
 					      ACCESS_TYPE_UNICAST, pup_id,
-					      DDR_PHY_DATA,
-					      PBS_RX_PHY_REG(effective_cs, 4),
+					      DDR_PHY_DATA, PBS_RX_PHY_REG + 4,
 					      &temp));
 				temp += 0xa;
 				CHECK_STATUS(ddr3_tip_bus_write
 					     (dev_num, ACCESS_TYPE_UNICAST,
 					      if_id, ACCESS_TYPE_UNICAST,
 					      pup_id, DDR_PHY_DATA,
-					      PBS_RX_PHY_REG(effective_cs, 4),
-					      temp));
+					      PBS_RX_PHY_REG + 4, temp));
 				CHECK_STATUS(ddr3_tip_bus_read
 					     (dev_num, if_id,
 					      ACCESS_TYPE_UNICAST, pup_id,
-					      DDR_PHY_DATA,
-					      PBS_RX_PHY_REG(effective_cs, 5),
+					      DDR_PHY_DATA, PBS_RX_PHY_REG + 5,
 					      &temp));
 				temp += 0xa;
 				CHECK_STATUS(ddr3_tip_bus_write
 					     (dev_num, ACCESS_TYPE_UNICAST,
 					      if_id, ACCESS_TYPE_UNICAST,
 					      pup_id, DDR_PHY_DATA,
-					      PBS_RX_PHY_REG(effective_cs, 5),
-					      temp));
+					      PBS_RX_PHY_REG + 5, temp));
 				DEBUG_CENTRALIZATION_ENGINE(
 					DEBUG_LEVEL_INFO,
 					("Special: PBS:: I/F# %d , Bus# %d fix align to the right\n",
@@ -728,18 +695,15 @@ int ddr3_tip_special_rx(u32 dev_num)
 int ddr3_tip_print_centralization_result(u32 dev_num)
 {
 	u32 if_id = 0, bus_id = 0;
-	u32 octets_per_if_num = ddr3_tip_dev_attr_get(dev_num, MV_ATTR_OCTET_PER_INTERFACE);
-	struct mv_ddr_topology_map *tm = mv_ddr_topology_map_get();
-
-	dev_num = dev_num;
+	struct hws_topology_map *tm = ddr3_get_topology_map();
 
 	printf("Centralization Results\n");
 	printf("I/F0 Result[0 - success 1-fail 2 - state_2 3 - state_3] ...\n");
 	for (if_id = 0; if_id <= MAX_INTERFACE_NUM - 1; if_id++) {
-		VALIDATE_IF_ACTIVE(tm->if_act_mask, if_id);
-		for (bus_id = 0; bus_id < octets_per_if_num;
+		VALIDATE_ACTIVE(tm->if_act_mask, if_id);
+		for (bus_id = 0; bus_id < tm->num_of_bus_per_interface;
 		     bus_id++) {
-			VALIDATE_BUS_ACTIVE(tm->bus_act_mask, bus_id);
+			VALIDATE_ACTIVE(tm->bus_act_mask, bus_id);
 			printf("%d ,\n", centralization_state[if_id][bus_id]);
 		}
 	}

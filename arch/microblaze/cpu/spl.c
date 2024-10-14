@@ -1,24 +1,24 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013 - 2014 Xilinx, Inc
  *
  * Michal Simek <michal.simek@xilinx.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <command.h>
 #include <image.h>
-#include <log.h>
 #include <spl.h>
 #include <asm/io.h>
 #include <asm/u-boot.h>
-#include <linux/stringify.h>
 
-void board_boot_order(u32 *spl_boot_list)
+DECLARE_GLOBAL_DATA_PTR;
+
+bool boot_linux;
+
+u32 spl_boot_device(void)
 {
-	spl_boot_list[0] = BOOT_DEVICE_NOR;
-	spl_boot_list[1] = BOOT_DEVICE_RAM;
-	spl_boot_list[2] = BOOT_DEVICE_SPI;
+	return BOOT_DEVICE_NOR;
 }
 
 /* Board initialization after bss clearance */
@@ -39,18 +39,14 @@ void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 
 	image_entry(NULL, 0, (ulong)spl_image->arg);
 }
+#endif /* CONFIG_SPL_OS_BOOT */
 
 int spl_start_uboot(void)
 {
-	return 0;
-}
-#endif /* CONFIG_SPL_OS_BOOT */
+#ifdef CONFIG_SPL_OS_BOOT
+	if (boot_linux)
+		return 0;
+#endif
 
-int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
-{
-	__asm__ __volatile__ (
-	    "mts rmsr, r0;" \
-	    "brai " __stringify(CONFIG_XILINX_MICROBLAZE0_VECTOR_BASE_ADDR));
-
-	return 0;
+	return 1;
 }

@@ -1,21 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2004
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <log.h>
 #include <stdio_dev.h>
 #include <net.h>
 
-#ifndef CFG_NETCONSOLE_BUFFER_SIZE
-#define CFG_NETCONSOLE_BUFFER_SIZE 512
+DECLARE_GLOBAL_DATA_PTR;
+
+#ifndef CONFIG_NETCONSOLE_BUFFER_SIZE
+#define CONFIG_NETCONSOLE_BUFFER_SIZE 512
 #endif
 
-static char input_buffer[CFG_NETCONSOLE_BUFFER_SIZE];
+static char input_buffer[CONFIG_NETCONSOLE_BUFFER_SIZE];
 static int input_size; /* char count in input buffer */
 static int input_offset; /* offset to valid chars in input buffer */
 static int input_recursion;
@@ -57,7 +58,7 @@ static int is_broadcast(struct in_addr ip)
 	static struct in_addr netmask;
 	static struct in_addr our_ip;
 	static int env_changed_id;
-	int env_id = env_get_id();
+	int env_id = get_env_id();
 
 	/* update only when the environment has changed */
 	if (env_changed_id != env_id) {
@@ -77,7 +78,7 @@ static int refresh_settings_from_env(void)
 {
 	const char *p;
 	static int env_changed_id;
-	int env_id = env_get_id();
+	int env_id = get_env_id();
 
 	/* update only when the environment has changed */
 	if (env_changed_id != env_id) {
@@ -87,7 +88,7 @@ static int refresh_settings_from_env(void)
 				return -1;	/* ncip is 0.0.0.0 */
 			p = strchr(env_get("ncip"), ':');
 			if (p != NULL) {
-				nc_out_port = dectoul(p + 1, NULL);
+				nc_out_port = simple_strtoul(p + 1, NULL, 10);
 				nc_in_port = nc_out_port;
 			}
 		} else {
@@ -96,10 +97,10 @@ static int refresh_settings_from_env(void)
 
 		p = env_get("ncoutport");
 		if (p != NULL)
-			nc_out_port = dectoul(p, NULL);
+			nc_out_port = simple_strtoul(p, NULL, 10);
 		p = env_get("ncinport");
 		if (p != NULL)
-			nc_in_port = dectoul(p, NULL);
+			nc_in_port = simple_strtoul(p, NULL, 10);
 
 		if (is_broadcast(nc_ip))
 			/* broadcast MAC address */
@@ -152,17 +153,14 @@ int nc_input_packet(uchar *pkt, struct in_addr src_ip, unsigned dest_port,
 		len = sizeof(input_buffer) - input_size;
 
 	end = input_offset + input_size;
-	if (end >= sizeof(input_buffer))
+	if (end > sizeof(input_buffer))
 		end -= sizeof(input_buffer);
 
 	chunk = len;
-	/* Check if packet will wrap in input_buffer */
-	if (end + len >= sizeof(input_buffer)) {
+	if (end + len > sizeof(input_buffer)) {
 		chunk = sizeof(input_buffer) - end;
-		/* Copy the second part of the pkt to start of input_buffer */
 		memcpy(input_buffer, pkt + chunk, len - chunk);
 	}
-	/* Copy first (or only) part of pkt after end of current valid input*/
 	memcpy(input_buffer + end, pkt, chunk);
 
 	input_size += len;
@@ -172,7 +170,11 @@ int nc_input_packet(uchar *pkt, struct in_addr src_ip, unsigned dest_port,
 
 static void nc_send_packet(const char *buf, int len)
 {
+#ifdef CONFIG_DM_ETH
 	struct udevice *eth;
+#else
+	struct eth_device *eth;
+#endif
 	int inited = 0;
 	uchar *pkt;
 	uchar *ether;
@@ -294,7 +296,11 @@ static int nc_stdio_getc(struct stdio_dev *dev)
 
 static int nc_stdio_tstc(struct stdio_dev *dev)
 {
+#ifdef CONFIG_DM_ETH
 	struct udevice *eth;
+#else
+	struct eth_device *eth;
+#endif
 
 	if (input_recursion)
 		return 0;

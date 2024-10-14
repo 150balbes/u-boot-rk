@@ -21,7 +21,6 @@
 #include "yaffs_verify.h"
 #include "yaffs_attribs.h"
 #include "yaffs_summary.h"
-#include <dm/devres.h>
 
 /*
  * Checkpoints are really no benefit on very small partitions.

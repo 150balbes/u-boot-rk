@@ -1,112 +1,85 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
- * System clock support for AT91 architectures.
+ * Copyright (C) 2016 Atmel Corporation
+ *               Wenyou.Yang <wenyou.yang@atmel.com>
  *
- * Copyright (C) Microchip Technology Inc. and its subsidiaries
- *
- * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
- *
- * Based on drivers/clk/at91/clk-system.c from Linux.
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-#include <asm/processor.h>
+
 #include <common.h>
 #include <clk-uclass.h>
 #include <dm.h>
 #include <linux/io.h>
-#include <linux/clk-provider.h>
-#include <linux/clk/at91_pmc.h>
-
+#include <mach/at91_pmc.h>
 #include "pmc.h"
-
-#define UBOOT_DM_CLK_AT91_SYSTEM		"at91-system-clk"
 
 #define SYSTEM_MAX_ID		31
 
-struct clk_system {
-	void __iomem *base;
-	struct clk clk;
-	u8 id;
+/**
+ * at91_system_clk_bind() - for the system clock driver
+ * Recursively bind its children as clk devices.
+ *
+ * @return: 0 on success, or negative error code on failure
+ */
+static int at91_system_clk_bind(struct udevice *dev)
+{
+	return at91_clk_sub_device_bind(dev, "system-clk");
+}
+
+static const struct udevice_id at91_system_clk_match[] = {
+	{ .compatible = "atmel,at91rm9200-clk-system" },
+	{}
 };
 
-#define to_clk_system(_c) container_of(_c, struct clk_system, clk)
+U_BOOT_DRIVER(at91_system_clk) = {
+	.name = "at91-system-clk",
+	.id = UCLASS_MISC,
+	.of_match = at91_system_clk_match,
+	.bind = at91_system_clk_bind,
+};
+
+/*----------------------------------------------------------*/
 
 static inline int is_pck(int id)
 {
 	return (id >= 8) && (id <= 15);
 }
 
-static inline bool clk_system_ready(void __iomem *base, int id)
+static int system_clk_enable(struct clk *clk)
 {
-	unsigned int status;
+	struct pmc_platdata *plat = dev_get_platdata(clk->dev);
+	struct at91_pmc *pmc = plat->reg_base;
+	u32 mask;
 
-	pmc_read(base, AT91_PMC_SR, &status);
+	if (clk->id > SYSTEM_MAX_ID)
+		return -EINVAL;
 
-	return !!(status & (1 << id));
-}
+	mask = BIT(clk->id);
 
-static int clk_system_enable(struct clk *clk)
-{
-	struct clk_system *sys = to_clk_system(clk);
+	writel(mask, &pmc->scer);
 
-	pmc_write(sys->base, AT91_PMC_SCER, 1 << sys->id);
-
-	if (!is_pck(sys->id))
+	/**
+	 * For the programmable clocks the Ready status in the PMC
+	 * status register should be checked after enabling.
+	 * For other clocks this is unnecessary.
+	 */
+	if (!is_pck(clk->id))
 		return 0;
 
-	while (!clk_system_ready(sys->base, sys->id)) {
-		debug("waiting for pck%u\n", sys->id);
-		cpu_relax();
-	}
+	while (!(readl(&pmc->sr) & mask))
+		;
 
 	return 0;
 }
 
-static int clk_system_disable(struct clk *clk)
-{
-	struct clk_system *sys = to_clk_system(clk);
-
-	pmc_write(sys->base, AT91_PMC_SCDR, 1 << sys->id);
-
-	return 0;
-}
-
-static const struct clk_ops system_ops = {
-	.enable = clk_system_enable,
-	.disable = clk_system_disable,
-	.get_rate = clk_generic_get_rate,
+static struct clk_ops system_clk_ops = {
+	.of_xlate = at91_clk_of_xlate,
+	.enable = system_clk_enable,
 };
 
-struct clk *at91_clk_register_system(void __iomem *base, const char *name,
-				     const char *parent_name, u8 id)
-{
-	struct clk_system *sys;
-	struct clk *clk;
-	int ret;
-
-	if (!base || !name || !parent_name || id > SYSTEM_MAX_ID)
-		return ERR_PTR(-EINVAL);
-
-	sys = kzalloc(sizeof(*sys), GFP_KERNEL);
-	if (!sys)
-		return ERR_PTR(-ENOMEM);
-
-	sys->id = id;
-	sys->base = base;
-
-	clk = &sys->clk;
-	clk->flags = CLK_GET_RATE_NOCACHE;
-	ret = clk_register(clk, UBOOT_DM_CLK_AT91_SYSTEM, name, parent_name);
-	if (ret) {
-		kfree(sys);
-		clk = ERR_PTR(ret);
-	}
-
-	return clk;
-}
-
-U_BOOT_DRIVER(at91_system_clk) = {
-	.name = UBOOT_DM_CLK_AT91_SYSTEM,
+U_BOOT_DRIVER(system_clk) = {
+	.name = "system-clk",
 	.id = UCLASS_CLK,
-	.ops = &system_ops,
-	.flags = DM_FLAG_PRE_RELOC,
+	.probe = at91_clk_probe,
+	.platdata_auto_alloc_size = sizeof(struct pmc_platdata),
+	.ops = &system_clk_ops,
 };

@@ -1,31 +1,26 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2014, STMicroelectronics - All Rights Reserved
- * Author(s): Vikas Manocha, <vikas.manocha@st.com> for STMicroelectronics.
+ * (C) Copyright 2014
+ * Vikas Manocha, ST Micoelectronics, vikas.manocha@st.com.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <time.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch-stv0991/hardware.h>
 #include <asm/arch-stv0991/stv0991_cgu.h>
 #include <asm/arch-stv0991/stv0991_gpt.h>
-#include <linux/delay.h>
 
 static struct stv0991_cgu_regs *const stv0991_cgu_regs = \
 				(struct stv0991_cgu_regs *) (CGU_BASE_ADDR);
 
 #define READ_TIMER()	(readl(&gpt1_regs_ptr->cnt) & GPT_FREE_RUNNING)
-#define GPT_RESOLUTION	(CFG_SYS_HZ_CLOCK / CONFIG_SYS_HZ)
+#define GPT_RESOLUTION	(CONFIG_STV0991_HZ_CLOCK / CONFIG_STV0991_HZ)
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #define timestamp gd->arch.tbl
 #define lastdec gd->arch.lastinc
-
-static ulong get_timer_masked(void);
 
 int timer_init(void)
 {
@@ -67,7 +62,7 @@ void __udelay(unsigned long usec)
 {
 	ulong tmo;
 	ulong start = get_timer_masked();
-	ulong tenudelcnt = CFG_SYS_HZ_CLOCK / (1000 * 100);
+	ulong tenudelcnt = CONFIG_STV0991_HZ_CLOCK / (1000 * 100);
 	ulong rndoff;
 
 	rndoff = (usec % 10) ? 1 : 0;
@@ -79,7 +74,7 @@ void __udelay(unsigned long usec)
 		;
 }
 
-static ulong get_timer_masked(void)
+ulong get_timer_masked(void)
 {
 	ulong now = READ_TIMER();
 
@@ -93,6 +88,11 @@ static ulong get_timer_masked(void)
 	lastdec = now;
 
 	return timestamp;
+}
+
+void udelay_masked(unsigned long usec)
+{
+	return udelay(usec);
 }
 
 /*
@@ -110,5 +110,5 @@ unsigned long long get_ticks(void)
  */
 ulong get_tbclk(void)
 {
-	return CONFIG_SYS_HZ;
+	return CONFIG_STV0991_HZ;
 }

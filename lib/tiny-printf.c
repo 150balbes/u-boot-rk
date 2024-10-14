@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: LGPL-2.1+
 /*
  * Tiny printf version for SPL
  *
@@ -6,12 +5,13 @@
  * http://www.sparetimelabs.com/printfrevisited/printfrevisited.php
  *
  * Copyright (C) 2004,2008  Kustaa Nyholm
+ *
+ * SPDX-License-Identifier:	LGPL-2.1+
  */
 
 #include <common.h>
-#include <log.h>
-#include <serial.h>
 #include <stdarg.h>
+#include <serial.h>
 #include <linux/ctype.h>
 
 struct printf_info {
@@ -22,6 +22,11 @@ struct printf_info {
 	/* Output a character */
 	void (*putc)(struct printf_info *info, char ch);
 };
+
+static void putc_normal(struct printf_info *info, char ch)
+{
+	putc(ch);
+}
 
 static void out(struct printf_info *info, char c)
 {
@@ -48,7 +53,7 @@ static void div_out(struct printf_info *info, unsigned long *num,
 		out_dgt(info, dgt);
 }
 
-#ifdef CONFIG_SPL_NET
+#ifdef CONFIG_SPL_NET_SUPPORT
 static void string(struct printf_info *info, char *s)
 {
 	char ch;
@@ -158,8 +163,7 @@ static void ip4_addr_string(struct printf_info *info, u8 *addr)
  *       decimal).
  */
 
-static void __maybe_unused pointer(struct printf_info *info, const char *fmt,
-				   void *ptr)
+static void pointer(struct printf_info *info, const char *fmt, void *ptr)
 {
 #ifdef DEBUG
 	unsigned long num = (uintptr_t)ptr;
@@ -178,7 +182,7 @@ static void __maybe_unused pointer(struct printf_info *info, const char *fmt,
 		}
 		break;
 #endif
-#ifdef CONFIG_SPL_NET
+#ifdef CONFIG_SPL_NET_SUPPORT
 	case 'm':
 		return mac_address_string(info, ptr, false);
 	case 'M':
@@ -243,7 +247,6 @@ static int _vprintf(struct printf_info *info, const char *fmt, va_list va)
 				goto abort;
 			case 'u':
 			case 'd':
-			case 'i':
 				div = 1000000000;
 				if (islong) {
 					num = va_arg(va, unsigned long);
@@ -253,7 +256,7 @@ static int _vprintf(struct printf_info *info, const char *fmt, va_list va)
 					num = va_arg(va, unsigned int);
 				}
 
-				if (ch != 'u') {
+				if (ch == 'd') {
 					if (islong && (long)num < 0) {
 						num = -(long)num;
 						out(info, '-');
@@ -269,20 +272,6 @@ static int _vprintf(struct printf_info *info, const char *fmt, va_list va)
 						div_out(info, &num, div);
 				}
 				break;
-			case 'p':
-				if (CONFIG_IS_ENABLED(NET) || _DEBUG) {
-					pointer(info, fmt, va_arg(va, void *));
-					/*
-					 * Skip this because it pulls in _ctype which is
-					 * 256 bytes, and we don't generally implement
-					 * pointer anyway
-					 */
-					while (isalnum(fmt[0]))
-						fmt++;
-					break;
-				}
-				islong = true;
-				/* no break */
 			case 'x':
 				if (islong) {
 					num = va_arg(va, unsigned long);
@@ -303,6 +292,11 @@ static int _vprintf(struct printf_info *info, const char *fmt, va_list va)
 				break;
 			case 's':
 				p = va_arg(va, char*);
+				break;
+			case 'p':
+				pointer(info, fmt, va_arg(va, void *));
+				while (isalnum(fmt[0]))
+					fmt++;
 				break;
 			case '%':
 				out(info, '%');
@@ -327,12 +321,6 @@ abort:
 	return 0;
 }
 
-#if CONFIG_IS_ENABLED(PRINTF)
-static void putc_normal(struct printf_info *info, char ch)
-{
-	putc(ch);
-}
-
 int vprintf(const char *fmt, va_list va)
 {
 	struct printf_info info;
@@ -355,7 +343,6 @@ int printf(const char *fmt, ...)
 
 	return ret;
 }
-#endif
 
 static void putc_outstr(struct printf_info *info, char ch)
 {
@@ -378,22 +365,6 @@ int sprintf(char *buf, const char *fmt, ...)
 	return ret;
 }
 
-#if CONFIG_IS_ENABLED(LOG)
-/* Note that size is ignored */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list va)
-{
-	struct printf_info info;
-	int ret;
-
-	info.outstr = buf;
-	info.putc = putc_outstr;
-	ret = _vprintf(&info, fmt, va);
-	*info.outstr = '\0';
-
-	return ret;
-}
-#endif
-
 /* Note that size is ignored */
 int snprintf(char *buf, size_t size, const char *fmt, ...)
 {
@@ -411,8 +382,11 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
 	return ret;
 }
 
-void print_grouped_ull(unsigned long long int_val, int digits)
+void __assert_fail(const char *assertion, const char *file, unsigned line,
+		   const char *function)
 {
-	/* Don't try to print the upper 32-bits */
-	printf("%ld ", (ulong)int_val);
+	/* This will not return */
+	printf("%s:%u: %s: Assertion `%s' failed.", file, line, function,
+	       assertion);
+	hang();
 }

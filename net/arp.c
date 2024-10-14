@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  *	Copied from Linux Monitor (LiMon) - Networking.
  *
@@ -7,15 +6,26 @@
  *	Copyright 2000 Roland Borde
  *	Copyright 2000 Paolo Scaffardi
  *	Copyright 2000-2002 Wolfgang Denk, wd@denx.de
+ *	SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
-#include <env.h>
-#include <log.h>
-#include <net.h>
-#include <linux/delay.h>
 
 #include "arp.h"
+
+#ifndef	CONFIG_ARP_TIMEOUT
+/* Milliseconds before trying ARP again */
+# define ARP_TIMEOUT		5000UL
+#else
+# define ARP_TIMEOUT		CONFIG_ARP_TIMEOUT
+#endif
+
+
+#ifndef	CONFIG_NET_RETRY_COUNT
+# define ARP_TIMEOUT_COUNT	5	/* # of timeouts before giving up  */
+#else
+# define ARP_TIMEOUT_COUNT	CONFIG_NET_RETRY_COUNT
+#endif
 
 struct in_addr net_arp_wait_packet_ip;
 static struct in_addr net_arp_wait_reply_ip;
@@ -24,7 +34,8 @@ uchar	       *arp_wait_packet_ethaddr;
 int		arp_wait_tx_packet_size;
 ulong		arp_wait_timer_start;
 int		arp_wait_try;
-uchar	       *arp_tx_packet; /* THE ARP transmit packet */
+
+static uchar   *arp_tx_packet;	/* THE ARP transmit packet */
 static uchar	arp_tx_packet_buf[PKTSIZE_ALIGN + PKTALIGN];
 
 void arp_init(void)
@@ -89,16 +100,16 @@ int arp_timeout_check(void)
 {
 	ulong t;
 
-	if (!arp_is_waiting())
+	if (!net_arp_wait_packet_ip.s_addr)
 		return 0;
 
 	t = get_timer(0);
 
 	/* check for arp timeout */
-	if ((t - arp_wait_timer_start) > CONFIG_ARP_TIMEOUT) {
+	if ((t - arp_wait_timer_start) > ARP_TIMEOUT) {
 		arp_wait_try++;
 
-		if (arp_wait_try >= CONFIG_NET_RETRY_COUNT) {
+		if (arp_wait_try >= ARP_TIMEOUT_COUNT) {
 			puts("\nARP Retry count exceeded; starting again\n");
 			arp_wait_try = 0;
 			net_set_state(NETLOOP_FAIL);
@@ -115,7 +126,6 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
 	struct arp_hdr *arp;
 	struct in_addr reply_ip_addr;
 	int eth_hdr_size;
-	uchar *tx_packet;
 
 	/*
 	 * We have to deal with two types of ARP packets:
@@ -172,22 +182,21 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
 		    (net_read_ip(&arp->ar_spa).s_addr & net_netmask.s_addr))
 			udelay(5000);
 #endif
-		tx_packet = net_get_async_tx_pkt_buf();
-		memcpy(tx_packet, et, eth_hdr_size + ARP_HDR_SIZE);
-		net_send_packet(tx_packet, eth_hdr_size + ARP_HDR_SIZE);
+		net_send_packet((uchar *)et, eth_hdr_size + ARP_HDR_SIZE);
 		return;
 
 	case ARPOP_REPLY:		/* arp reply */
-		/* are we waiting for a reply? */
-		if (!arp_is_waiting())
+		/* are we waiting for a reply */
+		if (!net_arp_wait_packet_ip.s_addr)
 			break;
 
-		if (IS_ENABLED(CONFIG_KEEP_SERVERADDR) &&
-		    net_server_ip.s_addr == net_arp_wait_packet_ip.s_addr) {
+#ifdef CONFIG_KEEP_SERVERADDR
+		if (net_server_ip.s_addr == net_arp_wait_packet_ip.s_addr) {
 			char buf[20];
 			sprintf(buf, "%pM", &arp->ar_sha);
 			env_set("serveraddr", buf);
 		}
+#endif
 
 		reply_ip_addr = net_read_ip(&arp->ar_spa);
 
@@ -222,9 +231,4 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
 		      ntohs(arp->ar_op));
 		return;
 	}
-}
-
-bool arp_is_waiting(void)
-{
-	return !!net_arp_wait_packet_ip.s_addr;
 }

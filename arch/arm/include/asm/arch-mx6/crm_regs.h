@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ARCH_ARM_MACH_MX6_CCM_REGS_H__
@@ -1291,6 +1292,7 @@ struct mxc_ccm_reg {
 	(((v) << 0) & BM_ANADIG_PFD_528_PFD0_FRAC)
 
 #define BM_ANADIG_ANA_MISC0_REFTOP_SELBIASOFF 0x00000008
+#define BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ 0x60
 #define BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ_SHIFT 4
 
 #define BM_PMU_MISC2_AUDIO_DIV_MSB (1 << 23)

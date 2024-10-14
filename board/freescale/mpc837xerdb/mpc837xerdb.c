@@ -1,28 +1,24 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2007 Freescale Semiconductor, Inc.
  * Kevin Lam <kevin.lam@freescale.com>
  * Joe D'Abbraccio <joe.d'abbraccio@freescale.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <env.h>
 #include <hwconfig.h>
 #include <i2c.h>
-#include <init.h>
-#include <asm/bitops.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/fsl_mpc83xx_serdes.h>
 #include <fdt_support.h>
 #include <spd_sdram.h>
 #include <vsc7385.h>
 #include <fsl_esdhc.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if defined(CFG_SYS_DRAM_TEST)
+#if defined(CONFIG_SYS_DRAM_TEST)
 int
 testdram(void)
 {
@@ -97,37 +93,37 @@ int dram_init(void)
 int fixed_sdram(void)
 {
 	immap_t *im = (immap_t *) CONFIG_SYS_IMMR;
-	u32 msize = CFG_SYS_SDRAM_SIZE;
+	u32 msize = CONFIG_SYS_DDR_SIZE * 1024 * 1024;
 	u32 msize_log2 = __ilog2(msize);
 
-	im->sysconf.ddrlaw[0].bar = CFG_SYS_SDRAM_BASE & 0xfffff000;
+	im->sysconf.ddrlaw[0].bar = CONFIG_SYS_DDR_SDRAM_BASE & 0xfffff000;
 	im->sysconf.ddrlaw[0].ar = LBLAWAR_EN | (msize_log2 - 1);
 
-	im->sysconf.ddrcdr = CFG_SYS_DDRCDR_VALUE;
+	im->sysconf.ddrcdr = CONFIG_SYS_DDRCDR_VALUE;
 	udelay(50000);
 
-	im->ddr.sdram_clk_cntl = CFG_SYS_DDR_SDRAM_CLK_CNTL;
+	im->ddr.sdram_clk_cntl = CONFIG_SYS_DDR_SDRAM_CLK_CNTL;
 	udelay(1000);
 
-	im->ddr.csbnds[0].csbnds = CFG_SYS_DDR_CS0_BNDS;
-	im->ddr.cs_config[0] = CFG_SYS_DDR_CS0_CONFIG;
+	im->ddr.csbnds[0].csbnds = CONFIG_SYS_DDR_CS0_BNDS;
+	im->ddr.cs_config[0] = CONFIG_SYS_DDR_CS0_CONFIG;
 	udelay(1000);
 
-	im->ddr.timing_cfg_0 = CFG_SYS_DDR_TIMING_0;
-	im->ddr.timing_cfg_1 = CFG_SYS_DDR_TIMING_1;
-	im->ddr.timing_cfg_2 = CFG_SYS_DDR_TIMING_2;
-	im->ddr.timing_cfg_3 = CFG_SYS_DDR_TIMING_3;
-	im->ddr.sdram_cfg = CFG_SYS_DDR_SDRAM_CFG;
-	im->ddr.sdram_cfg2 = CFG_SYS_DDR_SDRAM_CFG2;
-	im->ddr.sdram_mode = CFG_SYS_DDR_MODE;
-	im->ddr.sdram_mode2 = CFG_SYS_DDR_MODE2;
-	im->ddr.sdram_interval = CFG_SYS_DDR_INTERVAL;
+	im->ddr.timing_cfg_0 = CONFIG_SYS_DDR_TIMING_0;
+	im->ddr.timing_cfg_1 = CONFIG_SYS_DDR_TIMING_1;
+	im->ddr.timing_cfg_2 = CONFIG_SYS_DDR_TIMING_2;
+	im->ddr.timing_cfg_3 = CONFIG_SYS_DDR_TIMING_3;
+	im->ddr.sdram_cfg = CONFIG_SYS_DDR_SDRAM_CFG;
+	im->ddr.sdram_cfg2 = CONFIG_SYS_DDR_SDRAM_CFG2;
+	im->ddr.sdram_mode = CONFIG_SYS_DDR_MODE;
+	im->ddr.sdram_mode2 = CONFIG_SYS_DDR_MODE2;
+	im->ddr.sdram_interval = CONFIG_SYS_DDR_INTERVAL;
 	sync();
 	udelay(1000);
 
 	im->ddr.sdram_cfg |= SDRAM_CFG_MEM_EN;
 	udelay(2000);
-	return CFG_SYS_SDRAM_SIZE >> 20;
+	return CONFIG_SYS_DDR_SIZE;
 }
 #endif	/*!CONFIG_SYS_SPD_EEPROM */
 
@@ -139,26 +135,26 @@ int checkboard(void)
 
 int board_early_init_f(void)
 {
-	immap_t *immr = (immap_t *)CONFIG_SYS_IMMR;
 #ifdef CONFIG_FSL_SERDES
+	immap_t *immr = (immap_t *)CONFIG_SYS_IMMR;
 	u32 spridr = in_be32(&immr->sysconf.spridr);
 
 	/* we check only part num, and don't look for CPU revisions */
 	switch (PARTID_NO_E(spridr)) {
 	case SPR_8377:
-		fsl_setup_serdes(CFG_FSL_SERDES1, FSL_SERDES_PROTO_SATA,
+		fsl_setup_serdes(CONFIG_FSL_SERDES1, FSL_SERDES_PROTO_SATA,
 				 FSL_SERDES_CLK_100, FSL_SERDES_VDD_1V);
-		fsl_setup_serdes(CFG_FSL_SERDES2, FSL_SERDES_PROTO_PEX,
+		fsl_setup_serdes(CONFIG_FSL_SERDES2, FSL_SERDES_PROTO_PEX,
 				 FSL_SERDES_CLK_100, FSL_SERDES_VDD_1V);
 		break;
 	case SPR_8378:
-		fsl_setup_serdes(CFG_FSL_SERDES2, FSL_SERDES_PROTO_PEX,
+		fsl_setup_serdes(CONFIG_FSL_SERDES2, FSL_SERDES_PROTO_PEX,
 				 FSL_SERDES_CLK_100, FSL_SERDES_VDD_1V);
 		break;
 	case SPR_8379:
-		fsl_setup_serdes(CFG_FSL_SERDES1, FSL_SERDES_PROTO_SATA,
+		fsl_setup_serdes(CONFIG_FSL_SERDES1, FSL_SERDES_PROTO_SATA,
 				 FSL_SERDES_CLK_100, FSL_SERDES_VDD_1V);
-		fsl_setup_serdes(CFG_FSL_SERDES2, FSL_SERDES_PROTO_SATA,
+		fsl_setup_serdes(CONFIG_FSL_SERDES2, FSL_SERDES_PROTO_SATA,
 				 FSL_SERDES_CLK_100, FSL_SERDES_VDD_1V);
 		break;
 	default:
@@ -167,17 +163,11 @@ int board_early_init_f(void)
 		break;
 	}
 #endif /* CONFIG_FSL_SERDES */
-
-#ifdef CONFIG_FSL_ESDHC
-	clrsetbits_be32(&immr->sysconf.sicrl, SICRL_USB_B, SICRL_USB_B_SD);
-	clrsetbits_be32(&immr->sysconf.sicrh, SICRH_SPI, SICRH_SPI_SD);
-#endif
 	return 0;
 }
 
 #ifdef CONFIG_FSL_ESDHC
-#if !(CONFIG_IS_ENABLED(DM_MMC) || CONFIG_IS_ENABLED(DM_USB))
-int board_mmc_init(struct bd_info *bd)
+int board_mmc_init(bd_t *bd)
 {
 	struct immap __iomem *im = (struct immap __iomem *)CONFIG_SYS_IMMR;
 	char buffer[HWCONFIG_BUFFER_SIZE] = {0};
@@ -195,7 +185,6 @@ int board_mmc_init(struct bd_info *bd)
 	return fsl_esdhc_mmc_init(bd);
 }
 #endif
-#endif
 
 /*
  * Miscellaneous late-boot configurations
@@ -206,9 +195,9 @@ int misc_init_r(void)
 {
 	int rc = 0;
 
-#ifdef CFG_VSC7385_IMAGE
-	if (vsc7385_upload_firmware((void *) CFG_VSC7385_IMAGE,
-		CFG_VSC7385_IMAGE_SIZE)) {
+#ifdef CONFIG_VSC7385_IMAGE
+	if (vsc7385_upload_firmware((void *) CONFIG_VSC7385_IMAGE,
+		CONFIG_VSC7385_IMAGE_SIZE)) {
 		puts("Failure uploading VSC7385 microcode.\n");
 		rc = 1;
 	}
@@ -217,18 +206,9 @@ int misc_init_r(void)
 	return rc;
 }
 
-int board_late_init(void)
-{
-	volatile immap_t *immap = (immap_t *) CONFIG_SYS_IMMR;
-#ifdef CONFIG_USB_HOST
-	clrsetbits_be32(&immap->sysconf.sicrl, SICRL_USB_A, 0x40000000);
-#endif
-	return 0;
-}
-
 #if defined(CONFIG_OF_BOARD_SETUP)
 
-int ft_board_setup(void *blob, struct bd_info *bd)
+int ft_board_setup(void *blob, bd_t *bd)
 {
 #ifdef CONFIG_PCI
 	ft_pci_setup(blob, bd);

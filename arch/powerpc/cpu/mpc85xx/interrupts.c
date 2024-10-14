@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -8,12 +7,11 @@
  *
  * (C) Copyright 2003 Motorola Inc. (MPC85xx port)
  * Xianghua Xiao (X.Xiao@motorola.com)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <irq_func.h>
-#include <log.h>
-#include <time.h>
 #include <watchdog.h>
 #include <command.h>
 #include <asm/processor.h>
@@ -21,11 +19,10 @@
 #ifdef CONFIG_POST
 #include <post.h>
 #endif
-#include <asm/ptrace.h>
 
 void interrupt_init_cpu(unsigned *decrementer_count)
 {
-	ccsr_pic_t __iomem *pic = (void *)CFG_SYS_MPC8xxx_PIC_ADDR;
+	ccsr_pic_t __iomem *pic = (void *)CONFIG_SYS_MPC8xxx_PIC_ADDR;
 
 #ifdef CONFIG_POST
 	/*
@@ -104,7 +101,7 @@ void timer_interrupt_cpu(struct pt_regs *regs)
 
 #if defined(CONFIG_CMD_IRQ)
 /* irqinfo - print information about PCI devices,not implemented. */
-int do_irqinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	return 0;
 }

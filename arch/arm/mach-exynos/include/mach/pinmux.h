@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Samsung Electronics
  * Abhilash Kesavan <a.kesavan@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARM_ARCH_PINMUX_H
@@ -37,7 +38,7 @@ enum {
  *
  * @param peripheral	peripheral to be configured
  * @param flags		configure flags
- * Return: 0 if ok, -1 on error (e.g. unsupported peripheral)
+ * @return 0 if ok, -1 on error (e.g. unsupported peripheral)
  */
 int exynos_pinmux_config(int peripheral, int flags);
 
@@ -46,7 +47,7 @@ int exynos_pinmux_config(int peripheral, int flags);
  *
  * @param blob  Device tree blob
  * @param node  FDT I2C node to find
- * Return: peripheral id if ok, PERIPH_ID_NONE on error
+ * @return peripheral id if ok, PERIPH_ID_NONE on error
  */
 int pinmux_decode_periph_id(const void *blob, int node);
 #endif

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2014 DENX Software Engineering
  *     Heiko Schocher <hs@denx.de>
@@ -6,13 +5,11 @@
  * Based on:
  * Copyright (C) 2013 Atmel Corporation
  *		      Bo Shen <voice.shen@atmel.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <hang.h>
-#include <init.h>
-#include <log.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/at91_common.h>
 #include <asm/arch/at91sam9_matrix.h>
@@ -79,20 +76,8 @@ void __weak spl_board_init(void)
 
 void board_init_f(ulong dummy)
 {
-#if CONFIG_IS_ENABLED(OF_CONTROL)
-	int ret;
-
-	ret = spl_early_init();
-	if (ret) {
-		debug("spl_early_init() failed: %d\n", ret);
-		hang();
-	}
-#endif
-
 	lowlevel_clock_init();
-#if !defined(CONFIG_WDT_AT91)
 	at91_disable_wdt();
-#endif
 
 	/*
 	 * At this stage the main oscillator is supposed to be enabled
@@ -101,17 +86,17 @@ void board_init_f(ulong dummy)
 	at91_pllicpr_init(0x00);
 
 	/* Configure PLLA = MOSC * (PLL_MULA + 1) / PLL_DIVA */
-	at91_plla_init(CFG_SYS_AT91_PLLA);
+	at91_plla_init(CONFIG_SYS_AT91_PLLA);
 
 	/* PCK = PLLA = 2 * MCK */
-	at91_mck_init(CFG_SYS_MCKR);
+	at91_mck_init(CONFIG_SYS_MCKR);
 
 	/* Switch MCK on PLLA output */
-	at91_mck_init(CFG_SYS_MCKR_CSS);
+	at91_mck_init(CONFIG_SYS_MCKR_CSS);
 
-#if defined(CFG_SYS_AT91_PLLB)
+#if defined(CONFIG_SYS_AT91_PLLB)
 	/* Configure PLLB */
-	at91_pllb_init(CFG_SYS_AT91_PLLB);
+	at91_pllb_init(CONFIG_SYS_AT91_PLLB);
 #endif
 
 	/* Enable External Reset */
@@ -120,7 +105,7 @@ void board_init_f(ulong dummy)
 	/* Initialize matrix */
 	matrix_init();
 
-	gd->arch.mck_rate_hz = CFG_SYS_MASTER_CLOCK;
+	gd->arch.mck_rate_hz = CONFIG_SYS_MASTER_CLOCK;
 	/*
 	 * init timer long enough for using in spl.
 	 */
@@ -136,7 +121,7 @@ void board_init_f(ulong dummy)
 	at91_periph_clk_enable(ATMEL_ID_PIOC);
 #endif
 
-#if defined(CONFIG_SPL_SERIAL)
+#if defined(CONFIG_SPL_SERIAL_SUPPORT)
 	/* init console */
 	at91_seriald_hw_init();
 	preloader_console_init();

@@ -1,18 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016
  * Texas Instruments Incorporated, <www.ti.com>
  *
  * Keerthy <j-keerthy@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <fdtdec.h>
 #include <errno.h>
 #include <dm.h>
+#include <i2c.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 #include <power/lp873x.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 static const char lp873x_buck_ctrl[LP873X_BUCK_NUM] = {0x2, 0x4};
 static const char lp873x_buck_volt[LP873X_BUCK_NUM] = {0x6, 0x7};
@@ -23,9 +27,9 @@ static int lp873x_buck_enable(struct udevice *dev, int op, bool *enable)
 {
 	int ret;
 	unsigned int adr;
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	adr = uc_pdata->ctrl_reg;
 
 	ret = pmic_reg_read(dev->parent, adr);
@@ -86,9 +90,9 @@ static int lp873x_buck_val(struct udevice *dev, int op, int *uV)
 {
 	unsigned int hex, adr;
 	int ret;
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 
 	if (op == PMIC_OP_GET)
 		*uV = 0;
@@ -125,9 +129,9 @@ static int lp873x_ldo_enable(struct udevice *dev, int op, bool *enable)
 {
 	int ret;
 	unsigned int adr;
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	adr = uc_pdata->ctrl_reg;
 
 	ret = pmic_reg_read(dev->parent, adr);
@@ -181,12 +185,12 @@ static int lp873x_ldo_val(struct udevice *dev, int op, int *uV)
 	unsigned int hex, adr;
 	int ret;
 
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
 	if (op == PMIC_OP_GET)
 		*uV = 0;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 
 	adr = uc_pdata->volt_reg;
 
@@ -218,9 +222,9 @@ static int lp873x_ldo_val(struct udevice *dev, int op, int *uV)
 
 static int lp873x_ldo_probe(struct udevice *dev)
 {
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	uc_pdata->type = REGULATOR_TYPE_LDO;
 
 	int idx = dev->driver_data;
@@ -271,10 +275,10 @@ static int ldo_set_enable(struct udevice *dev, bool enable)
 
 static int lp873x_buck_probe(struct udevice *dev)
 {
-	struct dm_regulator_uclass_plat *uc_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
 	int idx;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	uc_pdata->type = REGULATOR_TYPE_BUCK;
 
 	idx = dev->driver_data;

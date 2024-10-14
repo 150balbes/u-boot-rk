@@ -6,7 +6,6 @@
 /* @(#) $Id$ */
 
 #include "zutil.h"
-#include <hang.h>
 
 #ifndef NO_DUMMY_DECL
 struct internal_state      {int dummy;}; /* for buggy compilers */
@@ -35,7 +34,7 @@ void z_error (m)
     char *m;
 {
 	fprintf(stderr, "%s\n", m);
-	hang();
+	hang ();
 }
 #endif
 

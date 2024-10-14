@@ -1,12 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Amarula Solutions
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <serial.h>
 
 #ifndef CONFIG_TPL_BUILD
+#include <spl.h>
 
 int spl_start_uboot(void)
 {

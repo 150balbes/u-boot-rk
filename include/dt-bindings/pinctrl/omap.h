@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides constants for OMAP pinctrl bindings.
  *
  * Copyright (C) 2009 Nokia
  * Copyright (C) 2009-2010 Texas Instruments
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _DT_BINDINGS_PINCTRL_OMAP_H
@@ -24,7 +25,7 @@
 #define PULL_UP			(1 << 4)
 #define ALTELECTRICALSEL	(1 << 5)
 
-/* omap3/4/5 specific mux bit defines */
+/* 34xx specific mux bit defines */
 #define INPUT_EN		(1 << 8)
 #define OFF_EN			(1 << 9)
 #define OFFOUT_EN		(1 << 10)
@@ -32,6 +33,8 @@
 #define OFF_PULL_EN		(1 << 12)
 #define OFF_PULL_UP		(1 << 13)
 #define WAKEUP_EN		(1 << 14)
+
+/* 44xx specific mux bit defines */
 #define WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */
@@ -46,8 +49,8 @@
 #define PIN_OFF_NONE		0
 #define PIN_OFF_OUTPUT_HIGH	(OFF_EN | OFFOUT_EN | OFFOUT_VAL)
 #define PIN_OFF_OUTPUT_LOW	(OFF_EN | OFFOUT_EN)
-#define PIN_OFF_INPUT_PULLUP	(OFF_EN | OFFOUT_EN | OFF_PULL_EN | OFF_PULL_UP)
-#define PIN_OFF_INPUT_PULLDOWN	(OFF_EN | OFFOUT_EN | OFF_PULL_EN)
+#define PIN_OFF_INPUT_PULLUP	(OFF_EN | OFF_PULL_EN | OFF_PULL_UP)
+#define PIN_OFF_INPUT_PULLDOWN	(OFF_EN | OFF_PULL_EN)
 #define PIN_OFF_WAKEUPENABLE	WAKEUP_EN
 
 /*
@@ -64,8 +67,7 @@
 #define OMAP3_WKUP_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x2a00) (val)
 #define DM814X_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val)
 #define DM816X_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val)
-#define AM33XX_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val) (0)
-#define AM33XX_PADCONF(pa, conf, mux)	OMAP_IOPAD_OFFSET((pa), 0x0800) (conf) (mux)
+#define AM33XX_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val)
 
 /*
  * Macros to allow using the offset from the padconf physical address
@@ -89,3 +91,4 @@
 #define OMAP4_UART4_RX		0x11c
 
 #endif
+

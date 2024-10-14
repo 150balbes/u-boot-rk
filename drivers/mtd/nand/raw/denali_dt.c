@@ -1,25 +1,21 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <clk.h>
 #include <dm.h>
-#include <dm/device_compat.h>
-#include <linux/bug.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/printk.h>
-#include <reset.h>
 
 #include "denali.h"
 
 struct denali_dt_data {
 	unsigned int revision;
 	unsigned int caps;
-	unsigned int oob_skip_bytes;
 	const struct nand_ecc_caps *ecc_caps;
 };
 
@@ -27,7 +23,6 @@ NAND_ECC_CAPS_SINGLE(denali_socfpga_ecc_caps, denali_calc_ecc_bytes,
 		     512, 8, 15);
 static const struct denali_dt_data denali_socfpga_data = {
 	.caps = DENALI_CAP_HW_ECC_FIXUP,
-	.oob_skip_bytes = 2,
 	.ecc_caps = &denali_socfpga_ecc_caps,
 };
 
@@ -36,7 +31,6 @@ NAND_ECC_CAPS_SINGLE(denali_uniphier_v5a_ecc_caps, denali_calc_ecc_bytes,
 static const struct denali_dt_data denali_uniphier_v5a_data = {
 	.caps = DENALI_CAP_HW_ECC_FIXUP |
 		DENALI_CAP_DMA_64BIT,
-	.oob_skip_bytes = 8,
 	.ecc_caps = &denali_uniphier_v5a_ecc_caps,
 };
 
@@ -46,7 +40,6 @@ static const struct denali_dt_data denali_uniphier_v5b_data = {
 	.revision = 0x0501,
 	.caps = DENALI_CAP_HW_ECC_FIXUP |
 		DENALI_CAP_DMA_64BIT,
-	.oob_skip_bytes = 8,
 	.ecc_caps = &denali_uniphier_v5b_ecc_caps,
 };
 
@@ -71,18 +64,15 @@ static int denali_dt_probe(struct udevice *dev)
 	struct denali_nand_info *denali = dev_get_priv(dev);
 	const struct denali_dt_data *data;
 	struct clk clk, clk_x, clk_ecc;
-	struct reset_ctl_bulk resets;
 	struct resource res;
 	int ret;
 
 	data = (void *)dev_get_driver_data(dev);
-	if (WARN_ON(!data))
-		return -EINVAL;
-
-	denali->revision = data->revision;
-	denali->caps = data->caps;
-	denali->oob_skip_bytes = data->oob_skip_bytes;
-	denali->ecc_caps = data->ecc_caps;
+	if (data) {
+		denali->revision = data->revision;
+		denali->caps = data->caps;
+		denali->ecc_caps = data->ecc_caps;
+	}
 
 	denali->dev = dev;
 
@@ -102,7 +92,7 @@ static int denali_dt_probe(struct udevice *dev)
 	if (ret)
 		ret = clk_get_by_index(dev, 0, &clk);
 	if (ret)
-		clk.dev = NULL;
+		return ret;
 
 	ret = clk_get_by_name(dev, "nand_x", &clk_x);
 	if (ret)
@@ -112,11 +102,9 @@ static int denali_dt_probe(struct udevice *dev)
 	if (ret)
 		clk_ecc.dev = NULL;
 
-	if (clk.dev) {
-		ret = clk_enable(&clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_enable(&clk);
+	if (ret)
+		return ret;
 
 	if (clk_x.dev) {
 		ret = clk_enable(&clk_x);
@@ -144,35 +132,30 @@ static int denali_dt_probe(struct udevice *dev)
 		denali->clk_x_rate = 200000000;
 	}
 
-	ret = reset_get_bulk(dev, &resets);
-	if (ret) {
+	ret = reset_get_bulk(dev, &denali->resets);
+	if (ret)
 		dev_warn(dev, "Can't get reset: %d\n", ret);
-	} else {
-		reset_assert_bulk(&resets);
-		udelay(2);
-		reset_deassert_bulk(&resets);
-
-		/*
-		 * When the reset is deasserted, the initialization sequence is
-		 * kicked (bootstrap process). The driver must wait until it is
-		 * finished. Otherwise, it will result in unpredictable behavior.
-		 */
-		ret = denali_wait_reset_complete(denali);
-		if (ret) {
-			dev_err(denali->dev, "reset not completed.\n");
-			return ret;
-		}
-	}
+	else
+		reset_deassert_bulk(&denali->resets);
 
 	return denali_init(denali);
 }
 
+static int denali_dt_remove(struct udevice *dev)
+{
+	struct denali_nand_info *denali = dev_get_priv(dev);
+
+	return reset_release_bulk(&denali->resets);
+}
+
 U_BOOT_DRIVER(denali_nand_dt) = {
 	.name = "denali-nand-dt",
-	.id = UCLASS_MTD,
+	.id = UCLASS_MISC,
 	.of_match = denali_nand_dt_ids,
 	.probe = denali_dt_probe,
-	.priv_auto	= sizeof(struct denali_nand_info),
+	.priv_auto_alloc_size = sizeof(struct denali_nand_info),
+	.remove = denali_dt_remove,
+	.flags = DM_FLAG_OS_PREPARE,
 };
 
 void board_nand_init(void)
@@ -180,8 +163,8 @@ void board_nand_init(void)
 	struct udevice *dev;
 	int ret;
 
-	ret = uclass_get_device_by_driver(UCLASS_MTD,
-					  DM_DRIVER_GET(denali_nand_dt),
+	ret = uclass_get_device_by_driver(UCLASS_MISC,
+					  DM_GET_DRIVER(denali_nand_dt),
 					  &dev);
 	if (ret && ret != -ENODEV)
 		pr_err("Failed to initialize Denali NAND controller. (error %d)\n",

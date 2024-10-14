@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2003
  * Gerry Hamel, geh@ti.com, Texas Instruments
@@ -13,11 +12,11 @@
  *	Stuart Lynne <sl@lineo.com>,
  *	Tom Rushworth <tbr@lineo.com>,
  *	Bruce Balden <balden@lineo.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <log.h>
 #include <malloc.h>
-#include <serial.h>
 #include <usbdevice.h>
 
 #define MAX_INTERFACES 2
@@ -36,7 +35,7 @@ extern struct usb_function_driver ep0_driver;
 int registered_functions;
 int registered_devices;
 
-__maybe_unused static char *usbd_device_events[] = {
+char *usbd_device_events[] = {
 	"DEVICE_UNKNOWN",
 	"DEVICE_INIT",
 	"DEVICE_CREATE",
@@ -56,14 +55,51 @@ __maybe_unused static char *usbd_device_events[] = {
 	"DEVICE_FUNCTION_PRIVATE",
 };
 
-__maybe_unused static char *usbd_device_status[] = {
+char *usbd_device_states[] = {
+	"STATE_INIT",
+	"STATE_CREATED",
+	"STATE_ATTACHED",
+	"STATE_POWERED",
+	"STATE_DEFAULT",
+	"STATE_ADDRESSED",
+	"STATE_CONFIGURED",
+	"STATE_UNKNOWN",
+};
+
+char *usbd_device_requests[] = {
+	"GET STATUS",		/* 0 */
+	"CLEAR FEATURE",	/* 1 */
+	"RESERVED",		/* 2 */
+	"SET FEATURE",		/* 3 */
+	"RESERVED",		/* 4 */
+	"SET ADDRESS",		/* 5 */
+	"GET DESCRIPTOR",	/* 6 */
+	"SET DESCRIPTOR",	/* 7 */
+	"GET CONFIGURATION",	/* 8 */
+	"SET CONFIGURATION",	/* 9 */
+	"GET INTERFACE",	/* 10 */
+	"SET INTERFACE",	/* 11 */
+	"SYNC FRAME",		/* 12 */
+};
+
+char *usbd_device_descriptors[] = {
+	"UNKNOWN",		/* 0 */
+	"DEVICE",		/* 1 */
+	"CONFIG",		/* 2 */
+	"STRING",		/* 3 */
+	"INTERFACE",		/* 4 */
+	"ENDPOINT",		/* 5 */
+	"DEVICE QUALIFIER",	/* 6 */
+	"OTHER SPEED",		/* 7 */
+	"INTERFACE POWER",	/* 8 */
+};
+
+char *usbd_device_status[] = {
 	"USBD_OPENING",
 	"USBD_OK",
 	"USBD_SUSPENDED",
 	"USBD_CLOSING",
 };
-
-#define USBD_DEVICE_STATUS(x) (((unsigned int)x <= USBD_CLOSING) ? usbd_device_status[x] : "UNKNOWN")
 
 
 /* Descriptor support functions ************************************************************** */

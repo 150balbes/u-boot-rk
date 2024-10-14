@@ -1,20 +1,18 @@
-# SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) 2014 Google, Inc
+#
+# SPDX-License-Identifier:      GPL-2.0+
 #
 
 import errno
 import glob
 import os
 import shutil
-import sys
 import threading
 
-from buildman import cfgutil
-from patman import command
-from patman import gitutil
+import command
+import gitutil
 
 RETURN_CODE_RETRY = -1
-BASE_ELF_FILENAMES = ['u-boot', 'spl/u-boot-spl', 'tpl/u-boot-tpl']
 
 def Mkdir(dirname, parents = False):
     """Make a directory if it doesn't already exist.
@@ -29,9 +27,6 @@ def Mkdir(dirname, parents = False):
             os.mkdir(dirname)
     except OSError as err:
         if err.errno == errno.EEXIST:
-            if os.path.realpath('.') == os.path.realpath(dirname):
-                print("Cannot create the current working directory '%s'!" % dirname)
-                sys.exit(1)
             pass
         else:
             raise
@@ -40,19 +35,12 @@ class BuilderJob:
     """Holds information about a job to be performed by a thread
 
     Members:
-        brd: Board object to build
-        commits: List of Commit objects to build
-        keep_outputs: True to save build output files
-        step: 1 to process every commit, n to process every nth commit
-        work_in_output: Use the output directory as the work directory and
-            don't write to a separate output directory.
+        board: Board object to build
+        commits: List of commit options to build.
     """
     def __init__(self):
-        self.brd = None
+        self.board = None
         self.commits = []
-        self.keep_outputs = False
-        self.step = 1
-        self.work_in_output = False
 
 
 class ResultThread(threading.Thread):
@@ -90,23 +78,15 @@ class BuilderThread(threading.Thread):
     Members:
         builder: The builder which contains information we might need
         thread_num: Our thread number (0-n-1), used to decide on a
-            temporary directory. If this is -1 then there are no threads
-            and we are the (only) main process
-        mrproper: Use 'make mrproper' before each reconfigure
-        per_board_out_dir: True to build in a separate persistent directory per
-            board rather than a thread-specific directory
-        test_exception: Used for testing; True to raise an exception instead of
-            reporting the build result
+                temporary directory
     """
-    def __init__(self, builder, thread_num, mrproper, per_board_out_dir,
-                 test_exception=False):
+    def __init__(self, builder, thread_num, incremental, per_board_out_dir):
         """Set up a new builder thread"""
         threading.Thread.__init__(self)
         self.builder = builder
         self.thread_num = thread_num
-        self.mrproper = mrproper
+        self.incremental = incremental
         self.per_board_out_dir = per_board_out_dir
-        self.test_exception = test_exception
 
     def Make(self, commit, brd, stage, cwd, *args, **kwargs):
         """Run 'make' on a particular commit and board.
@@ -122,7 +102,7 @@ class BuilderThread(threading.Thread):
                         config - called to configure for a board
                         build - the main make invocation - it does the build
             args: A list of arguments to pass to 'make'
-            kwargs: A list of keyword arguments to pass to command.run_pipe()
+            kwargs: A list of keyword arguments to pass to command.RunPipe()
 
         Returns:
             CommandResult object
@@ -131,8 +111,7 @@ class BuilderThread(threading.Thread):
                 **kwargs)
 
     def RunCommit(self, commit_upto, brd, work_dir, do_config, config_only,
-                  force_build, force_build_failures, work_in_output,
-                  adjust_cfg):
+                  force_build, force_build_failures):
         """Build a particular commit.
 
         If the build is already done, and we are not forcing a build, we skip
@@ -147,15 +126,6 @@ class BuilderThread(threading.Thread):
             force_build: Force a build even if one was previously done
             force_build_failures: Force a bulid if the previous result showed
                 failure
-            work_in_output: Use the output directory as the work directory and
-                don't write to a separate output directory.
-            adjust_cfg (list of str): List of changes to make to .config file
-                before building. Each is one of (where C is either CONFIG_xxx
-                or just xxx):
-                     C to enable C
-                     ~C to disable C
-                     C=val to set the value of C (val must have quotes if C is
-                         a string Kconfig
 
         Returns:
             tuple containing:
@@ -166,7 +136,7 @@ class BuilderThread(threading.Thread):
         # self.Make() below, in the event that we do a build.
         result = command.CommandResult()
         result.return_code = 0
-        if work_in_output or self.builder.in_tree:
+        if self.builder.in_tree:
             out_dir = work_dir
         else:
             if self.per_board_out_dir:
@@ -183,12 +153,7 @@ class BuilderThread(threading.Thread):
         if result.already_done:
             # Get the return code from that build and use it
             with open(done_file, 'r') as fd:
-                try:
-                    result.return_code = int(fd.readline())
-                except ValueError:
-                    # The file may be empty due to running out of disk space.
-                    # Try a rebuild
-                    result.return_code = RETURN_CODE_RETRY
+                result.return_code = int(fd.readline())
 
             # Check the signal that the build needs to be retried
             if result.return_code == RETURN_CODE_RETRY:
@@ -219,7 +184,7 @@ class BuilderThread(threading.Thread):
                     commit = self.builder.commits[commit_upto]
                     if self.builder.checkout:
                         git_dir = os.path.join(work_dir, '.git')
-                        gitutil.checkout(commit.hash, git_dir, work_dir,
+                        gitutil.Checkout(commit.hash, git_dir, work_dir,
                                          force=True)
                 else:
                     commit = 'current'
@@ -251,31 +216,14 @@ class BuilderThread(threading.Thread):
                     args.append('-s')
                 if self.builder.num_jobs is not None:
                     args.extend(['-j', str(self.builder.num_jobs)])
-                if self.builder.warnings_as_errors:
-                    args.append('KCFLAGS=-Werror')
-                if self.builder.allow_missing:
-                    args.append('BINMAN_ALLOW_MISSING=1')
                 config_args = ['%s_defconfig' % brd.target]
                 config_out = ''
                 args.extend(self.builder.toolchains.GetMakeArguments(brd))
-                args.extend(self.toolchain.MakeArgs())
-
-                # Remove any output targets. Since we use a build directory that
-                # was previously used by another board, it may have produced an
-                # SPL image. If we don't remove it (i.e. see do_config and
-                # self.mrproper below) then it will appear to be the output of
-                # this build, even if it does not produce SPL images.
-                build_dir = self.builder.GetBuildDir(commit_upto, brd.target)
-                for elf in BASE_ELF_FILENAMES:
-                    fname = os.path.join(out_dir, elf)
-                    if os.path.exists(fname):
-                        os.remove(fname)
 
                 # If we need to reconfigure, do that now
-                cfg_file = os.path.join(out_dir, '.config')
-                if do_config or adjust_cfg:
+                if do_config:
                     config_out = ''
-                    if self.mrproper:
+                    if not self.incremental:
                         result = self.Make(commit, brd, 'mrproper', cwd,
                                 'mrproper', *args, env=env)
                         config_out += result.combined
@@ -283,23 +231,11 @@ class BuilderThread(threading.Thread):
                             *(args + config_args), env=env)
                     config_out += result.combined
                     do_config = False   # No need to configure next time
-                    if adjust_cfg:
-                        cfgutil.adjust_cfg_file(cfg_file, adjust_cfg)
                 if result.return_code == 0:
                     if config_only:
                         args.append('cfg')
                     result = self.Make(commit, brd, 'build', cwd, *args,
                             env=env)
-                    if (result.return_code == 2 and
-                        ('Some images are invalid' in result.stderr)):
-                        # This is handled later by the check for output in
-                        # stderr
-                        result.return_code = 0
-                    if adjust_cfg:
-                        errs = cfgutil.check_cfg_file(cfg_file, adjust_cfg)
-                        if errs:
-                            result.stderr += errs
-                            result.return_code = 1
                 result.stderr = result.stderr.replace(src_dir + '/', '')
                 if self.builder.verbose_build:
                     result.stdout = config_out + result.stdout
@@ -314,22 +250,24 @@ class BuilderThread(threading.Thread):
         result.out_dir = out_dir
         return result, do_config
 
-    def _WriteResult(self, result, keep_outputs, work_in_output):
+    def _WriteResult(self, result, keep_outputs):
         """Write a built result to the output directory.
 
         Args:
             result: CommandResult object containing result to write
             keep_outputs: True to store the output binaries, False
                 to delete them
-            work_in_output: Use the output directory as the work directory and
-                don't write to a separate output directory.
         """
+        # Fatal error
+        if result.return_code < 0:
+            return
+
         # If we think this might have been aborted with Ctrl-C, record the
         # failure but not that we are 'done' with this board. A retry may fix
         # it.
-        maybe_aborted = result.stderr and 'No child processes' in result.stderr
+        maybe_aborted =  result.stderr and 'No child processes' in result.stderr
 
-        if result.return_code >= 0 and result.already_done:
+        if result.already_done:
             return
 
         # Write the output and stderr
@@ -342,19 +280,17 @@ class BuilderThread(threading.Thread):
         outfile = os.path.join(build_dir, 'log')
         with open(outfile, 'w') as fd:
             if result.stdout:
-                fd.write(result.stdout)
+                # We don't want unicode characters in log files
+                fd.write(result.stdout.decode('UTF-8').encode('ASCII', 'replace'))
 
         errfile = self.builder.GetErrFile(result.commit_upto,
                 result.brd.target)
         if result.stderr:
             with open(errfile, 'w') as fd:
-                fd.write(result.stderr)
+                # We don't want unicode characters in log files
+                fd.write(result.stderr.decode('UTF-8').encode('ASCII', 'replace'))
         elif os.path.exists(errfile):
             os.remove(errfile)
-
-        # Fatal error
-        if result.return_code < 0:
-            return
 
         if result.toolchain:
             # Write the build result and toolchain information.
@@ -367,31 +303,28 @@ class BuilderThread(threading.Thread):
                 else:
                     fd.write('%s' % result.return_code)
             with open(os.path.join(build_dir, 'toolchain'), 'w') as fd:
-                print('gcc', result.toolchain.gcc, file=fd)
-                print('path', result.toolchain.path, file=fd)
-                print('cross', result.toolchain.cross, file=fd)
-                print('arch', result.toolchain.arch, file=fd)
+                print >>fd, 'gcc', result.toolchain.gcc
+                print >>fd, 'path', result.toolchain.path
+                print >>fd, 'cross', result.toolchain.cross
+                print >>fd, 'arch', result.toolchain.arch
                 fd.write('%s' % result.return_code)
 
             # Write out the image and function size information and an objdump
             env = result.toolchain.MakeEnvironment(self.builder.full_path)
-            with open(os.path.join(build_dir, 'out-env'), 'wb') as fd:
-                for var in sorted(env.keys()):
-                    fd.write(b'%s="%s"' % (var, env[var]))
             lines = []
-            for fname in BASE_ELF_FILENAMES:
+            for fname in ['u-boot', 'spl/u-boot-spl']:
                 cmd = ['%snm' % self.toolchain.cross, '--size-sort', fname]
-                nm_result = command.run_pipe([cmd], capture=True,
+                nm_result = command.RunPipe([cmd], capture=True,
                         capture_stderr=True, cwd=result.out_dir,
                         raise_on_error=False, env=env)
                 if nm_result.stdout:
                     nm = self.builder.GetFuncSizesFile(result.commit_upto,
                                     result.brd.target, fname)
                     with open(nm, 'w') as fd:
-                        print(nm_result.stdout, end=' ', file=fd)
+                        print >>fd, nm_result.stdout,
 
                 cmd = ['%sobjdump' % self.toolchain.cross, '-h', fname]
-                dump_result = command.run_pipe([cmd], capture=True,
+                dump_result = command.RunPipe([cmd], capture=True,
                         capture_stderr=True, cwd=result.out_dir,
                         raise_on_error=False, env=env)
                 rodata_size = ''
@@ -399,30 +332,19 @@ class BuilderThread(threading.Thread):
                     objdump = self.builder.GetObjdumpFile(result.commit_upto,
                                     result.brd.target, fname)
                     with open(objdump, 'w') as fd:
-                        print(dump_result.stdout, end=' ', file=fd)
+                        print >>fd, dump_result.stdout,
                     for line in dump_result.stdout.splitlines():
                         fields = line.split()
                         if len(fields) > 5 and fields[1] == '.rodata':
                             rodata_size = fields[2]
 
                 cmd = ['%ssize' % self.toolchain.cross, fname]
-                size_result = command.run_pipe([cmd], capture=True,
+                size_result = command.RunPipe([cmd], capture=True,
                         capture_stderr=True, cwd=result.out_dir,
                         raise_on_error=False, env=env)
                 if size_result.stdout:
                     lines.append(size_result.stdout.splitlines()[1] + ' ' +
                                  rodata_size)
-
-            # Extract the environment from U-Boot and dump it out
-            cmd = ['%sobjcopy' % self.toolchain.cross, '-O', 'binary',
-                   '-j', '.rodata.default_environment',
-                   'env/built-in.o', 'uboot.env']
-            command.run_pipe([cmd], capture=True,
-                            capture_stderr=True, cwd=result.out_dir,
-                            raise_on_error=False, env=env)
-            ubootenv = os.path.join(result.out_dir, 'uboot.env')
-            if not work_in_output:
-                self.CopyFiles(result.out_dir, build_dir, '', ['uboot.env'])
 
             # Write out the image sizes file. This is similar to the output
             # of binutil's 'size' utility, but it omits the header line and
@@ -432,23 +354,19 @@ class BuilderThread(threading.Thread):
                 sizes = self.builder.GetSizesFile(result.commit_upto,
                                 result.brd.target)
                 with open(sizes, 'w') as fd:
-                    print('\n'.join(lines), file=fd)
+                    print >>fd, '\n'.join(lines)
 
-        if not work_in_output:
-            # Write out the configuration files, with a special case for SPL
-            for dirname in ['', 'spl', 'tpl']:
-                self.CopyFiles(
-                    result.out_dir, build_dir, dirname,
-                    ['u-boot.cfg', 'spl/u-boot-spl.cfg', 'tpl/u-boot-tpl.cfg',
-                     '.config', 'include/autoconf.mk',
-                     'include/generated/autoconf.h'])
+        # Write out the configuration files, with a special case for SPL
+        for dirname in ['', 'spl', 'tpl']:
+            self.CopyFiles(result.out_dir, build_dir, dirname, ['u-boot.cfg',
+                'spl/u-boot-spl.cfg', 'tpl/u-boot-tpl.cfg', '.config',
+                'include/autoconf.mk', 'include/generated/autoconf.h'])
 
-            # Now write the actual build output
-            if keep_outputs:
-                self.CopyFiles(
-                    result.out_dir, build_dir, '',
-                    ['u-boot*', '*.bin', '*.map', '*.img', 'MLO', 'SPL',
-                     'include/autoconf.mk', 'spl/u-boot-spl*'])
+        # Now write the actual build output
+        if keep_outputs:
+            self.CopyFiles(result.out_dir, build_dir, '', ['u-boot*', '*.bin',
+                '*.map', '*.img', 'MLO', 'SPL', 'include/autoconf.mk',
+                'spl/u-boot-spl*'])
 
     def CopyFiles(self, out_dir, build_dir, dirname, patterns):
         """Copy files from the build directory to the output.
@@ -470,22 +388,6 @@ class BuilderThread(threading.Thread):
                         target = '%s-%s%s' % (base, dirname, ext)
                 shutil.copy(fname, os.path.join(build_dir, target))
 
-    def _SendResult(self, result):
-        """Send a result to the builder for processing
-
-        Args:
-            result: CommandResult object containing the results of the build
-
-        Raises:
-            ValueError if self.test_exception is true (for testing)
-        """
-        if self.test_exception:
-            raise ValueError('test exception')
-        if self.thread_num != -1:
-            self.builder.out_queue.put(result)
-        else:
-            self.builder.ProcessResult(result)
-
     def RunJob(self, job):
         """Run a single job
 
@@ -493,11 +395,8 @@ class BuilderThread(threading.Thread):
 
         Args:
             job: Job to build
-
-        Returns:
-            List of Result objects
         """
-        brd = job.brd
+        brd = job.board
         work_dir = self.builder.GetThreadDir(self.thread_num)
         self.toolchain = None
         if job.commits:
@@ -509,8 +408,7 @@ class BuilderThread(threading.Thread):
                 result, request_config = self.RunCommit(commit_upto, brd,
                         work_dir, do_config, self.builder.config_only,
                         force_build or self.builder.force_build,
-                        self.builder.force_build_failures,
-                        job.work_in_output, job.adjust_cfg)
+                        self.builder.force_build_failures)
                 failed = result.return_code or result.stderr
                 did_config = do_config
                 if failed and not do_config:
@@ -518,8 +416,7 @@ class BuilderThread(threading.Thread):
                     # with a reconfig.
                     if self.builder.force_config_on_failure:
                         result, request_config = self.RunCommit(commit_upto,
-                            brd, work_dir, True, False, True, False,
-                            job.work_in_output, job.adjust_cfg)
+                            brd, work_dir, True, False, True, False)
                         did_config = True
                 if not self.builder.force_reconfig:
                     do_config = request_config
@@ -558,17 +455,16 @@ class BuilderThread(threading.Thread):
                         raise ValueError('Interrupt')
 
                 # We have the build results, so output the result
-                self._WriteResult(result, job.keep_outputs, job.work_in_output)
-                self._SendResult(result)
+                self._WriteResult(result, job.keep_outputs)
+                self.builder.out_queue.put(result)
         else:
             # Just build the currently checked-out build
             result, request_config = self.RunCommit(None, brd, work_dir, True,
                         self.builder.config_only, True,
-                        self.builder.force_build_failures, job.work_in_output,
-                        job.adjust_cfg)
+                        self.builder.force_build_failures)
             result.commit_upto = 0
-            self._WriteResult(result, job.keep_outputs, job.work_in_output)
-            self._SendResult(result)
+            self._WriteResult(result, job.keep_outputs)
+            self.builder.out_queue.put(result)
 
     def run(self):
         """Our thread's run function
@@ -578,9 +474,5 @@ class BuilderThread(threading.Thread):
         """
         while True:
             job = self.builder.queue.get()
-            try:
-                self.RunJob(job)
-            except Exception as e:
-                print('Thread exception (use -T0 to run without threads):', e)
-                self.builder.thread_exceptions.append(e)
+            self.RunJob(job)
             self.builder.queue.task_done()

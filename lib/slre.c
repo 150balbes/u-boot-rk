@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #else
-#include <log.h>
 #include <common.h>
 #include <linux/ctype.h>
 #endif /* SLRE_TEST */
@@ -703,6 +702,8 @@ int main(int argc, char *argv[])
 		printf("Data = \"%s\"\n", data);
 
 		(void) memset(caps, 0, sizeof(caps));
+
+		res = 0;
 
 		res = slre_match(&slre, data, len, caps);
 		printf("Result [%d]: %d\n", i, res);

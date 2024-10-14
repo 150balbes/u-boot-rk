@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * (C) Copyright 2000-2003
@@ -6,23 +5,21 @@
  *
  * Copyright (C) 2004-2007, 2012 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <net.h>
-#include <vsprintf.h>
 #include <watchdog.h>
 #include <command.h>
 #include <netdev.h>
-#include <asm/global_data.h>
 
 #include <asm/immap.h>
 #include <asm/io.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ccm_t *ccm = (ccm_t *) MMAP_CCM;
 
@@ -31,8 +28,7 @@ int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return 0;
 }
 
-#if defined(CONFIG_DISPLAY_CPUINFO)
-int print_cpuinfo(void)
+int checkcpu(void)
 {
 	ccm_t *ccm = (ccm_t *) MMAP_CCM;
 	u16 msk;
@@ -60,7 +56,6 @@ int print_cpuinfo(void)
 
 	return 0;
 };
-#endif /* CONFIG_DISPLAY_CPUINFO */
 
 #if defined(CONFIG_WATCHDOG)
 /* Called by macro WATCHDOG_RESET */
@@ -92,7 +87,7 @@ int watchdog_init(void)
 	u32 wdog_module = 0;
 
 	/* set timeout and enable watchdog */
-	wdog_module = ((CFG_SYS_CLK / CONFIG_SYS_HZ) * CONFIG_WATCHDOG_TIMEOUT_MSECS);
+	wdog_module = ((CONFIG_SYS_CLK / CONFIG_SYS_HZ) * CONFIG_WATCHDOG_TIMEOUT);
 	wdog_module |= (wdog_module / 8192);
 	out_be16(&wdp->mr, wdog_module);
 
@@ -106,10 +101,10 @@ int watchdog_init(void)
 #if defined(CONFIG_MCFFEC)
 /* Default initializations for MCFFEC controllers.  To override,
  * create a board-specific function called:
- *	int board_eth_init(struct bd_info *bis)
+ * 	int board_eth_init(bd_t *bis)
  */
 
-int cpu_eth_init(struct bd_info *bis)
+int cpu_eth_init(bd_t *bis)
 {
 	return mcffec_initialize(bis);
 }

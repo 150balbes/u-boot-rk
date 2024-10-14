@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Synopsys, Inc. All rights reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _BOARD_SYNOPSYS_AXS10X_H
@@ -12,3 +13,4 @@ enum {
 };
 
 #endif /* _BOARD_SYNOPSYS_AXS10X_H */
+

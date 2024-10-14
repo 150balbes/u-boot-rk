@@ -1,17 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <time.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <div64.h>
 #include <asm/arch/immap_ls102xa.h>
 #include <asm/arch/clock.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -65,7 +62,7 @@ int timer_init(void)
 	/* Enable System Counter */
 	writel(SYS_COUNTER_CTRL_ENABLE, &sctr->cntcr);
 
-	freq = CONFIG_COUNTER_FREQUENCY;
+	freq = COUNTER_FREQUENCY;
 	asm("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
 
 	/* Set PL1 Physical Timer Ctrl */
@@ -94,9 +91,14 @@ unsigned long long get_ticks(void)
 	return now;
 }
 
+unsigned long get_timer_masked(void)
+{
+	return tick_to_time(get_ticks());
+}
+
 unsigned long get_timer(ulong base)
 {
-	return tick_to_time(get_ticks()) - base;
+	return get_timer_masked() - base;
 }
 
 /* delay x useconds and preserve advance timstamp value */

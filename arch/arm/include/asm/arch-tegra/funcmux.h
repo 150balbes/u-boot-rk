@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2010-2012, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 /* Tegra high-level function multiplexing */
@@ -21,7 +22,7 @@
  *
  * @param id		Peripheral id
  * @param config	Configuration to use (FUNCMUX_...), 0 for default
- * Return: 0 if ok, -1 on error (e.g. incorrect id or config)
+ * @return 0 if ok, -1 on error (e.g. incorrect id or config)
  */
 int funcmux_select(enum periph_id id, int config);
 

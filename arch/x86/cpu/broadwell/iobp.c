@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Google, Inc
  *
  * Modified from coreboot
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
@@ -10,7 +11,6 @@
 #include <asm/intel_regs.h>
 #include <asm/io.h>
 #include <asm/arch/pch.h>
-#include <linux/delay.h>
 
 #define IOBP_RETRY 1000
 

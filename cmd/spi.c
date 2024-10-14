@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -22,23 +23,29 @@
 #   define MAX_SPI_BYTES 32	/* Maximum number of bytes we can handle */
 #endif
 
+#ifndef CONFIG_DEFAULT_SPI_BUS
+#   define CONFIG_DEFAULT_SPI_BUS	0
+#endif
+#ifndef CONFIG_DEFAULT_SPI_MODE
+#   define CONFIG_DEFAULT_SPI_MODE	SPI_MODE_0
+#endif
+
 /*
  * Values from last command.
  */
 static unsigned int	bus;
 static unsigned int	cs;
 static unsigned int	mode;
-static unsigned int	freq;
-static int		bitlen;
-static uchar		dout[MAX_SPI_BYTES];
-static uchar		din[MAX_SPI_BYTES];
+static int   		bitlen;
+static uchar 		dout[MAX_SPI_BYTES];
+static uchar 		din[MAX_SPI_BYTES];
 
 static int do_spi_xfer(int bus, int cs)
 {
 	struct spi_slave *slave;
 	int ret = 0;
 
-#if CONFIG_IS_ENABLED(DM_SPI)
+#ifdef CONFIG_DM_SPI
 	char name[30], *str;
 	struct udevice *dev;
 
@@ -46,12 +53,12 @@ static int do_spi_xfer(int bus, int cs)
 	str = strdup(name);
 	if (!str)
 		return -ENOMEM;
-	ret = _spi_get_bus_and_cs(bus, cs, freq, mode, "spi_generic_drv",
-				  str, &dev, &slave);
+	ret = spi_get_bus_and_cs(bus, cs, 1000000, mode, "spi_generic_drv",
+				 str, &dev, &slave);
 	if (ret)
 		return ret;
 #else
-	slave = spi_setup_slave(bus, cs, freq, mode);
+	slave = spi_setup_slave(bus, cs, 1000000, mode);
 	if (!slave) {
 		printf("Invalid device %d:%d\n", bus, cs);
 		return -EINVAL;
@@ -63,7 +70,7 @@ static int do_spi_xfer(int bus, int cs)
 		goto done;
 	ret = spi_xfer(slave, bitlen, dout, din,
 		       SPI_XFER_BEGIN | SPI_XFER_END);
-#if !CONFIG_IS_ENABLED(DM_SPI)
+#ifndef CONFIG_DM_SPI
 	/* We don't get an error code in this case */
 	if (ret)
 		ret = -EIO;
@@ -79,7 +86,7 @@ static int do_spi_xfer(int bus, int cs)
 	}
 done:
 	spi_release_bus(slave);
-#if !CONFIG_IS_ENABLED(DM_SPI)
+#ifndef CONFIG_DM_SPI
 	spi_free_slave(slave);
 #endif
 
@@ -97,7 +104,7 @@ done:
  * The command prints out the hexadecimal string received via SPI.
  */
 
-int do_spi(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char  *cp = 0;
 	uchar tmp;
@@ -107,30 +114,23 @@ int do_spi(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	 * We use the last specified parameters, unless new ones are
 	 * entered.
 	 */
-	if (freq == 0)
-		freq = 1000000;
 
 	if ((flag & CMD_FLAG_REPEAT) == 0)
 	{
-		if (argc < 2)
-			return CMD_RET_USAGE;
-
 		if (argc >= 2) {
 			mode = CONFIG_DEFAULT_SPI_MODE;
-			bus = dectoul(argv[1], &cp);
+			bus = simple_strtoul(argv[1], &cp, 10);
 			if (*cp == ':') {
-				cs = dectoul(cp + 1, &cp);
+				cs = simple_strtoul(cp+1, &cp, 10);
 			} else {
 				cs = bus;
 				bus = CONFIG_DEFAULT_SPI_BUS;
 			}
 			if (*cp == '.')
-				mode = dectoul(cp + 1, &cp);
-			if (*cp == '@')
-				freq = dectoul(cp + 1, &cp);
+				mode = simple_strtoul(cp+1, NULL, 10);
 		}
 		if (argc >= 3)
-			bitlen = dectoul(argv[2], NULL);
+			bitlen = simple_strtoul(argv[2], NULL, 10);
 		if (argc >= 4) {
 			cp = argv[3];
 			for(j = 0; *cp; j++, cp++) {
@@ -167,11 +167,10 @@ int do_spi(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 U_BOOT_CMD(
 	sspi,	5,	1,	do_spi,
 	"SPI utility command",
-	"[<bus>:]<cs>[.<mode>][@<freq>] <bit_len> <dout> - Send and receive bits\n"
+	"[<bus>:]<cs>[.<mode>] <bit_len> <dout> - Send and receive bits\n"
 	"<bus>     - Identifies the SPI bus\n"
 	"<cs>      - Identifies the chip select\n"
 	"<mode>    - Identifies the SPI mode to use\n"
-	"<freq>    - Identifies the SPI bus frequency in Hz\n"
 	"<bit_len> - Number of bits to send (base 10)\n"
 	"<dout>    - Hexadecimal string that gets sent"
 );

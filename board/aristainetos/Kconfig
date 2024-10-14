@@ -1,29 +1,29 @@
-if TARGET_ARISTAINETOS2C
-
-source "board/aristainetos/common/Kconfig"
+if TARGET_ARISTAINETOS
 
 config SYS_BOARD
 	default "aristainetos"
 
-config SYS_BOARD_VERSION
-	default 5
-
-config IMX_CONFIG
-	default "board/aristainetos/aristainetos2.cfg"
+config SYS_CONFIG_NAME
+	default "aristainetos"
 
 endif
 
-if TARGET_ARISTAINETOS2CCSLB
-
-source "board/aristainetos/common/Kconfig"
+if TARGET_ARISTAINETOS2
 
 config SYS_BOARD
 	default "aristainetos"
 
-config SYS_BOARD_VERSION
-	default 6
+config SYS_CONFIG_NAME
+	default "aristainetos2"
 
-config IMX_CONFIG
-	default "board/aristainetos/aristainetos2.cfg"
+endif
+
+if TARGET_ARISTAINETOS2B
+
+config SYS_BOARD
+	default "aristainetos"
+
+config SYS_CONFIG_NAME
+	default "aristainetos2b"
 
 endif

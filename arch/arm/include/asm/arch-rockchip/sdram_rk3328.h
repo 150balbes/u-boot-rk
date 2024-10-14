@@ -6,10 +6,10 @@
 
 #ifndef _ASM_ARCH_SDRAM_RK3328_H
 #define _ASM_ARCH_SDRAM_RK3328_H
-#include <asm/arch-rockchip/sdram_common.h>
-#include <asm/arch-rockchip/sdram_pctl_px30.h>
-#include <asm/arch-rockchip/sdram_phy_px30.h>
-#include <asm/arch-rockchip/sdram_phy_ron_rtt_px30.h>
+#include <asm/arch/sdram_common.h>
+#include <asm/arch/sdram_pctl_px30.h>
+#include <asm/arch/sdram_phy_px30.h>
+#include <asm/arch/sdram_phy_ron_rtt_px30.h>
 
 #define SR_IDLE		93
 #define PD_IDLE		13

@@ -1,20 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014 Samsung Electronics
  * Przemyslaw Marczak <p.marczak@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
 #include <asm/arch/pinmux.h>
 #include <asm/arch/power.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/gpio.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/arch/cpu.h>
 #include <dm.h>
-#include <env.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 #include <power/max77686_pmic.h>
@@ -57,14 +55,6 @@ void set_board_type(void)
 		gd->board_type = ODROID_TYPE_U3;
 }
 
-void set_board_revision(void)
-{
-	/*
-	 * Revision already set by set_board_type() because it can be
-	 * executed early.
-	 */
-}
-
 const char *get_board_type(void)
 {
 	const char *board_type[] = {"u3", "x2"};
@@ -85,7 +75,7 @@ char *get_dfu_alt_boot(char *interface, char *devstr)
 	char *alt_boot;
 	int dev_num;
 
-	dev_num = dectoul(devstr, NULL);
+	dev_num = simple_strtoul(devstr, NULL, 10);
 
 	mmc = find_mmc_device(dev_num);
 	if (!mmc)
@@ -94,8 +84,8 @@ char *get_dfu_alt_boot(char *interface, char *devstr)
 	if (mmc_init(mmc))
 		return NULL;
 
-	alt_boot = IS_SD(mmc) ? CFG_DFU_ALT_BOOT_SD :
-				CFG_DFU_ALT_BOOT_EMMC;
+	alt_boot = IS_SD(mmc) ? CONFIG_DFU_ALT_BOOT_SD :
+				CONFIG_DFU_ALT_BOOT_EMMC;
 
 	return alt_boot;
 }
@@ -439,7 +429,7 @@ int exynos_power_init(void)
 	};
 
 	if (regulator_list_autoset(mmc_regulators, NULL, true))
-		pr_err("Unable to init all mmc regulators\n");
+		pr_err("Unable to init all mmc regulators");
 
 	return 0;
 }
@@ -452,7 +442,7 @@ static int s5pc210_phy_control(int on)
 
 	ret = regulator_get_by_platname("VDD_UOTG_3.0V", &dev);
 	if (ret) {
-		pr_err("Regulator get error: %d\n", ret);
+		pr_err("Regulator get error: %d", ret);
 		return ret;
 	}
 
@@ -473,33 +463,18 @@ struct dwc2_plat_otg_data s5pc210_otg_data = {
 
 #if defined(CONFIG_USB_GADGET) || defined(CONFIG_CMD_USB)
 
-static void set_usb3503_ref_clk(void)
-{
-#ifdef CONFIG_BOARD_TYPES
-	/*
-	 * gpx3-0 chooses primary (low) or secondary (high) reference clock
-	 * frequencies table.  The choice of clock is done through hard-wired
-	 * REF_SEL pins.
-	 * The Odroid Us have reference clock at 24 MHz (00 entry from secondary
-	 * table) and Odroid Xs have it at 26 MHz (01 entry from primary table).
-	 */
-	if (gd->board_type == ODROID_TYPE_U3)
-		gpio_direction_output(EXYNOS4X12_GPIO_X30, 0);
-	else
-		gpio_direction_output(EXYNOS4X12_GPIO_X30, 1);
-#else
-	/* Choose Odroid Xs frequency without board types */
-	gpio_direction_output(EXYNOS4X12_GPIO_X30, 1);
-#endif /* CONFIG_BOARD_TYPES */
-}
-
 int board_usb_init(int index, enum usb_init_type init)
 {
 #ifdef CONFIG_CMD_USB
 	struct udevice *dev;
 	int ret;
 
-	set_usb3503_ref_clk();
+	/* Set Ref freq 0 => 24MHz, 1 => 26MHz*/
+	/* Odroid Us have it at 24MHz, Odroid Xs at 26MHz */
+	if (gd->board_type == ODROID_TYPE_U3)
+		gpio_direction_output(EXYNOS4X12_GPIO_X30, 0);
+	else
+		gpio_direction_output(EXYNOS4X12_GPIO_X30, 1);
 
 	/* Disconnect, Reset, Connect */
 	gpio_direction_output(EXYNOS4X12_GPIO_X34, 0);
@@ -512,25 +487,25 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	ret = regulator_get_by_platname("VCC_P3V3_2.85V", &dev);
 	if (ret) {
-		pr_err("Regulator get error: %d\n", ret);
+		pr_err("Regulator get error: %d", ret);
 		return ret;
 	}
 
 	ret = regulator_set_enable(dev, true);
 	if (ret) {
-		pr_err("Regulator %s enable setting error: %d\n", dev->name, ret);
+		pr_err("Regulator %s enable setting error: %d", dev->name, ret);
 		return ret;
 	}
 
 	ret = regulator_set_value(dev, 750000);
 	if (ret) {
-		pr_err("Regulator %s value setting error: %d\n", dev->name, ret);
+		pr_err("Regulator %s value setting error: %d", dev->name, ret);
 		return ret;
 	}
 
 	ret = regulator_set_value(dev, 3300000);
 	if (ret) {
-		pr_err("Regulator %s value setting error: %d\n", dev->name, ret);
+		pr_err("Regulator %s value setting error: %d", dev->name, ret);
 		return ret;
 	}
 #endif

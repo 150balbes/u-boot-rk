@@ -2,8 +2,8 @@ ifeq ($(CONFIG_CPU_ARM926EJS),y)
 PLATFORM_CPPFLAGS += $(call cc-option,-mtune=arm926ejs,)
 endif
 
-ifeq ($(CONFIG_CPU_V7A),y)
+ifeq ($(CONFIG_CPU_V7),y)
 ifndef CONFIG_SPL_BUILD
-INPUTS-y	+= u-boot.img
+ALL-y	+= u-boot.img
 endif
 endif

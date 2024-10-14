@@ -1,18 +1,20 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Atmel Corporation
  *		      Bo Shen <voice.shen@atmel.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <hang.h>
 #include <asm/io.h>
 #include <asm/arch/at91_common.h>
 #include <asm/arch/at91_wdt.h>
 #include <asm/arch/clk.h>
 #include <spl.h>
 
-#if !defined(CONFIG_WDT_AT91)
+#if defined(CONFIG_AT91SAM9_WATCHDOG)
+void at91_disable_wdt(void) { }
+#else
 void at91_disable_wdt(void)
 {
 	struct at91_wdt *wdt = (struct at91_wdt *)ATMEL_BASE_WDT;
@@ -26,7 +28,7 @@ void at91_disable_wdt(void)
 #include <asm/arch/sama5_boot.h>
 struct {
 	u32	r4;
-} bootrom_stash __section(".data");
+} bootrom_stash __attribute__((section(".data")));
 
 u32 spl_boot_device(void)
 {
@@ -35,7 +37,7 @@ u32 spl_boot_device(void)
 	u32 off = (bootrom_stash.r4 >> ATMEL_SAMA5_BOOT_DEV_ID_OFF) &
 		  ATMEL_SAMA5_BOOT_DEV_ID_MASK;
 
-#if defined(CONFIG_SYS_USE_MMC) || defined(CONFIG_SD_BOOT)
+#if defined(CONFIG_SYS_USE_MMC)
 	if (dev == ATMEL_SAMA5_BOOT_FROM_MCI) {
 #if defined(CONFIG_SPL_OF_CONTROL)
 		return BOOT_DEVICE_MMC1;
@@ -50,14 +52,10 @@ u32 spl_boot_device(void)
 	}
 #endif
 
-#if defined(CONFIG_SYS_USE_SERIALFLASH) || \
-	defined(CONFIG_SYS_USE_SPIFLASH) || \
-	defined(CONFIG_SPI_BOOT)
+#if defined(CONFIG_SYS_USE_SERIALFLASH) || defined(CONFIG_SYS_USE_SPIFLASH)
 	if (dev == ATMEL_SAMA5_BOOT_FROM_SPI)
 		return BOOT_DEVICE_SPI;
 #endif
-	if (dev == ATMEL_SAMA5_BOOT_FROM_QSPI)
-		return BOOT_DEVICE_SPI;
 
 	if (dev == ATMEL_SAMA5_BOOT_FROM_SMC)
 		return BOOT_DEVICE_NAND;
@@ -73,15 +71,28 @@ u32 spl_boot_device(void)
 #else
 u32 spl_boot_device(void)
 {
-#if defined(CONFIG_SYS_USE_MMC) || defined(CONFIG_SD_BOOT)
+#ifdef CONFIG_SYS_USE_MMC
 	return BOOT_DEVICE_MMC1;
-#elif defined(CONFIG_SYS_USE_NANDFLASH) || defined(CONFIG_NAND_BOOT)
+#elif CONFIG_SYS_USE_NANDFLASH
 	return BOOT_DEVICE_NAND;
-#elif defined(CONFIG_SYS_USE_SERIALFLASH) || \
-	defined(CONFIG_SYS_USE_SPIFLASH) || \
-	defined(CONFIG_SPI_BOOT)
+#elif CONFIG_SYS_USE_SERIALFLASH || CONFIG_SYS_USE_SPIFLASH
 	return BOOT_DEVICE_SPI;
 #endif
 	return BOOT_DEVICE_NONE;
 }
 #endif
+
+u32 spl_boot_mode(const u32 boot_device)
+{
+	switch (boot_device) {
+#ifdef CONFIG_SYS_USE_MMC
+	case BOOT_DEVICE_MMC1:
+	case BOOT_DEVICE_MMC2:
+		return MMCSD_MODE_FS;
+		break;
+#endif
+	case BOOT_DEVICE_NONE:
+	default:
+		hang();
+	}
+}

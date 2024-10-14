@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Functions related to OMAP3 SDRC.
  *
@@ -19,11 +18,11 @@
  *      Sunil Kumar <sunilsaini05@gmail.com>
  *      Shashi Ranjan <shashiranjanmca05@gmail.com>
  *      Manikandan Pillai <mani.pillai@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/mem.h>
 #include <asm/arch/sys_proto.h>
@@ -45,27 +44,12 @@ u32 is_mem_sdr(void)
 }
 
 /*
- * get_sdr_cs_size -
- *  - Get size of chip select 0/1
- */
-static u32 get_sdr_cs_size(u32 cs)
-{
-	u32 size;
-
-	/* get ram size field */
-	size = readl(&sdrc_base->cs[cs].mcfg) >> 8;
-	size &= 0x3FF;		/* remove unwanted bits */
-	size <<= 21;		/* multiply by 2 MiB to find size in MB */
-	return size;
-}
-
-/*
  * make_cs1_contiguous -
  * - When we have CS1 populated we want to have it mapped after cs0 to allow
  *   command line mem=xyz use all memory with out discontinuous support
  *   compiled in.  We could do it in the ATAG, but there really is two banks...
  */
-static void make_cs1_contiguous(void)
+void make_cs1_contiguous(void)
 {
 	u32 size, a_add_low, a_add_high;
 
@@ -75,6 +59,22 @@ static void make_cs1_contiguous(void)
 	a_add_low = (size & 0x3C) >> 2;	/* set up high field */
 	writel((a_add_high | a_add_low), &sdrc_base->cs_cfg);
 
+}
+
+
+/*
+ * get_sdr_cs_size -
+ *  - Get size of chip select 0/1
+ */
+u32 get_sdr_cs_size(u32 cs)
+{
+	u32 size;
+
+	/* get ram size field */
+	size = readl(&sdrc_base->cs[cs].mcfg) >> 8;
+	size &= 0x3FF;		/* remove unwanted bits */
+	size <<= 21;		/* multiply by 2 MiB to find size in MB */
+	return size;
 }
 
 /*
@@ -127,7 +127,7 @@ static void write_sdrc_timings(u32 cs, struct sdrc_actim *sdrc_actim_base,
  *    true and a possible 2nd time depending on memory configuration from
  *    stack+global context.
  */
-static void do_sdrc_init(u32 cs, u32 early)
+void do_sdrc_init(u32 cs, u32 early)
 {
 	struct sdrc_actim *sdrc_actim_base0, *sdrc_actim_base1;
 	struct board_sdrc_timings timings;

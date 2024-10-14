@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Xilinx Zynq 7000 DTSI
  * Describes the hardware common to all Zynq 7000-based boards.
  *
  *  Copyright (C) 2011 - 2015 Xilinx
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 / {
@@ -49,8 +50,7 @@
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <0 5 4>, <0 6 4>;
 		interrupt-parent = <&intc>;
-		reg = <0xf8891000 0x1000>,
-		      <0xf8893000 0x1000>;
+		reg = < 0xf8891000 0x1000 0xf8893000 0x1000 >;
 	};
 
 	regulator_vccpint: fixedregulator {
@@ -62,40 +62,7 @@
 		regulator-always-on;
 	};
 
-	replicator {
-		compatible = "arm,coresight-static-replicator";
-		clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-		clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-
-		out-ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* replicator output ports */
-			port@0 {
-				reg = <0>;
-				replicator_out_port0: endpoint {
-					remote-endpoint = <&tpiu_in_port>;
-				};
-			};
-			port@1 {
-				reg = <1>;
-				replicator_out_port1: endpoint {
-					remote-endpoint = <&etb_in_port>;
-				};
-			};
-		};
-		in-ports {
-			/* replicator input port */
-			port {
-				replicator_in_port0: endpoint {
-					remote-endpoint = <&funnel_out_port>;
-				};
-			};
-		};
-	};
-
-	amba: axi {
+	amba: amba {
 		u-boot,dm-pre-reloc;
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -138,10 +105,10 @@
 		gpio0: gpio@e000a000 {
 			compatible = "xlnx,zynq-gpio-1.0";
 			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
 			clocks = <&clkc 42>;
 			gpio-controller;
 			interrupt-controller;
-			#interrupt-cells = <2>;
 			interrupt-parent = <&intc>;
 			interrupts = <0 20 4>;
 			reg = <0xe000a000 0x1000>;
@@ -192,17 +159,6 @@
 			reg = <0xf8006000 0x1000>;
 		};
 
-		ocm: sram@fffc0000 {
-			compatible = "mmio-sram";
-			reg = <0xfffc0000 0x10000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0xfffc0000 0x10000>;
-			ocm-sram@0 {
-				reg = <0x0 0x10000>;
-			};
-		};
-
 		uart0: serial@e0000000 {
 			compatible = "xlnx,xuartps", "cdns,uart-r1p8";
 			status = "disabled";
@@ -246,19 +202,19 @@
 		};
 
 		qspi: spi@e000d000 {
+			clock-names = "ref_clk", "pclk";
+			clocks = <&clkc 10>, <&clkc 43>;
 			compatible = "xlnx,zynq-qspi-1.0";
-			reg = <0xe000d000 0x1000>;
+			status = "disabled";
 			interrupt-parent = <&intc>;
 			interrupts = <0 19 4>;
-			clocks = <&clkc 10>, <&clkc 43>;
-			clock-names = "ref_clk", "pclk";
-			status = "disabled";
+			reg = <0xe000d000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
 		gem0: ethernet@e000b000 {
-			compatible = "xlnx,zynq-gem", "cdns,zynq-gem", "cdns,gem";
+			compatible = "cdns,zynq-gem", "cdns,gem";
 			reg = <0xe000b000 0x1000>;
 			status = "disabled";
 			interrupts = <0 22 4>;
@@ -269,7 +225,7 @@
 		};
 
 		gem1: ethernet@e000c000 {
-			compatible = "xlnx,zynq-gem", "cdns,zynq-gem", "cdns,gem";
+			compatible = "cdns,zynq-gem", "cdns,gem";
 			reg = <0xe000c000 0x1000>;
 			status = "disabled";
 			interrupts = <0 45 4>;
@@ -279,37 +235,7 @@
 			#size-cells = <0>;
 		};
 
-		smcc: memory-controller@e000e000 {
-			compatible = "arm,pl353-smc-r2p1", "arm,primecell";
-			reg = <0xe000e000 0x0001000>;
-			status = "disabled";
-			clock-names = "memclk", "apb_pclk";
-			clocks = <&clkc 11>, <&clkc 44>;
-			ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
-				  0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
-				  0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
-			#address-cells = <2>;
-			#size-cells = <1>;
-			interrupt-parent = <&intc>;
-			interrupts = <0 18 4>;
-
-			nfc0: nand-controller@0,0 {
-				compatible = "arm,pl353-nand-r2p1";
-				reg = <0 0 0x1000000>;
-				status = "disabled";
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-			nor0: flash@1,0 {
-				status = "disabled";
-				compatible = "cfi-flash";
-				reg = <1 0 0x2000000>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-			};
-		};
-
-		sdhci0: mmc@e0100000 {
+		sdhci0: sdhci@e0100000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";
@@ -319,7 +245,7 @@
 			reg = <0xe0100000 0x1000>;
 		};
 
-		sdhci1: mmc@e0101000 {
+		sdhci1: sdhci@e0101000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";
@@ -340,7 +266,7 @@
 				u-boot,dm-pre-reloc;
 				#clock-cells = <1>;
 				compatible = "xlnx,ps7-clkc";
-				fclk-enable = <0xf>;
+				fclk-enable = <0>;
 				clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
 						"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
 						"dci", "lqspi", "smc", "pcap", "gem0", "gem1",
@@ -389,17 +315,12 @@
 
 		devcfg: devcfg@f8007000 {
 			compatible = "xlnx,zynq-devcfg-1.0";
-			reg = <0xf8007000 0x100>;
 			interrupt-parent = <&intc>;
 			interrupts = <0 8 4>;
+			reg = <0xf8007000 0x100>;
 			clocks = <&clkc 12>, <&clkc 15>, <&clkc 16>, <&clkc 17>, <&clkc 18>;
 			clock-names = "ref_clk", "fclk0", "fclk1", "fclk2", "fclk3";
 			syscon = <&slcr>;
-		};
-
-		efuse: efuse@f800d000 {
-			compatible = "xlnx,zynq-efuse";
-			reg = <0xf800d000 0x20>;
 		};
 
 		global_timer: timer@f8f00200 {
@@ -427,7 +348,6 @@
 		};
 
 		scutimer: timer@f8f00600 {
-			u-boot,dm-pre-reloc;
 			interrupt-parent = <&intc>;
 			interrupts = <1 13 0x301>;
 			compatible = "arm,cortex-a9-twd-timer";
@@ -462,108 +382,6 @@
 			interrupts = <0 9 1>;
 			reg = <0xf8005000 0x1000>;
 			timeout-sec = <10>;
-		};
-
-		etb@f8801000 {
-			compatible = "arm,coresight-etb10", "arm,primecell";
-			reg = <0xf8801000 0x1000>;
-			clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-			clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-			in-ports {
-				port {
-					etb_in_port: endpoint {
-						remote-endpoint = <&replicator_out_port1>;
-					};
-				};
-			};
-		};
-
-		tpiu@f8803000 {
-			compatible = "arm,coresight-tpiu", "arm,primecell";
-			reg = <0xf8803000 0x1000>;
-			clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-			clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-			in-ports {
-				port {
-					tpiu_in_port: endpoint {
-						remote-endpoint = <&replicator_out_port0>;
-					};
-				};
-			};
-		};
-
-		funnel@f8804000 {
-			compatible = "arm,coresight-static-funnel", "arm,primecell";
-			reg = <0xf8804000 0x1000>;
-			clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-			clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-
-			/* funnel output ports */
-			out-ports {
-				port {
-					funnel_out_port: endpoint {
-						remote-endpoint =
-							<&replicator_in_port0>;
-					};
-				};
-			};
-
-			in-ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				/* funnel input ports */
-				port@0 {
-					reg = <0>;
-					funnel0_in_port0: endpoint {
-						remote-endpoint = <&ptm0_out_port>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-					funnel0_in_port1: endpoint {
-						remote-endpoint = <&ptm1_out_port>;
-					};
-				};
-
-				port@2 {
-					reg = <2>;
-					funnel0_in_port2: endpoint {
-					};
-				};
-				/* The other input ports are not connect to anything */
-			};
-		};
-
-		ptm@f889c000 {
-			compatible = "arm,coresight-etm3x", "arm,primecell";
-			reg = <0xf889c000 0x1000>;
-			clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-			clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-			cpu = <&cpu0>;
-			out-ports {
-				port {
-					ptm0_out_port: endpoint {
-						remote-endpoint = <&funnel0_in_port0>;
-					};
-				};
-			};
-		};
-
-		ptm@f889d000 {
-			compatible = "arm,coresight-etm3x", "arm,primecell";
-			reg = <0xf889d000 0x1000>;
-			clocks = <&clkc 27>, <&clkc 46>, <&clkc 47>;
-			clock-names = "apb_pclk", "dbg_trc", "dbg_apb";
-			cpu = <&cpu1>;
-			out-ports {
-				port {
-					ptm1_out_port: endpoint {
-						remote-endpoint = <&funnel0_in_port1>;
-					};
-				};
-			};
 		};
 	};
 };

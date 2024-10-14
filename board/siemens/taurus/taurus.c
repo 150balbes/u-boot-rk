@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Board functions for Siemens TAURUS (AT91SAM9G20) based boards
  * (C) Copyright Siemens AG
@@ -9,14 +8,14 @@
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
  * Lead Tech Design <www.leadtechdesign.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <command.h>
 #include <common.h>
 #include <dm.h>
-#include <env.h>
-#include <init.h>
-#include <asm/global_data.h>
+#include <environment.h>
 #include <asm/io.h>
 #include <asm/arch/at91sam9260_matrix.h>
 #include <asm/arch/at91sam9_smc.h>
@@ -41,8 +40,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static void taurus_request_gpio(void)
 {
-	gpio_request(CFG_SYS_NAND_ENABLE_PIN, "nand ena");
-	gpio_request(CFG_SYS_NAND_READY_PIN, "nand rdy");
+	gpio_request(CONFIG_SYS_NAND_ENABLE_PIN, "nand ena");
+	gpio_request(CONFIG_SYS_NAND_READY_PIN, "nand rdy");
 	gpio_request(AT91_PIN_PA25, "ena PHY");
 }
 
@@ -73,10 +72,10 @@ static void taurus_nand_hw_init(void)
 	       &smc->cs[3].mode);
 
 	/* Configure RDY/BSY */
-	at91_set_gpio_input(CFG_SYS_NAND_READY_PIN, 1);
+	at91_set_gpio_input(CONFIG_SYS_NAND_READY_PIN, 1);
 
 	/* Enable NandFlash */
-	at91_set_gpio_output(CFG_SYS_NAND_ENABLE_PIN, 1);
+	at91_set_gpio_output(CONFIG_SYS_NAND_ENABLE_PIN, 1);
 }
 
 #if defined(CONFIG_SPL_BUILD)
@@ -149,7 +148,7 @@ void spl_board_init(void)
 		} else {
 			puts("erase spi flash sector 0\n");
 			spi_flash_erase(flash, 0,
-					CFG_SYS_NAND_U_BOOT_SIZE);
+					CONFIG_SYS_NAND_U_BOOT_SIZE);
 		}
 	}
 }
@@ -168,7 +167,7 @@ void sdramc_configure(unsigned int mask)
 	at91_sdram_hw_init();
 	setting.cr = SDRAM_BASE_CONF | mask;
 	setting.mdr = AT91_SDRAMC_MD_SDRAM;
-	setting.tr = (CFG_SYS_MASTER_CLOCK * 7) / 1000000;
+	setting.tr = (CONFIG_SYS_MASTER_CLOCK * 7) / 1000000;
 
 	writel(readl(&ma->ebicsa) | AT91_MATRIX_CS1A_SDRAMC |
 		AT91_MATRIX_VDDIOMSEL_3_3V | AT91_MATRIX_EBI_IOSR_SEL,
@@ -185,8 +184,8 @@ void mem_init(void)
 	sdramc_configure(AT91_SDRAMC_NC_10);
 
 	/* Do memtest for 128MB */
-	ram_size = get_ram_size((void *)CFG_SYS_SDRAM_BASE,
-				CFG_SYS_SDRAM_SIZE);
+	ram_size = get_ram_size((void *)CONFIG_SYS_SDRAM_BASE,
+				CONFIG_SYS_SDRAM_SIZE);
 
 	/*
 	 * If 32MB or 16MB should be supported check also for
@@ -199,11 +198,11 @@ void mem_init(void)
 
 	/* Mirrors at A15 on ATMEL G20 SDRAM Controller with 64MB*/
 	if (ram_size == 0x800) {
-		printf("\n\r 64MB\n");
+		printf("\n\r 64MB");
 		sdramc_configure(AT91_SDRAMC_NC_9);
 	} else {
 		/* Size already initialized */
-		printf("\n\r 128MB\n");
+		printf("\n\r 128MB");
 	}
 }
 #endif
@@ -263,7 +262,7 @@ static void taurus_macb_hw_init(void)
 #endif
 
 #ifdef CONFIG_GENERIC_ATMEL_MCI
-int board_mmc_init(struct bd_info *bd)
+int board_mmc_init(bd_t *bd)
 {
 	at91_mci_hw_init();
 
@@ -282,6 +281,21 @@ int board_early_init_f(void)
 	taurus_request_gpio();
 
 	return 0;
+}
+
+int spi_cs_is_valid(unsigned int bus, unsigned int cs)
+{
+	return bus == 0 && cs == 0;
+}
+
+void spi_cs_activate(struct spi_slave *slave)
+{
+	at91_set_gpio_value(TAURUS_SPI_CS_PIN, 0);
+}
+
+void spi_cs_deactivate(struct spi_slave *slave)
+{
+	at91_set_gpio_value(TAURUS_SPI_CS_PIN, 1);
 }
 
 #ifdef CONFIG_USB_GADGET_AT91
@@ -306,7 +320,7 @@ struct at91_udc_data board_udc_data  = {
 int board_init(void)
 {
 	/* adress of boot parameters */
-	gd->bd->bi_boot_params = CFG_SYS_SDRAM_BASE + 0x100;
+	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 
 	taurus_request_gpio();
 #ifdef CONFIG_CMD_NAND
@@ -326,10 +340,21 @@ int board_init(void)
 
 int dram_init(void)
 {
-	gd->ram_size = get_ram_size((void *)CFG_SYS_SDRAM_BASE,
-				    CFG_SYS_SDRAM_SIZE);
+	gd->ram_size = get_ram_size((void *)CONFIG_SYS_SDRAM_BASE,
+				    CONFIG_SYS_SDRAM_SIZE);
 	return 0;
 }
+
+#ifndef CONFIG_DM_ETH
+int board_eth_init(bd_t *bis)
+{
+	int rc = 0;
+#ifdef CONFIG_MACB
+	rc = macb_eth_initialize(0, (void *)ATMEL_BASE_EMAC0, 0x00);
+#endif
+	return rc;
+}
+#endif
 
 #if !defined(CONFIG_SPL_BUILD)
 #if defined(CONFIG_BOARD_AXM)
@@ -386,16 +411,17 @@ static int upgrade_failure_fallback(void)
 	return 0;
 }
 
-static int do_upgrade_available(struct cmd_tbl *cmdtp, int flag, int argc,
-				char *const argv[])
+static int do_upgrade_available(cmd_tbl_t *cmdtp, int flag, int argc,
+			char * const argv[])
 {
 	unsigned long upgrade_available = 0;
 	unsigned long boot_retry = 0;
 	char boot_buf[10];
 
-	upgrade_available = dectoul(env_get("upgrade_available"), NULL);
+	upgrade_available = simple_strtoul(env_get("upgrade_available"), NULL,
+					   10);
 	if (upgrade_available) {
-		boot_retry = dectoul(env_get("boot_retries"), NULL);
+		boot_retry = simple_strtoul(env_get("boot_retries"), NULL, 10);
 		boot_retry++;
 		sprintf(boot_buf, "%lx", boot_retry);
 		env_set("boot_retries", boot_buf);

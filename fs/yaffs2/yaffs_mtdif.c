@@ -145,6 +145,7 @@ int nandmtd_EraseBlockInNAND(struct yaffs_dev *dev, int blockNumber)
 	ei.len = dev->data_bytes_per_chunk * dev->param.chunks_per_block;
 	ei.time = 1000;
 	ei.retries = 2;
+	ei.callback = NULL;
 	ei.priv = (u_long) dev;
 
 	/* Todo finish off the ei if required */

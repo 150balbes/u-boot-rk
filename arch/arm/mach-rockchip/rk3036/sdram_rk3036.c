@@ -1,17 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
- * (C) Copyright 2015 Rockchip Electronics Co., Ltd
+ * (C) Copyright 2015 Google, Inc
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 #include <common.h>
-#include <init.h>
 #include <asm/io.h>
 #include <asm/types.h>
-#include <asm/arch-rockchip/cru_rk3036.h>
-#include <asm/arch-rockchip/grf_rk3036.h>
-#include <asm/arch-rockchip/hardware.h>
-#include <asm/arch-rockchip/sdram_rk3036.h>
-#include <asm/arch-rockchip/uart.h>
-#include <linux/delay.h>
+#include <asm/arch/cru_rk3036.h>
+#include <asm/arch/grf_rk3036.h>
+#include <asm/arch/hardware.h>
+#include <asm/arch/sdram_rk3036.h>
+#include <asm/arch/uart.h>
+DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * we can not fit the code to access the device tree in SPL
@@ -34,13 +34,12 @@ struct rk3036_sdram_priv {
 	struct rk3036_ddr_config ddr_config;
 };
 
-/*
- * use integer mode, dpll output 792MHz and ddr get 396MHz
+/* use integer mode, 800MHz dpll setting
  * refdiv, fbdiv, postdiv1, postdiv2
  */
-const struct pll_div dpll_init_cfg = {1, 66, 2, 1};
+const struct pll_div dpll_init_cfg = {1, 100, 3, 1};
 
-/* 396Mhz ddr timing */
+/* 400Mhz ddr timing */
 const struct rk3036_ddr_timing ddr_timing = {0x18c,
 	{0x18c, 0xc8, 0x1f4, 0x27, 0x4e,
 	0x4, 0x8b, 0x06, 0x03, 0x0, 0x06, 0x05, 0x0f, 0x15, 0x06, 0x04, 0x04,
@@ -198,7 +197,7 @@ enum {
 	/* PCTL_STAT */
 	INIT_MEM			= 0,
 	CONFIG,
-	CFG_REQ,
+	CONFIG_REQ,
 	ACCESS,
 	ACCESS_REQ,
 	LOW_POWER,
@@ -341,8 +340,8 @@ static void rkdclk_init(struct rk3036_sdram_priv *priv)
 		     (dpll_init_cfg.postdiv1 << PLL_POSTDIV1_SHIFT) |
 			dpll_init_cfg.fbdiv);
 	rk_clrsetreg(&pll->con1, PLL_POSTDIV2_MASK | PLL_REFDIV_MASK,
-		     (dpll_init_cfg.postdiv2 << PLL_POSTDIV2_SHIFT |
-		      dpll_init_cfg.refdiv << PLL_REFDIV_SHIFT));
+			(dpll_init_cfg.postdiv2 << PLL_POSTDIV2_SHIFT |
+			 dpll_init_cfg.refdiv << PLL_REFDIV_SHIFT));
 
 	/* waiting for pll lock */
 	while (readl(&pll->con1) & (1 << PLL_LOCK_STATUS_SHIFT))
@@ -739,7 +738,7 @@ size_t sdram_size(void)
 	return size;
 }
 
-void sdram_init(void)
+int sdram_init(void)
 {
 	struct rk3036_sdram_priv sdram_priv;
 
@@ -764,4 +763,19 @@ void sdram_init(void)
 	data_training(&sdram_priv);
 	move_to_access_state(&sdram_priv);
 	dram_cfg_rbc(&sdram_priv);
+
+	return 0;
 }
+
+#if !CONFIG_IS_ENABLED(RAM)
+/*
+ * When CONFIG_RAM is enabled, the dram_init() function is implemented
+ * in sdram.c.
+ */
+int dram_init(void)
+{
+	gd->ram_size = sdram_size();
+
+	return 0;
+}
+#endif

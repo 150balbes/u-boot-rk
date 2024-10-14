@@ -1,18 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
-#define LOG_CATEGORY UCLASS_VIDEO_BRIDGE
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <edid.h>
-#include <log.h>
 #include <video_bridge.h>
-#include <linux/delay.h>
 
 int video_bridge_set_backlight(struct udevice *dev, int percent)
 {
@@ -56,6 +53,15 @@ int video_bridge_read_edid(struct udevice *dev, u8 *buf, int buf_size)
 	if (!ops || !ops->read_edid)
 		return -ENOSYS;
 	return ops->read_edid(dev, buf, buf_size);
+}
+
+int video_bridge_get_timing(struct udevice *dev)
+{
+	struct video_bridge_ops *ops = video_bridge_get_ops(dev);
+
+	if (!ops || !ops->get_timing)
+		return -ENOSYS;
+	return ops->get_timing(dev);
 }
 
 static int video_bridge_pre_probe(struct udevice *dev)
@@ -136,6 +142,6 @@ int video_bridge_set_active(struct udevice *dev, bool active)
 UCLASS_DRIVER(video_bridge) = {
 	.id		= UCLASS_VIDEO_BRIDGE,
 	.name		= "video_bridge",
-	.per_device_auto	= sizeof(struct video_bridge_priv),
+	.per_device_auto_alloc_size	= sizeof(struct video_bridge_priv),
 	.pre_probe	= video_bridge_pre_probe,
 };

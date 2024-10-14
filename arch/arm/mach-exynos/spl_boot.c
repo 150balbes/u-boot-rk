@@ -1,15 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Samsung Electronics
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <config.h>
-#include <init.h>
-#include <log.h>
-#include <asm/global_data.h>
 
-#include <asm/cache.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/clk.h>
 #include <asm/arch/dmc.h>
@@ -21,36 +18,6 @@
 
 #include "common_setup.h"
 #include "clock_init.h"
-
-#ifdef CONFIG_ARCH_EXYNOS5
-#define SECURE_BL1_ONLY
-
-/* Secure FW size configuration */
-#ifdef SECURE_BL1_ONLY
-#define SEC_FW_SIZE (8 << 10) /* 8KB */
-#else
-#define SEC_FW_SIZE 0
-#endif
-
-/* Configuration of BL1, BL2, ENV Blocks on mmc */
-#define RES_BLOCK_SIZE	(512)
-#define BL1_SIZE	(16 << 10) /*16 K reserved for BL1*/
-#define BL2_SIZE	(512UL << 10UL) /* 512 KB */
-
-#define BL1_OFFSET	(RES_BLOCK_SIZE + SEC_FW_SIZE)
-#define BL2_OFFSET	(BL1_OFFSET + BL1_SIZE)
-
-/* U-Boot copy size from boot Media to DRAM.*/
-#define BL2_START_OFFSET	(BL2_OFFSET/512)
-#define BL2_SIZE_BLOC_COUNT	(BL2_SIZE/512)
-
-#define EXYNOS_COPY_SPI_FNPTR_ADDR	0x02020058
-#define SPI_FLASH_UBOOT_POS	(SEC_FW_SIZE + BL1_SIZE)
-#elif defined(CONFIG_ARCH_EXYNOS4)
-#define COPY_BL2_SIZE		0x80000
-#define BL2_START_OFFSET	((CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)/512)
-#define BL2_SIZE_BLOC_COUNT	(COPY_BL2_SIZE/512)
-#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -141,7 +108,7 @@ static void exynos_spi_copy(unsigned int uboot_size, unsigned int uboot_addr)
 {
 	int upto, todo;
 	int i, timeout = 100;
-	struct exynos_spi *regs = (struct exynos_spi *)CFG_SYS_SPI_BASE;
+	struct exynos_spi *regs = (struct exynos_spi *)CONFIG_ENV_SPI_BASE;
 
 	set_spi_clk(PERIPH_ID_SPI1, 50000000); /* set spi clock to 50Mhz */
 	/* set the spi1 GPIO */
@@ -251,7 +218,7 @@ void copy_uboot_to_ram(void)
 #ifdef CONFIG_SPI_BOOTING
 	case BOOT_MODE_SERIAL:
 		/* Customised function to copy u-boot from SF */
-		exynos_spi_copy(param->uboot_size, CONFIG_TEXT_BASE);
+		exynos_spi_copy(param->uboot_size, CONFIG_SYS_TEXT_BASE);
 		break;
 #endif
 	case BOOT_MODE_SD:
@@ -267,7 +234,7 @@ void copy_uboot_to_ram(void)
 		copy_bl2_from_emmc = get_irom_func(EMMC44_INDEX);
 		end_bootop_from_emmc = get_irom_func(EMMC44_END_INDEX);
 
-		copy_bl2_from_emmc(BL2_SIZE_BLOC_COUNT, CONFIG_TEXT_BASE);
+		copy_bl2_from_emmc(BL2_SIZE_BLOC_COUNT, CONFIG_SYS_TEXT_BASE);
 		end_bootop_from_emmc();
 		break;
 #endif
@@ -279,7 +246,7 @@ void copy_uboot_to_ram(void)
 		 */
 		is_cr_z_set = config_branch_prediction(0);
 		usb_copy = get_irom_func(USB_INDEX);
-		usb_copy(0, (u32 *)CONFIG_TEXT_BASE);
+		usb_copy(0, (u32 *)CONFIG_SYS_TEXT_BASE);
 		config_branch_prediction(is_cr_z_set);
 		break;
 #endif
@@ -288,7 +255,7 @@ void copy_uboot_to_ram(void)
 	}
 
 	if (copy_bl2)
-		copy_bl2(offset, size, CONFIG_TEXT_BASE);
+		copy_bl2(offset, size, CONFIG_SYS_TEXT_BASE);
 }
 
 void memzero(void *s, size_t n)
@@ -309,7 +276,7 @@ void memzero(void *s, size_t n)
  */
 static void setup_global_data(gd_t *gdp)
 {
-	set_gd(gdp);
+	gd = gdp;
 	memzero((void *)gd, sizeof(gd_t));
 	gd->flags |= GD_FLG_RELOC;
 	gd->baudrate = CONFIG_BAUDRATE;
@@ -329,7 +296,7 @@ void board_init_f(unsigned long bootflag)
 	copy_uboot_to_ram();
 
 	/* Jump to U-Boot image */
-	uboot = (void *)CONFIG_TEXT_BASE;
+	uboot = (void *)CONFIG_SYS_TEXT_BASE;
 	(*uboot)();
 	/* Never returns Here */
 }

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * QUICC Engine (QE) Internal Memory Map.
  * The Internal Memory Map for devices with QE on them. This
@@ -6,17 +5,19 @@
  *
  * Copyright (c) 2006-2009, 2011 Freescale Semiconductor, Inc.
  * Author: Shlomi Gridih <gridish@freescale.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __IMMAP_QE_H__
 #define __IMMAP_QE_H__
 
 #ifdef CONFIG_MPC83xx
-#if defined(CONFIG_ARCH_MPC8360)
+#if defined(CONFIG_MPC8360)
 #define QE_MURAM_SIZE		0xc000UL
 #define MAX_QE_RISC		2
 #define QE_NUM_OF_SNUM		28
-#elif defined(CONFIG_ARCH_MPC832X)
+#elif defined(CONFIG_MPC832x) || defined(CONFIG_MPC8309)
 #define QE_MURAM_SIZE		0x4000UL
 #define MAX_QE_RISC		1
 #define QE_NUM_OF_SNUM		28

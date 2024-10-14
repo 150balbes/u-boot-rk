@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013
  * David Feng <fenghua@phytium.com.cn>
  *
  * (C) Copyright 2002
  * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -25,19 +26,6 @@ SECTIONS
 	{
 		*(.__image_copy_start)
 		CPUDIR/start.o (.text*)
-	}
-
-	/* This needs to come before *(.text*) */
-	.efi_runtime : {
-                __efi_runtime_start = .;
-		*(.text.efi_runtime*)
-		*(.rodata.efi_runtime*)
-		*(.data.efi_runtime*)
-                __efi_runtime_stop = .;
-	}
-
-	.text_rest :
-	{
 		*(.text*)
 	}
 
@@ -51,19 +39,13 @@ SECTIONS
 	}
 
 #ifndef CONFIG_ARMV8_SECURE_BASE
-#define __ARMV8_SECURE_BASE
+#define CONFIG_ARMV8_SECURE_BASE
 #define __ARMV8_PSCI_STACK_IN_RAM
-#else
-#define __ARMV8_SECURE_BASE	CONFIG_ARMV8_SECURE_BASE
 #endif
-	.secure_text __ARMV8_SECURE_BASE :
+	.secure_text CONFIG_ARMV8_SECURE_BASE :
 		AT(ADDR(.__secure_start) + SIZEOF(.__secure_start))
 	{
 		*(._secure.text)
-		. = ALIGN(8);
-		__secure_svc_tbl_start = .;
-		KEEP(*(._secure_svc_tbl_entries))
-		__secure_svc_tbl_end = .;
 	}
 
 	.secure_data : AT(LOADADDR(.secure_text) + SIZEOF(.secure_text))
@@ -111,16 +93,23 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(8);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	. = ALIGN(8);
 
+	.efi_runtime : {
+                __efi_runtime_start = .;
+		*(efi_runtime_text)
+		*(efi_runtime_data)
+                __efi_runtime_stop = .;
+	}
+
 	.efi_runtime_rel : {
                 __efi_runtime_rel_start = .;
-		*(.rel*.efi_runtime)
-		*(.rel*.efi_runtime.*)
+		*(.relaefi_runtime_text)
+		*(.relaefi_runtime_data)
                 __efi_runtime_rel_stop = .;
 	}
 
@@ -170,8 +159,4 @@ SECTIONS
 	/DISCARD/ : { *(.plt*) }
 	/DISCARD/ : { *(.interp*) }
 	/DISCARD/ : { *(.gnu*) }
-
-#ifdef CONFIG_LINUX_KERNEL_IMAGE_HEADER
-#include "linux-kernel-image-header-vars.h"
-#endif
 }

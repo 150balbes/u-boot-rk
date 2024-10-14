@@ -13,7 +13,6 @@
 #include <asm/types.h>
 
 struct udevice;
-struct scmi_channel;
 
 /*
  * struct scmi_msg - Context of a SCMI message sent and the response received
@@ -46,34 +45,23 @@ struct scmi_msg {
 	}
 
 /**
- * devm_scmi_of_get_channel() - Get SCMI channel handle from SCMI agent DT node
+ * scmi_send_and_process_msg() - send and process a SCMI message
  *
- * @dev:	Device requesting a channel
- * @channel:	Output reference to the SCMI channel upon success
- * @return 0 on success and a negative errno on failure
- */
-int devm_scmi_of_get_channel(struct udevice *dev, struct scmi_channel **channel);
-
-/**
- * devm_scmi_process_msg() - Send and process an SCMI message
- *
- * Send a message to an SCMI server through a target SCMI agent device.
+ * Send a message to a SCMI server through a target SCMI agent device.
  * Caller sets scmi_msg::out_msg_sz to the output message buffer size.
  * On return, scmi_msg::out_msg_sz stores the response payload size.
  *
- * @dev:	SCMI device
- * @channel:	Communication channel for the device
+ * @dev:	SCMI agent device
  * @msg:	Message structure reference
- * Return: 0 on success and a negative errno on failure
+ * @return 0 on success and a negative errno on failure
  */
-int devm_scmi_process_msg(struct udevice *dev, struct scmi_channel *channel,
-			  struct scmi_msg *msg);
+int devm_scmi_process_msg(struct udevice *dev, struct scmi_msg *msg);
 
 /**
  * scmi_to_linux_errno() - Convert an SCMI error code into a Linux errno code
  *
  * @scmi_errno:	SCMI error code value
- * Return: 0 for successful status and a negative errno otherwise
+ * @return 0 for successful status and a negative errno otherwise
  */
 int scmi_to_linux_errno(s32 scmi_errno);
 

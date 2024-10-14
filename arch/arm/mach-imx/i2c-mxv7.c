@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Boundary Devices Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <malloc.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
@@ -46,7 +46,7 @@ int force_idle_bus(void *priv)
 		scl = gpio_get_value(p->scl.gp);
 		if ((sda & scl) == 1)
 			break;
-		schedule();
+		WATCHDOG_RESET();
 		elapsed = get_timer(start_time);
 		if (elapsed > (CONFIG_SYS_HZ / 5)) {	/* .2 seconds */
 			ret = -EBUSY;
@@ -69,12 +69,6 @@ static void * const i2c_bases[] = {
 #endif
 #ifdef I2C4_BASE_ADDR
 	(void *)I2C4_BASE_ADDR,
-#endif
-#ifdef I2C5_BASE_ADDR
-	(void *)I2C5_BASE_ADDR,
-#endif
-#ifdef I2C6_BASE_ADDR
-	(void *)I2C6_BASE_ADDR,
 #endif
 };
 
@@ -108,7 +102,7 @@ int setup_i2c(unsigned i2c_index, int speed, int slave_addr,
 	if (ret)
 		goto err_idle;
 
-#if !CONFIG_IS_ENABLED(DM_I2C)
+#ifndef CONFIG_DM_I2C
 	bus_i2c_init(i2c_index, speed, slave_addr, force_idle_bus, p);
 #endif
 

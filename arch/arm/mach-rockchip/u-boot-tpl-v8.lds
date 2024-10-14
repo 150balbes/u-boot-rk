@@ -1,9 +1,4 @@
-// SPDX-License-Identifier:	GPL-2.0+
 /*
- * (C) Copyright 2019
- * Rockchip Electronics Co., Ltd
- * Kever Yang<kever.yang@rock-chips.com>
- *
  * (C) Copyright 2013
  * David Feng <fenghua@phytium.com.cn>
  *
@@ -13,6 +8,8 @@
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
  *	Aneesh V <aneesh@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 OUTPUT_FORMAT("elf64-littleaarch64", "elf64-littleaarch64", "elf64-littleaarch64")
@@ -39,9 +36,9 @@ SECTIONS
 		*(.data*)
 	}
 
-	__u_boot_list : {
+	.u_boot_list : {
 		. = ALIGN(8);
-		KEEP(*(SORT(__u_boot_list*)));
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	.image_copy_end : {

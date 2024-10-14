@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * FIPS-180-2 compliant SHA-256 implementation
  *
  * Copyright (C) 2001-2003  Christophe Devine
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef USE_HOSTCC
@@ -14,7 +15,12 @@
 #include <watchdog.h>
 #include <u-boot/sha256.h>
 
-#include <linux/compiler_attributes.h>
+#include <linux/compiler.h>
+
+#ifdef USE_HOSTCC
+#undef __weak
+#define __weak
+#endif
 
 const uint8_t sha256_der_prefix[SHA256_DER_LEN] = {
 	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
@@ -269,6 +275,19 @@ void sha256_finish(sha256_context * ctx, uint8_t digest[32])
 }
 
 /*
+ * Output = SHA-256( input buffer ).
+ */
+void sha256_csum(const unsigned char *input, unsigned int ilen,
+		 unsigned char *output)
+{
+	sha256_context ctx;
+
+	sha256_starts(&ctx);
+	sha256_update(&ctx, input, ilen);
+	sha256_finish(&ctx, output);
+}
+
+/*
  * Output = SHA-256( input buffer ). Trigger the watchdog every 'chunk_sz'
  * bytes of input processed.
  */
@@ -293,7 +312,7 @@ void sha256_csum_wd(const unsigned char *input, unsigned int ilen,
 			chunk = chunk_sz;
 		sha256_update(&ctx, curr, chunk);
 		curr += chunk;
-		schedule();
+		WATCHDOG_RESET();
 	}
 #else
 	sha256_update(&ctx, input, ilen);

@@ -1,14 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015
  * Bhuvanchandra DV, Toradex, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/io.h>
@@ -94,7 +94,7 @@ static const struct dm_gpio_ops gpio_vybrid_ops = {
 static int vybrid_gpio_probe(struct udevice *dev)
 {
 	struct vybrid_gpios *gpios = dev_get_priv(dev);
-	struct vybrid_gpio_plat *plat = dev_get_plat(dev);
+	struct vybrid_gpio_platdata *plat = dev_get_platdata(dev);
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 
 	uc_priv->bank_name = plat->port_name;
@@ -105,18 +105,32 @@ static int vybrid_gpio_probe(struct udevice *dev)
 	return 0;
 }
 
-static int vybrid_gpio_odata_to_plat(struct udevice *dev)
+static int vybrid_gpio_bind(struct udevice *dev)
 {
-	struct vybrid_gpio_plat *plat = dev_get_plat(dev);
+	struct vybrid_gpio_platdata *plat = dev->platdata;
 	fdt_addr_t base_addr;
 
-	base_addr = dev_read_addr(dev);
+	if (plat)
+		return 0;
+
+	base_addr = devfdt_get_addr(dev);
 	if (base_addr == FDT_ADDR_T_NONE)
-		return -EINVAL;
+		return -ENODEV;
+
+	/*
+	* TODO:
+	* When every board is converted to driver model and DT is
+	* supported, this can be done by auto-alloc feature, but
+	* not using calloc to alloc memory for platdata.
+	*/
+	plat = calloc(1, sizeof(*plat));
+	if (!plat)
+		return -ENOMEM;
 
 	plat->base = base_addr;
-	plat->chip = dev_seq(dev);
+	plat->chip = dev->req_seq;
 	plat->port_name = fdt_get_name(gd->fdt_blob, dev_of_offset(dev), NULL);
+	dev->platdata = plat;
 
 	return 0;
 }
@@ -130,9 +144,8 @@ U_BOOT_DRIVER(gpio_vybrid) = {
 	.name	= "gpio_vybrid",
 	.id	= UCLASS_GPIO,
 	.ops	= &gpio_vybrid_ops,
-	.of_match = vybrid_gpio_ids,
-	.of_to_plat = vybrid_gpio_odata_to_plat,
 	.probe	= vybrid_gpio_probe,
-	.priv_auto	= sizeof(struct vybrid_gpios),
-	.plat_auto	= sizeof(struct vybrid_gpio_plat),
+	.priv_auto_alloc_size = sizeof(struct vybrid_gpios),
+	.of_match = vybrid_gpio_ids,
+	.bind	= vybrid_gpio_bind,
 };

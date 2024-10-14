@@ -12,7 +12,6 @@
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
 #include <malloc.h>
 #include <spi.h>
 #include <os.h>
@@ -26,6 +25,8 @@
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <dm/uclass-internal.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * The different states that our SPI flash transitions between.
@@ -44,6 +45,7 @@ enum sandbox_sf_state {
 	SF_WRITE_STATUS, /* write the flash's status register */
 };
 
+#if CONFIG_IS_ENABLED(LOG)
 static const char *sandbox_sf_state_name(enum sandbox_sf_state state)
 {
 	static const char * const states[] = {
@@ -52,6 +54,7 @@ static const char *sandbox_sf_state_name(enum sandbox_sf_state state)
 	};
 	return states[state];
 }
+#endif /* LOG */
 
 /* Bits for the status register */
 #define STAT_WIP	(1 << 0)
@@ -122,23 +125,23 @@ static int sandbox_sf_probe(struct udevice *dev)
 	struct sandbox_spi_flash *sbsf = dev_get_priv(dev);
 	size_t len, idname_len;
 	const struct flash_info *data;
-	struct sandbox_spi_flash_plat_data *pdata = dev_get_plat(dev);
+	struct sandbox_spi_flash_plat_data *pdata = dev_get_platdata(dev);
 	struct sandbox_state *state = state_get_current();
-	struct dm_spi_slave_plat *slave_plat;
+	struct dm_spi_slave_platdata *slave_plat;
 	struct udevice *bus = dev->parent;
 	const char *spec = NULL;
 	struct udevice *emul;
 	int ret = 0;
 	int cs = -1;
 
-	debug("%s: bus %d, looking for emul=%p: ", __func__, dev_seq(bus), dev);
+	debug("%s: bus %d, looking for emul=%p: ", __func__, bus->seq, dev);
 	ret = sandbox_spi_get_emul(state, bus, dev, &emul);
 	if (ret) {
 		printf("Error: Unknown chip select for device '%s'\n",
 			dev->name);
 		return ret;
 	}
-	slave_plat = dev_get_parent_plat(dev);
+	slave_plat = dev_get_parent_platdata(dev);
 	cs = slave_plat->cs;
 	debug("found at cs %d\n", cs);
 
@@ -498,9 +501,9 @@ static int sandbox_sf_xfer(struct udevice *dev, unsigned int bitlen,
 	return pos == bytes ? 0 : -EIO;
 }
 
-int sandbox_sf_of_to_plat(struct udevice *dev)
+int sandbox_sf_ofdata_to_platdata(struct udevice *dev)
 {
-	struct sandbox_spi_flash_plat_data *pdata = dev_get_plat(dev);
+	struct sandbox_spi_flash_plat_data *pdata = dev_get_platdata(dev);
 
 	pdata->filename = dev_read_string(dev, "sandbox,filename");
 	pdata->device_name = dev_read_string(dev, "compatible");
@@ -538,7 +541,7 @@ int sandbox_sf_bind_emul(struct sandbox_state *state, int busnum, int cs,
 	str = strdup(name);
 	if (!str)
 		return -ENOMEM;
-	ret = device_bind(bus, drv, str, NULL, node, &emul);
+	ret = device_bind_ofnode(bus, drv, str, NULL, node, &emul);
 	if (ret) {
 		free(str);
 		printf("Cannot create emul device for spec '%s' (err=%d)\n",
@@ -565,7 +568,7 @@ int sandbox_spi_get_emul(struct sandbox_state *state,
 			 struct udevice **emulp)
 {
 	struct sandbox_spi_info *info;
-	int busnum = dev_seq(bus);
+	int busnum = bus->seq;
 	int cs = spi_chip_select(slave);
 	int ret;
 
@@ -597,10 +600,10 @@ U_BOOT_DRIVER(sandbox_sf_emul) = {
 	.name		= "sandbox_sf_emul",
 	.id		= UCLASS_SPI_EMUL,
 	.of_match	= sandbox_sf_ids,
-	.of_to_plat = sandbox_sf_of_to_plat,
+	.ofdata_to_platdata = sandbox_sf_ofdata_to_platdata,
 	.probe		= sandbox_sf_probe,
 	.remove		= sandbox_sf_remove,
-	.priv_auto	= sizeof(struct sandbox_spi_flash),
-	.plat_auto	= sizeof(struct sandbox_spi_flash_plat_data),
+	.priv_auto_alloc_size = sizeof(struct sandbox_spi_flash),
+	.platdata_auto_alloc_size = sizeof(struct sandbox_spi_flash_plat_data),
 	.ops		= &sandbox_sf_emul_ops,
 };

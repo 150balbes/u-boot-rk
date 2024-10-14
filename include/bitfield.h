@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2013 Broadcom Corporation.
+ *
+ * SPDX-License-Identifier:      GPL-2.0+
  */
 
 /*
@@ -36,7 +37,6 @@
  * tables which describe all bitfields in all registers.
  */
 
-#include <linux/bitops.h>
 #include <linux/types.h>
 
 /* Produces a mask of set bits covering a range of a uint value */

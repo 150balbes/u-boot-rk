@@ -1,21 +1,20 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2006
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <blk.h>
+#include <watchdog.h>
 #include <command.h>
 #include <console.h>
-#include <div64.h>
-#include <gzip.h>
 #include <image.h>
 #include <malloc.h>
 #include <memalign.h>
-#include <u-boot/crc.h>
-#include <watchdog.h>
+#include <misc.h>
 #include <u-boot/zlib.h>
+#include <div64.h>
 
 #define HEADER0			'\x1f'
 #define HEADER1			'\x8b'
@@ -52,7 +51,7 @@ int gzip_parse_header(const unsigned char *src, unsigned long len)
 	i = 10;
 	flags = src[3];
 	if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
-		puts ("Error: Bad gzipped data\n");
+		debug("Error: Bad gzipped data\n");
 		return (-1);
 	}
 	if ((flags & EXTRA_FIELD) != 0)
@@ -79,37 +78,47 @@ int gunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp)
 	if (offset < 0)
 		return offset;
 
+#if defined(CONFIG_MISC_DECOMPRESS) && !defined(CONFIG_SPL_BUILD)
+	int ret;
+
+	ret = misc_decompress_process((ulong)dst, (ulong)src, *lenp,
+				      DECOM_GZIP, false, (u64 *)lenp, 0);
+	if (!ret)
+		return 0;
+
+	printf("hw gunzip failed(%d), fallback to soft gunzip\n", ret);
+#endif
 	return zunzip(dst, dstlen, src, lenp, 1, offset);
 }
 
 #ifdef CONFIG_CMD_UNZIP
 __weak
-void gzwrite_progress_init(ulong expectedsize)
+void gzwrite_progress_init(u64 expectedsize)
 {
 	putc('\n');
 }
 
 __weak
 void gzwrite_progress(int iteration,
-		     ulong bytes_written,
-		     ulong total_bytes)
+		     u64 bytes_written,
+		     u64 total_bytes)
 {
 	if (0 == (iteration & 3))
-		printf("%lu/%lu\r", bytes_written, total_bytes);
+		printf("%llu/%llu\r", bytes_written, total_bytes);
 }
 
 __weak
 void gzwrite_progress_finish(int returnval,
-			     ulong bytes_written,
-			     ulong total_bytes,
+			     u64 bytes_written,
+			     u64 total_bytes,
 			     u32 expected_crc,
 			     u32 calculated_crc)
 {
 	if (0 == returnval) {
-		printf("\n\t%lu bytes, crc 0x%08x\n",
+		printf("\n\t%llu bytes, crc 0x%08x\n",
 		       total_bytes, calculated_crc);
 	} else {
-		printf("\n\tuncompressed %lu of %lu\n"
+		printf("\n\tuncompressed %llu of %llu\n"
 		       "\tcrcs == 0x%08x/0x%08x\n",
 		       bytes_written, total_bytes,
 		       expected_crc, calculated_crc);
@@ -119,15 +128,15 @@ void gzwrite_progress_finish(int returnval,
 int gzwrite(unsigned char *src, int len,
 	    struct blk_desc *dev,
 	    unsigned long szwritebuf,
-	    ulong startoffs,
-	    ulong szexpected)
+	    u64 startoffs,
+	    u64 szexpected)
 {
 	int i, flags;
 	z_stream s;
 	int r = 0;
 	unsigned char *writebuf;
 	unsigned crc = 0;
-	ulong totalfilled = 0;
+	u64 totalfilled = 0;
 	lbaint_t blksperbuf, outblock;
 	u32 expected_crc;
 	u32 payload_size;
@@ -142,7 +151,7 @@ int gzwrite(unsigned char *src, int len,
 	}
 
 	if (startoffs & (dev->blksz-1)) {
-		printf("%s: start offset %lu not a multiple of %lu\n",
+		printf("%s: start offset %llu not a multiple of %lu\n",
 		       __func__, startoffs, dev->blksz);
 		return -1;
 	}
@@ -182,12 +191,12 @@ int gzwrite(unsigned char *src, int len,
 	if (szexpected == 0) {
 		szexpected = le32_to_cpu(szuncompressed);
 	} else if (szuncompressed != (u32)szexpected) {
-		printf("size of %lx doesn't match trailer low bits %x\n",
+		printf("size of %llx doesn't match trailer low bits %x\n",
 		       szexpected, szuncompressed);
 		return -1;
 	}
 	if (lldiv(szexpected, dev->blksz) > (dev->lba - outblock)) {
-		printf("%s: uncompressed size %lu exceeds device size\n",
+		printf("%s: uncompressed size %llu exceeds device size\n",
 		       __func__, szexpected);
 		return -1;
 	}
@@ -251,7 +260,7 @@ int gzwrite(unsigned char *src, int len,
 				puts("abort\n");
 				goto out;
 			}
-			schedule();
+			WATCHDOG_RESET();
 		} while (s.avail_out == 0);
 		/* done when inflate() says it's done */
 	} while (r != Z_STREAM_END);

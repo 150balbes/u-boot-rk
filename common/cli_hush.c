@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * sh.c -- a prototype Bourne shell grammar parser
  *      Intended to follow the original Thompson and Ritchie
@@ -71,20 +70,23 @@
  *      document how quoting rules not precisely followed for variable assignments
  *      maybe change map[] to use 2-bit entries
  *      (eventually) remove all the printf's
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #define __U_BOOT__
 #ifdef __U_BOOT__
-#include <common.h>         /* readline */
-#include <env.h>
 #include <malloc.h>         /* malloc, free, realloc*/
 #include <linux/ctype.h>    /* isalpha, isdigit */
+#include <common.h>        /* readline */
 #include <console.h>
 #include <bootretry.h>
 #include <cli.h>
 #include <cli_hush.h>
 #include <command.h>        /* find_cmd */
-#include <asm/global_data.h>
+#ifndef CONFIG_SYS_PROMPT_HUSH_PS2
+#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
+#endif
 #endif
 #ifndef __U_BOOT__
 #include <ctype.h>     /* isalpha, isdigit */
@@ -112,6 +114,7 @@
 #define applet_name "hush"
 #include "standalone.h"
 #define hush_main main
+#undef CONFIG_FEATURE_SH_FANCY_PROMPT
 #define BB_BANNER
 #endif
 #endif
@@ -1672,7 +1675,7 @@ static int run_pipe_real(struct pipe *pi)
 			return -1;
 		}
 		/* Process the command */
-		return cmd_process(flag, child->argc - i, child->argv + i,
+		return cmd_process(flag, child->argc, child->argv,
 				   &flag_repeat, NULL);
 #endif
 	}
@@ -1846,7 +1849,8 @@ static int run_list_real(struct pipe *pi)
 				continue;
 			} else {
 				/* insert new value from list for variable */
-				free(pi->progs->argv[0]);
+				if (pi->progs->argv[0])
+					free(pi->progs->argv[0]);
 				pi->progs->argv[0] = *list++;
 #ifndef __U_BOOT__
 				pi->progs->glob_result.gl_pathv[0] =
@@ -1901,7 +1905,7 @@ static int run_list_real(struct pipe *pi)
 			last_return_code = -rcode - 2;
 			return -2;	/* exit */
 		}
-		last_return_code = rcode;
+		last_return_code=(rcode == 0) ? 0 : 1;
 #endif
 #ifndef __U_BOOT__
 		pi->num_progs = save_num_progs; /* restore number of programs */
@@ -2167,6 +2171,14 @@ int set_local_var(const char *s, int flg_export)
 
 	name=strdup(s);
 
+#ifdef __U_BOOT__
+	if (env_get(name) != NULL) {
+		printf ("ERROR: "
+				"There is a global environment variable with the same name.\n");
+		free(name);
+		return -1;
+	}
+#endif
 	/* Assume when we enter this function that we are already in
 	 * NAME=VALUE format.  So the first order of business is to
 	 * split 's' on the '=' into 'name' and 'value' */
@@ -3211,15 +3223,7 @@ static int parse_stream_outer(struct in_str *inp, int flag)
 					printf("exit not allowed from main input shell.\n");
 					continue;
 				}
-				/*
-				 * DANGER
-				 * Return code -2 is special in this context,
-				 * it indicates exit from inner pipe instead
-				 * of return code itself, the return code is
-				 * stored in 'last_return_code' variable!
-				 * DANGER
-				 */
-				return -2;
+				break;
 			}
 			if (code == -1)
 			    flag_repeat = 0;
@@ -3256,9 +3260,9 @@ int parse_string_outer(const char *s, int flag)
 #endif	/* __U_BOOT__ */
 {
 	struct in_str input;
-	int rcode;
 #ifdef __U_BOOT__
 	char *p = NULL;
+	int rcode;
 	if (!s)
 		return 1;
 	if (!*s)
@@ -3270,12 +3274,11 @@ int parse_string_outer(const char *s, int flag)
 		setup_string_in_str(&input, p);
 		rcode = parse_stream_outer(&input, flag);
 		free(p);
-		return rcode == -2 ? last_return_code : rcode;
+		return rcode;
 	} else {
 #endif
 	setup_string_in_str(&input, s);
-	rcode = parse_stream_outer(&input, flag);
-	return rcode == -2 ? last_return_code : rcode;
+	return parse_stream_outer(&input, flag);
 #ifdef __U_BOOT__
 	}
 #endif
@@ -3295,7 +3298,7 @@ int parse_file_outer(void)
 	setup_file_in_str(&input);
 #endif
 	rcode = parse_stream_outer(&input, FLAG_PARSE_SEMICOLON);
-	return rcode == -2 ? last_return_code : rcode;
+	return rcode;
 }
 
 #ifdef __U_BOOT__
@@ -3333,7 +3336,7 @@ static void *xmalloc(size_t size)
 	void *p = NULL;
 
 	if (!(p = malloc(size))) {
-	    printf("ERROR : xmalloc failed\n");
+	    printf("ERROR : memory not allocated\n");
 	    for(;;);
 	}
 	return p;
@@ -3344,7 +3347,7 @@ static void *xrealloc(void *ptr, size_t size)
 	void *p = NULL;
 
 	if (!(p = realloc(ptr, size))) {
-	    printf("ERROR : xrealloc failed\n");
+	    printf("ERROR : memory not allocated\n");
 	    for(;;);
 	}
 	return p;
@@ -3662,8 +3665,8 @@ static char *make_string(char **inp, int *nonnull)
 }
 
 #ifdef __U_BOOT__
-static int do_showvar(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[])
+static int do_showvar(cmd_tbl_t *cmdtp, int flag, int argc,
+		      char * const argv[])
 {
 	int i, k;
 	int rcode = 0;

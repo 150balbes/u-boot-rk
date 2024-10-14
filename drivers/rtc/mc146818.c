@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Denis Peter MPL AG Switzerland. d.peter@mpl.ch
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -13,16 +14,18 @@
 #include <dm.h>
 #include <rtc.h>
 
-#if defined(CONFIG_X86) || defined(CONFIG_TARGET_MALTA)
+#if defined(CONFIG_X86) || defined(CONFIG_MALTA)
 #include <asm/io.h>
 #define in8(p) inb(p)
 #define out8(p, v) outb(v, p)
 #endif
 
+#if defined(CONFIG_CMD_DATE)
+
 /* Set this to 1 to clear the CMOS RAM */
 #define CLEAR_CMOS		0
 
-#define RTC_PORT_MC146818	0x70
+#define RTC_PORT_MC146818	CONFIG_SYS_ISA_IO_BASE_ADDRESS + 0x70
 #define RTC_SECONDS		0x00
 #define RTC_SECONDS_ALARM	0x01
 #define RTC_MINUTES		0x02
@@ -81,7 +84,7 @@ static void mc146818_write8(int reg, uchar val)
 
 static int mc146818_get(struct rtc_time *tmp)
 {
-	uchar sec, min, hour, mday, wday __attribute__((unused)),mon, year;
+	uchar sec, min, hour, mday, wday, mon, year;
 
 	/* here check if rtc can be accessed */
 	while ((mc146818_read8(RTC_CONFIG_A) & 0x80) == 0x80)
@@ -97,7 +100,7 @@ static int mc146818_get(struct rtc_time *tmp)
 #ifdef RTC_DEBUG
 	printf("Get RTC year: %02x mon/cent: %02x mday: %02x wday: %02x hr: %02x min: %02x sec: %02x\n",
 	       year, mon, mday, wday, hour, min, sec);
-	printf("Alarms: mday: %02x hour: %02x min: %02x sec: %02x\n",
+	printf("Alarms: month: %02x hour: %02x min: %02x sec: %02x\n",
 	       mc146818_read8(RTC_CONFIG_D) & 0x3f,
 	       mc146818_read8(RTC_HOURS_ALARM),
 	       mc146818_read8(RTC_MINUTES_ALARM),
@@ -109,6 +112,7 @@ static int mc146818_get(struct rtc_time *tmp)
 	tmp->tm_mday = bcd2bin(mday & 0x3f);
 	tmp->tm_mon  = bcd2bin(mon & 0x1f);
 	tmp->tm_year = bcd2bin(year);
+	tmp->tm_wday = bcd2bin(wday & 0x07);
 
 	if (tmp->tm_year < 70)
 		tmp->tm_year += 2000;
@@ -117,11 +121,6 @@ static int mc146818_get(struct rtc_time *tmp)
 
 	tmp->tm_yday = 0;
 	tmp->tm_isdst = 0;
-	/*
-	 * The mc146818 only updates wday if it is non-zero, sunday is 1
-	 * saturday is 7. So let's use our library routine.
-	 */
-	rtc_calc_weekday(tmp);
 #ifdef RTC_DEBUG
 	printf("Get DATE: %4d-%02d-%02d (wday=%d)  TIME: %2d:%02d:%02d\n",
 	       tmp->tm_year, tmp->tm_mon, tmp->tm_mday, tmp->tm_wday,
@@ -143,8 +142,7 @@ static int mc146818_set(struct rtc_time *tmp)
 
 	mc146818_write8(RTC_YEAR, bin2bcd(tmp->tm_year % 100));
 	mc146818_write8(RTC_MONTH, bin2bcd(tmp->tm_mon));
-	/* Sunday = 1, Saturday = 7 */
-	mc146818_write8(RTC_DAY_OF_WEEK, bin2bcd(tmp->tm_wday + 1));
+	mc146818_write8(RTC_DAY_OF_WEEK, bin2bcd(tmp->tm_wday));
 	mc146818_write8(RTC_DATE_OF_MONTH, bin2bcd(tmp->tm_mday));
 	mc146818_write8(RTC_HOURS, bin2bcd(tmp->tm_hour));
 	mc146818_write8(RTC_MINUTES, bin2bcd(tmp->tm_min));
@@ -194,6 +192,7 @@ static void mc146818_init(void)
 	/* Clear any pending interrupts */
 	mc146818_read8(RTC_CONFIG_C);
 }
+#endif /* CONFIG_CMD_DATE */
 
 #ifdef CONFIG_DM_RTC
 
@@ -246,8 +245,8 @@ static const struct udevice_id rtc_mc146818_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(motorola_mc146818) = {
-	.name = "motorola_mc146818",
+U_BOOT_DRIVER(rtc_mc146818) = {
+	.name = "rtc_mc146818",
 	.id = UCLASS_RTC,
 	.of_match = rtc_mc146818_ids,
 	.probe = rtc_mc146818_probe,

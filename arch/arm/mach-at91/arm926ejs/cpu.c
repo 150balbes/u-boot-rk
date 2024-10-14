@@ -1,27 +1,26 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Reinhard Meyer, reinhard.meyer@emk-elektronik.de
  * (C) Copyright 2009
  * Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <vsprintf.h>
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/at91_pit.h>
 #include <asm/arch/at91_gpbr.h>
 #include <asm/arch/clk.h>
 
-#ifndef CFG_SYS_AT91_MAIN_CLOCK
-#define CFG_SYS_AT91_MAIN_CLOCK 0
+#ifndef CONFIG_SYS_AT91_MAIN_CLOCK
+#define CONFIG_SYS_AT91_MAIN_CLOCK 0
 #endif
 
 int arch_cpu_init(void)
 {
-	return at91_clock_init(CFG_SYS_AT91_MAIN_CLOCK);
+	return at91_clock_init(CONFIG_SYS_AT91_MAIN_CLOCK);
 }
 
 void arch_preboot_os(void)

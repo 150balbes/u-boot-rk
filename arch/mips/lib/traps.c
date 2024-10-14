@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 1994 - 1999, 2000, 01, 06 Ralf Baechle
  * Copyright (C) 1995, 1996 Paul M. Antoine
@@ -8,22 +7,16 @@
  * Copyright (C) 2002, 2003, 2004, 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2000, 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2014, Imagination Technologies Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/global_data.h>
-#include <asm/ptrace.h>
-#include <cpu_func.h>
-#include <hang.h>
-#include <init.h>
-#include <log.h>
 #include <asm/mipsregs.h>
 #include <asm/addrspace.h>
 #include <asm/system.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-static unsigned long saved_ebase;
 
 static void show_regs(const struct pt_regs *regs)
 {
@@ -100,42 +93,14 @@ static void set_handler(unsigned long offset, void *addr, unsigned long size)
 	flush_cache(ebase + offset, size);
 }
 
-static void trap_init(ulong reloc_addr)
+void trap_init(ulong reloc_addr)
 {
 	unsigned long ebase = gd->irq_sp;
 
 	set_handler(0x180, &except_vec3_generic, 0x80);
 	set_handler(0x280, &except_vec_ejtag_debug, 0x80);
 
-	saved_ebase = read_c0_ebase() & 0xfffff000;
-
-	/* Set WG bit on Octeon to enable writing to bits 63:30 */
-	if (IS_ENABLED(CONFIG_ARCH_OCTEON))
-		ebase |= MIPS_EBASE_WG;
-
 	write_c0_ebase(ebase);
 	clear_c0_status(ST0_BEV);
 	execution_hazard_barrier();
-}
-
-void trap_restore(void)
-{
-	set_c0_status(ST0_BEV);
-	execution_hazard_barrier();
-
-#ifdef CONFIG_OVERRIDE_EXCEPTION_VECTOR_BASE
-	write_c0_ebase(CONFIG_NEW_EXCEPTION_VECTOR_BASE & 0xfffff000);
-#else
-	write_c0_ebase(saved_ebase);
-#endif
-
-	clear_c0_status(ST0_BEV);
-	execution_hazard_barrier();
-}
-
-int arch_initr_trap(void)
-{
-	trap_init(CFG_SYS_SDRAM_BASE);
-
-	return 0;
 }

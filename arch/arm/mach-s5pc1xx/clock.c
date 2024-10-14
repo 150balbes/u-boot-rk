@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2009 Samsung Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
  * Heungjun Kim <riverful.kim@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -14,8 +15,12 @@
 #define CLK_D	1
 #define CLK_P	2
 
-#define CFG_SYS_CLK_FREQ_C100	12000000
-#define CFG_SYS_CLK_FREQ_C110	24000000
+#ifndef CONFIG_SYS_CLK_FREQ_C100
+#define CONFIG_SYS_CLK_FREQ_C100	12000000
+#endif
+#ifndef CONFIG_SYS_CLK_FREQ_C110
+#define CONFIG_SYS_CLK_FREQ_C110	24000000
+#endif
 
 /* s5pc110: return pll clock frequency */
 static unsigned long s5pc100_get_pll_clk(int pllreg)
@@ -62,7 +67,7 @@ static unsigned long s5pc100_get_pll_clk(int pllreg)
 	s = r & 0x7;
 
 	/* FOUT = MDIV * FIN / (PDIV * 2^SDIV) */
-	freq = CFG_SYS_CLK_FREQ_C100;
+	freq = CONFIG_SYS_CLK_FREQ_C100;
 	fout = m * (freq / (p * (1 << s)));
 
 	return fout;
@@ -112,7 +117,7 @@ static unsigned long s5pc110_get_pll_clk(int pllreg)
 	/* SDIV [2:0] */
 	s = r & 0x7;
 
-	freq = CFG_SYS_CLK_FREQ_C110;
+	freq = CONFIG_SYS_CLK_FREQ_C110;
 	if (pllreg == APLL) {
 		if (s < 1)
 			s = 1;

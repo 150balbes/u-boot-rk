@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Secure entry function for CPU Core #1
  *
@@ -7,6 +6,8 @@
  *
  * Author :
  *	Harinarayan Bhatta <harinarayan@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -16,7 +17,7 @@
 
 .arch_extension sec
 
-#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
+#if !defined(CONFIG_SYS_DCACHE_OFF)
 .global flush_dcache_range
 #endif
 
@@ -79,7 +80,7 @@ ENTRY(omap_smc_sec_cpu1)
 	push	{r4, r5, lr}
 	ldr	r4, =omap_smc_sec_cpu1_args
 	stm	r4, {r0,r1,r2,r3}	@ Save args to memory
-#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
+#if !defined(CONFIG_SYS_DCACHE_OFF)
 	mov	r0, r4
 	mov	r1, #CONFIG_SYS_CACHELINE_SIZE
 	add	r1, r0, r1		@ dcache is not enabled on CPU1, so
@@ -109,7 +110,7 @@ ENDPROC(omap_smc_sec_cpu1)
  */
 .section .data
 omap_smc_sec_cpu1_args:
-#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
+#if !defined(CONFIG_SYS_DCACHE_OFF)
 	.balign CONFIG_SYS_CACHELINE_SIZE
 	.rept  CONFIG_SYS_CACHELINE_SIZE/4
 	.word 0

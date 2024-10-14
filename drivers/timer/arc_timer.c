@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Synopsys, Inc. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <common.h>
@@ -8,7 +9,6 @@
 #include <errno.h>
 #include <timer.h>
 #include <asm/arcregs.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -27,7 +27,7 @@ struct arc_timer_priv {
 		uint timer_id;
 };
 
-static u64 arc_timer_get_count(struct udevice *dev)
+static int arc_timer_get_count(struct udevice *dev, u64 *count)
 {
 	u32 val = 0;
 	struct arc_timer_priv *priv = dev_get_priv(dev);
@@ -40,7 +40,9 @@ static u64 arc_timer_get_count(struct udevice *dev)
 		val = read_aux_reg(ARC_AUX_TIMER1_CNT);
 		break;
 	}
-	return timer_conv_64(val);
+	*count = timer_conv_64(val);
+
+	return 0;
 }
 
 static int arc_timer_probe(struct udevice *dev)
@@ -106,5 +108,6 @@ U_BOOT_DRIVER(arc_timer) = {
 	.of_match = arc_timer_ids,
 	.probe = arc_timer_probe,
 	.ops	= &arc_timer_ops,
-	.priv_auto	= sizeof(struct arc_timer_priv),
+	.flags = DM_FLAG_PRE_RELOC,
+	.priv_auto_alloc_size = sizeof(struct arc_timer_priv),
 };

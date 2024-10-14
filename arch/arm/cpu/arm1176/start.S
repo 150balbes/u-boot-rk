@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  armboot - Startup Code for ARM1176 CPU-core
  *
@@ -6,6 +5,8 @@
  *
  * Copyright (C) 2008
  * Guennadi Liakhovetki, DENX Software Engineering, <lg@denx.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  * 2007-09-21 - Restructured codes by jsgood (jsgood.yang@samsung.com)
  * 2007-09-21 - Added MoviNAND and OneNAND boot codes by
@@ -16,6 +17,10 @@
 #include <asm-offsets.h>
 #include <config.h>
 #include <linux/linkage.h>
+
+#ifndef CONFIG_SYS_PHY_UBOOT_BASE
+#define CONFIG_SYS_PHY_UBOOT_BASE	CONFIG_SYS_UBOOT_BASE
+#endif
 
 /*
  *************************************************************************
@@ -84,7 +89,7 @@ cpu_init_crit:
 
 	/* Prepare to disable the MMU */
 	adr	r2, mmu_disable_phys
-	sub	r2, r2, #(CFG_SYS_UBOOT_BASE - CONFIG_TEXT_BASE)
+	sub	r2, r2, #(CONFIG_SYS_PHY_UBOOT_BASE - CONFIG_SYS_TEXT_BASE)
 	b	mmu_disable
 
 	.align 5

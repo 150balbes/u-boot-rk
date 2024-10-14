@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Header file for Advanced Crypto Engine - SFR definitions
  *
  * Copyright (c) 2012  Samsung Electronics
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ACE_SHA_H
@@ -306,7 +307,7 @@ struct exynos_ace_sfr {
  *			should allocate at least 32 bytes at pOut in advance.
  * @param hash_type SHA1 or SHA256
  *
- * Return:		0 on Success, -1 on Failure (Timeout)
+ * @return		0 on Success, -1 on Failure (Timeout)
  */
 int ace_sha_hash_digest(const uchar * in_addr, uint buflen,
 			uchar * out_addr, uint hash_type);

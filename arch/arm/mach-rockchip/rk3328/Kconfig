@@ -5,6 +5,7 @@ choice
 
 config TARGET_EVB_RK3328
 	bool "RK3328 evaluation board"
+	select BOARD_LATE_INIT
 	help
 	  RK3328evb is a evaluation board for Rockchip rk3328,
 	  with full function and phisical connectors support like
@@ -12,32 +13,11 @@ config TARGET_EVB_RK3328
 
 endchoice
 
-config ROCKCHIP_BOOT_MODE_REG
-	default 0xff1005c8
-
-config ROCKCHIP_STIMER_BASE
-	default 0xff1d0020
-
 config SYS_SOC
-	default "rk3328"
+	default "rockchip"
 
 config SYS_MALLOC_F_LEN
-	default 0x2000
-
-config SPL_LIBCOMMON_SUPPORT
-	default y
-
-config SPL_LIBGENERIC_SUPPORT
-	default y
-
-config TPL_LDSCRIPT
-	default "arch/arm/mach-rockchip/u-boot-tpl-v8.lds"
-
-config TPL_TEXT_BASE
-	default 0xff091000
-
-config TPL_STACK
-	default 0xff098000
+	default 0x0800
 
 source "board/rockchip/evb_rk3328/Kconfig"
 

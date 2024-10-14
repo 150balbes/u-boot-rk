@@ -18,7 +18,6 @@
 #include "yaffs_getblockinfo.h"
 #include "yaffs_nand.h"
 #include "yaffs_attribs.h"
-#include <dm/devres.h>
 
 int yaffs1_scan(struct yaffs_dev *dev)
 {

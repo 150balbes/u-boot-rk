@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2017 NXP Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 #ifndef __FSL_STREAM_ID_H
@@ -50,7 +51,6 @@
 #define FSL_QDMA_STREAM_ID		7
 #define FSL_EDMA_STREAM_ID		8
 #define FSL_ETR_STREAM_ID		9
-#define FSL_DEBUG_STREAM_ID		10
 
 /* PCI - programmed in PEXn_LUT */
 #define FSL_PEX_STREAM_ID_START		11

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2010 Albert ARIBAUD <albert.u.boot@aribaud.net>
  *
@@ -8,6 +7,8 @@
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
  *
  * Header file for Marvell's Orion SoC with Feroceon CPU core.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_ORION5X_H
@@ -53,7 +54,7 @@
 #define MVCPU_WIN_ENABLE	ORION5X_WIN_ENABLE
 #define MVCPU_WIN_DISABLE	ORION5X_WIN_DISABLE
 
-#define CFG_MAX_RAM_BANK_SIZE		(64*1024*1024)
+#define CONFIG_MAX_RAM_BANK_SIZE		(64*1024*1024)
 
 /* include here SoC variants. 5181, 5281, 6183 should go here when
    adding support for them, and this comment should then be updated. */

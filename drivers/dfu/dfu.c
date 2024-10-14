@@ -1,15 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * dfu.c -- DFU back-end routines
  *
  * Copyright (C) 2012 Samsung Electronics
  * author: Lukasz Majewski <l.majewski@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <env.h>
 #include <errno.h>
-#include <log.h>
 #include <malloc.h>
 #include <mmc.h>
 #include <fat.h>
@@ -18,39 +17,10 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 
-LIST_HEAD(dfu_list);
+static LIST_HEAD(dfu_list);
 static int dfu_alt_num;
 static int alt_num_cnt;
 static struct hash_algo *dfu_hash_algo;
-#ifdef CONFIG_DFU_TIMEOUT
-static unsigned long dfu_timeout = 0;
-#endif
-
-bool dfu_reinit_needed = false;
-
-/*
- * The purpose of the dfu_flush_callback() function is to
- * provide callback for dfu user
- */
-__weak void dfu_flush_callback(struct dfu_entity *dfu)
-{
-}
-
-/*
- * The purpose of the dfu_initiated_callback() function is to
- * provide callback for dfu user
- */
-__weak void dfu_initiated_callback(struct dfu_entity *dfu)
-{
-}
-
-/*
- * The purpose of the dfu_error_callback() function is to
- * provide callback for dfu user
- */
-__weak void dfu_error_callback(struct dfu_entity *dfu, const char *msg)
-{
-}
 
 /*
  * The purpose of the dfu_usb_get_reset() function is to
@@ -72,18 +42,6 @@ __weak bool dfu_usb_get_reset(void)
 #endif
 }
 
-#ifdef CONFIG_DFU_TIMEOUT
-void dfu_set_timeout(unsigned long timeout)
-{
-	dfu_timeout = timeout;
-}
-
-unsigned long dfu_get_timeout(void)
-{
-	return dfu_timeout;
-}
-#endif
-
 static int dfu_find_alt_num(const char *s)
 {
 	int i = 0;
@@ -95,62 +53,11 @@ static int dfu_find_alt_num(const char *s)
 	return ++i;
 }
 
-/*
- * treat dfu_alt_info with several interface information
- * to allow DFU on several device with one command,
- * the string format is
- * interface devstring'='alternate list (';' separated)
- * and each interface separated by '&'
- */
-int dfu_config_interfaces(char *env)
-{
-	struct dfu_entity *dfu;
-	char *s, *i, *d, *a, *part;
-	int ret = -EINVAL;
-	int n = 1;
-
-	s = env;
-	for (; *s; s++) {
-		if (*s == ';')
-			n++;
-		if (*s == '&')
-			n++;
-	}
-	ret = dfu_alt_init(n, &dfu);
-	if (ret)
-		return ret;
-
-	s = env;
-	while (s) {
-		ret = -EINVAL;
-		i = strsep(&s, " \t");
-		if (!i)
-			break;
-		s = skip_spaces(s);
-		d = strsep(&s, "=");
-		if (!d)
-			break;
-		a = strsep(&s, "&");
-		if (!a)
-			a = s;
-		do {
-			part = strsep(&a, ";");
-			ret = dfu_alt_add(dfu, i, d, part);
-			if (ret)
-				return ret;
-		} while (a);
-	}
-
-	return ret;
-}
-
 int dfu_init_env_entities(char *interface, char *devstr)
 {
 	const char *str_env;
 	char *env_bkp;
-	int ret = 0;
-
-	dfu_reinit_needed = false;
+	int ret;
 
 #ifdef CONFIG_SET_DFU_ALT_INFO
 	set_dfu_alt_info(interface, devstr);
@@ -162,25 +69,18 @@ int dfu_init_env_entities(char *interface, char *devstr)
 	}
 
 	env_bkp = strdup(str_env);
-	if (!interface && !devstr)
-		ret = dfu_config_interfaces(env_bkp);
-	else
-		ret = dfu_config_entities(env_bkp, interface, devstr);
-
+	ret = dfu_config_entities(env_bkp, interface, devstr);
 	if (ret) {
 		pr_err("DFU entities configuration failed!\n");
-		pr_err("(partition table does not match dfu_alt_info?)\n");
-		goto done;
+		return ret;
 	}
 
-done:
 	free(env_bkp);
-	return ret;
+	return 0;
 }
 
 static unsigned char *dfu_buf;
 static unsigned long dfu_buf_size;
-static enum dfu_device_type dfu_buf_device_type;
 
 unsigned char *dfu_free_buf(void)
 {
@@ -197,10 +97,6 @@ unsigned long dfu_get_buf_size(void)
 unsigned char *dfu_get_buf(struct dfu_entity *dfu)
 {
 	char *s;
-
-	/* manage several entity with several contraint */
-	if (dfu_buf && dfu->dev_type != dfu_buf_device_type)
-		dfu_free_buf();
 
 	if (dfu_buf != NULL)
 		return dfu_buf;
@@ -220,7 +116,6 @@ unsigned char *dfu_get_buf(struct dfu_entity *dfu)
 		printf("%s: Could not memalign 0x%lx bytes\n",
 		       __func__, dfu_buf_size);
 
-	dfu_buf_device_type = dfu->dev_type;
 	return dfu_buf;
 }
 
@@ -308,7 +203,6 @@ int dfu_transaction_initiate(struct dfu_entity *dfu, bool read)
 	}
 
 	dfu->inited = 1;
-	dfu_initiated_callback(dfu);
 
 	return 0;
 }
@@ -327,8 +221,6 @@ int dfu_flush(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 	if (dfu_hash_algo)
 		printf("\nDFU complete %s: 0x%08x\n", dfu_hash_algo->name,
 		       dfu->crc);
-
-	dfu_flush_callback(dfu);
 
 	dfu_transaction_cleanup(dfu);
 
@@ -351,7 +243,6 @@ int dfu_write(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 		printf("%s: Wrong sequence number! [%d] [%d]\n",
 		       __func__, dfu->i_blk_seq_num, blk_seq_num);
 		dfu_transaction_cleanup(dfu);
-		dfu_error_callback(dfu, "Wrong sequence number");
 		return -1;
 	}
 
@@ -376,7 +267,6 @@ int dfu_write(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 		ret = dfu_write_buffer_drain(dfu);
 		if (ret) {
 			dfu_transaction_cleanup(dfu);
-			dfu_error_callback(dfu, "DFU write error");
 			return ret;
 		}
 	}
@@ -386,7 +276,6 @@ int dfu_write(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 		pr_err("Buffer overflow! (0x%p + 0x%x > 0x%p)\n", dfu->i_buf,
 		      size, dfu->i_buf_end);
 		dfu_transaction_cleanup(dfu);
-		dfu_error_callback(dfu, "Buffer overflow");
 		return -1;
 	}
 
@@ -398,7 +287,6 @@ int dfu_write(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 		ret = dfu_write_buffer_drain(dfu);
 		if (ret) {
 			dfu_transaction_cleanup(dfu);
-			dfu_error_callback(dfu, "DFU write error");
 			return ret;
 		}
 	}
@@ -448,8 +336,6 @@ static int dfu_read_buffer_fill(struct dfu_entity *dfu, void *buf, int size)
 				debug("%s: Read error!\n", __func__);
 				return ret;
 			}
-			if (dfu->b_left == 0)
-				break;
 			dfu->offset += dfu->b_left;
 			dfu->r_left -= dfu->b_left;
 
@@ -500,29 +386,11 @@ int dfu_read(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
 static int dfu_fill_entity(struct dfu_entity *dfu, char *s, int alt,
 			   char *interface, char *devstr)
 {
-	char *argv[DFU_MAX_ENTITY_ARGS];
-	int argc;
 	char *st;
 
 	debug("%s: %s interface: %s dev: %s\n", __func__, s, interface, devstr);
-	st = strsep(&s, " \t");
-	strlcpy(dfu->name, st, DFU_NAME_SIZE);
-
-	/* Parse arguments */
-	for (argc = 0; s && argc < DFU_MAX_ENTITY_ARGS; argc++) {
-		s = skip_spaces(s);
-		if (!*s)
-			break;
-		argv[argc] = strsep(&s, " \t");
-	}
-
-	if (argc == DFU_MAX_ENTITY_ARGS && s) {
-		s = skip_spaces(s);
-		if (*s) {
-			log_err("Too many arguments for %s\n", dfu->name);
-			return -EINVAL;
-		}
-	}
+	st = strsep(&s, " ");
+	strcpy(dfu->name, st);
 
 	dfu->alt = alt;
 	dfu->max_buf_size = 0;
@@ -530,22 +398,19 @@ static int dfu_fill_entity(struct dfu_entity *dfu, char *s, int alt,
 
 	/* Specific for mmc device */
 	if (strcmp(interface, "mmc") == 0) {
-		if (dfu_fill_entity_mmc(dfu, devstr, argv, argc))
+		if (dfu_fill_entity_mmc(dfu, devstr, s))
 			return -1;
 	} else if (strcmp(interface, "mtd") == 0) {
-		if (dfu_fill_entity_mtd(dfu, devstr, argv, argc))
+		if (dfu_fill_entity_mtd(dfu, devstr, s))
 			return -1;
 	} else if (strcmp(interface, "nand") == 0) {
-		if (dfu_fill_entity_nand(dfu, devstr, argv, argc))
+		if (dfu_fill_entity_nand(dfu, devstr, s))
 			return -1;
 	} else if (strcmp(interface, "ram") == 0) {
-		if (dfu_fill_entity_ram(dfu, devstr, argv, argc))
+		if (dfu_fill_entity_ram(dfu, devstr, s))
 			return -1;
 	} else if (strcmp(interface, "sf") == 0) {
-		if (dfu_fill_entity_sf(dfu, devstr, argv, argc))
-			return -1;
-	} else if (strcmp(interface, "virt") == 0) {
-		if (dfu_fill_entity_virt(dfu, devstr, argv, argc))
+		if (dfu_fill_entity_sf(dfu, devstr, s))
 			return -1;
 	} else {
 		printf("%s: Device %s not (yet) supported!\n",
@@ -575,12 +440,13 @@ void dfu_free_entities(void)
 	alt_num_cnt = 0;
 }
 
-int dfu_alt_init(int num, struct dfu_entity **dfu)
+int dfu_config_entities(char *env, char *interface, char *devstr)
 {
+	struct dfu_entity *dfu;
+	int i, ret;
 	char *s;
-	int ret;
 
-	dfu_alt_num = num;
+	dfu_alt_num = dfu_find_alt_num(env);
 	debug("%s: dfu_alt_num=%d\n", __func__, dfu_alt_num);
 
 	dfu_hash_algo = NULL;
@@ -591,49 +457,21 @@ int dfu_alt_init(int num, struct dfu_entity **dfu)
 			pr_err("Hash algorithm %s not supported\n", s);
 	}
 
-	*dfu = calloc(sizeof(struct dfu_entity), dfu_alt_num);
-	if (!*dfu)
+	dfu = calloc(sizeof(*dfu), dfu_alt_num);
+	if (!dfu)
 		return -1;
-
-	return 0;
-}
-
-int dfu_alt_add(struct dfu_entity *dfu, char *interface, char *devstr, char *s)
-{
-	struct dfu_entity *p_dfu;
-	int ret;
-
-	if (alt_num_cnt >= dfu_alt_num)
-		return -1;
-
-	p_dfu = &dfu[alt_num_cnt];
-	ret = dfu_fill_entity(p_dfu, s, alt_num_cnt, interface, devstr);
-	if (ret)
-		return -1;
-
-	list_add_tail(&p_dfu->list, &dfu_list);
-	alt_num_cnt++;
-
-	return 0;
-}
-
-int dfu_config_entities(char *env, char *interface, char *devstr)
-{
-	struct dfu_entity *dfu;
-	int i, ret;
-	char *s;
-
-	ret = dfu_alt_init(dfu_find_alt_num(env), &dfu);
-	if (ret)
-		return -1;
-
 	for (i = 0; i < dfu_alt_num; i++) {
+
 		s = strsep(&env, ";");
-		ret = dfu_alt_add(dfu, interface, devstr, s);
+		ret = dfu_fill_entity(&dfu[i], s, alt_num_cnt, interface,
+				      devstr);
 		if (ret) {
-			/* We will free "dfu" in dfu_free_entities() */
+			free(dfu);
 			return -1;
 		}
+
+		list_add_tail(&dfu[i].list, &dfu_list);
+		alt_num_cnt++;
 	}
 
 	return 0;
@@ -641,16 +479,14 @@ int dfu_config_entities(char *env, char *interface, char *devstr)
 
 const char *dfu_get_dev_type(enum dfu_device_type t)
 {
-	const char *const dev_t[] = {NULL, "eMMC", "OneNAND", "NAND", "RAM",
-				     "SF", "MTD", "VIRT"};
+	const char *dev_t[] = {NULL, "eMMC", "OneNAND", "NAND", "RAM", "SF" };
 	return dev_t[t];
 }
 
 const char *dfu_get_layout(enum dfu_layout l)
 {
-	const char *const dfu_layout[] = {NULL, "RAW_ADDR", "FAT", "EXT2",
-					  "EXT3", "EXT4", "RAM_ADDR", "SKIP",
-					  "SCRIPT" };
+	const char *dfu_layout[] = {NULL, "RAW_ADDR", "FAT", "EXT2",
+					   "EXT3", "EXT4", "RAM_ADDR" };
 	return dfu_layout[l];
 }
 
@@ -754,7 +590,6 @@ int dfu_write_from_mem_addr(struct dfu_entity *dfu, void *buf, int size)
 	ret = dfu_flush(dfu, NULL, 0, i);
 	if (ret)
 		pr_err("DFU flush failed!");
-	puts("\n");
 
 	return ret;
 }

@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Topic Miami board DTS
  *
  * Copyright (C) 2014-2016 Topic Embedded Products
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 /dts-v1/;
 #include "zynq-7000.dtsi"
@@ -12,6 +13,7 @@
 	compatible = "topic,miami", "xlnx,zynq-7000";
 
 	aliases {
+		ethernet0 = &gem0;
 		serial0 = &uart0;
 		spi0 = &qspi;
 		i2c0 = &i2c0;
@@ -36,7 +38,7 @@
 	is-dual = <0>;
 	num-cs = <1>;
 	flash@0 {
-		compatible = "st,m25p80", "n25q256a", "jedec,spi-nor";
+		compatible = "st,m25p80", "n25q256a";
 		m25p,fast-read;
 		reg = <0x0>;
 		spi-tx-bus-width = <1>;
@@ -44,23 +46,23 @@
 		spi-max-frequency = <100000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		partition@0 {
+		partition@qspi-u-boot-spl {
 			label = "qspi-u-boot-spl";
 			reg = <0x00000 0x10000>;
 		};
-		partition@10000 {
+		partition@qspi-u-boot-img {
 			label = "qspi-u-boot-img";
 			reg = <0x10000 0x60000>;
 		};
-		partition@70000 {
+		partition@qspi-device-tree {
 			label = "qspi-device-tree";
 			reg = <0x70000 0x10000>;
 		};
-		partition@80000 {
+		partition@qspi-linux {
 			label = "qspi-linux";
 			reg = <0x80000 0x400000>;
 		};
-		partition@480000 {
+		partition@qspi-rootfs {
 			label = "qspi-rootfs";
 			reg = <0x480000 0x1b80000>;
 		};

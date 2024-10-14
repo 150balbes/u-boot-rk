@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -14,11 +15,11 @@
 
 #include <common.h>
 #include <command.h>
-#include <log.h>
 #include <memalign.h>
 #include <ide.h>
 #include "part_mac.h"
-#include <part.h>
+
+#ifdef HAVE_BLOCK_DEVICE
 
 /* stdlib.h causes some compatibility problems; should fixe these! -- wd */
 #ifndef __ldiv_t_defined
@@ -214,7 +215,7 @@ static int part_mac_read_pdb(struct blk_desc *dev_desc, int part,
 }
 
 static int part_get_info_mac(struct blk_desc *dev_desc, int part,
-				  struct disk_partition *info)
+				  disk_partition_t *info)
 {
 	ALLOC_CACHE_ALIGN_BUFFER(mac_driver_desc_t, ddesc, 1);
 	ALLOC_CACHE_ALIGN_BUFFER(mac_partition_t, mpart, 1);
@@ -245,3 +246,4 @@ U_BOOT_PART_TYPE(mac) = {
 	.print		= part_print_mac,
 	.test		= part_test_mac,
 };
+#endif

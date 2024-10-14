@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Jana Rapava <fermata7@gmail.com>
  * Copyright (C) 2011 CompuLab, Ltd. <www.compulab.co.il>
@@ -17,12 +16,12 @@
  *
  *   Sascha Hauer <s.hauer@pengutronix.de>
  *   Freescale Semiconductors
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <exports.h>
-#include <log.h>
-#include <linux/delay.h>
 #include <usb/ulpi.h>
 
 #define ULPI_ID_REGS_COUNT	4
@@ -207,7 +206,7 @@ int ulpi_suspend(struct ulpi_viewport *ulpi_vp)
 static int __ulpi_reset_wait(struct ulpi_viewport *ulpi_vp)
 {
 	u32 val;
-	int timeout = CFG_USB_ULPI_TIMEOUT;
+	int timeout = CONFIG_USB_ULPI_TIMEOUT;
 
 	/* Wait for the RESET bit to become zero */
 	while (--timeout) {

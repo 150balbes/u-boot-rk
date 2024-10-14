@@ -1,9 +1,8 @@
-# SPDX-License-Identifier: GPL-2.0
 # Copyright (c) 2015-2016, NVIDIA CORPORATION. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0
 
-"""
-Logic to spawn a sub-process and interact with its stdio.
-"""
+# Logic to spawn a sub-process and interact with its stdio.
 
 import os
 import re
@@ -11,12 +10,12 @@ import pty
 import signal
 import select
 import time
-import traceback
 
 class Timeout(Exception):
     """An exception sub-class that indicates that a timeout occurred."""
+    pass
 
-class Spawn:
+class Spawn(object):
     """Represents the stdio of a freshly created sub-process. Commands may be
     sent to the process, and responses waited for.
 
@@ -37,8 +36,6 @@ class Spawn:
         """
 
         self.waited = False
-        self.exit_code = 0
-        self.exit_info = ''
         self.buf = ''
         self.output = ''
         self.logfile_read = None
@@ -46,7 +43,10 @@ class Spawn:
         self.after = ''
         self.timeout = None
         # http://stackoverflow.com/questions/7857352/python-regex-to-match-vt100-escape-sequences
-        self.re_vt100 = re.compile(r'(\x1b\[|\x9b)[^@-_]*[@-_]|\x1b[@-_]', re.I)
+        # Note that re.I doesn't seem to work with this regex (or perhaps the
+        # version of Python in Ubuntu 14.04), hence the inclusion of a-z inside
+        # [] instead.
+        self.re_vt100 = re.compile('(\x1b\[|\x9b)[^@-_a-z]*[@-_a-z]|\x1b[@-_a-z]')
 
         (self.pid, self.fd) = pty.fork()
         if self.pid == 0:
@@ -59,15 +59,15 @@ class Spawn:
                     os.chdir(cwd)
                 os.execvp(args[0], args)
             except:
-                print('CHILD EXECEPTION:')
+                print 'CHILD EXECEPTION:'
+                import traceback
                 traceback.print_exc()
             finally:
                 os._exit(255)
 
         try:
             self.poll = select.poll()
-            self.poll.register(self.fd, select.POLLIN | select.POLLPRI | select.POLLERR |
-                               select.POLLHUP | select.POLLNVAL)
+            self.poll.register(self.fd, select.POLLIN | select.POLLPRI | select.POLLERR | select.POLLHUP | select.POLLNVAL)
         except:
             self.close()
             raise
@@ -84,34 +84,6 @@ class Spawn:
 
         os.kill(self.pid, sig)
 
-    def checkalive(self):
-        """Determine whether the child process is still running.
-
-        Returns:
-            tuple:
-                True if process is alive, else False
-                0 if process is alive, else exit code of process
-                string describing what happened ('' or 'status/signal n')
-        """
-
-        if self.waited:
-            return False, self.exit_code, self.exit_info
-
-        w = os.waitpid(self.pid, os.WNOHANG)
-        if w[0] == 0:
-            return True, 0, 'running'
-        status = w[1]
-
-        if os.WIFEXITED(status):
-            self.exit_code = os.WEXITSTATUS(status)
-            self.exit_info = 'status %d' % self.exit_code
-        elif os.WIFSIGNALED(status):
-            signum = os.WTERMSIG(status)
-            self.exit_code = -signum
-            self.exit_info = 'signal %d (%s)' % (signum, signal.Signals(signum).name)
-        self.waited = True
-        return False, self.exit_code, self.exit_info
-
     def isalive(self):
         """Determine whether the child process is still running.
 
@@ -121,7 +93,16 @@ class Spawn:
         Returns:
             Boolean indicating whether process is alive.
         """
-        return self.checkalive()[0]
+
+        if self.waited:
+            return False
+
+        w = os.waitpid(self.pid, os.WNOHANG)
+        if w[0] == 0:
+            return True
+
+        self.waited = True
+        return False
 
     def send(self, data):
         """Send data to the sub-process's stdin.
@@ -133,7 +114,7 @@ class Spawn:
             Nothing.
         """
 
-        os.write(self.fd, data.encode(errors='replace'))
+        os.write(self.fd, data)
 
     def expect(self, patterns):
         """Wait for the sub-process to emit specific data.
@@ -154,7 +135,7 @@ class Spawn:
             the expected time.
         """
 
-        for pi in range(len(patterns)):
+        for pi in xrange(len(patterns)):
             if type(patterns[pi]) == type(''):
                 patterns[pi] = re.compile(patterns[pi])
 
@@ -163,7 +144,7 @@ class Spawn:
             while True:
                 earliest_m = None
                 earliest_pi = None
-                for pi in range(len(patterns)):
+                for pi in xrange(len(patterns)):
                     pattern = patterns[pi]
                     m = pattern.search(self.buf)
                     if not m:
@@ -191,18 +172,9 @@ class Spawn:
                 events = self.poll.poll(poll_maxwait)
                 if not events:
                     raise Timeout()
-                try:
-                    c = os.read(self.fd, 1024).decode(errors='replace')
-                except OSError as err:
-                    # With sandbox, try to detect when U-Boot exits when it
-                    # shouldn't and explain why. This is much more friendly than
-                    # just dying with an I/O error
-                    if err.errno == 5:  # Input/output error
-                        alive, _, info = self.checkalive()
-                        if alive:
-                            raise err
-                        raise ValueError('U-Boot exited with %s' % info)
-                    raise err
+                c = os.read(self.fd, 1024)
+                if not c:
+                    raise EOFError()
                 if self.logfile_read:
                     self.logfile_read.write(c)
                 self.buf += c
@@ -227,7 +199,7 @@ class Spawn:
         """
 
         os.close(self.fd)
-        for _ in range(100):
+        for i in xrange(100):
             if not self.isalive():
                 break
             time.sleep(0.1)

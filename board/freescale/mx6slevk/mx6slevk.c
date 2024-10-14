@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <init.h>
-#include <net.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/crm_regs.h>
@@ -14,19 +13,22 @@
 #include <asm/arch/mx6-ddr.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/mxc_i2c.h>
+#include <asm/mach-imx/spi.h>
 #include <asm/io.h>
 #include <linux/sizes.h>
 #include <common.h>
-#include <fsl_esdhc_imx.h>
+#include <fsl_esdhc.h>
 #include <i2c.h>
 #include <mmc.h>
+#include <netdev.h>
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/pfuze.h"
+#include <usb.h>
+#include <usb/ehci-ci.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -41,6 +43,9 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ENET_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |             \
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |             \
 	PAD_CTL_DSE_40ohm   | PAD_CTL_HYS)
+
+#define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED | \
+		      PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
 #define OTGID_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
 			PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW |\
@@ -104,9 +109,52 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 };
 #endif
 
+static iomux_v3_cfg_t const fec_pads[] = {
+	MX6_PAD_FEC_MDC__FEC_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_MDIO__FEC_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_CRS_DV__FEC_RX_DV | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_RXD0__FEC_RX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_RXD1__FEC_RX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_TX_EN__FEC_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_TXD0__FEC_TX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_TXD1__FEC_TX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_REF_CLK__FEC_REF_OUT | MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6_PAD_FEC_RX_ER__GPIO_4_19 | MUX_PAD_CTRL(NO_PAD_CTRL),
+	MX6_PAD_FEC_TX_CLK__GPIO_4_21 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+#ifdef CONFIG_MXC_SPI
+static iomux_v3_cfg_t ecspi1_pads[] = {
+	MX6_PAD_ECSPI1_MISO__ECSPI_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	MX6_PAD_ECSPI1_MOSI__ECSPI_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	MX6_PAD_ECSPI1_SCLK__ECSPI_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	MX6_PAD_ECSPI1_SS0__GPIO4_IO11  | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+int board_spi_cs_gpio(unsigned bus, unsigned cs)
+{
+	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 11)) : -1;
+}
+
+static void setup_spi(void)
+{
+	imx_iomux_v3_setup_multiple_pads(ecspi1_pads, ARRAY_SIZE(ecspi1_pads));
+}
+#endif
+
 static void setup_iomux_uart(void)
 {
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
+}
+
+static void setup_iomux_fec(void)
+{
+	imx_iomux_v3_setup_multiple_pads(fec_pads, ARRAY_SIZE(fec_pads));
+
+	/* Power up LAN8720 PHY */
+	gpio_request(ETH_PHY_POWER, "eth_pwr");
+	gpio_direction_output(ETH_PHY_POWER , 1);
+	udelay(15000);
 }
 
 int board_mmc_get_env_dev(int devno)
@@ -123,7 +171,7 @@ int power_init_board(void)
 	u32 switch_num = 6;
 	u32 offset = PFUZE100_SW1CMODE;
 
-	ret = pmic_get("pfuze100@08", &dev);
+	ret = pmic_get("pfuze100", &dev);
 	if (ret == -ENODEV)
 		return 0;
 
@@ -157,6 +205,12 @@ int power_init_board(void)
 #endif
 
 #ifdef CONFIG_FEC_MXC
+int board_eth_init(bd_t *bis)
+{
+	setup_iomux_fec();
+
+	return cpu_eth_init(bis);
+}
 
 static int setup_fec(void)
 {
@@ -166,6 +220,49 @@ static int setup_fec(void)
 	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC_MASK, 0);
 
 	return enable_fec_anatop_clock(0, ENET_50MHZ);
+}
+#endif
+
+#ifdef CONFIG_USB_EHCI_MX6
+#define USB_OTHERREGS_OFFSET	0x800
+#define UCTRL_PWR_POL		(1 << 9)
+
+static iomux_v3_cfg_t const usb_otg_pads[] = {
+	/* OTG1 */
+	MX6_PAD_KEY_COL4__USB_USBOTG1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL),
+	MX6_PAD_EPDC_PWRCOM__ANATOP_USBOTG1_ID | MUX_PAD_CTRL(OTGID_PAD_CTRL),
+	/* OTG2 */
+	MX6_PAD_KEY_COL5__USB_USBOTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)
+};
+
+static void setup_usb(void)
+{
+	imx_iomux_v3_setup_multiple_pads(usb_otg_pads,
+					 ARRAY_SIZE(usb_otg_pads));
+}
+
+int board_usb_phy_mode(int port)
+{
+	if (port == 1)
+		return USB_INIT_HOST;
+	else
+		return usb_phy_mode(port);
+}
+
+int board_ehci_hcd_init(int port)
+{
+	u32 *usbnc_usb_ctrl;
+
+	if (port > 1)
+		return -EINVAL;
+
+	usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
+				 port * 4);
+
+	/* Set Power polarity */
+	setbits_le32(usbnc_usb_ctrl, UCTRL_PWR_POL);
+
+	return 0;
 }
 #endif
 
@@ -181,8 +278,17 @@ int board_init(void)
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
+#ifdef CONFIG_MXC_SPI
+	gpio_request(IMX_GPIO_NR(4, 11), "spi_cs");
+	setup_spi();
+#endif
+
 #ifdef	CONFIG_FEC_MXC
 	setup_fec();
+#endif
+
+#ifdef CONFIG_USB_EHCI_MX6
+	setup_usb();
 #endif
 
 	return 0;
@@ -216,15 +322,12 @@ int board_mmc_getcd(struct mmc *mmc)
 
 	switch (cfg->esdhc_base) {
 	case USDHC1_BASE_ADDR:
-		gpio_request(USDHC1_CD_GPIO, "cd1_gpio");
 		ret = !gpio_get_value(USDHC1_CD_GPIO);
 		break;
 	case USDHC2_BASE_ADDR:
-		gpio_request(USDHC2_CD_GPIO, "cd2_gpio");
 		ret = !gpio_get_value(USDHC2_CD_GPIO);
 		break;
 	case USDHC3_BASE_ADDR:
-		gpio_request(USDHC3_CD_GPIO, "cd3_gpio");
 		ret = !gpio_get_value(USDHC3_CD_GPIO);
 		break;
 	}
@@ -232,7 +335,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(struct bd_info *bis)
+int board_mmc_init(bd_t *bis)
 {
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 	u32 val;

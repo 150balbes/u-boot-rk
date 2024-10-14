@@ -1,15 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * (C) Copyright 2012,2015 Stephen Warren
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _BCM2835_WDOG_H
 #define _BCM2835_WDOG_H
 
-#include <asm/arch/base.h>
-
-#define BCM2835_WDOG_PHYSADDR ({ BUG_ON(!rpi_bcm283x_base); \
-				 rpi_bcm283x_base + 0x00100000; })
+#ifndef CONFIG_BCM2835
+#define BCM2835_WDOG_PHYSADDR			0x3f100000
+#else
+#define BCM2835_WDOG_PHYSADDR			0x20100000
+#endif
 
 struct bcm2835_wdog_regs {
 	u32 unknown0[7];

@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2001
  * Erik Theisen,  Wave 7 Optics, etheisen@mindspring.com.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <linux/kconfig.h>
@@ -12,7 +13,7 @@
 #define	__ASM_STUB_PROCESSOR_H__	/* don't include asm/processor. */
 #include <config.h>
 #undef	__ASSEMBLY__
-#include <env_internal.h>
+#include <environment.h>
 #include <linux/stringify.h>
 
 /* Handle HOSTS that have prepended crap on symbol names, not TARGETS. */
@@ -27,18 +28,18 @@
  * Generate embedded environment table
  * inside U-Boot image, if needed.
  */
-#if defined(ENV_IS_EMBEDDED)
+#if defined(ENV_IS_EMBEDDED) || defined(CONFIG_BUILD_ENVCRC)
 /*
  * Put the environment in the .text section when we are building
  * U-Boot proper.  The host based program "tools/envcrc" does not need
  * a seperate section.
  */
 #if defined(USE_HOSTCC) /* Native for 'tools/envcrc' */
-#  define __UBOOT_ENV_SECTION__(name)	/*XXX DO_NOT_DEL_THIS_COMMENT*/
+#  define __UBOOT_ENV_SECTION__	/*XXX DO_NOT_DEL_THIS_COMMENT*/
 
 #else /* Environment is embedded in U-Boot's .text section */
 /* XXX - This only works with GNU C */
-#  define __UBOOT_ENV_SECTION__(name)	__attribute__ ((section(".text."#name)))
+#  define __UBOOT_ENV_SECTION__	__attribute__ ((section(".text")))
 #endif
 
 /*
@@ -66,11 +67,10 @@
 #endif
 
 #define DEFAULT_ENV_INSTANCE_EMBEDDED
-#include <config.h>
 #include <env_default.h>
 
 #ifdef CONFIG_ENV_ADDR_REDUND
-env_t redundand_environment __UBOOT_ENV_SECTION__(redundand_environment) = {
+env_t redundand_environment __UBOOT_ENV_SECTION__ = {
 	0,		/* CRC Sum: invalid */
 	0,		/* Flags:   invalid */
 	{
@@ -87,11 +87,11 @@ env_t redundand_environment __UBOOT_ENV_SECTION__(redundand_environment) = {
  * .data/.sdata section.
  *
  */
-unsigned long env_size __UBOOT_ENV_SECTION__(env_size) = sizeof(env_t);
+unsigned long env_size __UBOOT_ENV_SECTION__ = sizeof(env_t);
 
 /*
  * Add in absolutes.
  */
-GEN_ABS(env_offset, (CONFIG_ENV_ADDR - CFG_SYS_FLASH_BASE));
+GEN_ABS(env_offset, CONFIG_ENV_OFFSET);
 
 #endif /* ENV_IS_EMBEDDED */

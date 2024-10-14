@@ -1,13 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /**
  * (C) Copyright 2014, Cavium Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
 **/
 
 #include <common.h>
-#include <command.h>
-#include <asm/cache.h>
 #include <asm/io.h>
-#include <asm/ptrace.h>
 
 #include <asm/system.h>
 #include <cavium/thunderx_svc.h>
@@ -17,6 +15,8 @@
 #include <asm/psci.h>
 
 #include <malloc.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 ssize_t atf_read_mmc(uintptr_t offset, void *buffer, size_t size)
 {
@@ -187,7 +187,7 @@ static void atf_print_part_table(void)
 	int ret;
 	char *ptype;
 
-	struct storage_partition *part = (void *)CFG_SYS_LOWMEM_BASE;
+	struct storage_partition *part = (void *)CONFIG_SYS_LOWMEM_BASE;
 
 	pcount = atf_get_pcount();
 
@@ -226,7 +226,7 @@ static void atf_print_part_table(void)
 	}
 }
 
-int do_atf(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_atf(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ssize_t ret;
 	size_t size, offset;
@@ -235,48 +235,48 @@ int do_atf(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	char str[4 * sizeof(uint64_t)];
 
 	if ((argc == 5) && !strcmp(argv[1], "readmmc")) {
-		buffer = (void *)hextoul(argv[2], NULL);
-		offset = dectoul(argv[3], NULL);
-		size = dectoul(argv[4], NULL);
+		buffer = (void *)simple_strtoul(argv[2], NULL, 16);
+		offset = simple_strtoul(argv[3], NULL, 10);
+		size = simple_strtoul(argv[4], NULL, 10);
 
 		ret = atf_read_mmc(offset, buffer, size);
 	} else if ((argc == 5) && !strcmp(argv[1], "readnor")) {
-		buffer = (void *)hextoul(argv[2], NULL);
-		offset = dectoul(argv[3], NULL);
-		size = dectoul(argv[4], NULL);
+		buffer = (void *)simple_strtoul(argv[2], NULL, 16);
+		offset = simple_strtoul(argv[3], NULL, 10);
+		size = simple_strtoul(argv[4], NULL, 10);
 
 		ret = atf_read_nor(offset, buffer, size);
 	} else if ((argc == 5) && !strcmp(argv[1], "writemmc")) {
-		buffer = (void *)hextoul(argv[2], NULL);
-		offset = dectoul(argv[3], NULL);
-		size = dectoul(argv[4], NULL);
+		buffer = (void *)simple_strtoul(argv[2], NULL, 16);
+		offset = simple_strtoul(argv[3], NULL, 10);
+		size = simple_strtoul(argv[4], NULL, 10);
 
 		ret = atf_write_mmc(offset, buffer, size);
 	} else if ((argc == 5) && !strcmp(argv[1], "writenor")) {
-		buffer = (void *)hextoul(argv[2], NULL);
-		offset = dectoul(argv[3], NULL);
-		size = dectoul(argv[4], NULL);
+		buffer = (void *)simple_strtoul(argv[2], NULL, 16);
+		offset = simple_strtoul(argv[3], NULL, 10);
+		size = simple_strtoul(argv[4], NULL, 10);
 
 		ret = atf_write_nor(offset, buffer, size);
 	} else if ((argc == 2) && !strcmp(argv[1], "part")) {
 		atf_print_part_table();
 	} else if ((argc == 4) && !strcmp(argv[1], "erasenor")) {
-		offset = dectoul(argv[2], NULL);
-		size = dectoul(argv[3], NULL);
+		offset = simple_strtoul(argv[2], NULL, 10);
+		size = simple_strtoul(argv[3], NULL, 10);
 
 		ret = atf_erase_nor(offset, size);
 	} else if ((argc == 2) && !strcmp(argv[1], "envcount")) {
 		ret = atf_env_count();
 		printf("Number of environment strings: %zd\n", ret);
 	} else if ((argc == 3) && !strcmp(argv[1], "envstring")) {
-		index = dectoul(argv[2], NULL);
+		index = simple_strtoul(argv[2], NULL, 10);
 		ret = atf_env_string(index, str);
 		if (ret > 0)
 			printf("Environment string %d: %s\n", index, str);
 		else
 			printf("Return code: %zd\n", ret);
 	} else if ((argc == 3) && !strcmp(argv[1], "dramsize")) {
-		node = dectoul(argv[2], NULL);
+		node = simple_strtoul(argv[2], NULL, 10);
 		ret = atf_dram_size(node);
 		printf("DRAM size: %zd Mbytes\n", ret >> 20);
 	} else if ((argc == 2) && !strcmp(argv[1], "nodes")) {

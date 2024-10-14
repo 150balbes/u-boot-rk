@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015, Bin Meng <bmeng.cn@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _X86_TABLES_H_
@@ -15,6 +16,19 @@
 
 /* SeaBIOS expects coreboot tables at address range 0x0000-0x1000 */
 #define CB_TABLE_ADDR	0x800
+
+/**
+ * table_compute_checksum() - Compute a table checksum
+ *
+ * This computes an 8-bit checksum for the configuration table.
+ * All bytes in the configuration table, including checksum itself and
+ * reserved bytes must add up to zero.
+ *
+ * @v:		configuration table base address
+ * @len:	configuration table size
+ * @return:	the 8-bit checksum
+ */
+u8 table_compute_checksum(void *v, int len);
 
 /**
  * table_fill_string() - Fill a string with pad in the configuration table
@@ -36,10 +50,8 @@ void table_fill_string(char *dest, const char *src, size_t n, char pad);
  * This writes x86 configuration tables, including PIRQ routing table,
  * Multi-Processor table and ACPI table. Whether a specific type of
  * configuration table is written is controlled by a Kconfig option.
- *
- * Return: 0 if OK, -ENOSPC if table too large
  */
-int write_tables(void);
+void write_tables(void);
 
 /**
  * write_pirq_routing_table() - Write PIRQ routing table

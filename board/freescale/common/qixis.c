@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2011 Freescale Semiconductor
- * Copyright 2020 NXP
  * Author: Shengzhou Liu <Shengzhou.Liu@freescale.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  * This file provides support for the QIXIS of some Freescale reference boards.
  */
@@ -10,7 +10,6 @@
 #include <common.h>
 #include <command.h>
 #include <asm/io.h>
-#include <linux/compiler.h>
 #include <linux/time.h>
 #include <i2c.h>
 #include "qixis.h"
@@ -22,40 +21,16 @@
 #define QIXIS_LBMAP_BRDCFG_REG 0x00
 #endif
 
-#ifndef QIXIS_RCFG_CTL_RECONFIG_IDLE
-#define QIXIS_RCFG_CTL_RECONFIG_IDLE 0x20
-#endif
-#ifndef QIXIS_RCFG_CTL_RECONFIG_START
-#define QIXIS_RCFG_CTL_RECONFIG_START 0x21
-#endif
-
-#ifdef CFG_SYS_I2C_FPGA_ADDR
+#ifdef CONFIG_SYS_I2C_FPGA_ADDR
 u8 qixis_read_i2c(unsigned int reg)
 {
-#if !CONFIG_IS_ENABLED(DM_I2C)
-	return i2c_reg_read(CFG_SYS_I2C_FPGA_ADDR, reg);
-#else
-	struct udevice *dev;
-
-	if (i2c_get_chip_for_busnum(0, CFG_SYS_I2C_FPGA_ADDR, 1, &dev))
-		return 0xff;
-
-	return dm_i2c_reg_read(dev, reg);
-#endif
+	return i2c_reg_read(CONFIG_SYS_I2C_FPGA_ADDR, reg);
 }
 
 void qixis_write_i2c(unsigned int reg, u8 value)
 {
 	u8 val = value;
-#if !CONFIG_IS_ENABLED(DM_I2C)
-	i2c_reg_write(CFG_SYS_I2C_FPGA_ADDR, reg, val);
-#else
-	struct udevice *dev;
-
-	if (!i2c_get_chip_for_busnum(0, CFG_SYS_I2C_FPGA_ADDR, 1, &dev))
-		dm_i2c_reg_write(dev, reg, val);
-#endif
-
+	i2c_reg_write(CONFIG_SYS_I2C_FPGA_ADDR, reg, val);
 }
 #endif
 
@@ -161,19 +136,16 @@ void board_deassert_mem_reset(void)
 }
 #endif
 
-#ifndef CONFIG_SPL_BUILD
-static void qixis_reset(void)
+void qixis_reset(void)
 {
 	QIXIS_WRITE(rst_ctl, QIXIS_RST_CTL_RESET);
 }
 
-#ifdef QIXIS_LBMAP_ALTBANK
-static void qixis_bank_reset(void)
+void qixis_bank_reset(void)
 {
 	QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_IDLE);
 	QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_START);
 }
-#endif
 
 static void __maybe_unused set_lbmap(int lbmap)
 {
@@ -186,16 +158,12 @@ static void __maybe_unused set_lbmap(int lbmap)
 
 static void __maybe_unused set_rcw_src(int rcw_src)
 {
-#ifdef CONFIG_NXP_LSCH3_2
-	QIXIS_WRITE(dutcfg[0], (rcw_src & 0xff));
-#else
 	u8 reg;
 
 	reg = QIXIS_READ(dutcfg[1]);
 	reg = (reg & ~1) | (rcw_src & 1);
 	QIXIS_WRITE(dutcfg[1], reg);
 	QIXIS_WRITE(dutcfg[0], (rcw_src >> 1) & 0xff);
-#endif
 }
 
 static void qixis_dump_regs(void)
@@ -228,13 +196,15 @@ static void qixis_dump_regs(void)
 	printf("stat_alrm = %02x\n", QIXIS_READ(stat_alrm));
 }
 
-void __weak qixis_dump_switch(void)
+static void __qixis_dump_switch(void)
 {
 	puts("Reverse engineering switch is not implemented for this board\n");
 }
 
-static int qixis_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
-			   char *const argv[])
+void qixis_dump_switch(void)
+	__attribute__((weak, alias("__qixis_dump_switch")));
+
+int qixis_reset_cmd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int i;
 
@@ -242,20 +212,16 @@ static int qixis_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
 		set_lbmap(QIXIS_LBMAP_DFLTBANK);
 		qixis_reset();
 	} else if (strcmp(argv[1], "altbank") == 0) {
-#ifdef QIXIS_LBMAP_ALTBANK
 		set_lbmap(QIXIS_LBMAP_ALTBANK);
 		qixis_bank_reset();
-#else
-		printf("No Altbank!\n");
-#endif
 	} else if (strcmp(argv[1], "nand") == 0) {
 #ifdef QIXIS_LBMAP_NAND
 		QIXIS_WRITE(rst_ctl, 0x30);
 		QIXIS_WRITE(rcfg_ctl, 0);
 		set_lbmap(QIXIS_LBMAP_NAND);
 		set_rcw_src(QIXIS_RCW_SRC_NAND);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_START);
+		QIXIS_WRITE(rcfg_ctl, 0x20);
+		QIXIS_WRITE(rcfg_ctl, 0x21);
 #else
 		printf("Not implemented\n");
 #endif
@@ -263,38 +229,10 @@ static int qixis_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
 #ifdef QIXIS_LBMAP_SD
 		QIXIS_WRITE(rst_ctl, 0x30);
 		QIXIS_WRITE(rcfg_ctl, 0);
-#ifdef NON_EXTENDED_DUTCFG
-		QIXIS_WRITE(dutcfg[0], QIXIS_RCW_SRC_SD);
-#else
 		set_lbmap(QIXIS_LBMAP_SD);
 		set_rcw_src(QIXIS_RCW_SRC_SD);
-#endif
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_START);
-#else
-		printf("Not implemented\n");
-#endif
-	} else if (strcmp(argv[1], "ifc") == 0) {
-#ifdef QIXIS_LBMAP_IFC
-		QIXIS_WRITE(rst_ctl, 0x30);
-		QIXIS_WRITE(rcfg_ctl, 0);
-		set_lbmap(QIXIS_LBMAP_IFC);
-		set_rcw_src(QIXIS_RCW_SRC_IFC);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_START);
-#else
-		printf("Not implemented\n");
-#endif
-	} else if (strcmp(argv[1], "emmc") == 0) {
-#ifdef QIXIS_LBMAP_EMMC
-		QIXIS_WRITE(rst_ctl, 0x30);
-		QIXIS_WRITE(rcfg_ctl, 0);
-#ifndef NON_EXTENDED_DUTCFG
-		set_lbmap(QIXIS_LBMAP_EMMC);
-#endif
-		set_rcw_src(QIXIS_RCW_SRC_EMMC);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		QIXIS_WRITE(rcfg_ctl, QIXIS_RCFG_CTL_RECONFIG_START);
+		QIXIS_WRITE(rcfg_ctl, 0x20);
+		QIXIS_WRITE(rcfg_ctl, 0x21);
 #else
 		printf("Not implemented\n");
 #endif
@@ -304,10 +242,8 @@ static int qixis_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
 		QIXIS_WRITE(rcfg_ctl, 0);
 		set_lbmap(QIXIS_LBMAP_SD_QSPI);
 		set_rcw_src(QIXIS_RCW_SRC_SD);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_START);
+		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl), 0x20);
+		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl), 0x21);
 #else
 		printf("Not implemented\n");
 #endif
@@ -317,23 +253,8 @@ static int qixis_reset_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
 		QIXIS_WRITE(rcfg_ctl, 0);
 		set_lbmap(QIXIS_LBMAP_QSPI);
 		set_rcw_src(QIXIS_RCW_SRC_QSPI);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_START);
-#else
-		printf("Not implemented\n");
-#endif
-	} else if (strcmp(argv[1], "xspi") == 0) {
-#ifdef QIXIS_LBMAP_XSPI
-		QIXIS_WRITE(rst_ctl, 0x30);
-		QIXIS_WRITE(rcfg_ctl, 0);
-		set_lbmap(QIXIS_LBMAP_XSPI);
-		set_rcw_src(QIXIS_RCW_SRC_XSPI);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_IDLE);
-		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl),
-				QIXIS_RCFG_CTL_RECONFIG_START);
+		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl), 0x20);
+		qixis_write_i2c(offsetof(struct qixis, rcfg_ctl), 0x21);
 #else
 		printf("Not implemented\n");
 #endif
@@ -382,7 +303,5 @@ U_BOOT_CMD(
 	"qixis watchdog <watchdog_period> - set the watchdog period\n"
 	"	period: 1s 2s 4s 8s 16s 32s 1min 2min 4min 8min\n"
 	"qixis_reset dump - display the QIXIS registers\n"
-	"qixis_reset emmc - reset to emmc\n"
 	"qixis_reset switch - display switch\n"
 	);
-#endif

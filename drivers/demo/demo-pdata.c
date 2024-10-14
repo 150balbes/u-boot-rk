@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -20,27 +21,27 @@ static const struct dm_demo_pdata yellow_hexagon = {
 	.sides = 6.
 };
 
-U_BOOT_DRVINFO(demo0) = {
+U_BOOT_DEVICE(demo0) = {
 	.name = "demo_shape_drv",
-	.plat = &red_square,
+	.platdata = &red_square,
 };
 
-U_BOOT_DRVINFO(demo1) = {
+U_BOOT_DEVICE(demo1) = {
 	.name = "demo_simple_drv",
-	.plat = &red_square,
+	.platdata = &red_square,
 };
 
-U_BOOT_DRVINFO(demo2) = {
+U_BOOT_DEVICE(demo2) = {
 	.name = "demo_shape_drv",
-	.plat = &green_triangle,
+	.platdata = &green_triangle,
 };
 
-U_BOOT_DRVINFO(demo3) = {
+U_BOOT_DEVICE(demo3) = {
 	.name = "demo_simple_drv",
-	.plat = &yellow_hexagon,
+	.platdata = &yellow_hexagon,
 };
 
-U_BOOT_DRVINFO(demo4) = {
+U_BOOT_DEVICE(demo4) = {
 	.name = "demo_shape_drv",
-	.plat = &yellow_hexagon,
+	.platdata = &yellow_hexagon,
 };

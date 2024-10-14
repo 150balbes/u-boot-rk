@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Vikram Narayananan
  * <vikram186@gmail.com>
  * (C) Copyright 2012,2015 Stephen Warren
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _BCM2835_GPIO_H_
@@ -52,12 +53,14 @@ struct bcm2835_gpio_regs {
 };
 
 /**
- * struct bcm2835_gpio_plat - GPIO platform description
+ * struct bcm2835_gpio_platdata - GPIO platform description
  *
  * @base: Base address of GPIO controller
  */
-struct bcm2835_gpio_plat {
+struct bcm2835_gpio_platdata {
 	unsigned long base;
 };
+
+int bcm2835_gpio_get_func_id(struct udevice *dev, unsigned gpio);
 
 #endif /* _BCM2835_GPIO_H_ */

@@ -1,16 +1,23 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2013, Google Inc.
  *
  * Copyright (C) 2011
  * Corscience GmbH & Co. KG - Simon Schwarz <schwarz@corscience.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef ARM_BOOTM_H
 #define ARM_BOOTM_H
 
 extern void udc_disconnect(void);
 
-#ifdef CONFIG_SUPPORT_PASSING_ATAGS
+#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
+		defined(CONFIG_CMDLINE_TAG) || \
+		defined(CONFIG_INITRD_TAG) || \
+		defined(CONFIG_SERIAL_TAG) || \
+		defined(CONFIG_REVISION_TAG)
 # define BOOTM_ENABLE_TAGS		1
 #else
 # define BOOTM_ENABLE_TAGS		0
@@ -37,12 +44,9 @@ extern void udc_disconnect(void);
 struct tag_serialnr;
 #ifdef CONFIG_SERIAL_TAG
  #define BOOTM_ENABLE_SERIAL_TAG	1
-#else
- #define BOOTM_ENABLE_SERIAL_TAG	0
-#endif
-#if defined(CONFIG_SERIAL_TAG) || defined(CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG)
 void get_board_serial(struct tag_serialnr *serialnr);
 #else
+ #define BOOTM_ENABLE_SERIAL_TAG	0
 static inline void get_board_serial(struct tag_serialnr *serialnr)
 {
 }

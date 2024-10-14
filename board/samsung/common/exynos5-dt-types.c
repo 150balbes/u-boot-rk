@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Samsung Electronics
  * Przemyslaw Marczak <p.marczak@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -9,8 +10,6 @@
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
-#include <asm/global_data.h>
-#include <linux/delay.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 #include <power/s2mps11.h>
@@ -26,61 +25,30 @@ static const struct udevice_id board_ids[] = {
 };
 
 /**
- * Odroix XU3/XU4/HC1/HC2 board revisions (from HC1+_HC2_MAIN_REV0.1_20171017.pdf):
+ * Odroix XU3/4 board revisions:
  * Rev   ADCmax  Board
  * 0.1     0     XU3 0.1
- * 0.2   372     XU3 0.2 | XU3L - no DISPLAYPORT (probe I2C0:0x40 / INA231)
- * 0.3  1280     XU4 0.1
- * 0.4   739     XU4 0.2
- * 0.5  1016     XU4+Air0.1 (Passive cooling)
- * 0.6  1309     XU4-HC1 0.1
- * 0.7  1470     XU4-HC1+ 0.1 (HC2)
- * Use +1% for ADC value tolerance in the array below, the code loops until
- * the measured ADC value is lower than then ADCmax from the array.
+ * 0.2   410     XU3 0.2 | XU3L - no DISPLAYPORT (probe I2C0:0x40 / INA231)
+ * 0.3  1408     XU4 0.1
+ * Use +10 % for ADC value tolerance.
  */
 struct odroid_rev_info odroid_info[] = {
 	{ EXYNOS5_BOARD_ODROID_XU3_REV01, 1, 10, "xu3" },
-	{ EXYNOS5_BOARD_ODROID_XU3_REV02, 2, 375, "xu3" },
-	{ EXYNOS5_BOARD_ODROID_XU4_REV01, 1, 1293, "xu4" },
-	{ EXYNOS5_BOARD_ODROID_HC1_REV01, 1, 1322, "hc1" },
-	{ EXYNOS5_BOARD_ODROID_HC2_REV01, 1, 1484, "hc1" },
+	{ EXYNOS5_BOARD_ODROID_XU3_REV02, 2, 410, "xu3" },
+	{ EXYNOS5_BOARD_ODROID_XU4_REV01, 1, 1408, "xu4" },
 	{ EXYNOS5_BOARD_ODROID_UNKNOWN, 0, 4095, "unknown" },
 };
 
-/*
- * Read ADC at least twice and check the resuls.  If regulator providing voltage
- * on to measured point was just turned on, first reads might require time
- * to stabilize.
- */
-static int odroid_get_adc_val(unsigned int *adcval)
+static unsigned int odroid_get_rev(void)
 {
-	unsigned int adcval_prev = 0;
-	int ret, retries = 20;
+	int i;
 
-	ret = adc_channel_single_shot("adc@12D10000", CFG_ODROID_REV_AIN,
-				      &adcval_prev);
-	if (ret)
-		return ret;
-
-	while (retries--) {
-		mdelay(5);
-
-		ret = adc_channel_single_shot("adc@12D10000",
-					      CFG_ODROID_REV_AIN, adcval);
-		if (ret)
-			return ret;
-
-		/*
-		 * If difference between ADC reads is less than 3%,
-		 * accept the result
-		 */
-		if ((100 * abs(*adcval - adcval_prev) / adcval_prev) < 3)
-			return ret;
-
-		adcval_prev = *adcval;
+	for (i = 0; i < ARRAY_SIZE(odroid_info); i++) {
+		if (odroid_info[i].board_type == gd->board_type)
+			return odroid_info[i].board_rev;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int odroid_get_board_type(void)
@@ -88,12 +56,12 @@ static int odroid_get_board_type(void)
 	unsigned int adcval;
 	int ret, i;
 
-	ret = odroid_get_adc_val(&adcval);
+	ret = adc_channel_single_shot("adc", CONFIG_ODROID_REV_AIN, &adcval);
 	if (ret)
 		goto rev_default;
 
 	for (i = 0; i < ARRAY_SIZE(odroid_info); i++) {
-		/* ADC tolerance: +1% */
+		/* ADC tolerance: +20 % */
 		if (adcval < odroid_info[i].adc_val)
 			return odroid_info[i].board_type;
 	}
@@ -119,7 +87,7 @@ static const char *odroid_get_type_str(void)
 	if (gd->board_type != EXYNOS5_BOARD_ODROID_XU3_REV02)
 		goto exit;
 
-	ret = pmic_get("s2mps11_pmic@66", &dev);
+	ret = pmic_get("s2mps11", &dev);
 	if (ret)
 		goto exit;
 
@@ -164,41 +132,12 @@ bool board_is_odroidxu4(void)
 	return false;
 }
 
-bool board_is_odroidhc1(void)
-{
-	if (gd->board_type == EXYNOS5_BOARD_ODROID_HC1_REV01)
-		return true;
-
-	return false;
-}
-
-bool board_is_odroidhc2(void)
-{
-	if (gd->board_type == EXYNOS5_BOARD_ODROID_HC2_REV01)
-		return true;
-
-	return false;
-}
-
 bool board_is_generic(void)
 {
 	if (gd->board_type == EXYNOS5_BOARD_GENERIC)
 		return true;
 
 	return false;
-}
-
-#ifdef CONFIG_REVISION_TAG
-static unsigned int odroid_get_rev(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(odroid_info); i++) {
-		if (odroid_info[i].board_type == gd->board_type)
-			return odroid_info[i].board_rev;
-	}
-
-	return 0;
 }
 
 /**
@@ -213,7 +152,6 @@ u32 get_board_rev(void)
 
 	return odroid_get_rev();
 }
-#endif
 
 /**
  * get_board_type() - returns board type string.
@@ -232,11 +170,8 @@ const char *get_board_type(void)
 
 /**
  * set_board_type() - set board type in gd->board_type.
- * As default type set EXYNOS5_BOARD_GENERIC. If Odroid is detected,
- * set its proper type based on device tree.
- *
- * This might be called early when some more specific ways to detect revision
- * are not yet available.
+ * As default type set EXYNOS5_BOARD_GENERIC, if detect Odroid,
+ * then set its proper type.
  */
 void set_board_type(void)
 {
@@ -254,15 +189,8 @@ void set_board_type(void)
 		gd->board_type = of_match->data;
 		break;
 	}
-}
 
-/**
- * set_board_revision() - set detailed board type in gd->board_type.
- * Should be called when resources (e.g. regulators) are available
- * so ADC can be used to detect the specific revision of a board.
- */
-void set_board_revision(void)
-{
+	/* If Odroid, then check its revision */
 	if (board_is_odroidxu3())
 		gd->board_type = odroid_get_board_type();
 }

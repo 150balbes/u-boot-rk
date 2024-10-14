@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * LPC32xxGPIO driver
  *
  * (C) Copyright 2014  DENX Software Engineering GmbH
  * Written-by: Albert ARIBAUD <albert.aribaud@3adev.fr>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -295,7 +296,7 @@ static const struct dm_gpio_ops gpio_lpc32xx_ops = {
 static int lpc32xx_gpio_probe(struct udevice *dev)
 {
 	struct lpc32xx_gpio_priv *gpio_priv = dev_get_priv(dev);
-	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
+	struct gpio_dev_priv *uc_priv = dev->uclass_priv;
 
 	if (dev_of_offset(dev) == -1) {
 		/* Tell the uclass how many GPIOs we have */
@@ -317,5 +318,5 @@ U_BOOT_DRIVER(gpio_lpc32xx) = {
 	.id	= UCLASS_GPIO,
 	.ops	= &gpio_lpc32xx_ops,
 	.probe	= lpc32xx_gpio_probe,
-	.priv_auto	= sizeof(struct lpc32xx_gpio_priv),
+	.priv_auto_alloc_size = sizeof(struct lpc32xx_gpio_priv),
 };

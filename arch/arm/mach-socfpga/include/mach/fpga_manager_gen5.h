@@ -1,13 +1,13 @@
-/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (C) 2012-2017 Altera Corporation <www.altera.com>
  * All rights reserved.
+ *
+ * SPDX-License-Identifier:    BSD-3-Clause
  */
 
 #ifndef _FPGA_MANAGER_GEN5_H_
 #define _FPGA_MANAGER_GEN5_H_
 
-#include <linux/bitops.h>
 #define FPGAMGRREGS_STAT_MODE_MASK		0x7
 #define FPGAMGRREGS_STAT_MSEL_MASK		0xf8
 #define FPGAMGRREGS_STAT_MSEL_LSB		3

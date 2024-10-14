@@ -1,13 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  (C) Copyright 2010,2011
  *  NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _TPS6586X_H_
 #define _TPS6586X_H_
-
-struct udevice;
 
 enum {
 	/* SM0-2 PWM/PFM Mode Selection */
@@ -20,7 +19,7 @@ enum {
  * Enable PWM mode for selected SM0-2
  *
  * @param mask	Mask of synchronous converter to enable (TPS6586X_PWM_...)
- * Return: 0 if ok, -1 on error
+ * @return 0 if ok, -1 on error
  */
 int tps6586x_set_pwm_mode(int mask);
 
@@ -36,7 +35,7 @@ int tps6586x_set_pwm_mode(int mask);
  *			If this condition is not met, no adjustment will be
  *			done and an error will be reported. Use -1 to skip
  *			this check.
- * Return: 0 if ok, -1 on error
+ * @return 0 if ok, -1 on error
  */
 int tps6586x_adjust_sm0_sm1(int sm0_target, int sm1_target, int step, int rate,
 			    int min_sm0_over_sm1);
@@ -46,7 +45,7 @@ int tps6586x_adjust_sm0_sm1(int sm0_target, int sm1_target, int step, int rate,
  * on the device. This function must be called before using other functions.
  *
  * @param bus	I2C bus containing the TPS6586X chip
- * Return: 0 (always succeeds)
+ * @return 0 (always succeeds)
  */
 int tps6586x_init(struct udevice *bus);
 

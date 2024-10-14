@@ -1,24 +1,27 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011-2012 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* #define DEBUG */
 
 #include <common.h>
 #include <command.h>
-#include <env_internal.h>
-#include <asm/global_data.h>
+#include <environment.h>
 #include <linux/stddef.h>
-#include <u-boot/crc.h>
 
 #ifdef ENV_IS_EMBEDDED
-static env_t *env_ptr = &environment;
+env_t *env_ptr = &environment;
 #else /* ! ENV_IS_EMBEDDED */
-static env_t *env_ptr = (env_t *)CONFIG_ENV_ADDR;
+env_t *env_ptr = (env_t *)CONFIG_ENV_ADDR;
 #endif /* ENV_IS_EMBEDDED */
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#if !defined(CONFIG_ENV_OFFSET)
+#define CONFIG_ENV_OFFSET 0
+#endif
 
 static int env_remote_init(void)
 {
@@ -46,7 +49,7 @@ static int env_remote_save(void)
 static int env_remote_load(void)
 {
 #ifndef ENV_IS_EMBEDDED
-	return env_import((char *)env_ptr, 1, H_EXTERNAL);
+	env_import((char *)env_ptr, 1);
 #endif
 
 	return 0;

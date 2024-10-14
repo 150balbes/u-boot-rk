@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  * Based on code from coreboot
  */
@@ -8,9 +9,6 @@
 #include <common.h>
 #include <cpu.h>
 #include <dm.h>
-#include <event.h>
-#include <init.h>
-#include <log.h>
 #include <pci.h>
 #include <asm/cpu.h>
 #include <asm/cpu_x86.h>
@@ -45,7 +43,7 @@ static void hsuart_clock_set(void *base)
  * Configure the internal clock of both SIO HS-UARTs, if they are enabled
  * via FSP
  */
-static int baytrail_uart_init(void *ctx, struct event *event)
+int arch_cpu_init_dm(void)
 {
 	struct udevice *dev;
 	void *base;
@@ -56,7 +54,7 @@ static int baytrail_uart_init(void *ctx, struct event *event)
 	for (i = 0; i < 2; i++) {
 		ret = dm_pci_bus_find_bdf(PCI_BDF(0, 0x1e, 3 + i), &dev);
 		if (!ret) {
-			base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0, 0, PCI_REGION_TYPE,
+			base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0,
 					      PCI_REGION_MEM);
 			hsuart_clock_set(base);
 		}
@@ -64,7 +62,6 @@ static int baytrail_uart_init(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_DM_POST_INIT, baytrail_uart_init);
 
 static void set_max_freq(void)
 {
@@ -72,9 +69,9 @@ static void set_max_freq(void)
 	msr_t msr;
 
 	/* Enable speed step */
-	msr = msr_read(MSR_IA32_MISC_ENABLE);
-	msr.lo |= MISC_ENABLE_ENHANCED_SPEEDSTEP;
-	msr_write(MSR_IA32_MISC_ENABLE, msr);
+	msr = msr_read(MSR_IA32_MISC_ENABLES);
+	msr.lo |= (1 << 16);
+	msr_write(MSR_IA32_MISC_ENABLES, msr);
 
 	/*
 	 * Set guaranteed ratio [21:16] from IACORE_RATIOS to bits [15:8] of
@@ -84,7 +81,7 @@ static void set_max_freq(void)
 	perf_ctl.lo = (msr.lo & 0x3f0000) >> 8;
 
 	/*
-	 * Set guaranteed vid [22:16] from IACORE_VIDS to bits [7:0] of
+	 * Set guaranteed vid [21:16] from IACORE_VIDS to bits [7:0] of
 	 * the PERF_CTL
 	 */
 	msr = msr_read(MSR_IACORE_VIDS);
@@ -152,7 +149,7 @@ static unsigned long tsc_freq(void)
 	return bclk * ((platform_info.lo >> 8) & 0xff);
 }
 
-static int baytrail_get_info(const struct udevice *dev, struct cpu_info *info)
+static int baytrail_get_info(struct udevice *dev, struct cpu_info *info)
 {
 	info->cpu_freq = tsc_freq();
 	info->features = 1 << CPU_FEAT_L1_CACHE | 1 << CPU_FEAT_MMU;
@@ -160,7 +157,7 @@ static int baytrail_get_info(const struct udevice *dev, struct cpu_info *info)
 	return 0;
 }
 
-static int baytrail_get_count(const struct udevice *dev)
+static int baytrail_get_count(struct udevice *dev)
 {
 	int ecx = 0;
 
@@ -207,5 +204,4 @@ U_BOOT_DRIVER(cpu_x86_baytrail_drv) = {
 	.bind		= cpu_x86_bind,
 	.probe		= cpu_x86_baytrail_probe,
 	.ops		= &cpu_x86_baytrail_ops,
-	.flags		= DM_FLAG_PRE_RELOC,
 };

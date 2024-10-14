@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013
  * Dirk Eibach,  Guntermann & Drunck GmbH, dirk.eibach@gdsys.cc
@@ -6,12 +5,13 @@
  * based on cmd_mem.c
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
 #include <console.h>
-#include <display_options.h>
 
 #include <gdsys_fpga.h>
 
@@ -26,7 +26,7 @@ static uint	dp_last_length = 0x40;
  *	fpgad {fpga} {addr} {len}
  */
 #define DISP_LINE_LEN	16
-int do_fpga_md(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_fpga_md(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned int k;
 	unsigned int fpga;
@@ -50,19 +50,19 @@ int do_fpga_md(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		/*
 		 * FPGA is specified since argc > 2
 		 */
-		fpga = hextoul(argv[1], NULL);
+		fpga = simple_strtoul(argv[1], NULL, 16);
 
 		/*
 		 * Address is specified since argc > 2
 		 */
-		addr = hextoul(argv[2], NULL);
+		addr = simple_strtoul(argv[2], NULL, 16);
 
 		/*
 		 * If another parameter, it is the length to display.
 		 * Length is the number of objects, not number of bytes.
 		 */
 		if (argc > 3)
-			length = hextoul(argv[3], NULL);
+			length = simple_strtoul(argv[3], NULL, 16);
 	}
 
 	nbytes = length * sizeof(u16);

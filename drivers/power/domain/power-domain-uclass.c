@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  */
-
-#define LOG_CATEGORY UCLASS_POWER_DOMAIN
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
-#include <malloc.h>
 #include <power-domain.h>
 #include <power-domain-uclass.h>
 #include <dm/device-internal.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 static inline struct power_domain_ops *power_domain_dev_ops(struct udevice *dev)
 {
@@ -126,14 +125,14 @@ int power_domain_off(struct power_domain *power_domain)
 	return ops->off ? ops->off(power_domain) : 0;
 }
 
-#if CONFIG_IS_ENABLED(OF_REAL)
+#if (CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA))
 static int dev_power_domain_ctrl(struct udevice *dev, bool on)
 {
 	struct power_domain pd;
 	int i, count, ret = 0;
 
 	count = dev_count_phandle_with_args(dev, "power-domains",
-					    "#power-domain-cells", 0);
+					    "#power-domain-cells");
 	for (i = 0; i < count; i++) {
 		ret = power_domain_get_by_index(dev, &pd, i);
 		if (ret)
@@ -176,7 +175,7 @@ int dev_power_domain_off(struct udevice *dev)
 {
 	return dev_power_domain_ctrl(dev, false);
 }
-#endif  /* OF_REAL */
+#endif
 
 UCLASS_DRIVER(power_domain) = {
 	.id		= UCLASS_POWER_DOMAIN,

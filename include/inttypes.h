@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 1997-2001, 2004, 2007 Free Software Foundation, Inc.
  *
  * This file is taken from the GNU C Library v2.15, with the unimplemented
  * functions removed and a few style fixes.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -23,21 +24,30 @@
 typedef __WCHAR_TYPE__ __gwchar_t;
 # else
 #  define __need_wchar_t
-#  include <linux/stddef.h>
+#  include <stddef.h>
 typedef wchar_t __gwchar_t;
 # endif
 # define ____gwchar_t_defined	1
 #endif
 
-/*
- * The ISO C99 standard specifies that these macros must only be defined if
- * explicitly requested
- */
+
+/* The ISO C99 standard specifies that these macros must only be
+   defined if explicitly requested.  */
 #if !defined __cplusplus || defined __STDC_FORMAT_MACROS
 
+#ifdef CONFIG_USE_STDINT
+# if __WORDSIZE == 64
+#  define __PRI64_PREFIX	"l"
+#  define __PRIPTR_PREFIX	"l"
+# else
+#  define __PRI64_PREFIX	"ll"
+#  define __PRIPTR_PREFIX
+# endif
+#else
 /* linux/types.h always uses long long for 64-bit and long for uintptr_t */
 # define __PRI64_PREFIX	"ll"
 # define __PRIPTR_PREFIX	"l"
+#endif
 
 /* Macros for printing format specifiers.  */
 
@@ -56,6 +66,7 @@ typedef wchar_t __gwchar_t;
 # define PRIdFAST16	__PRIPTR_PREFIX "d"
 # define PRIdFAST32	__PRIPTR_PREFIX "d"
 # define PRIdFAST64	__PRI64_PREFIX "d"
+
 
 # define PRIi8		"i"
 # define PRIi16		"i"
@@ -136,6 +147,7 @@ typedef wchar_t __gwchar_t;
 # define PRIXFAST32	__PRIPTR_PREFIX "X"
 # define PRIXFAST64	__PRI64_PREFIX "X"
 
+
 /* Macros for printing `intmax_t' and `uintmax_t'.  */
 # define PRIdMAX	__PRI64_PREFIX "d"
 # define PRIiMAX	__PRI64_PREFIX "i"
@@ -144,6 +156,7 @@ typedef wchar_t __gwchar_t;
 # define PRIxMAX	__PRI64_PREFIX "x"
 # define PRIXMAX	__PRI64_PREFIX "X"
 
+
 /* Macros for printing `intptr_t' and `uintptr_t'.  */
 # define PRIdPTR	__PRIPTR_PREFIX "d"
 # define PRIiPTR	__PRIPTR_PREFIX "i"
@@ -151,6 +164,7 @@ typedef wchar_t __gwchar_t;
 # define PRIuPTR	__PRIPTR_PREFIX "u"
 # define PRIxPTR	__PRIPTR_PREFIX "x"
 # define PRIXPTR	__PRIPTR_PREFIX "X"
+
 
 /* Macros for scanning format specifiers.  */
 
@@ -234,6 +248,7 @@ typedef wchar_t __gwchar_t;
 # define SCNxFAST32	__PRIPTR_PREFIX "x"
 # define SCNxFAST64	__PRI64_PREFIX "x"
 
+
 /* Macros for scanning `intmax_t' and `uintmax_t'.  */
 # define SCNdMAX	__PRI64_PREFIX "d"
 # define SCNiMAX	__PRI64_PREFIX "i"
@@ -241,7 +256,7 @@ typedef wchar_t __gwchar_t;
 # define SCNuMAX	__PRI64_PREFIX "u"
 # define SCNxMAX	__PRI64_PREFIX "x"
 
-/* Macros for scanning `intptr_t' and `uintptr_t'.  */
+/* Macros for scaning `intptr_t' and `uintptr_t'.  */
 # define SCNdPTR	__PRIPTR_PREFIX "d"
 # define SCNiPTR	__PRIPTR_PREFIX "i"
 # define SCNoPTR	__PRIPTR_PREFIX "o"
@@ -249,6 +264,7 @@ typedef wchar_t __gwchar_t;
 # define SCNxPTR	__PRIPTR_PREFIX "x"
 
 #endif	/* C++ && format macros */
+
 
 #if __WORDSIZE == 64
 

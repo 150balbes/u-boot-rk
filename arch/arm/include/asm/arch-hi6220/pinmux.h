@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Linaro
  * Peter Griffin <peter.griffin@linaro.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARM_ARCH_PINMUX_H
@@ -74,7 +75,7 @@ struct hi6220_pinmux1_regs {
  * pull-up/down and drive strength.
  *
  * @param peripheral	peripheral to be configured
- * Return: 0 if ok, -1 on error (e.g. unsupported peripheral)
+ * @return 0 if ok, -1 on error (e.g. unsupported peripheral)
  */
 int hi6220_pinmux_config(int peripheral);
 

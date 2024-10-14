@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2008 Extreme Engineering Solutions, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 /*
@@ -9,13 +10,12 @@
  */
 
 #include <common.h>
-#include <command.h>
 #include <i2c.h>
 #include <pca953x.h>
 
 /* Default to an address that hopefully won't corrupt other i2c devices */
-#ifndef CFG_SYS_I2C_PCA953X_ADDR
-#define CFG_SYS_I2C_PCA953X_ADDR	(~0)
+#ifndef CONFIG_SYS_I2C_PCA953X_ADDR
+#define CONFIG_SYS_I2C_PCA953X_ADDR	(~0)
 #endif
 
 enum {
@@ -26,14 +26,14 @@ enum {
 	PCA953X_CMD_INVERT,
 };
 
-#ifdef CFG_SYS_I2C_PCA953X_WIDTH
+#ifdef CONFIG_SYS_I2C_PCA953X_WIDTH
 struct pca953x_chip_ngpio {
 	uint8_t chip;
 	uint8_t ngpio;
 };
 
 static struct pca953x_chip_ngpio pca953x_chip_ngpios[] =
-    CFG_SYS_I2C_PCA953X_WIDTH;
+    CONFIG_SYS_I2C_PCA953X_WIDTH;
 
 /*
  * Determine the number of GPIO pins supported. If we don't know we assume
@@ -142,7 +142,7 @@ int pca953x_get_val(uint8_t chip)
 	return (int)val;
 }
 
-#if defined(CONFIG_CMD_PCA953X) && !defined(CONFIG_SPL_BUILD)
+#ifdef CONFIG_CMD_PCA953X
 /*
  * Display pca953x information
  */
@@ -193,7 +193,7 @@ static int pca953x_info(uint8_t chip)
 	return 0;
 }
 
-static struct cmd_tbl cmd_pca953x[] = {
+cmd_tbl_t cmd_pca953x[] = {
 	U_BOOT_CMD_MKENT(device, 3, 0, (void *)PCA953X_CMD_DEVICE, "", ""),
 	U_BOOT_CMD_MKENT(output, 4, 0, (void *)PCA953X_CMD_OUTPUT, "", ""),
 	U_BOOT_CMD_MKENT(input, 3, 0, (void *)PCA953X_CMD_INPUT, "", ""),
@@ -201,14 +201,13 @@ static struct cmd_tbl cmd_pca953x[] = {
 	U_BOOT_CMD_MKENT(info, 2, 0, (void *)PCA953X_CMD_INFO, "", ""),
 };
 
-static int do_pca953x(struct cmd_tbl *cmdtp, int flag, int argc,
-		      char *const argv[])
+int do_pca953x(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	static uint8_t chip = CFG_SYS_I2C_PCA953X_ADDR;
+	static uint8_t chip = CONFIG_SYS_I2C_PCA953X_ADDR;
 	int ret = CMD_RET_USAGE, val;
 	ulong ul_arg2 = 0;
 	ulong ul_arg3 = 0;
-	struct cmd_tbl *c;
+	cmd_tbl_t *c;
 
 	c = find_cmd_tbl(argv[1], cmd_pca953x, ARRAY_SIZE(cmd_pca953x));
 
@@ -221,11 +220,11 @@ static int do_pca953x(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* arg2 used as chip number or pin number */
 	if (argc > 2)
-		ul_arg2 = hextoul(argv[2], NULL);
+		ul_arg2 = simple_strtoul(argv[2], NULL, 16);
 
 	/* arg3 used as pin or invert value */
 	if (argc > 3)
-		ul_arg3 = hextoul(argv[3], NULL) & 0x1;
+		ul_arg3 = simple_strtoul(argv[3], NULL, 16) & 0x1;
 
 	switch ((long)c->cmd) {
 	case PCA953X_CMD_INFO:

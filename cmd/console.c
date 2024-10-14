@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,8 +13,7 @@
 #include <stdio_dev.h>
 
 extern void _do_coninfo (void);
-static int do_coninfo(struct cmd_tbl *cmd, int flag, int argc,
-		      char *const argv[])
+static int do_coninfo(cmd_tbl_t *cmd, int flag, int argc, char * const argv[])
 {
 	int l;
 	struct list_head *list = stdio_get_list();
@@ -22,21 +22,23 @@ static int do_coninfo(struct cmd_tbl *cmd, int flag, int argc,
 
 	/* Scan for valid output and input devices */
 
-	puts("List of available devices\n");
+	puts ("List of available devices:\n");
 
 	list_for_each(pos, list) {
 		dev = list_entry(pos, struct stdio_dev, list);
 
-		printf("|-- %s (%s%s)\n",
-		       dev->name,
-		       (dev->flags & DEV_FLAGS_INPUT) ? "I" : "",
-		       (dev->flags & DEV_FLAGS_OUTPUT) ? "O" : "");
+		printf ("%-8s %08x %c%c ",
+			dev->name,
+			dev->flags,
+			(dev->flags & DEV_FLAGS_INPUT) ? 'I' : '.',
+			(dev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
 
 		for (l = 0; l < MAX_FILES; l++) {
 			if (stdio_devices[l] == dev) {
-				printf("|   |-- %s\n", stdio_names[l]);
+				printf ("%s ", stdio_names[l]);
 			}
 		}
+		putc ('\n');
 	}
 	return 0;
 }

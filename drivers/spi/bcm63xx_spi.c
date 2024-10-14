@@ -1,21 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Álvaro Fernández Rojas <noltari@gmail.com>
  *
  * Derived from linux/drivers/spi/spi-bcm63xx.c:
  *	Copyright (C) 2009-2012 Florian Fainelli <florian@openwrt.org>
  *	Copyright (C) 2010 Tanguy Bouzeloc <tanguy.bouzeloc@efixo.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
-#include <log.h>
-#include <malloc.h>
 #include <spi.h>
 #include <reset.h>
 #include <wait_bit.h>
 #include <asm/io.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /* BCM6348 SPI core */
 #define SPI_6348_CLK			0x06
@@ -132,7 +133,7 @@ static int bcm63xx_spi_cs_info(struct udevice *bus, uint cs,
 
 	if (cs >= priv->num_cs) {
 		printf("no cs %u\n", cs);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	return 0;
@@ -236,8 +237,8 @@ static int bcm63xx_spi_xfer(struct udevice *dev, unsigned int bitlen,
 	}
 
 	if (flags & SPI_XFER_END) {
-		struct dm_spi_slave_plat *plat =
-			dev_get_parent_plat(dev);
+		struct dm_spi_slave_platdata *plat =
+			dev_get_parent_platdata(dev);
 		uint16_t val, cmd;
 		int ret;
 
@@ -351,7 +352,7 @@ static int bcm63xx_spi_child_pre_probe(struct udevice *dev)
 	struct bcm63xx_spi_priv *priv = dev_get_priv(dev->parent);
 	const unsigned long *regs = priv->regs;
 	struct spi_slave *slave = dev_get_parent_priv(dev);
-	struct dm_spi_slave_plat *plat = dev_get_parent_plat(dev);
+	struct dm_spi_slave_platdata *plat = dev_get_parent_platdata(dev);
 
 	/* check cs */
 	if (plat->cs >= priv->num_cs) {
@@ -373,14 +374,18 @@ static int bcm63xx_spi_probe(struct udevice *dev)
 		(const unsigned long *)dev_get_driver_data(dev);
 	struct reset_ctl rst_ctl;
 	struct clk clk;
+	fdt_addr_t addr;
+	fdt_size_t size;
 	int ret;
 
-	priv->base = dev_remap_addr(dev);
-	if (!priv->base)
+	addr = devfdt_get_addr_size_index(dev, 0, &size);
+	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
 	priv->regs = regs;
-	priv->num_cs = dev_read_u32_default(dev, "num-cs", 8);
+	priv->base = ioremap(addr, size);
+	priv->num_cs = fdtdec_get_uint(gd->fdt_blob, dev_of_offset(dev),
+				       "num-cs", 8);
 
 	/* enable clock */
 	ret = clk_get_by_index(dev, 0, &clk);
@@ -391,7 +396,9 @@ static int bcm63xx_spi_probe(struct udevice *dev)
 	if (ret < 0)
 		return ret;
 
-	clk_free(&clk);
+	ret = clk_free(&clk);
+	if (ret < 0)
+		return ret;
 
 	/* perform reset */
 	ret = reset_get_by_index(dev, 0, &rst_ctl);
@@ -420,7 +427,7 @@ U_BOOT_DRIVER(bcm63xx_spi) = {
 	.id = UCLASS_SPI,
 	.of_match = bcm63xx_spi_ids,
 	.ops = &bcm63xx_spi_ops,
-	.priv_auto	= sizeof(struct bcm63xx_spi_priv),
+	.priv_auto_alloc_size = sizeof(struct bcm63xx_spi_priv),
 	.child_pre_probe = bcm63xx_spi_child_pre_probe,
 	.probe = bcm63xx_spi_probe,
 };

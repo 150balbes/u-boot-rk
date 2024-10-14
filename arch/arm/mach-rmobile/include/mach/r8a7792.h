@@ -1,14 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/include/asm/arch-rmobile/r8a7792.h
  *
  * Copyright (C) 2016 Renesas Electronics Corporation
- */
+ *
+ * SPDX-License-Identifier: GPL-2.0
+*/
 
 #ifndef __ASM_ARCH_R8A7792_H
 #define __ASM_ARCH_R8A7792_H
 
 #include "rcar-base.h"
+
+/* SH-I2C */
+#define CONFIG_SYS_I2C_SH_BASE2	0xE6520000
+#define CONFIG_SYS_I2C_SH_BASE3	0xE60B0000
 
 /* Module stop control/status register bits */
 #define MSTP0_BITS	0x00400801
@@ -24,6 +29,6 @@
 #define MSTP11_BITS	0x00000008
 
 /* SDHI */
-#define CFG_SYS_SH_SDHI_NR_CHANNEL 1
+#define CONFIG_SYS_SH_SDHI_NR_CHANNEL 1
 
 #endif /* __ASM_ARCH_R8A7792_H */

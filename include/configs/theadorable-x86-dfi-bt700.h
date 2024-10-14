@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Stefan Roese <sr@denx.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -13,6 +14,7 @@
 #include <configs/x86-common.h>
 
 /* Use BayTrail internal HS UART which is memory-mapped */
+#undef  CONFIG_SYS_NS16550_PORT_MAPPED
 
 /* Set the board specific parameters */
 #define DEF_ENV_TFTPDIR		"theadorable-x86-dfi"

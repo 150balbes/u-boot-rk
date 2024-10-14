@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2012 The Chromium OS Authors.
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -30,11 +30,9 @@
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
-#include <log.h>
 #include <pch.h>
 #include <pci.h>
 #include <asm/cpu.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/pci.h>
@@ -94,9 +92,9 @@ static int _ich6_gpio_set_direction(uint16_t base, unsigned offset, int dir)
 	return 0;
 }
 
-static int gpio_ich6_of_to_plat(struct udevice *dev)
+static int gpio_ich6_ofdata_to_platdata(struct udevice *dev)
 {
-	struct ich6_bank_plat *plat = dev_get_plat(dev);
+	struct ich6_bank_platdata *plat = dev_get_platdata(dev);
 	u32 gpiobase;
 	int offset;
 	int ret;
@@ -120,7 +118,7 @@ static int gpio_ich6_of_to_plat(struct udevice *dev)
 
 static int ich6_gpio_probe(struct udevice *dev)
 {
-	struct ich6_bank_plat *plat = dev_get_plat(dev);
+	struct ich6_bank_platdata *plat = dev_get_platdata(dev);
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 	struct ich6_bank_priv *bank = dev_get_priv(dev);
 	const void *prop;
@@ -235,8 +233,8 @@ U_BOOT_DRIVER(gpio_ich6) = {
 	.id	= UCLASS_GPIO,
 	.of_match = intel_ich6_gpio_ids,
 	.ops	= &gpio_ich6_ops,
-	.of_to_plat	= gpio_ich6_of_to_plat,
+	.ofdata_to_platdata	= gpio_ich6_ofdata_to_platdata,
 	.probe	= ich6_gpio_probe,
-	.priv_auto	= sizeof(struct ich6_bank_priv),
-	.plat_auto	= sizeof(struct ich6_bank_plat),
+	.priv_auto_alloc_size = sizeof(struct ich6_bank_priv),
+	.platdata_auto_alloc_size = sizeof(struct ich6_bank_platdata),
 };

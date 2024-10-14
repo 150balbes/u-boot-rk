@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002
  * Rich Ireland, Enterasys Networks, rireland@enterasys.com.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <fpga.h>
@@ -21,7 +22,6 @@ typedef enum {			/* typedef xilinx_iface */
 	slave_selectmap,	/* slave SelectMap (virtex2)            */
 	devcfg,			/* devcfg interface (zynq) */
 	csu_dma,		/* csu_dma interface (zynqmp) */
-	cfi,			/* CFI interface(versal) */
 	max_xilinx_iface_type	/* insert all new types before this */
 } xilinx_iface;			/* end, typedef xilinx_iface */
 
@@ -33,14 +33,8 @@ typedef enum {			/* typedef xilinx_family */
 	xilinx_spartan3,	/* Spartan-III Family */
 	xilinx_zynq,		/* Zynq Family */
 	xilinx_zynqmp,		/* ZynqMP Family */
-	xilinx_versal,		/* Versal Family */
 	max_xilinx_type		/* insert all new types before this */
 } xilinx_family;		/* end, typedef xilinx_family */
-
-/* FPGA bitstream supported types */
-#define FPGA_LEGACY			BIT(0)
-#define FPGA_XILINX_ZYNQMP_DDRAUTH	BIT(1)
-#define FPGA_XILINX_ZYNQMP_ENC		BIT(2)
 
 typedef struct {		/* typedef xilinx_desc */
 	xilinx_family family;	/* part type */
@@ -50,33 +44,23 @@ typedef struct {		/* typedef xilinx_desc */
 	int cookie;		/* implementation specific cookie */
 	struct xilinx_fpga_op *operations; /* operations */
 	char *name;		/* device name in bitstream */
-	int flags;		/* compatible flags */
 } xilinx_desc;			/* end, typedef xilinx_desc */
 
 struct xilinx_fpga_op {
-	int (*load)(xilinx_desc *desc, const void *buf, size_t bsize,
-		    bitstream_type bstype, int flags);
-	int (*loadfs)(xilinx_desc *desc, const void *buf, size_t bsize,
-		      fpga_fs_info *fpga_fsinfo);
-	int (*loads)(xilinx_desc *desc, const void *buf, size_t bsize,
-		     struct fpga_secure_info *fpga_sec_info);
-	int (*dump)(xilinx_desc *desc, const void *buf, size_t bsize);
-	int (*info)(xilinx_desc *desc);
-#if CONFIG_IS_ENABLED(FPGA_LOAD_SECURE)
-	int (*str2flag)(xilinx_desc *desc, const char *string);
-#endif
+	int (*load)(xilinx_desc *, const void *, size_t, bitstream_type);
+	int (*loadfs)(xilinx_desc *, const void *, size_t, fpga_fs_info *);
+	int (*dump)(xilinx_desc *, const void *, size_t);
+	int (*info)(xilinx_desc *);
 };
 
 /* Generic Xilinx Functions
  *********************************************************************/
 int xilinx_load(xilinx_desc *desc, const void *image, size_t size,
-		bitstream_type bstype, int flags);
+		bitstream_type bstype);
 int xilinx_dump(xilinx_desc *desc, const void *buf, size_t bsize);
 int xilinx_info(xilinx_desc *desc);
 int xilinx_loadfs(xilinx_desc *desc, const void *buf, size_t bsize,
 		  fpga_fs_info *fpga_fsinfo);
-int xilinx_loads(xilinx_desc *desc, const void *buf, size_t bsize,
-		 struct fpga_secure_info *fpga_sec_info);
 
 /* Board specific implementation specific function types
  *********************************************************************/

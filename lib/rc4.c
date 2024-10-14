@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015 Google, Inc
  *
  * (C) Copyright 2008-2014 Rockchip Electronics
  *
  * Rivest Cipher 4 (RC4) implementation
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef USE_HOSTCC
@@ -12,7 +13,7 @@
 #endif
 #include <rc4.h>
 
-void rc4_encode(unsigned char *buf, unsigned int len, const unsigned char key[16])
+void rc4_encode(unsigned char *buf, unsigned int len, unsigned char key[16])
 {
 	unsigned char s[256], k[256], temp;
 	unsigned short i, j, t;

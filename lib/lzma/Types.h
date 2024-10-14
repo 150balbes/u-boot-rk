@@ -225,9 +225,9 @@ typedef struct
 #else
 
 #define CHAR_PATH_SEPARATOR '/'
-#define WCHAR_PATH_SEPARATOR u'/'
+#define WCHAR_PATH_SEPARATOR L'/'
 #define STRING_PATH_SEPARATOR "/"
-#define WSTRING_PATH_SEPARATOR u"/"
+#define WSTRING_PATH_SEPARATOR L"/"
 
 #endif
 

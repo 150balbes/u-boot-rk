@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG peripheral driver ep0 handling
  *
@@ -6,11 +5,11 @@
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
  * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __UBOOT__
-#include <log.h>
-#include <dm/device_compat.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/timer.h>
@@ -19,10 +18,8 @@
 #include <linux/interrupt.h>
 #else
 #include <common.h>
-#include <dm.h>
-#include <dm/device_compat.h>
-#include <asm/processor.h>
 #include "linux-compat.h"
+#include <asm/processor.h>
 #endif
 
 #include "musb_core.h"
@@ -147,7 +144,7 @@ static int service_tx_status_request(
  * that is supposed to be a standard control request. Assumes the fifo to
  * be at least 2 bytes long.
  *
- * Return: 0 if the request was NOT HANDLED,
+ * @return 0 if the request was NOT HANDLED,
  * < 0 when error
  * > 0 when the request is processed
  *
@@ -886,7 +883,7 @@ finish:
 
 	default:
 		/* "can't happen" */
-		assert_noisy(false);
+		WARN_ON(1);
 		musb_writew(regs, MUSB_CSR0, MUSB_CSR0_P_SENDSTALL);
 		musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 		break;

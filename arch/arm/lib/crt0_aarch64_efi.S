@@ -1,14 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause */
 /*
  * crt0-efi-aarch64.S - PE/COFF header for aarch64 EFI applications
  *
  * Copright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
+ * SPDX-License-Identifier:     GPL-2.0+     BSD-2-Clause
  *
  * This file is taken and modified from the gnu-efi project.
  */
-
-#include <asm-generic/pe.h>
 
 	.section	.text.head
 
@@ -17,30 +15,29 @@
 	 */
 	.globl	ImageBase
 ImageBase:
-	.short	IMAGE_DOS_SIGNATURE		/* 'MZ' */
-	.skip	54				/* 'MZ' + pad + offset == 64 */
-	.long   LINUX_ARM64_MAGIC		/* For GRUB's linux command */
+	.ascii	"MZ"
+	.skip	58				/* 'MZ' + pad + offset == 64 */
 	.long	pe_header - ImageBase		/* Offset to the PE header */
 pe_header:
-	.long	IMAGE_NT_SIGNATURE		/* 'PE' */
+	.ascii	"PE"
+	.short	0
 coff_header:
-	.short	IMAGE_FILE_MACHINE_ARM64	/* AArch64 */
-	.short	3				/* nr_sections */
+	.short	0xaa64				/* AArch64 */
+	.short	2				/* nr_sections */
 	.long	0				/* TimeDateStamp */
 	.long	0				/* PointerToSymbolTable */
-	.long	0				/* NumberOfSymbols */
+	.long	1				/* NumberOfSymbols */
 	.short	section_table - optional_header	/* SizeOfOptionalHeader */
-	/* Characteristics */
-	.short	(IMAGE_FILE_EXECUTABLE_IMAGE | \
-		 IMAGE_FILE_LINE_NUMS_STRIPPED | \
-		 IMAGE_FILE_LOCAL_SYMS_STRIPPED | \
-		 IMAGE_FILE_LARGE_ADDRESS_AWARE | \
-		 IMAGE_FILE_DEBUG_STRIPPED)
+	/*
+	 * Characteristics: IMAGE_FILE_DEBUG_STRIPPED |
+	 * IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_LINE_NUMS_STRIPPED
+	 */
+	.short	0x206
 optional_header:
-	.short	IMAGE_NT_OPTIONAL_HDR64_MAGIC	/* PE32+ format */
+	.short	0x20b				/* PE32+ format */
 	.byte	0x02				/* MajorLinkerVersion */
 	.byte	0x14				/* MinorLinkerVersion */
-	.long	_etext - _start			/* SizeOfCode */
+	.long	_edata - _start			/* SizeOfCode */
 	.long	0				/* SizeOfInitializedData */
 	.long	0				/* SizeOfUninitializedData */
 	.long	_start - ImageBase		/* AddressOfEntryPoint */
@@ -48,8 +45,8 @@ optional_header:
 
 extra_header_fields:
 	.quad	0				/* ImageBase */
-	.long	0x1000				/* SectionAlignment */
-	.long	0x200				/* FileAlignment */
+	.long	0x20				/* SectionAlignment */
+	.long	0x8				/* FileAlignment */
 	.short	0				/* MajorOperatingSystemVersion */
 	.short	0				/* MinorOperatingSystemVersion */
 	.short	0				/* MajorImageVersion */
@@ -65,7 +62,7 @@ extra_header_fields:
 	 */
 	.long	_start - ImageBase		/* SizeOfHeaders */
 	.long	0				/* CheckSum */
-	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION /* Subsystem */
+	.short	EFI_SUBSYSTEM			/* Subsystem */
 	.short	0				/* DllCharacteristics */
 	.quad	0				/* SizeOfStackReserve */
 	.quad	0				/* SizeOfStackCommit */
@@ -100,51 +97,31 @@ section_table:
 	.long	0			/* PointerToLineNumbers */
 	.short	0			/* NumberOfRelocations */
 	.short	0			/* NumberOfLineNumbers */
-	/* Characteristics (section flags) */
-	.long	(IMAGE_SCN_MEM_READ | \
-		 IMAGE_SCN_MEM_DISCARDABLE | \
-		 IMAGE_SCN_CNT_INITIALIZED_DATA)
+	.long	0x42100040		/* Characteristics (section flags) */
+
 
 	.ascii	".text"
 	.byte	0
 	.byte	0
 	.byte	0			/* end of 0 padding of section name */
-	.long	_etext - _start		/* VirtualSize */
+	.long	_edata - _start		/* VirtualSize */
 	.long	_start - ImageBase	/* VirtualAddress */
-	.long	_etext - _start		/* SizeOfRawData */
+	.long	_edata - _start		/* SizeOfRawData */
 	.long	_start - ImageBase	/* PointerToRawData */
-	.long	0			/* PointerToRelocations */
-	.long	0			/* PointerToLineNumbers */
-	.short	0			/* NumberOfRelocations */
-	.short	0			/* NumberOfLineNumbers */
-	/* Characteristics (section flags) */
-	.long	(IMAGE_SCN_MEM_READ | \
-		 IMAGE_SCN_MEM_EXECUTE | \
-		 IMAGE_SCN_CNT_CODE)
 
-	.ascii	".data"
-	.byte	0
-	.byte	0
-	.byte	0			/* end of 0 padding of section name */
-	.long	_data_size		/* VirtualSize */
-	.long	_data - ImageBase	/* VirtualAddress */
-	.long	_data_size		/* SizeOfRawData */
-	.long	_data - ImageBase	/* PointerToRawData */
-	.long	0			/* PointerToRelocations */
-	.long	0			/* PointerToLineNumbers */
-	.short	0			/* NumberOfRelocations */
-	.short	0			/* NumberOfLineNumbers */
-	/* Characteristics (section flags) */
-	.long	(IMAGE_SCN_MEM_WRITE | \
-		 IMAGE_SCN_MEM_READ | \
-		 IMAGE_SCN_CNT_INITIALIZED_DATA)
+	.long	0		/* PointerToRelocations (0 for executables) */
+	.long	0		/* PointerToLineNumbers (0 for executables) */
+	.short	0		/* NumberOfRelocations  (0 for executables) */
+	.short	0		/* NumberOfLineNumbers  (0 for executables) */
+	.long	0xe0500020	/* Characteristics (section flags) */
 
-	.align		12
 _start:
 	stp		x29, x30, [sp, #-32]!
 	mov		x29, sp
 
 	stp		x0, x1, [sp, #16]
+	mov		x2, x0
+	mov		x3, x1
 	adr		x0, ImageBase
 	adrp		x1, _DYNAMIC
 	add		x1, x1, #:lo12:_DYNAMIC

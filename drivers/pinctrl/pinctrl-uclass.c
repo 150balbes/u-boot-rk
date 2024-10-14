@@ -1,14 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015  Masahiro Yamada <yamada.masahiro@socionext.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#define LOG_CATEGORY UCLASS_PINCTRL
-
 #include <common.h>
-#include <malloc.h>
-#include <asm/global_data.h>
-#include <dm/device_compat.h>
 #include <linux/libfdt.h>
 #include <linux/err.h>
 #include <linux/list.h>
@@ -20,6 +16,19 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+int pinctrl_decode_pin_config(const void *blob, int node)
+{
+	int flags = 0;
+
+	if (fdtdec_get_bool(blob, node, "bias-pull-up"))
+		flags |= 1 << PIN_CONFIG_BIAS_PULL_UP;
+	else if (fdtdec_get_bool(blob, node, "bias-pull-down"))
+		flags |= 1 << PIN_CONFIG_BIAS_PULL_DOWN;
+
+	return flags;
+}
+
+#if CONFIG_IS_ENABLED(PINCTRL_FULL)
 /**
  * pinctrl_config_one() - apply pinctrl settings for a single node
  *
@@ -68,7 +77,7 @@ static int pinctrl_select_state_full(struct udevice *dev, const char *statename)
 		 * If statename is not found in "pinctrl-names",
 		 * assume statename is just the integer state ID.
 		 */
-		state = dectoul(statename, &end);
+		state = simple_strtoul(statename, &end, 10);
 		if (*end)
 			return -ENOSYS;
 	}
@@ -114,7 +123,7 @@ static int pinconfig_post_bind(struct udevice *dev)
 	ofnode node;
 	int ret;
 
-	if (!dev_has_ofnode(dev))
+	if (!dev_of_valid(dev))
 		return 0;
 
 	dev_for_each_subnode(node, dev) {
@@ -127,9 +136,6 @@ static int pinconfig_post_bind(struct udevice *dev)
 		 */
 		ofnode_get_property(node, "compatible", &ret);
 		if (ret >= 0)
-			continue;
-		/* If this node has "gpio-controller" property, skip */
-		if (ofnode_read_bool(node, "gpio-controller"))
 			continue;
 
 		if (ret != -FDT_ERR_NOTFOUND)
@@ -147,7 +153,6 @@ static int pinconfig_post_bind(struct udevice *dev)
 	return 0;
 }
 
-#if CONFIG_IS_ENABLED(PINCTRL_FULL)
 UCLASS_DRIVER(pinconfig) = {
 	.id = UCLASS_PINCONFIG,
 #if CONFIG_IS_ENABLED(PINCONF_RECURSIVE)
@@ -160,6 +165,17 @@ U_BOOT_DRIVER(pinconfig_generic) = {
 	.name = "pinconfig",
 	.id = UCLASS_PINCONFIG,
 };
+
+#else
+static int pinconfig_post_bind(struct udevice *dev)
+{
+	return 0;
+}
+
+static int pinctrl_select_state_full(struct udevice *dev, const char *statename)
+{
+	return 0;
+}
 #endif
 
 static int
@@ -211,10 +227,9 @@ pinctrl_gpio_get_pinctrl_and_offset(struct udevice *dev, unsigned offset,
  *
  * @dev: GPIO peripheral device
  * @offset: the GPIO pin offset from the GPIO controller
- * @label: the GPIO pin label
  * @return: 0 on success, or negative error code on failure
  */
-int pinctrl_gpio_request(struct udevice *dev, unsigned offset, const char *label)
+int pinctrl_gpio_request(struct udevice *dev, unsigned offset)
 {
 	const struct pinctrl_ops *ops;
 	struct udevice *pctldev;
@@ -300,7 +315,7 @@ int pinctrl_select_state(struct udevice *dev, const char *statename)
 	 * Some device which is logical like mmc.blk, do not have
 	 * a valid ofnode.
 	 */
-	if (!dev_has_ofnode(dev))
+	if (!ofnode_valid(dev->node))
 		return 0;
 	/*
 	 * Try full-implemented pinctrl first.
@@ -382,7 +397,7 @@ int pinctrl_get_pin_muxing(struct udevice *dev, int selector, char *buf,
 }
 
 /**
- * pinctrl_post_bind() - post binding for PINCTRL uclass
+ * pinconfig_post_bind() - post binding for PINCTRL uclass
  * Recursively bind child nodes as pinconfig devices in case of full pinctrl.
  *
  * @dev: pinctrl device
@@ -398,11 +413,12 @@ static int __maybe_unused pinctrl_post_bind(struct udevice *dev)
 	}
 
 	/*
-	 * If the pinctrl driver has the full implementation, its child nodes
-	 * should be bound so that peripheral devices can easily search in
-	 * parent devices during later DT-parsing.
+	 * If set_state callback is set, we assume this pinctrl driver is the
+	 * full implementation.  In this case, its child nodes should be bound
+	 * so that peripheral devices can easily search in parent devices
+	 * during later DT-parsing.
 	 */
-	if (CONFIG_IS_ENABLED(PINCTRL_FULL))
+	if (ops->set_state)
 		return pinconfig_post_bind(dev);
 
 	return 0;
@@ -410,9 +426,7 @@ static int __maybe_unused pinctrl_post_bind(struct udevice *dev)
 
 UCLASS_DRIVER(pinctrl) = {
 	.id = UCLASS_PINCTRL,
-#if CONFIG_IS_ENABLED(OF_REAL)
 	.post_bind = pinctrl_post_bind,
-#endif
 	.flags = DM_UC_FLAG_SEQ_ALIAS,
 	.name = "pinctrl",
 };

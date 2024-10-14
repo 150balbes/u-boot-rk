@@ -1,4 +1,5 @@
-if TARGET_LS2080ARDB || TARGET_LS2081ARDB
+
+if TARGET_LS2080ARDB
 
 config SYS_BOARD
 	default "ls2080ardb"
@@ -12,20 +13,24 @@ config SYS_SOC
 config SYS_CONFIG_NAME
 	default "ls2080ardb"
 
-if FSL_LS_PPA
-config SYS_LS_PPA_FW_ADDR
-	hex "PPA Firmware Addr"
-	default 0x20400000 if SYS_LS_PPA_FW_IN_XIP && QSPI_BOOT
-	default 0x580400000 if SYS_LS_PPA_FW_IN_XIP
-	default 0x400000 if SYS_LS_PPA_FW_IN_MMC || SYS_LS_PPA_FW_IN_NAND
+source "board/freescale/common/Kconfig"
 
-if CHAIN_OF_TRUST
-config SYS_LS_PPA_ESBC_ADDR
-	hex "PPA Firmware HDR Addr"
-	default 0x20680000 if SYS_LS_PPA_FW_IN_XIP && QSPI_BOOT
-	default 0x580680000 if SYS_LS_PPA_FW_IN_XIP
-	default 0x680000 if SYS_LS_PPA_FW_IN_MMC || SYS_LS_PPA_FW_IN_NAND
 endif
-endif
+
+if TARGET_LS2081ARDB
+
+config SYS_BOARD
+	default "ls2080ardb"
+
+config SYS_VENDOR
+	default "freescale"
+
+config SYS_SOC
+	default "fsl-layerscape"
+
+config SYS_CONFIG_NAME
+	default "ls2080ardb"
+
+source "board/freescale/common/Kconfig"
 
 endif

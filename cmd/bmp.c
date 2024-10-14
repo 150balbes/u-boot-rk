@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2002
  * Detlev Zundel, DENX Software Engineering, dzu@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -9,17 +10,16 @@
  */
 
 #include <common.h>
+#include <dm.h>
+#include <lcd.h>
+#include <mapmem.h>
 #include <bmp_layout.h>
 #include <command.h>
-#include <dm.h>
-#include <gzip.h>
-#include <image.h>
-#include <log.h>
+#include <asm/byteorder.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <splash.h>
 #include <video.h>
-#include <asm/byteorder.h>
 
 static int bmp_info (ulong addr);
 
@@ -47,24 +47,27 @@ struct bmp_image *gunzip_bmp(unsigned long addr, unsigned long *lenp,
 	/*
 	 * Decompress bmp image
 	 */
-	len = CONFIG_VIDEO_LOGO_MAX_SIZE;
+	len = CONFIG_SYS_VIDEO_LOGO_MAX_SIZE;
 	/* allocate extra 3 bytes for 32-bit-aligned-address + 2 alignment */
-	dst = malloc(CONFIG_VIDEO_LOGO_MAX_SIZE + 3);
-	if (!dst) {
+	dst = malloc(CONFIG_SYS_VIDEO_LOGO_MAX_SIZE + 3);
+	if (dst == NULL) {
 		puts("Error: malloc in gunzip failed!\n");
 		return NULL;
 	}
 
-	/* align to 32-bit-aligned-address + 2 */
-	bmp = dst + 2;
+	bmp = dst;
 
-	if (gunzip(bmp, CONFIG_VIDEO_LOGO_MAX_SIZE, map_sysmem(addr, 0),
-		   &len)) {
+	/* align to 32-bit-aligned-address + 2 */
+	bmp = (struct bmp_image *)((((unsigned int)dst + 1) & ~3) + 2);
+
+	if (gunzip(bmp, CONFIG_SYS_VIDEO_LOGO_MAX_SIZE, map_sysmem(addr, 0),
+		   &len) != 0) {
 		free(dst);
 		return NULL;
 	}
-	if (len == CONFIG_VIDEO_LOGO_MAX_SIZE)
-		puts("Image could be truncated (increase CONFIG_VIDEO_LOGO_MAX_SIZE)!\n");
+	if (len == CONFIG_SYS_VIDEO_LOGO_MAX_SIZE)
+		puts("Image could be truncated"
+				" (increase CONFIG_SYS_VIDEO_LOGO_MAX_SIZE)!\n");
 
 	/*
 	 * Check for bmp mark 'BM'
@@ -88,17 +91,16 @@ struct bmp_image *gunzip_bmp(unsigned long addr, unsigned long *lenp,
 }
 #endif
 
-static int do_bmp_info(struct cmd_tbl *cmdtp, int flag, int argc,
-		       char *const argv[])
+static int do_bmp_info(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong addr;
 
 	switch (argc) {
-	case 1:		/* use image_load_addr as default address */
-		addr = image_load_addr;
+	case 1:		/* use load_addr as default address */
+		addr = load_addr;
 		break;
 	case 2:		/* use argument */
-		addr = hextoul(argv[1], NULL);
+		addr = simple_strtoul(argv[1], NULL, 16);
 		break;
 	default:
 		return CMD_RET_USAGE;
@@ -107,8 +109,7 @@ static int do_bmp_info(struct cmd_tbl *cmdtp, int flag, int argc,
 	return (bmp_info(addr));
 }
 
-static int do_bmp_display(struct cmd_tbl *cmdtp, int flag, int argc,
-			  char *const argv[])
+static int do_bmp_display(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong addr;
 	int x = 0, y = 0;
@@ -116,22 +117,16 @@ static int do_bmp_display(struct cmd_tbl *cmdtp, int flag, int argc,
 	splash_get_pos(&x, &y);
 
 	switch (argc) {
-	case 1:		/* use image_load_addr as default address */
-		addr = image_load_addr;
+	case 1:		/* use load_addr as default address */
+		addr = load_addr;
 		break;
 	case 2:		/* use argument */
-		addr = hextoul(argv[1], NULL);
+		addr = simple_strtoul(argv[1], NULL, 16);
 		break;
 	case 4:
-		addr = hextoul(argv[1], NULL);
-		if (!strcmp(argv[2], "m"))
-			x = BMP_ALIGN_CENTER;
-		else
-			x = dectoul(argv[2], NULL);
-		if (!strcmp(argv[3], "m"))
-			y = BMP_ALIGN_CENTER;
-		else
-			y = dectoul(argv[3], NULL);
+		addr = simple_strtoul(argv[1], NULL, 16);
+		x = simple_strtoul(argv[2], NULL, 10);
+		y = simple_strtoul(argv[3], NULL, 10);
 		break;
 	default:
 		return CMD_RET_USAGE;
@@ -140,7 +135,7 @@ static int do_bmp_display(struct cmd_tbl *cmdtp, int flag, int argc,
 	 return (bmp_display(addr, x, y));
 }
 
-static struct cmd_tbl cmd_bmp_sub[] = {
+static cmd_tbl_t cmd_bmp_sub[] = {
 	U_BOOT_CMD_MKENT(info, 3, 0, do_bmp_info, "", ""),
 	U_BOOT_CMD_MKENT(display, 5, 0, do_bmp_display, "", ""),
 };
@@ -161,9 +156,9 @@ void bmp_reloc(void) {
  * Return:      None
  *
  */
-static int do_bmp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_bmp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	struct cmd_tbl *c;
+	cmd_tbl_t *c;
 
 	/* Strip off leading 'bmp' command argument */
 	argc--;
@@ -220,9 +215,21 @@ static int bmp_info(ulong addr)
 	return(0);
 }
 
+/*
+ * Subroutine:  bmp_display
+ *
+ * Description: Display bmp file located in memory
+ *
+ * Inputs:	addr		address of the bmp file
+ *
+ * Return:      None
+ *
+ */
 int bmp_display(ulong addr, int x, int y)
 {
+#ifdef CONFIG_DM_VIDEO
 	struct udevice *dev;
+#endif
 	int ret;
 	struct bmp_image *bmp = map_sysmem(addr, 0);
 	void *bmp_alloc_addr = NULL;
@@ -238,15 +245,23 @@ int bmp_display(ulong addr, int x, int y)
 	}
 	addr = map_to_sysmem(bmp);
 
+#ifdef CONFIG_DM_VIDEO
 	ret = uclass_first_device_err(UCLASS_VIDEO, &dev);
 	if (!ret) {
 		bool align = false;
 
-		if (x == BMP_ALIGN_CENTER || y == BMP_ALIGN_CENTER)
-			align = true;
-
+# ifdef CONFIG_SPLASH_SCREEN_ALIGN
+		align = true;
+# endif /* CONFIG_SPLASH_SCREEN_ALIGN */
 		ret = video_bmp_display(dev, addr, x, y, align);
 	}
+#elif defined(CONFIG_LCD)
+	ret = lcd_display_bitmap(addr, x, y);
+#elif defined(CONFIG_VIDEO)
+	ret = video_display_bitmap(addr, x, y);
+#else
+# error bmp_display() requires CONFIG_LCD or CONFIG_VIDEO
+#endif
 
 	if (bmp_alloc_addr)
 		free(bmp_alloc_addr);

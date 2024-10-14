@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2003	Josef Baumgartner <josef.baumgartner@telex.de>
  * Based on code from Bernhard Kuhn <bkuhn@metrowerks.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
 #include <config.h>
+#include "version.h"
 #include <asm/cache.h>
 
 #define _START	_start
@@ -91,10 +93,10 @@ _start:
 	move.w	#0x2700,%sr		/* Mask off Interrupt */
 
 	/* Set vector base register at the beginning of the Flash */
-	move.l	#CFG_SYS_FLASH_BASE, %d0
+	move.l	#CONFIG_SYS_FLASH_BASE, %d0
 	movec	%d0, %VBR
 
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + CFG_SYS_INIT_RAM_CTRL), %d0
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_RAM_CTRL), %d0
 	movec	%d0, %RAMBAR1
 
 	/* invalidate and disable cache */
@@ -116,7 +118,7 @@ _start:
 	move.l	#__got_start, %a5
 
 	/* setup stack initially on top of internal static ram  */
-	move.l  #(CFG_SYS_INIT_RAM_ADDR + CFG_SYS_INIT_RAM_SIZE), %sp
+	move.l  #(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_RAM_SIZE), %sp
 
 	/*
 	 * if configured, malloc_f arena will be reserved first,
@@ -149,7 +151,7 @@ _start:
 /******************************************************************************/
 
 /*
- * void relocate_code(addr_sp, gd, addr_moni)
+ * void relocate_code (addr_sp, gd, addr_moni)
  *
  * This "function" does not return, instead it continues in RAM
  * after relocating the monitor code.
@@ -252,4 +254,7 @@ _int_handler:
 
 /******************************************************************************/
 
+.globl version_string
+version_string:
+.ascii U_BOOT_VERSION_STRING, "\0"
 .align 4

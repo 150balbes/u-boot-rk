@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013-2014 Panasonic Corporation
  * Copyright (C) 2015-2016 Socionext Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <linux/delay.h>
@@ -22,10 +23,10 @@ int uniphier_sld8_dpll_init(const struct uniphier_board_data *bd)
 	 * [4]     ICPD_TEST    0x1
 	 * [3:0]   ICPD         0xb
 	 */
-	tmp = readl(sc_base + SC_DPLLCTRL3);
+	tmp = readl(SC_DPLLCTRL3);
 	tmp &= ~0x00ff0717;
 	tmp |= 0x00d0061b;
-	writel(tmp, sc_base + SC_DPLLCTRL3);
+	writel(tmp, SC_DPLLCTRL3);
 
 	/*
 	 * Set DPLL SSC parameters for DPLLCTRL
@@ -33,14 +34,14 @@ int uniphier_sld8_dpll_init(const struct uniphier_board_data *bd)
 	 * [29:20] SSC_UPCNT 132 (0x084)    132  (0x084)
 	 * [14:0]  SSC_dK    6335(0x18bf)   12710(0x31a6)
 	 */
-	tmp = readl(sc_base + SC_DPLLCTRL);
+	tmp = readl(SC_DPLLCTRL);
 	tmp &= ~0x3ff07fff;
 #ifdef DPLL_SSC_RATE_1PER
 	tmp |= 0x084018bf;
 #else
 	tmp |= 0x084031a6;
 #endif
-	writel(tmp, sc_base + SC_DPLLCTRL);
+	writel(tmp, SC_DPLLCTRL);
 
 	/*
 	 * Set DPLL SSC parameters for DPLLCTRL2
@@ -49,10 +50,10 @@ int uniphier_sld8_dpll_init(const struct uniphier_board_data *bd)
 	 * [26:20]  SSC_M        79     (0x4f)
 	 * [19:0]   SSC_K        964689 (0xeb851)
 	 */
-	tmp = readl(sc_base + SC_DPLLCTRL2);
+	tmp = readl(SC_DPLLCTRL2);
 	tmp &= ~0xefffffff;
 	tmp |= 0x0cfeb851;
-	writel(tmp, sc_base + SC_DPLLCTRL2);
+	writel(tmp, SC_DPLLCTRL2);
 
 	/* Wait 500 usec until dpll gets stable */
 	udelay(500);

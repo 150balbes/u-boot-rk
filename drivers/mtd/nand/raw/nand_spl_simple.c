@@ -1,22 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2006-2008
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <nand.h>
 #include <asm/io.h>
 #include <linux/mtd/nand_ecc.h>
-#include <linux/mtd/rawnand.h>
 
-static int nand_ecc_pos[] = CFG_SYS_NAND_ECCPOS;
+static int nand_ecc_pos[] = CONFIG_SYS_NAND_ECCPOS;
 static struct mtd_info *mtd;
 static struct nand_chip nand_chip;
 
 #define ECCSTEPS	(CONFIG_SYS_NAND_PAGE_SIZE / \
-					CFG_SYS_NAND_ECCSIZE)
-#define ECCTOTAL	(ECCSTEPS * CFG_SYS_NAND_ECCBYTES)
+					CONFIG_SYS_NAND_ECCSIZE)
+#define ECCTOTAL	(ECCSTEPS * CONFIG_SYS_NAND_ECCBYTES)
 
 
 #if (CONFIG_SYS_NAND_PAGE_SIZE <= 512)
@@ -40,6 +40,11 @@ static int nand_command(int block, int page, uint32_t offs,
 	this->cmd_ctrl(mtd, page_addr & 0xff, NAND_CTRL_ALE); /* A[16:9] */
 	this->cmd_ctrl(mtd, (page_addr >> 8) & 0xff,
 		       NAND_CTRL_ALE); /* A[24:17] */
+#ifdef CONFIG_SYS_NAND_4_ADDR_CYCLE
+	/* One more address cycle for devices > 32MiB */
+	this->cmd_ctrl(mtd, (page_addr >> 16) & 0x0f,
+		       NAND_CTRL_ALE); /* A[28:25] */
+#endif
 	/* Latch in address */
 	this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
@@ -139,8 +144,8 @@ static int nand_read_page(int block, int page, uchar *dst)
 	u_char ecc_code[ECCTOTAL];
 	u_char oob_data[CONFIG_SYS_NAND_OOBSIZE];
 	int i;
-	int eccsize = CFG_SYS_NAND_ECCSIZE;
-	int eccbytes = CFG_SYS_NAND_ECCBYTES;
+	int eccsize = CONFIG_SYS_NAND_ECCSIZE;
+	int eccbytes = CONFIG_SYS_NAND_ECCBYTES;
 	int eccsteps = ECCSTEPS;
 	uint8_t *p = dst;
 
@@ -170,8 +175,8 @@ static int nand_read_page(int block, int page, void *dst)
 	u_char ecc_code[ECCTOTAL];
 	u_char oob_data[CONFIG_SYS_NAND_OOBSIZE];
 	int i;
-	int eccsize = CFG_SYS_NAND_ECCSIZE;
-	int eccbytes = CFG_SYS_NAND_ECCBYTES;
+	int eccsize = CONFIG_SYS_NAND_ECCSIZE;
+	int eccbytes = CONFIG_SYS_NAND_ECCBYTES;
 	int eccsteps = ECCSTEPS;
 	uint8_t *p = dst;
 
@@ -212,7 +217,7 @@ void nand_init(void)
 	 */
 	mtd = nand_to_mtd(&nand_chip);
 	nand_chip.IO_ADDR_R = nand_chip.IO_ADDR_W =
-		(void  __iomem *)CFG_SYS_NAND_BASE;
+		(void  __iomem *)CONFIG_SYS_NAND_BASE;
 	board_nand_init(&nand_chip);
 
 #ifdef CONFIG_SPL_NAND_SOFTECC

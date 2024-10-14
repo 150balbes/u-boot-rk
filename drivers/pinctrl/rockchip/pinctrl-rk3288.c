@@ -5,10 +5,8 @@
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
 #include <dm/pinctrl.h>
 #include <regmap.h>
-#include <linux/bitops.h>
 
 #include "pinctrl-rockchip.h"
 
@@ -182,10 +180,19 @@ static int rk3288_set_drive(struct rockchip_pin_bank *bank,
 }
 
 static struct rockchip_pin_bank rk3288_pin_banks[] = {
-	PIN_BANK_IOMUX_FLAGS(0, 24, "gpio0", IOMUX_SOURCE_PMU,
-					     IOMUX_SOURCE_PMU,
-					     IOMUX_SOURCE_PMU,
-					     IOMUX_UNROUTED
+	PIN_BANK_IOMUX_DRV_PULL_FLAGS(0, 24, "gpio0",
+				      IOMUX_SOURCE_PMU | IOMUX_WRITABLE_32BIT,
+				      IOMUX_SOURCE_PMU | IOMUX_WRITABLE_32BIT,
+				      IOMUX_SOURCE_PMU | IOMUX_WRITABLE_32BIT,
+				      IOMUX_UNROUTED,
+				      DRV_TYPE_WRITABLE_32BIT,
+				      DRV_TYPE_WRITABLE_32BIT,
+				      DRV_TYPE_WRITABLE_32BIT,
+				      0,
+				      PULL_TYPE_WRITABLE_32BIT,
+				      PULL_TYPE_WRITABLE_32BIT,
+				      PULL_TYPE_WRITABLE_32BIT,
+				      0
 			    ),
 	PIN_BANK_IOMUX_FLAGS(1, 32, "gpio1", IOMUX_UNROUTED,
 					     IOMUX_UNROUTED,
@@ -216,6 +223,7 @@ static struct rockchip_pin_bank rk3288_pin_banks[] = {
 static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
 	.pin_banks		= rk3288_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3288_pin_banks),
+	.nr_pins		= 264,
 	.grf_mux_offset		= 0x0,
 	.pmu_mux_offset		= 0x84,
 	.iomux_routes		= rk3288_mux_route_data,
@@ -233,13 +241,13 @@ static const struct udevice_id rk3288_pinctrl_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(rockchip_rk3288_pinctrl) = {
+U_BOOT_DRIVER(pinctrl_rk3288) = {
 	.name		= "rockchip_rk3288_pinctrl",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= rk3288_pinctrl_ids,
-	.priv_auto	= sizeof(struct rockchip_pinctrl_priv),
+	.priv_auto_alloc_size = sizeof(struct rockchip_pinctrl_priv),
 	.ops		= &rockchip_pinctrl_ops,
-#if CONFIG_IS_ENABLED(OF_REAL)
+#if !CONFIG_IS_ENABLED(OF_PLATDATA)
 	.bind		= dm_scan_fdt_dev,
 #endif
 	.probe		= rockchip_pinctrl_probe,

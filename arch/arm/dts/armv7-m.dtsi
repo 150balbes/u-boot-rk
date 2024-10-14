@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
+#include "skeleton.dtsi"
+
 / {
 	nvic: interrupt-controller@e000e100  {
 		compatible = "arm,armv7m-nvic";
@@ -21,3 +22,4 @@
 		ranges;
 	};
 };
+

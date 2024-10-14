@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <common.h>
 #include <spl.h>
-#include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 
@@ -36,5 +37,5 @@ const unsigned uniphier_pxs3_boot_device_count =
 
 int uniphier_pxs3_boot_device_is_usb(u32 pinmon)
 {
-	return !!(readl(sg_base + SG_PINMON2) & BIT(31));
+	return !!(readl(SG_PINMON2) & BIT(31));
 }

@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  dialog.h -- common declarations for all dialog modules
  *
  *  AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <sys/types.h>
@@ -13,10 +14,16 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifndef KBUILD_NO_NLS
+# include <libintl.h>
+#else
+# define gettext(Msgid) ((const char *) (Msgid))
+#endif
+
 #ifdef __sun__
 #define CURS_MACROS
 #endif
-#include <ncurses.h>
+#include CURSES_LOC
 
 /*
  * Colors in ncurses 1.9.9e do not work properly since foreground and

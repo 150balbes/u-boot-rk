@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * fec.h -- Fast Ethernet Controller definitions
  *
@@ -9,6 +8,8 @@
  * Add FEC Structure and definitions
  * Copyright (C) 2004-2007 Freescale Semiconductor, Inc.
  * TsiChung Liew (Tsi-Chung.Liew@freescale.com)
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef	fec_h
@@ -95,12 +96,11 @@ struct fec_info_s {
 	int phyname_init;
 	cbd_t *rxbd;		/* Rx BD */
 	cbd_t *txbd;		/* Tx BD */
-	uint rx_idx;
-	uint tx_idx;
+	uint rxIdx;
+	uint txIdx;
 	char *txbuf;
 	int initialized;
-	int to_loop;
-	struct mii_dev *bus;
+	struct fec_info_s *next;
 };
 
 #ifdef CONFIG_MCFFEC
@@ -337,17 +337,12 @@ typedef struct fec {
 #define	FEC_RESET_DELAY			100
 #define FEC_RX_TOUT			100
 
-typedef struct fec_info_s fec_info_t;
-#define FEC_T fec_t
-
-int fecpin_setclear(fec_info_t *info, int setclear);
-int mii_discover_phy(fec_info_t *info);
-int fec_get_base_addr(int fec_idx, u32 *fec_iobase);
-int fec_get_mii_base(int fec_idx, u32 *mii_base);
+int fecpin_setclear(struct eth_device *dev, int setclear);
 
 #ifdef CONFIG_SYS_DISCOVER_PHY
 void __mii_init(void);
 uint mii_send(uint mii_cmd);
+int mii_discover_phy(struct eth_device *dev);
 int mcffec_miiphy_read(struct mii_dev *bus, int addr, int devad, int reg);
 int mcffec_miiphy_write(struct mii_dev *bus, int addr, int devad, int reg,
 			u16 value);

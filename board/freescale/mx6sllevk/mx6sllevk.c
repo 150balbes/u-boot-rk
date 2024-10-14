@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <init.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/boot_mode.h>
@@ -24,6 +23,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
+	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
+	PAD_CTL_DSE_40ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
+
 int dram_init(void)
 {
 	gd->ram_size = imx_ddr_size();
@@ -31,9 +34,19 @@ int dram_init(void)
 	return 0;
 }
 
+static iomux_v3_cfg_t const uart1_pads[] = {
+	MX6_PAD_UART1_TXD__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX6_PAD_UART1_RXD__UART1_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
 static iomux_v3_cfg_t const wdog_pads[] = {
 	MX6_PAD_WDOG_B__WDOG1_B | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
+
+static void setup_iomux_uart(void)
+{
+	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
+}
 
 #ifdef CONFIG_DM_PMIC_PFUZE100
 int power_init_board(void)
@@ -44,7 +57,7 @@ int power_init_board(void)
 	u32 switch_num = 6;
 	u32 offset = PFUZE100_SW1CMODE;
 
-	ret = pmic_get("pfuze100@8", &dev);
+	ret = pmic_get("pfuze100", &dev);
 	if (ret == -ENODEV)
 		return 0;
 
@@ -80,6 +93,8 @@ int power_init_board(void)
 
 int board_early_init_f(void)
 {
+	setup_iomux_uart();
+
 	return 0;
 }
 

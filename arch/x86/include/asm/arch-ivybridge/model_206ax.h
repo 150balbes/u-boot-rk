@@ -1,12 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * From Coreboot file of the same name
  *
  * Copyright (C) 2011 The ChromiumOS Authors.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef _ASM_ARCH_MODEL_206AX_H
 #define _ASM_ARCH_MODEL_206AX_H
+
+/* SandyBridge/IvyBridge bus clock is fixed at 100MHz */
+#define SANDYBRIDGE_BCLK		100
 
 #define  CPUID_VMX			(1 << 5)
 #define  CPUID_SMX			(1 << 6)
@@ -43,6 +47,7 @@
 #define MSR_PP1_CURRENT_CONFIG		0x602
 #define  PP1_CURRENT_LIMIT_SNB		(35 << 3) /* 35 A */
 #define  PP1_CURRENT_LIMIT_IVB		(50 << 3) /* 50 A */
+#define MSR_PKG_POWER_SKU		0x614
 
 #define IVB_CONFIG_TDP_MIN_CPUID	0x306a2
 #define MSR_CONFIG_TDP_LEVEL1		0x649
@@ -57,6 +62,6 @@
 
 /* Configure power limits for turbo mode */
 void set_power_limits(u8 power_limit_1_time);
-bool cpu_ivybridge_config_tdp_levels(void);
+int cpu_config_tdp_levels(void);
 
 #endif

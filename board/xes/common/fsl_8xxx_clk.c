@@ -1,19 +1,19 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008 Extreme Engineering Solutions, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <clock_legacy.h>
 #include <asm/io.h>
 
 /*
  * Return SYSCLK input frequency - 50 MHz or 66 MHz depending on POR config
  */
-unsigned long get_board_sys_clk(void)
+unsigned long get_board_sys_clk(ulong dummy)
 {
 #if defined(CONFIG_MPC85xx)
-	volatile ccsr_gur_t *gur = (void *)(CFG_SYS_MPC85xx_GUTS_ADDR);
+	volatile ccsr_gur_t *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
 #elif defined(CONFIG_MPC86xx)
 	immap_t *immap = (immap_t *)CONFIG_SYS_IMMR;
 	volatile ccsr_gur_t *gur = &immap->im_gur;
@@ -34,13 +34,13 @@ unsigned long get_board_sys_clk(void)
  * Return DDR input clock - synchronous with SYSCLK or 66 MHz
  * Note: 86xx doesn't support asynchronous DDR clk
  */
-unsigned long get_board_ddr_clk(void)
+unsigned long get_board_ddr_clk(ulong dummy)
 {
-	volatile ccsr_gur_t *gur = (void *)(CFG_SYS_MPC85xx_GUTS_ADDR);
+	volatile ccsr_gur_t *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
 	u32 ddr_ratio = (in_be32(&gur->porpllsr) & 0x00003e00) >> 9;
 
 	if (ddr_ratio == 0x7)
-		return get_board_sys_clk();
+		return get_board_sys_clk(dummy);
 
 #ifdef CONFIG_ARCH_P2020
 	if (in_be32(&gur->gpporcr) & 0x20000)

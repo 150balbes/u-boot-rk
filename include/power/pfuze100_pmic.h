@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Copyright (C) 2014 Gateworks Corporation
  *  Tim Harvey <tharvey@gateworks.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __PFUZE100_PMIC_H_
@@ -17,11 +18,6 @@ enum {
 	PFUZE100_DEVICEID	= 0x00,
 	PFUZE100_REVID		= 0x03,
 	PFUZE100_FABID		= 0x04,
-
-	PFUZE100_MEMA		= 0x1c,
-	PFUZE100_MEMB		= 0x1d,
-	PFUZE100_MEMC		= 0x1e,
-	PFUZE100_MEMD		= 0x1f,
 
 	PFUZE100_SW1ABVOL	= 0x20,
 	PFUZE100_SW1ABSTBY	= 0x21,

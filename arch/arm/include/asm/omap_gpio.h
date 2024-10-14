@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2009 Wind River Systems, Inc.
  * Tom Rix <Tom.Rix@windriver.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  *
  * This work is derived from the linux 2.6.27 kernel source
  * To fetch, use the kernel repository
@@ -22,10 +23,10 @@
 
 #include <asm/arch/cpu.h>
 
-#if CONFIG_IS_ENABLED(DM_GPIO)
+#ifdef CONFIG_DM_GPIO
 
 /* Information about a GPIO bank */
-struct omap_gpio_plat {
+struct omap_gpio_platdata {
 	int bank_index;
 	ulong base;	/* address of registers in physical memory */
 	const char *port_name;
@@ -43,7 +44,7 @@ extern const struct gpio_bank *const omap_gpio_bank;
  * Check if gpio is valid.
  *
  * @param gpio	GPIO number
- * Return: 1 if ok, 0 on error
+ * @return 1 if ok, 0 on error
  */
 int gpio_is_valid(int gpio);
 #endif

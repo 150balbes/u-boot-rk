@@ -9,7 +9,6 @@
  *          Pawel Laszczak <pawell@cadence.com>
  */
 #include <dm.h>
-#include <dm/devres.h>
 #include <linux/compat.h>
 #include <usb.h>
 #include <usb/xhci.h>

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -18,15 +17,13 @@
  * Copyright (C) 2003, 2004  Free Software Foundation, Inc.
  *
  * ext4write : Based on generic ext4 protocol.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 
 #include <common.h>
-#include <blk.h>
-#include <log.h>
-#include <malloc.h>
 #include <memalign.h>
-#include <part.h>
 #include <linux/stat.h>
 #include <div64.h>
 #include "ext4_common.h"
@@ -469,15 +466,6 @@ static int ext4fs_delete_file(int inodeno)
 	if (le32_to_cpu(inode.size) % fs->blksz)
 		no_blocks++;
 
-	/*
-	 * special case for symlinks whose target are small enough that
-	 *it fits in struct ext2_inode.b.symlink: no block had been allocated
-	 */
-	if ((le16_to_cpu(inode.mode) & S_IFLNK) &&
-	    le32_to_cpu(inode.size) <= sizeof(inode.b.symlink)) {
-		no_blocks = 0;
-	}
-
 	if (le32_to_cpu(inode.flags) & EXT4_EXTENTS_FL) {
 		/* FIXME delete extent index blocks, i.e. eh_depth >= 1 */
 		struct ext4_extent_header *eh =
@@ -492,7 +480,7 @@ static int ext4fs_delete_file(int inodeno)
 
 	/* release data blocks */
 	for (i = 0; i < no_blocks; i++) {
-		blknr = read_allocated_block(&inode, i, NULL);
+		blknr = read_allocated_block(&inode, i);
 		if (blknr == 0)
 			continue;
 		if (blknr < 0)
@@ -708,7 +696,7 @@ void ext4fs_deinit(void)
 		ext4fs_read_inode(ext4fs_root, EXT2_JOURNAL_INO,
 				  &inode_journal);
 		blknr = read_allocated_block(&inode_journal,
-					EXT2_JOURNAL_SUPERBLOCK, NULL);
+					EXT2_JOURNAL_SUPERBLOCK);
 		ext4fs_devread((lbaint_t)blknr * fs->sect_perblk, 0, fs->blksz,
 			       temp_buff);
 		jsb = (struct journal_superblock_t *)temp_buff;
@@ -765,7 +753,7 @@ void ext4fs_deinit(void)
  * contigous sectors as ext4fs_read_file
  */
 static int ext4fs_write_file(struct ext2_inode *file_inode,
-			     int pos, unsigned int len, const char *buf)
+			     int pos, unsigned int len, char *buf)
 {
 	int i;
 	int blockcnt;
@@ -777,7 +765,7 @@ static int ext4fs_write_file(struct ext2_inode *file_inode,
 	int delayed_start = 0;
 	int delayed_extent = 0;
 	int delayed_next = 0;
-	const char *delayed_buf = NULL;
+	char *delayed_buf = NULL;
 
 	/* Adjust len so it we can't read past the end of the file. */
 	if (len > filesize)
@@ -789,7 +777,7 @@ static int ext4fs_write_file(struct ext2_inode *file_inode,
 		long int blknr;
 		int blockend = fs->blksz;
 		int skipfirst = 0;
-		blknr = read_allocated_block(file_inode, i, NULL);
+		blknr = read_allocated_block(file_inode, i);
 		if (blknr <= 0)
 			return -1;
 
@@ -829,6 +817,7 @@ static int ext4fs_write_file(struct ext2_inode *file_inode,
 					 (uint32_t) delayed_extent);
 				previous_block_number = -1;
 			}
+			memset(buf, 0, fs->blksz - skipfirst);
 		}
 		buf += fs->blksz - skipfirst;
 	}
@@ -842,8 +831,8 @@ static int ext4fs_write_file(struct ext2_inode *file_inode,
 	return len;
 }
 
-int ext4fs_write(const char *fname, const char *buffer,
-		 unsigned long sizebytes, int type)
+int ext4fs_write(const char *fname, unsigned char *buffer,
+					unsigned long sizebytes)
 {
 	int ret = 0;
 	struct ext2_inode *file_inode = NULL;
@@ -866,11 +855,7 @@ int ext4fs_write(const char *fname, const char *buffer,
 	struct ext2_block_group *bgd = NULL;
 	struct ext_filesystem *fs = get_fs();
 	ALLOC_CACHE_ALIGN_BUFFER(char, filename, 256);
-	bool store_link_in_inode = false;
 	memset(filename, 0x00, 256);
-
-	if (type != FILETYPE_REG && type != FILETYPE_SYMLINK)
-		return -1;
 
 	g_parent_inode = zalloc(fs->inodesz);
 	if (!g_parent_inode)
@@ -880,12 +865,6 @@ int ext4fs_write(const char *fname, const char *buffer,
 		printf("error in File System init\n");
 		return -1;
 	}
-
-	if (le32_to_cpu(fs->sb->feature_ro_compat) & EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) {
-		printf("Unsupported feature metadata_csum found, not writing.\n");
-		return -1;
-	}
-
 	inodes_per_block = fs->blksz / fs->inodesz;
 	parent_inodeno = ext4fs_get_parent_inode_num(fname, filename, F_FILE);
 	if (parent_inodeno == -1)
@@ -909,16 +888,8 @@ int ext4fs_write(const char *fname, const char *buffer,
 		if (ret)
 			goto fail;
 	}
-
-	/* calculate how many blocks required */
-	if (type == FILETYPE_SYMLINK &&
-	    sizebytes <= sizeof(file_inode->b.symlink)) {
-		store_link_in_inode = true;
-		bytes_reqd_for_file = 0;
-	} else {
-		bytes_reqd_for_file = sizebytes;
-	}
-
+	/* calucalate how many blocks required */
+	bytes_reqd_for_file = sizebytes;
 	blks_reqd_for_file = lldiv(bytes_reqd_for_file, fs->blksz);
 	if (do_div(bytes_reqd_for_file, fs->blksz) != 0) {
 		blks_reqd_for_file++;
@@ -931,7 +902,7 @@ int ext4fs_write(const char *fname, const char *buffer,
 		goto fail;
 	}
 
-	inodeno = ext4fs_update_parent_dentry(filename, type);
+	inodeno = ext4fs_update_parent_dentry(filename, FILETYPE_REG);
 	if (inodeno == -1)
 		goto fail;
 	/* prepare file inode */
@@ -939,29 +910,20 @@ int ext4fs_write(const char *fname, const char *buffer,
 	if (!inode_buffer)
 		goto fail;
 	file_inode = (struct ext2_inode *)inode_buffer;
-	file_inode->size = cpu_to_le32(sizebytes);
-	if (type == FILETYPE_SYMLINK) {
-		file_inode->mode = cpu_to_le16(S_IFLNK | S_IRWXU | S_IRWXG |
-					       S_IRWXO);
-		if (store_link_in_inode) {
-			strncpy(file_inode->b.symlink, buffer, sizebytes);
-			sizebytes = 0;
-		}
-	} else {
-		file_inode->mode = cpu_to_le16(S_IFREG | S_IRWXU | S_IRGRP |
-					       S_IROTH | S_IXGRP | S_IXOTH);
-	}
+	file_inode->mode = cpu_to_le16(S_IFREG | S_IRWXU |
+	    S_IRGRP | S_IROTH | S_IXGRP | S_IXOTH);
 	/* ToDo: Update correct time */
 	file_inode->mtime = cpu_to_le32(timestamp);
 	file_inode->atime = cpu_to_le32(timestamp);
 	file_inode->ctime = cpu_to_le32(timestamp);
 	file_inode->nlinks = cpu_to_le16(1);
+	file_inode->size = cpu_to_le32(sizebytes);
 
 	/* Allocate data blocks */
 	ext4fs_allocate_blocks(file_inode, blocks_remaining,
 			       &blks_reqd_for_file);
 	file_inode->blockcnt = cpu_to_le32((blks_reqd_for_file * fs->blksz) >>
-					   LOG2_SECTOR_SIZE);
+		fs->dev_desc->log2blksz);
 
 	temp_ptr = zalloc(fs->blksz);
 	if (!temp_ptr)
@@ -982,7 +944,7 @@ int ext4fs_write(const char *fname, const char *buffer,
 	if (ext4fs_put_metadata(temp_ptr, itable_blkno))
 		goto fail;
 	/* copy the file content into data blocks */
-	if (ext4fs_write_file(file_inode, 0, sizebytes, buffer) == -1) {
+	if (ext4fs_write_file(file_inode, 0, sizebytes, (char *)buffer) == -1) {
 		printf("Error in copying content\n");
 		/* FIXME: Deallocate data blocks */
 		goto fail;
@@ -1047,7 +1009,7 @@ int ext4_write_file(const char *filename, void *buf, loff_t offset,
 		return -1;
 	}
 
-	ret = ext4fs_write(filename, buf, len, FILETYPE_REG);
+	ret = ext4fs_write(filename, buf, len);
 	if (ret) {
 		printf("** Error ext4fs_write() **\n");
 		goto fail;
@@ -1061,9 +1023,4 @@ fail:
 	*actwrite = 0;
 
 	return -1;
-}
-
-int ext4fs_create_link(const char *target, const char *fname)
-{
-	return ext4fs_write(fname, target, strlen(target), FILETYPE_SYMLINK);
 }

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2015 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_TIMER_H
@@ -14,5 +15,8 @@ struct rk_timer {
 	u32 timer_ctrl_reg;
 	u32 timer_int_status;
 };
+
+void rockchip_timer_init(void);
+void rockchip_udelay(unsigned int usec);
 
 #endif

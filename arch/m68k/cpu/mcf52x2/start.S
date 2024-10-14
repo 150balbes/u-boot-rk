@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2003	Josef Baumgartner <josef.baumgartner@telex.de>
  * Based on code from Bernhard Kuhn <bkuhn@metrowerks.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
 #include <config.h>
+#include "version.h"
 #include <asm/cache.h>
 
 #define _START	_start
@@ -35,8 +37,8 @@
  */
 _vectors:
 .long	0x00000000		/* Flash offset is 0 until we setup CS0 */
-#if defined(CONFIG_M5282) && (CONFIG_TEXT_BASE == CFG_SYS_INT_FLASH_BASE)
-.long	_start - CONFIG_TEXT_BASE
+#if defined(CONFIG_M5282) && (CONFIG_SYS_TEXT_BASE == CONFIG_SYS_INT_FLASH_BASE)
+.long	_start - CONFIG_SYS_TEXT_BASE
 #else
 .long	_START
 #endif
@@ -81,9 +83,9 @@ _vectors:
 
 .text
 
-#if defined(CFG_SYS_INT_FLASH_BASE) && \
+#if defined(CONFIG_SYS_INT_FLASH_BASE) && \
     (defined(CONFIG_M5282) || defined(CONFIG_M5281))
-#if (CONFIG_TEXT_BASE == CFG_SYS_INT_FLASH_BASE)
+#if (CONFIG_SYS_TEXT_BASE == CONFIG_SYS_INT_FLASH_BASE)
 .long	0x55AA55AA,0xAA55AA55		/* CFM Backdoorkey */
 .long	0xFFFFFFFF			/* all sectors protected */
 .long	0x00000000			/* supervisor/User restriction */
@@ -100,53 +102,53 @@ _start:
 
 #if defined(CONFIG_M5208)
 	/* Initialize RAMBAR: locate SRAM and validate it */
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + CFG_SYS_INIT_RAM_CTRL), %d0
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_RAM_CTRL), %d0
 	movec	%d0, %RAMBAR1
 #endif
 
 #if defined(CONFIG_M5272) || defined(CONFIG_M5249) || defined(CONFIG_M5253)
 	/* set MBAR address + valid flag */
-	move.l	#(CFG_SYS_MBAR + 1), %d0
+	move.l	#(CONFIG_SYS_MBAR + 1), %d0
 	move.c	%d0, %MBAR
 
 	/*** The 5249 has MBAR2 as well ***/
-#ifdef CFG_SYS_MBAR2
+#ifdef CONFIG_SYS_MBAR2
 	/* Get MBAR2 address */
-	move.l	#(CFG_SYS_MBAR2 + 1), %d0
+	move.l	#(CONFIG_SYS_MBAR2 + 1), %d0
 	 /* Set MBAR2 */
 	movec	%d0, #0xc0e
 #endif
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + 1), %d0
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + 1), %d0
 	movec	%d0, %RAMBAR0
 #endif /* CONFIG_M5272 || CONFIG_M5249 || CONFIG_M5253 */
 
 #if defined(CONFIG_M5282) || defined(CONFIG_M5271)
 	/* set MBAR address + valid flag */
-	move.l	#(CFG_SYS_MBAR + 1), %d0
+	move.l	#(CONFIG_SYS_MBAR + 1), %d0
 	move.l	%d0, 0x40000000
 
 	/* Initialize RAMBAR1: locate SRAM and validate it */
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + 0x21), %d0
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + 0x21), %d0
 	movec	%d0, %RAMBAR1
 
 #if defined(CONFIG_M5282)
-#if (CONFIG_TEXT_BASE == CFG_SYS_INT_FLASH_BASE)
+#if (CONFIG_SYS_TEXT_BASE == CONFIG_SYS_INT_FLASH_BASE)
 	/*
 	 * Setup code in SRAM to initialize FLASHBAR,
 	 * if start from internal Flash
 	 */
-	move.l	#(_flashbar_setup-CFG_SYS_INT_FLASH_BASE), %a0
-	move.l	#(_flashbar_setup_end-CFG_SYS_INT_FLASH_BASE), %a1
-	move.l	#(CFG_SYS_INIT_RAM_ADDR), %a2
+	move.l	#(_flashbar_setup-CONFIG_SYS_INT_FLASH_BASE), %a0
+	move.l	#(_flashbar_setup_end-CONFIG_SYS_INT_FLASH_BASE), %a1
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR), %a2
 _copy_flash:
 	move.l	(%a0)+, (%a2)+
 	cmp.l	%a0, %a1
 	bgt.s	_copy_flash
-	jmp	CFG_SYS_INIT_RAM_ADDR
+	jmp	CONFIG_SYS_INIT_RAM_ADDR
 
 _flashbar_setup:
 	/* Initialize FLASHBAR: locate internal Flash and validate it */
-	move.l	#(CFG_SYS_INT_FLASH_BASE + CFG_SYS_INT_FLASH_ENABLE), %d0
+	move.l	#(CONFIG_SYS_INT_FLASH_BASE + CONFIG_SYS_INT_FLASH_ENABLE), %d0
 	movec	%d0, %FLASHBAR
 	jmp	_after_flashbar_copy.L	/* Force jump to absolute address */
 _flashbar_setup_end:
@@ -154,9 +156,9 @@ _flashbar_setup_end:
 _after_flashbar_copy:
 #else
 	/* Setup code to initialize FLASHBAR, if start from external Memory */
-	move.l	#(CFG_SYS_INT_FLASH_BASE + CFG_SYS_INT_FLASH_ENABLE), %d0
+	move.l	#(CONFIG_SYS_INT_FLASH_BASE + CONFIG_SYS_INT_FLASH_ENABLE), %d0
 	movec	%d0, %FLASHBAR
-#endif /* (CONFIG_TEXT_BASE == CFG_SYS_INT_FLASH_BASE) */
+#endif /* (CONFIG_SYS_TEXT_BASE == CONFIG_SYS_INT_FLASH_BASE) */
 
 #endif
 #endif
@@ -165,22 +167,22 @@ _after_flashbar_copy:
 	 * therefore no VBR to set
 	 */
 #if !defined(CONFIG_MONITOR_IS_IN_RAM)
-#if defined(CONFIG_M5282) && (CONFIG_TEXT_BASE == CFG_SYS_INT_FLASH_BASE)
-	move.l	#CFG_SYS_INT_FLASH_BASE, %d0
+#if defined(CONFIG_M5282) && (CONFIG_SYS_TEXT_BASE == CONFIG_SYS_INT_FLASH_BASE)
+	move.l	#CONFIG_SYS_INT_FLASH_BASE, %d0
 #else
-	move.l	#CFG_SYS_FLASH_BASE, %d0
+	move.l	#CONFIG_SYS_FLASH_BASE, %d0
 #endif
 	movec	%d0, %VBR
 #endif
 
 #ifdef CONFIG_M5275
 	/* set MBAR address + valid flag */
-	move.l	#(CFG_SYS_MBAR + 1), %d0
+	move.l	#(CONFIG_SYS_MBAR + 1), %d0
 	move.l	%d0, 0x40000000
 /*	movec	%d0, %MBAR */
 
 	/* Initialize RAMBAR: locate SRAM and validate it */
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + 0x21), %d0
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + 0x21), %d0
 	movec	%d0, %RAMBAR1
 #endif
 
@@ -195,7 +197,7 @@ _after_flashbar_copy:
 	move.l	#__got_start, %a5
 
 	/* setup stack initially on top of internal static ram  */
-	move.l	#(CFG_SYS_INIT_RAM_ADDR + CFG_SYS_INIT_RAM_SIZE), %sp
+	move.l	#(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_RAM_SIZE), %sp
 
 	/*
 	 * if configured, malloc_f arena will be reserved first,
@@ -228,7 +230,7 @@ _after_flashbar_copy:
 /******************************************************************************/
 
 /*
- * void relocate_code(addr_sp, gd, addr_moni)
+ * void relocate_code (addr_sp, gd, addr_moni)
  *
  * This "function" does not return, instead it continues in RAM
  * after relocating the monitor code.
@@ -303,6 +305,10 @@ clear_bss:
 	/* set parameters for board_init_r */
 	move.l	%a0,-(%sp)		/* dest_addr */
 	move.l	%d0,-(%sp)		/* gd */
+#if defined(DEBUG) && (CONFIG_SYS_TEXT_BASE != CONFIG_SYS_INT_FLASH_BASE) && \
+    defined(CONFIG_SYS_HALT_BEFOR_RAM_JUMP)
+	halt
+#endif
 	jsr	(%a1)
 
 /******************************************************************************/
@@ -330,4 +336,7 @@ _int_handler:
 
 /******************************************************************************/
 
+.globl version_string
+version_string:
+.ascii U_BOOT_VERSION_STRING, "\0"
 .align 4

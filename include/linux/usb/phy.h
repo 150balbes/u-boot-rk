@@ -16,12 +16,9 @@ enum usb_phy_interface {
 	USBPHY_INTERFACE_MODE_UNKNOWN,
 	USBPHY_INTERFACE_MODE_UTMI,
 	USBPHY_INTERFACE_MODE_UTMIW,
-	USBPHY_INTERFACE_MODE_ULPI,
-	USBPHY_INTERFACE_MODE_SERIAL,
-	USBPHY_INTERFACE_MODE_HSIC,
 };
 
-#if CONFIG_IS_ENABLED(DM_USB)
+#if CONFIG_IS_ENABLED(OF_LIVE) && CONFIG_IS_ENABLED(DM_USB)
 /**
  * usb_get_phy_mode - Get phy mode for given device_node
  * @np:	Pointer to the given device_node

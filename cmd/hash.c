@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2012 The Chromium OS Authors.
  *
@@ -7,6 +6,8 @@
  *
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -14,8 +15,7 @@
 #include <hash.h>
 #include <linux/ctype.h>
 
-static int do_hash(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_hash(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *s;
 	int flags = HASH_FLAG_ENV;

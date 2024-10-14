@@ -5,11 +5,7 @@
 
 #ifndef _ASM_ARCH_SDRAM_PCTL_PX30_H
 #define _ASM_ARCH_SDRAM_PCTL_PX30_H
-#include <asm/arch-rockchip/sdram_common.h>
-
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
+#include <asm/arch/sdram_common.h>
 
 struct ddr_pctl_regs {
 	u32 pctl[35][2];
@@ -37,6 +33,26 @@ struct ddr_pctl_regs {
 #define DDR_PCTL2_RFSHTMG		0x64
 #define DDR_PCTL2_RFSHTMG1		0x68
 #define DDR_PCTL2_RFSHCTL5		0x6c
+#define DDR_PCTL2_ECCCFG0		0x70
+#define DDR_PCTL2_ECCCFG1		0x74
+#define DDR_PCTL2_ECCSTAT		0x78
+#define DDR_PCTL2_ECCCTL		0x7c
+#define DDR_PCTL2_ECCERRCNT		0x80
+#define DDR_PCTL2_ECCCADDR0		0x84
+#define DDR_PCTL2_ECCCADDR1		0x88
+#define DDR_PCTL2_ECCCSYN0		0x8c
+#define DDR_PCTL2_ECCCSYN1		0x90
+#define DDR_PCTL2_ECCCSYN2		0x94
+#define DDR_PCTL2_ECCBITMASK0		0x98
+#define DDR_PCTL2_ECCBITMASK1		0x9c
+#define DDR_PCTL2_ECCBITMASK2		0xa0
+#define DDR_PCTL2_ECCUADR0		0xa4
+#define DDR_PCTL2_ECCUADR1		0xa8
+#define DDR_PCTL2_ECCUSYNC0		0xac
+#define DDR_PCTL2_ECCUSYNC1		0xb0
+#define DDR_PCTL2_ECCUSYNC2		0xb4
+#define DDR_PCTL2_ECCPOSISONADDR0	0xb8
+#define DDR_PCTL2_ECCPOSISONADDR1	0xbc
 #define DDR_PCTL2_INIT0			0xd0
 #define DDR_PCTL2_INIT1			0xd4
 #define DDR_PCTL2_INIT2			0xd8
@@ -220,6 +236,19 @@ struct ddr_pctl_regs {
 #define PCTL2_RD_PORT_BUSY_0		(1)
 /* PCTL2_PCTRLn */
 #define PCTL2_PORT_EN			(1)
+
+/* PCTL2_ECCCFG0 */
+#define ECC_MODE_MASK			(0x7)
+#define ECC_MODE_DIS			(0)
+#define ECC_MODE_SEC			(0x4)
+#define ECC_MODE_ADV			(0x5)
+#define ECC_MODE_SHIFT			(0)
+#define ECC_TEST_MODE			BIT(3)
+#define ECC_DIS_SCRUB			BIT(4)
+#define ECC_TYPE_SIDEBAND		(0)
+#define ECC_TYPE_INLINE			(1)
+#define ECC_TYPE_MASK			(1)
+#define ECC_TYPE_SHIFT			(5)
 
 void pctl_read_mr(void __iomem *pctl_base, u32 rank, u32 mr_num);
 int pctl_write_mr(void __iomem *pctl_base, u32 rank, u32 mr_num, u32 arg,

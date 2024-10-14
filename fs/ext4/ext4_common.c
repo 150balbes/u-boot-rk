@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011 - 2012 Samsung Electronics
  * EXT4 filesystem implementation in Uboot by
@@ -16,16 +15,16 @@
  * Copyright (C) 2003, 2004  Free Software Foundation, Inc.
  *
  * ext4write : Based on generic ext4 protocol.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <blk.h>
 #include <ext_common.h>
 #include <ext4fs.h>
-#include <log.h>
+#include <inttypes.h>
 #include <malloc.h>
 #include <memalign.h>
-#include <part.h>
 #include <stddef.h>
 #include <linux/stat.h>
 #include <linux/time.h>
@@ -193,7 +192,7 @@ uint32_t ext4fs_div_roundup(uint32_t size, uint32_t n)
 	return res;
 }
 
-void put_ext4(uint64_t off, const void *buf, uint32_t size)
+void put_ext4(uint64_t off, void *buf, uint32_t size)
 {
 	uint64_t startblock;
 	uint64_t remainder;
@@ -212,7 +211,7 @@ void put_ext4(uint64_t off, const void *buf, uint32_t size)
 	if ((startblock + (size >> log2blksz)) >
 	    (part_offset + fs->total_sect)) {
 		printf("part_offset is " LBAFU "\n", part_offset);
-		printf("total_sector is %llu\n", fs->total_sect);
+		printf("total_sector is %" PRIu64 "\n", fs->total_sect);
 		printf("error: overflow occurs\n");
 		return;
 	}
@@ -427,14 +426,14 @@ uint16_t ext4fs_checksum_update(uint32_t i)
 	if (le32_to_cpu(fs->sb->feature_ro_compat) & EXT4_FEATURE_RO_COMPAT_GDT_CSUM) {
 		int offset = offsetof(struct ext2_block_group, bg_checksum);
 
-		crc = crc16(~0, (__u8 *)fs->sb->unique_id,
+		crc = ext2fs_crc16(~0, fs->sb->unique_id,
 				   sizeof(fs->sb->unique_id));
-		crc = crc16(crc, (__u8 *)&le32_i, sizeof(le32_i));
-		crc = crc16(crc, (__u8 *)desc, offset);
+		crc = ext2fs_crc16(crc, &le32_i, sizeof(le32_i));
+		crc = ext2fs_crc16(crc, desc, offset);
 		offset += sizeof(desc->bg_checksum);	/* skip checksum */
 		assert(offset == sizeof(*desc));
 		if (offset < fs->gdsize) {
-			crc = crc16(crc, (__u8 *)desc + offset,
+			crc = ext2fs_crc16(crc, (__u8 *)desc + offset,
 					   fs->gdsize - offset);
 		}
 	}
@@ -513,8 +512,7 @@ restart:
 
 restart_read:
 	/* read the block no allocated to a file */
-	first_block_no_of_root = read_allocated_block(g_parent_inode, blk_idx,
-						      NULL);
+	first_block_no_of_root = read_allocated_block(g_parent_inode, blk_idx);
 	if (first_block_no_of_root <= 0)
 		goto fail;
 
@@ -573,7 +571,7 @@ restart_read:
 				g_parent_inode->size = cpu_to_le32(new_size);
 
 				new_blockcnt = le32_to_cpu(g_parent_inode->blockcnt);
-				new_blockcnt += fs->blksz >> LOG2_SECTOR_SIZE;
+				new_blockcnt += fs->sect_perblk;
 				g_parent_inode->blockcnt = cpu_to_le32(new_blockcnt);
 
 				if (ext4fs_put_metadata
@@ -611,7 +609,7 @@ restart_read:
 		dir->direntlen = cpu_to_le16(fs->blksz - totalbytes);
 
 	dir->namelen = strlen(filename);
-	dir->filetype = file_type;
+	dir->filetype = FILETYPE_REG;	/* regular file */
 	temp_dir = (char *)dir;
 	temp_dir = temp_dir + sizeof(struct ext2_dirent);
 	memcpy(temp_dir, filename, strlen(filename));
@@ -650,7 +648,7 @@ static int search_dir(struct ext2_inode *parent_inode, char *dirname)
 
 	/* get the block no allocated to a file */
 	for (blk_idx = 0; blk_idx < directory_blocks; blk_idx++) {
-		blknr = read_allocated_block(parent_inode, blk_idx, NULL);
+		blknr = read_allocated_block(parent_inode, blk_idx);
 		if (blknr <= 0)
 			goto fail;
 
@@ -850,20 +848,15 @@ end:
 
 fail:
 	free(depth_dirname);
-	if (parse_dirname)
-		free(parse_dirname);
-	if (ptr) {
-		for (i = 0; i < depth; i++) {
-			if (!ptr[i])
-				break;
-			free(ptr[i]);
-		}
-		free(ptr);
+	free(parse_dirname);
+	for (i = 0; i < depth; i++) {
+		if (!ptr[i])
+			break;
+		free(ptr[i]);
 	}
-	if (parent_inode)
-		free(parent_inode);
-	if (first_inode)
-		free(first_inode);
+	free(ptr);
+	free(parent_inode);
+	free(first_inode);
 
 	return result_inode_no;
 }
@@ -952,7 +945,7 @@ int ext4fs_filename_unlink(char *filename)
 
 	/* read the block no allocated to a file */
 	for (blk_idx = 0; blk_idx < directory_blocks; blk_idx++) {
-		blknr = read_allocated_block(g_parent_inode, blk_idx, NULL);
+		blknr = read_allocated_block(g_parent_inode, blk_idx);
 		if (blknr <= 0)
 			break;
 		inodeno = unlink_filename(filename, blknr);
@@ -1531,7 +1524,7 @@ void ext4fs_allocate_blocks(struct ext2_inode *file_inode,
 #endif
 
 static struct ext4_extent_header *ext4fs_get_extent_block
-	(struct ext2_data *data, struct ext_block_cache *cache,
+	(struct ext2_data *data, char *buf,
 		struct ext4_extent_header *ext_block,
 		uint32_t fileblock, int log2_blksz)
 {
@@ -1555,19 +1548,17 @@ static struct ext4_extent_header *ext4fs_get_extent_block
 				break;
 		} while (fileblock >= le32_to_cpu(index[i].ei_block));
 
-		/*
-		 * If first logical block number is higher than requested fileblock,
-		 * it is a sparse file. This is handled on upper layer.
-		 */
-		if (i > 0)
-			i--;
+		if (--i < 0)
+			return NULL;
 
 		block = le16_to_cpu(index[i].ei_leaf_hi);
 		block = (block << 32) + le32_to_cpu(index[i].ei_leaf_lo);
-		block <<= log2_blksz;
-		if (!ext_cache_read(cache, (lbaint_t)block, blksz))
+
+		if (ext4fs_devread((lbaint_t)block << log2_blksz, 0, blksz,
+				   buf))
+			ext_block = (struct ext4_extent_header *)buf;
+		else
 			return NULL;
-		ext_block = (struct ext4_extent_header *)cache->buf;
 	}
 }
 
@@ -1579,12 +1570,8 @@ static int ext4fs_blockgroup
 	int log2blksz = get_fs()->dev_desc->log2blksz;
 	int desc_size = get_fs()->gdsize;
 
-	if (desc_size == 0)
-		return 0;
 	desc_per_blk = EXT2_BLOCK_SIZE(data) / desc_size;
 
-	if (desc_per_blk == 0)
-		return 0;
 	blkno = le32_to_cpu(data->sblock.first_data_block) + 1 +
 			group / desc_per_blk;
 	blkoff = (group % desc_per_blk) * desc_size;
@@ -1599,7 +1586,7 @@ static int ext4fs_blockgroup
 
 int ext4fs_read_inode(struct ext2_data *data, int ino, struct ext2_inode *inode)
 {
-	struct ext2_block_group *blkgrp;
+	struct ext2_block_group blkgrp;
 	struct ext2_sblock *sblock = &data->sblock;
 	struct ext_filesystem *fs = get_fs();
 	int log2blksz = get_fs()->dev_desc->log2blksz;
@@ -1607,36 +1594,17 @@ int ext4fs_read_inode(struct ext2_data *data, int ino, struct ext2_inode *inode)
 	long int blkno;
 	unsigned int blkoff;
 
-	/* Allocate blkgrp based on gdsize (for 64-bit support). */
-	blkgrp = zalloc(get_fs()->gdsize);
-	if (!blkgrp)
-		return 0;
-
 	/* It is easier to calculate if the first inode is 0. */
 	ino--;
-	if ( le32_to_cpu(sblock->inodes_per_group) == 0 || fs->inodesz == 0) {
-		free(blkgrp);
-		return 0;
-	}
 	status = ext4fs_blockgroup(data, ino / le32_to_cpu
-				   (sblock->inodes_per_group), blkgrp);
-	if (status == 0) {
-		free(blkgrp);
+				   (sblock->inodes_per_group), &blkgrp);
+	if (status == 0)
 		return 0;
-	}
 
 	inodes_per_block = EXT2_BLOCK_SIZE(data) / fs->inodesz;
-	if ( inodes_per_block == 0 ) {
-		free(blkgrp);
-		return 0;
-	}
-	blkno = ext4fs_bg_get_inode_table_id(blkgrp, fs) +
+	blkno = ext4fs_bg_get_inode_table_id(&blkgrp, fs) +
 	    (ino % le32_to_cpu(sblock->inodes_per_group)) / inodes_per_block;
 	blkoff = (ino % inodes_per_block) * fs->inodesz;
-
-	/* Free blkgrp as it is no longer required. */
-	free(blkgrp);
-
 	/* Read the inode. */
 	status = ext4fs_devread((lbaint_t)blkno << (LOG2_BLOCK_SIZE(data) -
 				log2blksz), blkoff,
@@ -1647,8 +1615,7 @@ int ext4fs_read_inode(struct ext2_data *data, int ino, struct ext2_inode *inode)
 	return 1;
 }
 
-long int read_allocated_block(struct ext2_inode *inode, int fileblock,
-			      struct ext_block_cache *cache)
+long int read_allocated_block(struct ext2_inode *inode, int fileblock)
 {
 	long int blknr;
 	int blksz;
@@ -1665,26 +1632,20 @@ long int read_allocated_block(struct ext2_inode *inode, int fileblock,
 
 	if (le32_to_cpu(inode->flags) & EXT4_EXTENTS_FL) {
 		long int startblock, endblock;
-		struct ext_block_cache *c, cd;
+		char *buf = zalloc(blksz);
+		if (!buf)
+			return -ENOMEM;
 		struct ext4_extent_header *ext_block;
 		struct ext4_extent *extent;
 		int i;
-
-		if (cache) {
-			c = cache;
-		} else {
-			c = &cd;
-			ext_cache_init(c);
-		}
 		ext_block =
-			ext4fs_get_extent_block(ext4fs_root, c,
+			ext4fs_get_extent_block(ext4fs_root, buf,
 						(struct ext4_extent_header *)
 						inode->b.blocks.dir_blocks,
 						fileblock, log2_blksz);
 		if (!ext_block) {
 			printf("invalid extent block\n");
-			if (!cache)
-				ext_cache_fini(c);
+			free(buf);
 			return -EINVAL;
 		}
 
@@ -1696,22 +1657,19 @@ long int read_allocated_block(struct ext2_inode *inode, int fileblock,
 
 			if (startblock > fileblock) {
 				/* Sparse file */
-				if (!cache)
-					ext_cache_fini(c);
+				free(buf);
 				return 0;
 
 			} else if (fileblock < endblock) {
 				start = le16_to_cpu(extent[i].ee_start_hi);
 				start = (start << 32) +
 					le32_to_cpu(extent[i].ee_start_lo);
-				if (!cache)
-					ext_cache_fini(c);
+				free(buf);
 				return (fileblock - startblock) + start;
 			}
 		}
 
-		if (!cache)
-			ext_cache_fini(c);
+		free(buf);
 		return 0;
 	}
 
@@ -2385,7 +2343,7 @@ int ext4fs_mount(unsigned part_length)
 
 	/* Make sure this is an ext2 filesystem. */
 	if (le16_to_cpu(data->sblock.magic) != EXT2_MAGIC)
-		goto fail_noerr;
+		goto fail;
 
 
 	if (le32_to_cpu(data->sblock.revision_level) == 0) {
@@ -2420,8 +2378,7 @@ int ext4fs_mount(unsigned part_length)
 
 	return 1;
 fail:
-	log_debug("Failed to mount ext2 filesystem...\n");
-fail_noerr:
+	printf("Failed to mount ext2 filesystem...\n");
 	free(data);
 	ext4fs_root = NULL;
 

@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011
  * Jason Cooper <u-boot@lakedaemon.net>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -18,11 +19,6 @@
 struct mvrtc_registers {
 	u32 time;
 	u32 date;
-};
-
-/* Platform data */
-struct mvrtc_pdata {
-	phys_addr_t iobase;
 };
 
 /* time register */

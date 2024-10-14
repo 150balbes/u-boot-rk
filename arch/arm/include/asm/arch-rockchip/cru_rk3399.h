@@ -1,14 +1,25 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2016 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_CRU_RK3399_H_
 #define __ASM_ARCH_CRU_RK3399_H_
 
+#include <common.h>
+
 /* Private data for the clock driver - used by rockchip_get_cru() */
 struct rk3399_clk_priv {
-	struct rockchip_cru *cru;
+	struct rk3399_cru *cru;
+	ulong armlclk_hz;
+	ulong armlclk_enter_hz;
+	ulong armlclk_init_hz;
+	ulong armbclk_hz;
+	ulong armbclk_enter_hz;
+	ulong armbclk_init_hz;
+	bool sync_kernel;
+	bool set_armclk_rate;
 };
 
 struct rk3399_pmuclk_priv {
@@ -31,7 +42,7 @@ struct rk3399_pmucru {
 };
 check_member(rk3399_pmucru, pmucru_gatedis_con[1], 0x134);
 
-struct rockchip_cru {
+struct rk3399_cru {
 	u32 apll_l_con[6];
 	u32 reserved[2];
 	u32 apll_b_con[6];
@@ -63,50 +74,64 @@ struct rockchip_cru {
 	u32 sdio0_con[2];
 	u32 sdio1_con[2];
 };
-check_member(rockchip_cru, sdio1_con[1], 0x594);
+check_member(rk3399_cru, sdio1_con[1], 0x594);
+#define MHz		1000000
 #define KHz		1000
 #define OSC_HZ		(24*MHz)
-#define LPLL_HZ		(600*MHz)
-#define BPLL_HZ		(600*MHz)
-#define GPLL_HZ		(594*MHz)
+#define APLL_HZ		(600*MHz)
+#define GPLL_HZ		(800 * MHz)
 #define CPLL_HZ		(384*MHz)
+#define NPLL_HZ		(600 * MHz)
 #define PPLL_HZ		(676*MHz)
 
 #define PMU_PCLK_HZ	(48*MHz)
 
-#define ACLKM_CORE_L_HZ	(300*MHz)
-#define ATCLK_CORE_L_HZ	(300*MHz)
-#define PCLK_DBG_L_HZ	(100*MHz)
+#define ACLKM_CORE_HZ	(300*MHz)
+#define ATCLK_CORE_HZ	(300*MHz)
+#define PCLK_DBG_HZ	(100*MHz)
 
-#define ACLKM_CORE_B_HZ	(300*MHz)
-#define ATCLK_CORE_B_HZ	(300*MHz)
-#define PCLK_DBG_B_HZ	(100*MHz)
+#define PERIHP_ACLK_HZ	(150 * MHz)
+#define PERIHP_HCLK_HZ	(75 * MHz)
+#define PERIHP_PCLK_HZ	(37500 * KHz)
 
-#define PERIHP_ACLK_HZ	(148500*KHz)
-#define PERIHP_HCLK_HZ	(148500*KHz)
-#define PERIHP_PCLK_HZ	(37125*KHz)
+#define PERILP0_ACLK_HZ	(300 * MHz)
+#define PERILP0_HCLK_HZ	(100 * MHz)
+#define PERILP0_PCLK_HZ	(50 * MHz)
 
-#define PERILP0_ACLK_HZ	(99000*KHz)
-#define PERILP0_HCLK_HZ	(99000*KHz)
-#define PERILP0_PCLK_HZ	(49500*KHz)
-
-#define PERILP1_HCLK_HZ	(99000*KHz)
-#define PERILP1_PCLK_HZ	(49500*KHz)
+#define PERILP1_HCLK_HZ	(100 * MHz)
+#define PERILP1_PCLK_HZ	(50 * MHz)
 
 #define PWM_CLOCK_HZ    PMU_PCLK_HZ
 
-enum apll_l_frequencies {
-	APLL_L_1600_MHZ,
-	APLL_L_600_MHZ,
+enum apll_frequencies {
+	APLL_1600_MHZ,
+	APLL_816_MHZ,
+	APLL_600_MHZ,
 };
 
-enum apll_b_frequencies {
-	APLL_B_600_MHZ,
+enum cpu_cluster {
+	CPU_CLUSTER_LITTLE,
+	CPU_CLUSTER_BIG,
 };
 
-void rk3399_configure_cpu_l(struct rockchip_cru *cru,
-			    enum apll_l_frequencies apll_l_freq);
-void rk3399_configure_cpu_b(struct rockchip_cru *cru,
-			    enum apll_b_frequencies apll_b_freq);
+enum rk3399_pll_id {
+	APLLL_ID = 0,
+	APLLB_ID,
+	DPLL_ID,
+	CPLL_ID,
+	GPLL_ID,
+	NPLL_ID,
+	VPLL_ID,
+
+	PPLL_ID,
+
+	END_PLL_ID
+};
+
+struct rk3399_clk_info {
+	unsigned long id;
+	char *name;
+	bool is_cru;
+};
 
 #endif	/* __ASM_ARCH_CRU_RK3399_H_ */

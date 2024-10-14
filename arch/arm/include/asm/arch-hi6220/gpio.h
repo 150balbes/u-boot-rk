@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Linaro
  * Peter Griffin <peter.griffin@linaro.org>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _HI6220_GPIO_H_
@@ -18,7 +19,7 @@ struct gpio_bank {
 };
 
 /* Information about a GPIO bank */
-struct hikey_gpio_plat {
+struct hikey_gpio_platdata {
 	int bank_index;
 	ulong base;     /* address of registers in physical memory */
 };

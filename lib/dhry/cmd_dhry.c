@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015 Google, Inc
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -8,15 +9,14 @@
 #include <div64.h>
 #include "dhry.h"
 
-static int do_dhry(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_dhry(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong start, duration, vax_mips;
 	u64 dhry_per_sec;
 	int iterations = 1000000;
 
 	if (argc > 1)
-		iterations = dectoul(argv[1], NULL);
+		iterations = simple_strtoul(argv[1], NULL, 10);
 
 	start = get_timer(0);
 	dhry(iterations);

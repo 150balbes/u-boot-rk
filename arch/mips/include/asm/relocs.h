@@ -1,14 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * MIPS Relocations
  *
  * Copyright (c) 2017 Imagination Technologies Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_MIPS_RELOCS_H__
 #define __ASM_MIPS_RELOCS_H__
 
-#define R_MIPS_NONE		0xbeef7531
+#define R_MIPS_NONE		0
 #define R_MIPS_32		2
 #define R_MIPS_26		4
 #define R_MIPS_HI16		5

@@ -1,14 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Samsung Electronics
  * Heungjun Kim <riverful.kim@samsung.com>
  * Kyungmin Park <kyungmin.park@samsung.com>
  * Donghwa Lee <dh09.lee@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <env.h>
-#include <log.h>
+#include <lcd.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/cpu.h>
@@ -17,7 +17,6 @@
 #include <asm/arch/mipi_dsim.h>
 #include <asm/arch/watchdog.h>
 #include <asm/arch/power.h>
-#include <linux/delay.h>
 #include <power/pmic.h>
 #include <usb/dwc2_udc.h>
 #include <power/max8997_pmic.h>
@@ -30,6 +29,8 @@
 #include <usb_mass_storage.h>
 
 #include "setup.h"
+
+DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int board_rev;
 
@@ -51,7 +52,7 @@ int exynos_init(void)
 	return 0;
 }
 
-#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
+#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
 static void trats_low_power_mode(void)
 {
 	struct exynos4_clock *clk =
@@ -113,7 +114,7 @@ static void trats_low_power_mode(void)
 
 int exynos_power_init(void)
 {
-#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
+#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
 	int chrg, ret;
 	struct power_battery *pb;
 	struct pmic *p_fg, *p_chrg, *p_muic, *p_bat;
@@ -292,7 +293,7 @@ int board_usb_init(int index, enum usb_init_type init)
 
 int g_dnl_board_usb_cable_connected(void)
 {
-#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
+#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
 	struct pmic *muic = pmic_get("MAX8997_MUIC");
 	if (!muic)
 		return 0;
@@ -402,9 +403,19 @@ int exynos_early_init_f(void)
 	return 0;
 }
 
+void exynos_reset_lcd(void)
+{
+	gpio_request(EXYNOS4_GPIO_Y45, "lcd_reset");
+	gpio_direction_output(EXYNOS4_GPIO_Y45, 1);
+	udelay(10000);
+	gpio_direction_output(EXYNOS4_GPIO_Y45, 0);
+	udelay(10000);
+	gpio_direction_output(EXYNOS4_GPIO_Y45, 1);
+}
+
 int lcd_power(void)
 {
-#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
+#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
 	int ret = 0;
 	struct pmic *p = pmic_get("MAX8997_PMIC");
 	if (!p)
@@ -428,7 +439,7 @@ int lcd_power(void)
 
 int mipi_power(void)
 {
-#if !CONFIG_IS_ENABLED(DM_I2C) /* TODO(maintainer): Convert to driver model */
+#ifndef CONFIG_DM_I2C /* TODO(maintainer): Convert to driver model */
 	int ret = 0;
 	struct pmic *p = pmic_get("MAX8997_PMIC");
 	if (!p)
@@ -449,3 +460,16 @@ int mipi_power(void)
 #endif
 	return 0;
 }
+
+#ifdef CONFIG_LCD
+void exynos_lcd_misc_init(vidinfo_t *vid)
+{
+#ifdef CONFIG_TIZEN
+	get_tizen_logo_info(vid);
+#endif
+#ifdef CONFIG_S6E8AX0
+	s6e8ax0_init();
+	env_set("lcdinfo", "lcd=s6e8ax0");
+#endif
+}
+#endif

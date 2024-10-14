@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Cadence Design Systems Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <relocate.h>
@@ -14,3 +15,4 @@ int clear_bss(void)
 	memset((void *)&__bss_start, 0x00, len);
 	return 0;
 }
+

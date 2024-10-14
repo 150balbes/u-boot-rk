@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009 SAMSUNG Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_MMC_H_
@@ -63,5 +64,7 @@ static inline int s5p_mmc_init(int index, int bus_width)
 
 	return s5p_sdhci_init(base, index, bus_width);
 }
+
+int exynos_mmc_init(const void *blob);
 
 #endif

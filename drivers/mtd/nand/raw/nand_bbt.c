@@ -58,10 +58,7 @@
  */
 
 #include <common.h>
-#include <log.h>
 #include <malloc.h>
-#include <dm/devres.h>
-#include <linux/bug.h>
 #include <linux/compat.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/bbm.h>
@@ -490,8 +487,10 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 		int ret;
 
 		BUG_ON(bd->options & NAND_BBT_NO_OOB);
-
-		ret = scan_block_fast(mtd, bd, from, buf, numpages);
+		if (this->block_bad)
+			ret = this->block_bad(mtd, from);
+		else
+			ret = scan_block_fast(mtd, bd, from, buf, numpages);
 		if (ret < 0)
 			return ret;
 

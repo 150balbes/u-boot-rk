@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MUSB OTG driver register defines
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __MUSB_REGS_H__
@@ -190,7 +191,7 @@
 
 
 /* SUNXI has different reg addresses, but identical r/w functions */
-#ifndef CONFIG_ARCH_SUNXI
+#ifndef CONFIG_ARCH_SUNXI 
 
 /*
  * Common USB registers
@@ -431,7 +432,7 @@ static inline u8 musb_read_ulpi_buscontrol(void __iomem *mbase)
 
 static inline u8 musb_read_configdata(void __iomem *mbase)
 {
-#ifdef CONFIG_USB_MUSB_FIXED_CONFIGDATA
+#if defined CONFIG_MACH_SUN8I_A33 || defined CONFIG_MACH_SUN8I_A83T
 	/* <Sigh> allwinner saves a reg, and we need to hardcode this */
 	return 0xde;
 #else

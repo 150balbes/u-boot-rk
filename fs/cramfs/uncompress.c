@@ -21,7 +21,6 @@
  */
 
 #include <common.h>
-#include <cyclic.h>
 #include <malloc.h>
 #include <watchdog.h>
 #include <u-boot/zlib.h>
@@ -63,7 +62,7 @@ int cramfs_uncompress_init (void)
 	stream.avail_in = 0;
 
 #if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-	stream.outcb = (cb_func)cyclic_run;
+	stream.outcb = (cb_func) WATCHDOG_RESET;
 #else
 	stream.outcb = Z_NULL;
 #endif /* CONFIG_HW_WATCHDOG */

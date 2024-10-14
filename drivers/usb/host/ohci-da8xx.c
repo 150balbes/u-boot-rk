@@ -1,15 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Sughosh Ganu <urwithsughosh@gmail.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <malloc.h>
 #include <asm/io.h>
 #include <clk.h>
 #include <dm.h>
-#include <dm/device_compat.h>
-#include <dm/devres.h>
 #include <dm/ofnode.h>
 #include <generic-phy.h>
 #include <reset.h>
@@ -89,14 +87,13 @@ int usb_cpu_init_fail(void)
 #if CONFIG_IS_ENABLED(DM_USB)
 static int ohci_da8xx_probe(struct udevice *dev)
 {
-	struct ohci_regs *regs = dev_read_addr_ptr(dev);
+	struct ohci_regs *regs = (struct ohci_regs *)devfdt_get_addr(dev);
 	struct da8xx_ohci *priv = dev_get_priv(dev);
 	int i, err, ret, clock_nb;
 
 	err = 0;
 	priv->clock_count = 0;
-	clock_nb = dev_count_phandle_with_args(dev, "clocks", "#clock-cells",
-					       0);
+	clock_nb = dev_count_phandle_with_args(dev, "clocks", "#clock-cells");
 
 	if (clock_nb < 0)
 		return clock_nb;
@@ -174,7 +171,7 @@ U_BOOT_DRIVER(ohci_generic) = {
 	.probe = ohci_da8xx_probe,
 	.remove = ohci_da8xx_remove,
 	.ops	= &ohci_usb_ops,
-	.priv_auto	= sizeof(struct da8xx_ohci),
+	.priv_auto_alloc_size = sizeof(struct da8xx_ohci),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA | DM_FLAG_OS_PREPARE,
 };
 #endif

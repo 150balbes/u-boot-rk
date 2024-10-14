@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 Google, Inc
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __asm_pch_common_h
@@ -39,7 +40,7 @@
  *
  * @dev:	SATA device
  * @idx:	Register index to read
- * Return: value read from register
+ * @return value read from register
  */
 u32 pch_common_sir_read(struct udevice *dev, int idx);
 

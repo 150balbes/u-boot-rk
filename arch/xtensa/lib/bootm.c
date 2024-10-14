@@ -1,15 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2008 - 2013 Tensilica Inc.
  * (C) Copyright 2014 Cadence Design Systems Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <bootstage.h>
 #include <command.h>
-#include <cpu_func.h>
-#include <env.h>
-#include <asm/global_data.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
 #include <asm/addrspace.h>
@@ -42,14 +39,15 @@ static struct bp_tag *setup_last_tag(struct bp_tag *params)
 
 static struct bp_tag *setup_memory_tag(struct bp_tag *params)
 {
+	struct bd_info *bd = gd->bd;
 	struct meminfo *mem;
 
 	params->id = BP_TAG_MEMORY;
 	params->size = sizeof(struct meminfo);
 	mem = (struct meminfo *)params->data;
 	mem->type = MEMORY_TYPE_CONVENTIONAL;
-	mem->start = PHYSADDR(gd->ram_base);
-	mem->end = PHYSADDR(gd->ram_base + gd->ram_size);
+	mem->start = bd->bi_memstart;
+	mem->end = bd->bi_memstart + bd->bi_memsize;
 
 	printf("   MEMORY:          tag:0x%04x, type:0X%lx, start:0X%lx, end:0X%lx\n",
 	       BP_TAG_MEMORY, mem->type, mem->start, mem->end);
@@ -134,7 +132,7 @@ static struct bp_tag *setup_fdt_tag(struct bp_tag *params, void *fdt_start)
  * Boot Linux.
  */
 
-int do_bootm_linux(int flag, int argc, char *argv[], struct bootm_headers *images)
+int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 {
 	struct bp_tag *params, *params_start;
 	ulong initrd_start, initrd_end;
@@ -197,15 +195,3 @@ int do_bootm_linux(int flag, int argc, char *argv[], struct bootm_headers *image
 	return 1;
 }
 
-static ulong get_sp(void)
-{
-	ulong ret;
-
-	asm("mov %0, a1" : "=r"(ret) : );
-	return ret;
-}
-
-void arch_lmb_reserve(struct lmb *lmb)
-{
-	arch_lmb_reserve_generic(lmb, get_sp(), gd->ram_top, 4096);
-}

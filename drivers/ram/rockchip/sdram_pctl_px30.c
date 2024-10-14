@@ -6,9 +6,8 @@
 #include <common.h>
 #include <ram.h>
 #include <asm/io.h>
-#include <asm/arch-rockchip/sdram.h>
-#include <asm/arch-rockchip/sdram_pctl_px30.h>
-#include <linux/delay.h>
+#include <asm/arch/sdram.h>
+#include <asm/arch/sdram_pctl_px30.h>
 
 /*
  * rank = 1: cs0
@@ -65,8 +64,7 @@ int pctl_write_vrefdq(void __iomem *pctl_base, u32 rank, u32 vrefrate,
 	u32 tccd_l, value;
 	u32 dis_auto_zq = 0;
 
-	if (dramtype != DDR4 || vrefrate < 4500 ||
-	    vrefrate > 9200)
+	if (dramtype != DDR4 || vrefrate < 4500 || vrefrate > 9250)
 		return (-1);
 
 	tccd_l = (readl(pctl_base + DDR_PCTL2_DRAMTMG4) >> 16) & 0xf;
@@ -165,16 +163,8 @@ u32 pctl_remodify_sdram_params(struct ddr_pctl_regs *pctl_regs,
 		break;
 	}
 
-	/*
-	 * If DDR3 or DDR4 MSTR.active_ranks=1,
-	 * it will gate memory clock when enter power down.
-	 * Force set active_ranks to 3 to workaround it.
-	 */
-	if (cap_info->rank == 2 || dram_type == DDR3 ||
-	    dram_type == DDR4)
-		tmp |= 3 << 24;
-	else
-		tmp |= 1 << 24;
+	/* active_ranks always keep 2 rank for dfi monitor */
+	tmp |= 3 << 24;
 
 	tmp |= (2 - cap_info->bw) << 12;
 
@@ -204,3 +194,4 @@ int pctl_cfg(void __iomem *pctl_base, struct ddr_pctl_regs *pctl_regs,
 
 	return 0;
 }
+

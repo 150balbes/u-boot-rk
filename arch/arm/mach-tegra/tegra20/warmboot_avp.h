@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010, 2011
  * NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _WARMBOOT_AVP_H_
@@ -19,8 +20,8 @@
 
 #define USEC_CFG_DIVISOR_MASK		0xffff
 
-#define CFG_CTL_TBE			(1 << 7)
-#define CFG_CTL_JTAG			(1 << 6)
+#define CONFIG_CTL_TBE			(1 << 7)
+#define CONFIG_CTL_JTAG			(1 << 6)
 
 #define CPU_RST				(1 << 0)
 #define CLK_ENB_CPU			(1 << 0)

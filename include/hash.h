@@ -1,26 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2012 The Chromium OS Authors.
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _HASH_H
 #define _HASH_H
 
-#ifdef USE_HOSTCC
-#include <linux/kconfig.h>
-#endif
-
-struct cmd_tbl;
-
 /*
  * Maximum digest size for all algorithms we support. Having this value
  * avoids a malloc() or C99 local declaration in common/cmd_hash.c.
  */
-#if CONFIG_IS_ENABLED(SHA384) || CONFIG_IS_ENABLED(SHA512)
-#define HASH_MAX_DIGEST_SIZE	64
-#else
 #define HASH_MAX_DIGEST_SIZE	32
-#endif
 
 enum {
 	HASH_FLAG_VERIFY	= 1 << 0,	/* Enable verify mode */
@@ -95,8 +85,8 @@ struct hash_algo {
  * @argc:		Number of arguments (arg 0 must be the command text)
  * @argv:		Arguments
  */
-int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
-		 int flag, int argc, char *const argv[]);
+int hash_command(const char *algo_name, int flags, cmd_tbl_t *cmdtp, int flag,
+		 int argc, char * const argv[]);
 
 /**
  * hash_block() - Hash a block according to the requested algorithm
@@ -114,7 +104,7 @@ int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
  *			If NULL, then it is assumed that the caller has
  *			allocated enough space for the hash. This is possible
  *			since the caller is selecting the algorithm.
- * Return: 0 if ok, -ve on error: -EPROTONOSUPPORT for an unknown algorithm,
+ * @return 0 if ok, -ve on error: -EPROTONOSUPPORT for an unknown algorithm,
  * -ENOSPC if the output buffer is not large enough.
  */
 int hash_block(const char *algo_name, const void *data, unsigned int len,
@@ -131,7 +121,7 @@ int hash_block(const char *algo_name, const void *data, unsigned int len,
  * @algo_name: Hash algorithm to look up
  * @algop: Pointer to the hash_algo struct if found
  *
- * Return: 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
+ * @return 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
  */
 int hash_lookup_algo(const char *algo_name, struct hash_algo **algop);
 
@@ -144,7 +134,7 @@ int hash_lookup_algo(const char *algo_name, struct hash_algo **algop);
  * @algo_name: Hash algorithm to look up
  * @algop: Pointer to the hash_algo struct if found
  *
- * Return: 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
+ * @return 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
  */
 int hash_progressive_lookup_algo(const char *algo_name,
 				 struct hash_algo **algop);
@@ -159,7 +149,7 @@ int hash_progressive_lookup_algo(const char *algo_name,
  * @str: Hash string to get parsed
  * @result: Binary array of the parsed hash string
  *
- * Return: 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
+ * @return 0 if ok, -EPROTONOSUPPORT for an unknown algorithm.
  */
 int hash_parse_string(const char *algo_name, const char *str, uint8_t *result);
 

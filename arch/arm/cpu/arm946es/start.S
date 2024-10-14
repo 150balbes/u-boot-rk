@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  armboot - Startup Code for ARM926EJS CPU-core
  *
@@ -12,6 +11,8 @@
  *  Copyright (c) 2003	Richard Woodruff <r-woodruff2@ti.com>
  *  Copyright (c) 2003	Kshitij <kshitij@ti.com>
  *  Copyright (c) 2010	Albert Aribaud <albert.u.boot@aribaud.net>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -45,7 +46,7 @@ reset:
 	 * we do sys-critical inits only at reboot,
 	 * not when booting from ram!
 	 */
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT
 	bl	cpu_init_crit
 #endif
 
@@ -70,7 +71,7 @@ c_runtime_cpu_setup:
  */
 
 
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT
 cpu_init_crit:
 	/*
 	 * flush v4 I/D caches
@@ -89,7 +90,7 @@ cpu_init_crit:
 	orr	r0, r0, #0x00001000	/* set bit 12 (I) I-Cache */
 	mcr	p15, 0, r0, c1, c0, 0
 
-#if !CONFIG_IS_ENABLED(SKIP_LOWLEVEL_INIT_ONLY)
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT_ONLY
 	/*
 	 * Go setup Memory and board specific bits prior to relocation.
 	 */

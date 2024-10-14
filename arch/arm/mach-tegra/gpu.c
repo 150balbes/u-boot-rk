@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014-2015, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 /* Tegra vpr routines */
 
 #include <common.h>
-#include <log.h>
 #include <asm/io.h>
 #include <asm/arch/tegra.h>
 #include <asm/arch/mc.h>
-#include <asm/arch-tegra/ap.h>
 
 #include <fdt_support.h>
 
@@ -20,17 +19,12 @@ void tegra_gpu_config(void)
 {
 	struct mc_ctlr *mc = (struct mc_ctlr *)NV_PA_MC_BASE;
 
-#if defined(CONFIG_TEGRA_SUPPORT_NON_SECURE)
-	if (!tegra_cpu_is_non_secure())
-#endif
-	{
-		/* Turn VPR off */
-		writel(0, &mc->mc_video_protect_size_mb);
-		writel(TEGRA_MC_VIDEO_PROTECT_REG_WRITE_ACCESS_DISABLED,
-		       &mc->mc_video_protect_reg_ctrl);
-		/* read back to ensure the write went through */
-		readl(&mc->mc_video_protect_reg_ctrl);
-	}
+	/* Turn VPR off */
+	writel(0, &mc->mc_video_protect_size_mb);
+	writel(TEGRA_MC_VIDEO_PROTECT_REG_WRITE_ACCESS_DISABLED,
+	       &mc->mc_video_protect_reg_ctrl);
+	/* read back to ensure the write went through */
+	readl(&mc->mc_video_protect_reg_ctrl);
 
 	debug("configured VPR\n");
 
@@ -46,8 +40,11 @@ int tegra_gpu_enable_node(void *blob, const char *compat)
 	if (!_configured)
 		return 0;
 
-	fdt_for_each_node_by_compatible(offset, blob, -1, compat)
+	offset = fdt_node_offset_by_compatible(blob, -1, compat);
+	while (offset != -FDT_ERR_NOTFOUND) {
 		fdt_status_okay(blob, offset);
+		offset = fdt_node_offset_by_compatible(blob, offset, compat);
+	}
 
 	return 0;
 }

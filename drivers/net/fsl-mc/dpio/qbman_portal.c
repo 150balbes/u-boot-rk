@@ -1,12 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014 Freescale Semiconductor
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <log.h>
-#include <malloc.h>
 #include <asm/arch/clock.h>
-#include <linux/bug.h>
 #include "qbman_portal.h"
 
 /* QBMan portal management command codes */

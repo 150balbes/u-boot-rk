@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale i.MX28 APBH DMA
  *
@@ -7,13 +6,13 @@
  *
  * Based on code from LTIB:
  * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- * Copyright 2020 NXP
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __DMA_H__
 #define __DMA_H__
 
-#include <asm/cache.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
 
@@ -55,7 +54,7 @@ enum {
 	MXS_DMA_CHANNEL_AHB_APBH_RESERVED1,
 	MXS_MAX_DMA_CHANNELS,
 };
-#else
+#elif defined(CONFIG_MX6) || defined(CONFIG_MX7)
 enum {
 	MXS_DMA_CHANNEL_AHB_APBH_GPMI0 = 0,
 	MXS_DMA_CHANNEL_AHB_APBH_GPMI1,
@@ -97,13 +96,13 @@ enum {
 #define	MXS_DMA_DESC_BYTES_OFFSET	16
 
 struct mxs_dma_cmd {
-	u32		next;
-	u32		data;
+	unsigned long		next;
+	unsigned long		data;
 	union {
-		u32	address;
-		u32	alternate;
+		dma_addr_t	address;
+		unsigned long	alternate;
 	};
-	u32		pio_words[DMA_PIO_WORDS];
+	unsigned long		pio_words[DMA_PIO_WORDS];
 };
 
 /*
@@ -119,7 +118,7 @@ struct mxs_dma_cmd {
 struct mxs_dma_desc {
 	struct mxs_dma_cmd	cmd;
 	unsigned int		flags;
-	u32			address;
+	dma_addr_t		address;
 	void			*buffer;
 	struct list_head	node;
 } __aligned(MXS_DMA_ALIGNMENT);

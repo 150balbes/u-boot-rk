@@ -150,7 +150,7 @@ extern int tusb6010_platform_retime(unsigned is_refclk);
 /*
  * U-Boot specfic stuff
  */
-struct musb *musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
-			   void *ctl_regs);
+int musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
+			void *ctl_regs);
 
 #endif /* __LINUX_USB_MUSB_H */

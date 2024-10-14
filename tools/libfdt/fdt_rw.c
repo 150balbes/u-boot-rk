@@ -11,7 +11,6 @@ int fdt_remove_unused_strings(const void *old, void *new)
 	const char *str;
 	int ret;
 	int tag = FDT_PROP;
-	int allocated;
 
 	/* Make a copy and remove the strings */
 	memcpy(new, old, size);
@@ -26,7 +25,7 @@ int fdt_remove_unused_strings(const void *old, void *new)
 		new_prop = (struct fdt_property *)(unsigned long)
 			fdt_get_property_by_offset(new, offset, NULL);
 		str = fdt_string(old, fdt32_to_cpu(old_prop->nameoff));
-		ret = fdt_find_add_string_(new, str, &allocated);
+		ret = _fdt_find_add_string(new, str);
 		if (ret < 0)
 			return ret;
 		new_prop->nameoff = cpu_to_fdt32(ret);

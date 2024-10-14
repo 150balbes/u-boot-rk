@@ -1,13 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause */
 /*
  * crt0-efi-arm.S - PE/COFF header for ARM EFI applications
  *
  * Copright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
+ * SPDX-License-Identifier:     GPL-2.0+     BSD-2-Clause
+ *
  * This file is taken and modified from the gnu-efi project.
  */
-
-#include <asm-generic/pe.h>
 
 	.section	.text.head
 
@@ -16,26 +15,27 @@
 	 */
 	.globl	image_base
 image_base:
-	.short	IMAGE_DOS_SIGNATURE		/* 'MZ' */
+	.ascii	"MZ"
 	.skip	58				/* 'MZ' + pad + offset == 64 */
 	.long	pe_header - image_base		/* Offset to the PE header */
 pe_header:
-	.long	IMAGE_NT_SIGNATURE		/* 'PE' */
+	.ascii	"PE"
+	.short	0
 coff_header:
-	.short	IMAGE_FILE_MACHINE_THUMB	/* Mixed ARM/Thumb */
+	.short	0x1c2				/* Mixed ARM/Thumb */
 	.short	2				/* nr_sections */
 	.long	0				/* TimeDateStamp */
 	.long	0				/* PointerToSymbolTable */
-	.long	0				/* NumberOfSymbols */
+	.long	1				/* NumberOfSymbols */
 	.short	section_table - optional_header	/* SizeOfOptionalHeader */
-	/* Characteristics */
-	.short	(IMAGE_FILE_EXECUTABLE_IMAGE | \
-		 IMAGE_FILE_LINE_NUMS_STRIPPED | \
-		 IMAGE_FILE_LOCAL_SYMS_STRIPPED | \
-		 IMAGE_FILE_32BIT_MACHINE | \
-		 IMAGE_FILE_DEBUG_STRIPPED)
+	/*
+	 * Characteristics: IMAGE_FILE_32BIT_MACHINE |
+	 * IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
+	 * IMAGE_FILE_LINE_NUMS_STRIPPED
+	 */
+	.short	0x306
 optional_header:
-	.short	IMAGE_NT_OPTIONAL_HDR32_MAGIC	/* PE32 format */
+	.short	0x10b				/* PE32+ format */
 	.byte	0x02				/* MajorLinkerVersion */
 	.byte	0x14				/* MinorLinkerVersion */
 	.long	_edata - _start			/* SizeOfCode */
@@ -47,8 +47,8 @@ optional_header:
 
 extra_header_fields:
 	.long	0				/* image_base */
-	.long	0x200				/* SectionAlignment */
-	.long	0x200				/* FileAlignment */
+	.long	0x20				/* SectionAlignment */
+	.long	0x8				/* FileAlignment */
 	.short	0				/* MajorOperatingSystemVersion */
 	.short	0				/* MinorOperatingSystemVersion */
 	.short	0				/* MajorImageVersion */
@@ -64,7 +64,7 @@ extra_header_fields:
 	 */
 	.long	_start - image_base		/* SizeOfHeaders */
 	.long	0				/* CheckSum */
-	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION	/* Subsystem */
+	.short	EFI_SUBSYSTEM			/* Subsystem */
 	.short	0				/* DllCharacteristics */
 	.long	0				/* SizeOfStackReserve */
 	.long	0				/* SizeOfStackCommit */
@@ -115,10 +115,11 @@ section_table:
 	.short	0		/* NumberOfLineNumbers  (0 for executables) */
 	.long	0xe0500020	/* Characteristics (section flags) */
 
-	.align		9
 _start:
 	stmfd		sp!, {r0-r2, lr}
 
+	mov		r2, r0
+	mov		r3, r1
 	adr		r1, .L_DYNAMIC
 	ldr		r0, [r1]
 	add		r1, r0, r1

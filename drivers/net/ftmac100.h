@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Faraday FTMAC100 Ethernet
  *
  * (C) Copyright 2009 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FTMAC100_H
@@ -91,15 +92,6 @@ struct ftmac100 {
 #define FTMAC100_MACCR_FULLDUP		(1 << 15)
 #define FTMAC100_MACCR_RX_MULTIPKT	(1 << 16)
 #define FTMAC100_MACCR_RX_BROADPKT	(1 << 17)
-
-/*
- * PHY control register
- */
-#define FTMAC100_PHYCR_MIIRDATA		0xffff
-#define FTMAC100_PHYCR_PHYAD(x)		(((x) & 0x1f) << 16)
-#define FTMAC100_PHYCR_REGAD(x)		(((x) & 0x1f) << 21)
-#define FTMAC100_PHYCR_MIIWR		BIT(27)
-#define FTMAC100_PHYCR_MIIRD		BIT(26)
 
 /*
  * Transmit descriptor, aligned to 16 bytes

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * Common layer for reset related functionality of OMAP based socs.
@@ -7,14 +6,15 @@
  * Texas Instruments, <www.ti.com>
  *
  * Sricharan R <r.sricharan@ti.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <config.h>
-#include <cpu_func.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
 #include <linux/compiler.h>
 
-void __weak reset_cpu(void)
+void __weak reset_cpu(unsigned long ignored)
 {
 	writel(PRM_RSTCTRL_RESET, PRM_RSTCTRL);
 }

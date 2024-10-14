@@ -1,15 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2010,2011 NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
 #include <tps6586x.h>
 #include <asm/io.h>
 #include <i2c.h>
-#include <linux/delay.h>
 
 static struct udevice *tps6586x_dev;
 
@@ -84,7 +83,7 @@ exit:
  *
  * @param sm0	Place to put SM0 voltage
  * @param sm1	Place to put SM1 voltage
- * Return: 0 if ok, -1 on error
+ * @return 0 if ok, -1 on error
  */
 static int read_voltages(int *sm0, int *sm1)
 {

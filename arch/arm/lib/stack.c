@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015 Andreas Bießmann <andreas@biessmann.org>
  *
@@ -9,11 +8,10 @@
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Marius Groeger <mgroeger@sysgo.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
-#include <init.h>
-#include <lmb.h>
-#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -27,23 +25,18 @@ int arch_reserve_stacks(void)
 	gd->irq_sp = gd->start_addr_sp;
 
 # if !defined(CONFIG_ARM64)
+#if CONFIG_IS_ENABLED(IRQ)
+#ifndef CONFIG_IRQ_STACK_SIZE
+#define CONFIG_IRQ_STACK_SIZE	8192
+#endif
+	gd->start_addr_sp -= CONFIG_IRQ_STACK_SIZE;
+
+#else
 	/* leave 3 words for abort-stack, plus 1 for alignment */
 	gd->start_addr_sp -= 16;
+#endif
 # endif
 #endif
 
 	return 0;
-}
-
-static ulong get_sp(void)
-{
-	ulong ret;
-
-	asm("mov %0, sp" : "=r"(ret) : );
-	return ret;
-}
-
-void arch_lmb_reserve(struct lmb *lmb)
-{
-	arch_lmb_reserve_generic(lmb, get_sp(), gd->ram_top, 16384);
 }

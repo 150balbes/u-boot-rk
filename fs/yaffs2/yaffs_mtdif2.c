@@ -15,7 +15,6 @@
 
 /* XXX U-BOOT XXX */
 #include <common.h>
-#include <linux/bug.h>
 #include <linux/errno.h>
 
 #include "yportenv.h"

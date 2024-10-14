@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Keystone2: pll initialization
  *
  * (C) Copyright 2012-2014
  *     Texas Instruments Incorporated, <www.ti.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/clock_defs.h>
-#include <linux/bitops.h>
 
 /* DEV and ARM speed definitions as specified in DEVSPEED register */
 int __weak speeds[DEVSPEED_NUMSPDS] = {

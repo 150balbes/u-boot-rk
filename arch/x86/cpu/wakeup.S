@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2017, Bin Meng <bmeng.cn@gmail.com>
  *
  * From coreboot src/arch/x86/wakeup.S
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <acpi/acpi_s3.h>
+#include <asm/acpi_s3.h>
 #include <asm/processor.h>
 #include <asm/processor-flags.h>
 

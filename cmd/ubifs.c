@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2008
  * Stefan Roese, DENX Software Engineering, sr@denx.de.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 
@@ -14,16 +15,21 @@
 #include <common.h>
 #include <config.h>
 #include <command.h>
-#include <log.h>
 #include <ubifs_uboot.h>
 
 static int ubifs_initialized;
 static int ubifs_mounted;
 
-int cmd_ubifs_mount(char *vol_name)
+static int do_ubifs_mount(cmd_tbl_t *cmdtp, int flag, int argc,
+				char * const argv[])
 {
+	char *vol_name;
 	int ret;
 
+	if (argc != 2)
+		return CMD_RET_USAGE;
+
+	vol_name = argv[1];
 	debug("Using volume %s\n", vol_name);
 
 	if (ubifs_initialized == 0) {
@@ -33,24 +39,11 @@ int cmd_ubifs_mount(char *vol_name)
 
 	ret = uboot_ubifs_mount(vol_name);
 	if (ret)
-		return CMD_RET_FAILURE;
+		return -1;
 
 	ubifs_mounted = 1;
 
-	return ret;
-}
-
-static int do_ubifs_mount(struct cmd_tbl *cmdtp, int flag, int argc,
-			  char *const argv[])
-{
-	char *vol_name;
-
-	if (argc != 2)
-		return CMD_RET_USAGE;
-
-	vol_name = argv[1];
-
-	return cmd_ubifs_mount(vol_name);
+	return 0;
 }
 
 int ubifs_is_mounted(void)
@@ -58,38 +51,38 @@ int ubifs_is_mounted(void)
 	return ubifs_mounted;
 }
 
-int cmd_ubifs_umount(void)
+void cmd_ubifs_umount(void)
 {
-	if (ubifs_initialized == 0) {
-		printf("No UBIFS volume mounted!\n");
-		return CMD_RET_FAILURE;
-	}
-
 	uboot_ubifs_umount();
 	ubifs_mounted = 0;
 	ubifs_initialized = 0;
-
-	return 0;
 }
 
-static int do_ubifs_umount(struct cmd_tbl *cmdtp, int flag, int argc,
-			   char *const argv[])
+static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,
+				char * const argv[])
 {
 	if (argc != 1)
 		return CMD_RET_USAGE;
 
-	return cmd_ubifs_umount();
+	if (ubifs_initialized == 0) {
+		printf("No UBIFS volume mounted!\n");
+		return -1;
+	}
+
+	cmd_ubifs_umount();
+
+	return 0;
 }
 
-static int do_ubifs_ls(struct cmd_tbl *cmdtp, int flag, int argc,
-		       char *const argv[])
+static int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc,
+			char * const argv[])
 {
 	char *filename = "/";
 	int ret;
 
 	if (!ubifs_mounted) {
 		printf("UBIFS not mounted, use ubifsmount to mount volume first!\n");
-		return CMD_RET_FAILURE;
+		return -1;
 	}
 
 	if (argc == 2)
@@ -105,8 +98,8 @@ static int do_ubifs_ls(struct cmd_tbl *cmdtp, int flag, int argc,
 	return ret;
 }
 
-static int do_ubifs_load(struct cmd_tbl *cmdtp, int flag, int argc,
-			 char *const argv[])
+static int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc,
+				char * const argv[])
 {
 	char *filename;
 	char *endp;
@@ -116,20 +109,20 @@ static int do_ubifs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	if (!ubifs_mounted) {
 		printf("UBIFS not mounted, use ubifs mount to mount volume first!\n");
-		return CMD_RET_FAILURE;
+		return -1;
 	}
 
 	if (argc < 3)
 		return CMD_RET_USAGE;
 
-	addr = hextoul(argv[1], &endp);
+	addr = simple_strtoul(argv[1], &endp, 16);
 	if (endp == argv[1])
 		return CMD_RET_USAGE;
 
 	filename = argv[2];
 
 	if (argc == 4) {
-		size = hextoul(argv[3], &endp);
+		size = simple_strtoul(argv[3], &endp, 16);
 		if (endp == argv[3])
 			return CMD_RET_USAGE;
 	}

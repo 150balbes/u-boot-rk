@@ -1,15 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Siddarth Gore <gores@marvell.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
 #include <miiphy.h>
-#include <net.h>
-#include <asm/global_data.h>
 #include <asm/mach-types.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
@@ -77,7 +75,7 @@ int board_early_init_f(void)
 		MPP43_GPIO,
 		MPP44_GPIO,
 		MPP45_GPIO,
-		MPP46_GPIO,	/* M_RLED */
+		MPP46_GPIO, 	/* M_RLED */
 		MPP47_GPIO,	/* M_GLED */
 		MPP48_GPIO,	/* B_RLED */
 		MPP49_GPIO,	/* B_GLED */

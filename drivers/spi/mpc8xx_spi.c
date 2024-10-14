@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2001 Navin Boppuri / Prashant Patel
  *	<nboppuri@trinetcommunication.com>,
  *	<pmpatel@trinetcommunication.com>
  * Copyright (c) 2001 Gerd Mennchen <Gerd.Mennchen@icn.siemens.de>
  * Copyright (c) 2001 Wolfgang Denk, DENX Software Engineering, <wd@denx.de>.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -17,37 +18,64 @@
  */
 
 #include <common.h>
-#include <dm.h>
 #include <mpc8xx.h>
-#include <spi.h>
-#include <linux/delay.h>
-
 #include <asm/cpm_8xx.h>
-#include <asm/io.h>
-#include <asm/gpio.h>
+#include <linux/ctype.h>
+#include <malloc.h>
+#include <post.h>
+#include <serial.h>
+
+#define SPI_EEPROM_WREN		0x06
+#define SPI_EEPROM_RDSR		0x05
+#define SPI_EEPROM_READ		0x03
+#define SPI_EEPROM_WRITE	0x02
+
+/* ---------------------------------------------------------------
+ * Offset for initial SPI buffers in DPRAM:
+ * We need a 520 byte scratch DPRAM area to use at an early stage.
+ * It is used between the two initialization calls (spi_init_f()
+ * and spi_init_r()).
+ * The value 0xb00 makes it far enough from the start of the data
+ * area (as well as from the stack pointer).
+ * --------------------------------------------------------------- */
+#ifndef	CONFIG_SYS_SPI_INIT_OFFSET
+#define	CONFIG_SYS_SPI_INIT_OFFSET	0xB00
+#endif
 
 #define CPM_SPI_BASE_RX	CPM_SPI_BASE
 #define CPM_SPI_BASE_TX	(CPM_SPI_BASE + sizeof(cbd_t))
 
+/* -------------------
+ * Function prototypes
+ * ------------------- */
+ssize_t spi_xfer(size_t);
+
+/* -------------------
+ * Variables
+ * ------------------- */
+
 #define MAX_BUFFER	0x104
 
-struct mpc8xx_priv {
-	spi_t __iomem *spi;
-	struct gpio_desc gpios[16];
-	int max_cs;
-};
+/* ----------------------------------------------------------------------
+ * Initially we place the RX and TX buffers at a fixed location in DPRAM!
+ * ---------------------------------------------------------------------- */
+static uchar *rxbuf =
+	(uchar *)&((cpm8xx_t *)&((immap_t *)CONFIG_SYS_IMMR)->im_cpm)->cp_dpmem
+			[CONFIG_SYS_SPI_INIT_OFFSET];
+static uchar *txbuf =
+	(uchar *)&((cpm8xx_t *)&((immap_t *)CONFIG_SYS_IMMR)->im_cpm)->cp_dpmem
+			[CONFIG_SYS_SPI_INIT_OFFSET+MAX_BUFFER];
 
-static int mpc8xx_spi_set_mode(struct udevice *dev, uint mod)
-{
-	return 0;
-}
-
-static int mpc8xx_spi_set_speed(struct udevice *dev, uint speed)
-{
-	return 0;
-}
-
-static int mpc8xx_spi_probe(struct udevice *dev)
+/* **************************************************************************
+ *
+ *  Function:    spi_init_f
+ *
+ *  Description: Init SPI-Controller (ROM part)
+ *
+ *  return:      ---
+ *
+ * *********************************************************************** */
+void spi_init_f(void)
 {
 	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t __iomem *cp = &immr->im_cpm;
@@ -55,9 +83,42 @@ static int mpc8xx_spi_probe(struct udevice *dev)
 	cbd_t __iomem *tbdf, *rbdf;
 
 	/* Disable relocation */
-	out_be16(&spi->spi_rpbase, 0x1d80);
+	out_be16(&spi->spi_rpbase, 0);
 
 /* 1 */
+	/* ------------------------------------------------
+	 * Initialize Port B SPI pins -> page 34-8 MPC860UM
+	 * (we are only in Master Mode !)
+	 * ------------------------------------------------ */
+
+	/* --------------------------------------------
+	 * GPIO or per. Function
+	 * PBPAR[28] = 1 [0x00000008] -> PERI: (SPIMISO)
+	 * PBPAR[29] = 1 [0x00000004] -> PERI: (SPIMOSI)
+	 * PBPAR[30] = 1 [0x00000002] -> PERI: (SPICLK)
+	 * PBPAR[31] = 0 [0x00000001] -> GPIO: (CS for PCUE/CCM-EEPROM)
+	 * -------------------------------------------- */
+	clrsetbits_be32(&cp->cp_pbpar, 0x00000001, 0x0000000E);	/* set  bits */
+
+	/* ----------------------------------------------
+	 * In/Out or per. Function 0/1
+	 * PBDIR[28] = 1 [0x00000008] -> PERI1: SPIMISO
+	 * PBDIR[29] = 1 [0x00000004] -> PERI1: SPIMOSI
+	 * PBDIR[30] = 1 [0x00000002] -> PERI1: SPICLK
+	 * PBDIR[31] = 1 [0x00000001] -> GPIO OUT: CS for PCUE/CCM-EEPROM
+	 * ---------------------------------------------- */
+	setbits_be32(&cp->cp_pbdir, 0x0000000F);
+
+	/* ----------------------------------------------
+	 * open drain or active output
+	 * PBODR[28] = 1 [0x00000008] -> open drain: SPIMISO
+	 * PBODR[29] = 0 [0x00000004] -> active output SPIMOSI
+	 * PBODR[30] = 0 [0x00000002] -> active output: SPICLK
+	 * PBODR[31] = 0 [0x00000001] -> active output GPIO OUT: CS for PCUE/CCM
+	 * ---------------------------------------------- */
+
+	clrsetbits_be16(&cp->cp_pbodr, 0x00000007, 0x00000008);
+
 	/* Initialize the parameter ram.
 	 * We need to make sure many things are initialized to zero
 	 */
@@ -120,55 +181,129 @@ static int mpc8xx_spi_probe(struct udevice *dev)
 	clrbits_be16(&tbdf->cbd_sc, BD_SC_READY);
 	clrbits_be16(&rbdf->cbd_sc, BD_SC_EMPTY);
 
+	/* Set the bd's rx and tx buffer address pointers */
+	out_be32(&rbdf->cbd_bufaddr, (ulong)rxbuf);
+	out_be32(&tbdf->cbd_bufaddr, (ulong)txbuf);
+
 /* 10 + 11 */
 	out_8(&cp->cp_spim, 0);			/* Mask  all SPI events */
 	out_8(&cp->cp_spie, SPI_EMASK);		/* Clear all SPI events	*/
 
-	return 0;
+	return;
 }
 
-static void mpc8xx_spi_cs_activate(struct udevice *dev)
-{
-	struct mpc8xx_priv *priv = dev_get_priv(dev->parent);
-	struct dm_spi_slave_plat *platdata = dev_get_parent_plat(dev);
-
-	dm_gpio_set_value(&priv->gpios[platdata->cs], 1);
-}
-
-static void mpc8xx_spi_cs_deactivate(struct udevice *dev)
-{
-	struct mpc8xx_priv *priv = dev_get_priv(dev->parent);
-	struct dm_spi_slave_plat *platdata = dev_get_parent_plat(dev);
-
-	dm_gpio_set_value(&priv->gpios[platdata->cs], 0);
-}
-
-static int mpc8xx_spi_xfer(struct udevice *dev, unsigned int bitlen,
-			    const void *dout, void *din, unsigned long flags)
+/* **************************************************************************
+ *
+ *  Function:    spi_init_r
+ *
+ *  Description: Init SPI-Controller (RAM part) -
+ *		 The malloc engine is ready and we can move our buffers to
+ *		 normal RAM
+ *
+ *  return:      ---
+ *
+ * *********************************************************************** */
+void spi_init_r(void)
 {
 	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	cpm8xx_t __iomem *cp = &immr->im_cpm;
+	spi_t __iomem *spi = (spi_t __iomem *)&cp->cp_dparam[PROFF_SPI];
+	cbd_t __iomem *tbdf, *rbdf;
+
+	/* Disable relocation */
+	out_be16(&spi->spi_rpbase, 0);
+
+	/* tx and rx buffer descriptors */
+	tbdf = (cbd_t __iomem *)&cp->cp_dpmem[CPM_SPI_BASE_TX];
+	rbdf = (cbd_t __iomem *)&cp->cp_dpmem[CPM_SPI_BASE_RX];
+
+	/* Allocate memory for RX and TX buffers */
+	rxbuf = (uchar *)malloc(MAX_BUFFER);
+	txbuf = (uchar *)malloc(MAX_BUFFER);
+
+	out_be32(&rbdf->cbd_bufaddr, (ulong)rxbuf);
+	out_be32(&tbdf->cbd_bufaddr, (ulong)txbuf);
+
+	return;
+}
+
+/****************************************************************************
+ *  Function:    spi_write
+ **************************************************************************** */
+ssize_t spi_write(uchar *addr, int alen, uchar *buffer, int len)
+{
+	int i;
+
+	memset(rxbuf, 0, MAX_BUFFER);
+	memset(txbuf, 0, MAX_BUFFER);
+	*txbuf = SPI_EEPROM_WREN;		/* write enable		*/
+	spi_xfer(1);
+	memcpy(txbuf, addr, alen);
+	*txbuf = SPI_EEPROM_WRITE;		/* WRITE memory array	*/
+	memcpy(alen + txbuf, buffer, len);
+	spi_xfer(alen + len);
+						/* ignore received data	*/
+	for (i = 0; i < 1000; i++) {
+		*txbuf = SPI_EEPROM_RDSR;	/* read status		*/
+		txbuf[1] = 0;
+		spi_xfer(2);
+		if (!(rxbuf[1] & 1))
+			break;
+		udelay(1000);
+	}
+	if (i >= 1000)
+		printf("*** spi_write: Time out while writing!\n");
+
+	return len;
+}
+
+/****************************************************************************
+ *  Function:    spi_read
+ **************************************************************************** */
+ssize_t spi_read(uchar *addr, int alen, uchar *buffer, int len)
+{
+	memset(rxbuf, 0, MAX_BUFFER);
+	memset(txbuf, 0, MAX_BUFFER);
+	memcpy(txbuf, addr, alen);
+	*txbuf = SPI_EEPROM_READ;		/* READ memory array	*/
+
+	/*
+	 * There is a bug in 860T (?) that cuts the last byte of input
+	 * if we're reading into DPRAM. The solution we choose here is
+	 * to always read len+1 bytes (we have one extra byte at the
+	 * end of the buffer).
+	 */
+	spi_xfer(alen + len + 1);
+	memcpy(buffer, alen + rxbuf, len);
+
+	return len;
+}
+
+/****************************************************************************
+ *  Function:    spi_xfer
+ **************************************************************************** */
+ssize_t spi_xfer(size_t count)
+{
+	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
+	cpm8xx_t __iomem *cp = &immr->im_cpm;
+	spi_t __iomem *spi = (spi_t __iomem *)&cp->cp_dparam[PROFF_SPI];
 	cbd_t __iomem *tbdf, *rbdf;
 	int tm;
-	size_t count = (bitlen + 7) / 8;
 
-	if (count > MAX_BUFFER)
-		return -EINVAL;
+	/* Disable relocation */
+	out_be16(&spi->spi_rpbase, 0);
 
 	tbdf = (cbd_t __iomem *)&cp->cp_dpmem[CPM_SPI_BASE_TX];
 	rbdf = (cbd_t __iomem *)&cp->cp_dpmem[CPM_SPI_BASE_RX];
 
 	/* Set CS for device */
-	if (flags & SPI_XFER_BEGIN)
-		mpc8xx_spi_cs_activate(dev);
+	clrbits_be32(&cp->cp_pbdat, 0x0001);
 
 	/* Setting tx bd status and data length */
-	out_be32(&tbdf->cbd_bufaddr, (ulong)dout);
 	out_be16(&tbdf->cbd_sc, BD_SC_READY | BD_SC_LAST | BD_SC_WRAP);
 	out_be16(&tbdf->cbd_datlen, count);
 
 	/* Setting rx bd status and data length */
-	out_be32(&rbdf->cbd_bufaddr, (ulong)din);
 	out_be16(&rbdf->cbd_sc, BD_SC_EMPTY | BD_SC_WRAP);
 	out_be16(&rbdf->cbd_datlen, 0);	 /* rx length has no significance */
 
@@ -187,53 +322,15 @@ static int mpc8xx_spi_xfer(struct udevice *dev, unsigned int bitlen,
 	for (tm = 0; tm < 1000; ++tm) {
 		if (in_8(&cp->cp_spie) & SPI_TXB)	/* Tx Buffer Empty */
 			break;
-
 		if ((in_be16(&tbdf->cbd_sc) & BD_SC_READY) == 0)
 			break;
 		udelay(1000);
 	}
-
 	if (tm >= 1000)
 		printf("*** spi_xfer: Time out while xferring to/from SPI!\n");
 
 	/* Clear CS for device */
-	if (flags & SPI_XFER_END)
-		mpc8xx_spi_cs_deactivate(dev);
+	setbits_be32(&cp->cp_pbdat, 0x0001);
 
-	return 0;
+	return count;
 }
-
-static int mpc8xx_spi_ofdata_to_platdata(struct udevice *dev)
-{
-	struct mpc8xx_priv *priv = dev_get_priv(dev);
-	int ret;
-
-	ret = gpio_request_list_by_name(dev, "gpios", priv->gpios,
-					ARRAY_SIZE(priv->gpios), GPIOD_IS_OUT);
-	if (ret < 0)
-		return ret;
-
-	priv->max_cs = ret;
-
-	return 0;
-}
-static const struct dm_spi_ops mpc8xx_spi_ops = {
-	.xfer		= mpc8xx_spi_xfer,
-	.set_speed	= mpc8xx_spi_set_speed,
-	.set_mode	= mpc8xx_spi_set_mode,
-};
-
-static const struct udevice_id mpc8xx_spi_ids[] = {
-	{ .compatible = "fsl,mpc8xx-spi" },
-	{ }
-};
-
-U_BOOT_DRIVER(mpc8xx_spi) = {
-	.name	= "mpc8xx_spi",
-	.id	= UCLASS_SPI,
-	.of_match = mpc8xx_spi_ids,
-	.of_to_plat = mpc8xx_spi_ofdata_to_platdata,
-	.ops	= &mpc8xx_spi_ops,
-	.probe	= mpc8xx_spi_probe,
-	.priv_auto = sizeof(struct mpc8xx_priv),
-};

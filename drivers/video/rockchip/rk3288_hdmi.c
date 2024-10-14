@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 Theobroma Systems Design und Consulting GmbH
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -9,15 +10,13 @@
 #include <dm.h>
 #include <dw_hdmi.h>
 #include <edid.h>
-#include <log.h>
-#include <malloc.h>
 #include <regmap.h>
 #include <syscon.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch-rockchip/clock.h>
-#include <asm/arch-rockchip/hardware.h>
-#include <asm/arch-rockchip/grf_rk3288.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/hardware.h>
+#include <asm/arch/grf_rk3288.h>
 #include <power/regulator.h>
 #include "rk_hdmi.h"
 
@@ -25,7 +24,7 @@ static int rk3288_hdmi_enable(struct udevice *dev, int panel_bpp,
 			      const struct display_timing *edid)
 {
 	struct rk_hdmi_priv *priv = dev_get_priv(dev);
-	struct display_plat *uc_plat = dev_get_uclass_plat(dev);
+	struct display_plat *uc_plat = dev_get_uclass_platdata(dev);
 	int vop_id = uc_plat->source_id;
 	struct rk3288_grf *grf = priv->grf;
 
@@ -35,10 +34,10 @@ static int rk3288_hdmi_enable(struct udevice *dev, int panel_bpp,
 	/* hdmi data from vop id */
 	rk_clrsetreg(&grf->soc_con6, 1 << 4, (vop_id == 1) ? (1 << 4) : 0);
 
-	return dw_hdmi_enable(&priv->hdmi, edid);
+	return 0;
 }
 
-static int rk3288_hdmi_of_to_plat(struct udevice *dev)
+static int rk3288_hdmi_ofdata_to_platdata(struct udevice *dev)
 {
 	struct rk_hdmi_priv *priv = dev_get_priv(dev);
 	struct dw_hdmi *hdmi = &priv->hdmi;
@@ -53,12 +52,12 @@ static int rk3288_hdmi_of_to_plat(struct udevice *dev)
 	hdmi->i2c_clk_high = 0x0d;
 	hdmi->i2c_clk_low = 0x0d;
 
-	return rk_hdmi_of_to_plat(dev);
+	return rk_hdmi_ofdata_to_platdata(dev);
 }
 
 static int rk3288_clk_config(struct udevice *dev)
 {
-	struct display_plat *uc_plat = dev_get_uclass_plat(dev);
+	struct display_plat *uc_plat = dev_get_uclass_platdata(dev);
 	struct clk clk;
 	int ret;
 
@@ -111,7 +110,7 @@ U_BOOT_DRIVER(rk3288_hdmi_rockchip) = {
 	.id = UCLASS_DISPLAY,
 	.of_match = rk3288_hdmi_ids,
 	.ops = &rk3288_hdmi_ops,
-	.of_to_plat = rk3288_hdmi_of_to_plat,
+	.ofdata_to_platdata = rk3288_hdmi_ofdata_to_platdata,
 	.probe = rk3288_hdmi_probe,
-	.priv_auto	= sizeof(struct rk_hdmi_priv),
+	.priv_auto_alloc_size = sizeof(struct rk_hdmi_priv),
 };

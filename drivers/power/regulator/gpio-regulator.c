@@ -1,39 +1,39 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016 Texas Instruments Incorporated, <www.ti.com>
  * Keerthy <j-keerthy@ti.com>
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <fdtdec.h>
 #include <errno.h>
 #include <dm.h>
-#include <log.h>
+#include <i2c.h>
 #include <asm/gpio.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 
-#include "regulator_common.h"
-
 #define GPIO_REGULATOR_MAX_STATES	2
 
-struct gpio_regulator_plat {
-	struct regulator_common_plat common;
+DECLARE_GLOBAL_DATA_PTR;
+
+struct gpio_regulator_platdata {
 	struct gpio_desc gpio; /* GPIO for regulator voltage control */
 	int states[GPIO_REGULATOR_MAX_STATES];
 	int voltages[GPIO_REGULATOR_MAX_STATES];
 };
 
-static int gpio_regulator_of_to_plat(struct udevice *dev)
+static int gpio_regulator_ofdata_to_platdata(struct udevice *dev)
 {
-	struct dm_regulator_uclass_plat *uc_pdata;
-	struct gpio_regulator_plat *dev_pdata;
+	struct dm_regulator_uclass_platdata *uc_pdata;
+	struct gpio_regulator_platdata *dev_pdata;
 	struct gpio_desc *gpio;
-	int ret, count, i, j;
-	u32 states_array[GPIO_REGULATOR_MAX_STATES * 2];
+	int ret, len, i, j;
+	u32 states_array[8];
 
-	dev_pdata = dev_get_plat(dev);
-	uc_pdata = dev_get_uclass_plat(dev);
+	dev_pdata = dev_get_platdata(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	if (!uc_pdata)
 		return -ENXIO;
 
@@ -52,40 +52,35 @@ static int gpio_regulator_of_to_plat(struct udevice *dev)
 	if (ret)
 		debug("regulator gpio - not found! Error: %d", ret);
 
-	ret = dev_read_size(dev, "states");
-	if (ret < 0)
-		return ret;
+	len = dev_read_size(dev, "states");
+	if (len < 0)
+		return len;
 
-	count = ret / sizeof(states_array[0]);
-	if (count > ARRAY_SIZE(states_array)) {
-		debug("regulator gpio - to many states (%d > %d)",
-		      count / 2, GPIO_REGULATOR_MAX_STATES);
-		count = ARRAY_SIZE(states_array);
-	}
+	len /= sizeof(fdt32_t);
 
-	ret = dev_read_u32_array(dev, "states", states_array, count);
-	if (ret < 0)
-		return ret;
+	ret = dev_read_u32_array(dev, "states", states_array, len);
+	if (ret)
+		return -EINVAL;
 
-	for (i = 0, j = 0; i < count; i += 2) {
+	for (i = 0, j = 0; i < len; i += 2) {
 		dev_pdata->voltages[j] = states_array[i];
 		dev_pdata->states[j] = states_array[i + 1];
 		j++;
 	}
 
-	return regulator_common_of_to_plat(dev, &dev_pdata->common, "enable-gpios");
+	return 0;
 }
 
 static int gpio_regulator_get_value(struct udevice *dev)
 {
-	struct dm_regulator_uclass_plat *uc_pdata;
-	struct gpio_regulator_plat *dev_pdata = dev_get_plat(dev);
+	struct dm_regulator_uclass_platdata *uc_pdata;
+	struct gpio_regulator_platdata *dev_pdata = dev_get_platdata(dev);
 	int enable;
 
 	if (!dev_pdata->gpio.dev)
 		return -ENOSYS;
 
-	uc_pdata = dev_get_uclass_plat(dev);
+	uc_pdata = dev_get_uclass_platdata(dev);
 	if (uc_pdata->min_uV > uc_pdata->max_uV) {
 		debug("Invalid constraints for: %s\n", uc_pdata->name);
 		return -EINVAL;
@@ -100,7 +95,7 @@ static int gpio_regulator_get_value(struct udevice *dev)
 
 static int gpio_regulator_set_value(struct udevice *dev, int uV)
 {
-	struct gpio_regulator_plat *dev_pdata = dev_get_plat(dev);
+	struct gpio_regulator_platdata *dev_pdata = dev_get_platdata(dev);
 	int ret;
 	bool enable;
 
@@ -124,23 +119,9 @@ static int gpio_regulator_set_value(struct udevice *dev, int uV)
 	return 0;
 }
 
-static int gpio_regulator_get_enable(struct udevice *dev)
-{
-	struct gpio_regulator_plat *dev_pdata = dev_get_plat(dev);
-	return regulator_common_get_enable(dev, &dev_pdata->common);
-}
-
-static int gpio_regulator_set_enable(struct udevice *dev, bool enable)
-{
-	struct gpio_regulator_plat *dev_pdata = dev_get_plat(dev);
-	return regulator_common_set_enable(dev, &dev_pdata->common, enable);
-}
-
 static const struct dm_regulator_ops gpio_regulator_ops = {
 	.get_value	= gpio_regulator_get_value,
 	.set_value	= gpio_regulator_set_value,
-	.get_enable	= gpio_regulator_get_enable,
-	.set_enable	= gpio_regulator_set_enable,
 };
 
 static const struct udevice_id gpio_regulator_ids[] = {
@@ -153,6 +134,6 @@ U_BOOT_DRIVER(gpio_regulator) = {
 	.id = UCLASS_REGULATOR,
 	.ops = &gpio_regulator_ops,
 	.of_match = gpio_regulator_ids,
-	.of_to_plat = gpio_regulator_of_to_plat,
-	.plat_auto	= sizeof(struct gpio_regulator_plat),
+	.ofdata_to_platdata = gpio_regulator_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct gpio_regulator_platdata),
 };

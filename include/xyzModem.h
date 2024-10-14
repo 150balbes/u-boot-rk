@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: eCos-2.0 */
 /*
  *==========================================================================
  *
@@ -6,6 +5,8 @@
  *
  *      RedBoot stream handler for xyzModem protocol
  *
+ *==========================================================================
+ * SPDX-License-Identifier:	eCos-2.0
  *==========================================================================
  *#####DESCRIPTIONBEGIN####
  *
@@ -24,8 +25,6 @@
 
 #ifndef _XYZMODEM_H_
 #define _XYZMODEM_H_
-
-#include <linux/delay.h>
 
 #define xyzModem_xmodem 1
 #define xyzModem_ymodem 2

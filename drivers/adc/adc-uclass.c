@@ -1,28 +1,27 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Samsung Electronics
  * Przemyslaw Marczak <p.marczak@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
-#define LOG_CATEGORY UCLASS_ADC
 
 #include <common.h>
 #include <errno.h>
-#include <div64.h>
 #include <dm.h>
 #include <dm/lists.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
 #include <adc.h>
-#include <linux/delay.h>
 #include <power/regulator.h>
 
-#define ADC_UCLASS_PLATDATA_SIZE	sizeof(struct adc_uclass_plat)
+DECLARE_GLOBAL_DATA_PTR;
+
+#define ADC_UCLASS_PLATDATA_SIZE	sizeof(struct adc_uclass_platdata)
 #define CHECK_NUMBER			true
 #define CHECK_MASK			(!CHECK_NUMBER)
 
 /* TODO: add support for timer uclass (for early calls) */
-#ifdef CONFIG_SANDBOX
+#ifdef CONFIG_SANDBOX_ARCH
 #define sdelay(x)	udelay(x)
 #else
 extern void sdelay(unsigned long loops);
@@ -31,7 +30,7 @@ extern void sdelay(unsigned long loops);
 static int check_channel(struct udevice *dev, int value, bool number_or_mask,
 			 const char *caller_function)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	unsigned mask = number_or_mask ? (1 << value) : value;
 
 	/* For the real ADC hardware, some ADC channels can be inactive.
@@ -48,9 +47,10 @@ static int check_channel(struct udevice *dev, int value, bool number_or_mask,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_ADC_REQ_REGULATOR
 static int adc_supply_enable(struct udevice *dev)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	const char *supply_type;
 	int ret = 0;
 
@@ -69,27 +69,18 @@ static int adc_supply_enable(struct udevice *dev)
 
 	return ret;
 }
+#else
+static inline int adc_supply_enable(struct udevice *dev) { return 0; }
+#endif
 
 int adc_data_mask(struct udevice *dev, unsigned int *data_mask)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 
 	if (!uc_pdata)
 		return -ENOSYS;
 
 	*data_mask = uc_pdata->data_mask;
-	return 0;
-}
-
-int adc_channel_mask(struct udevice *dev, unsigned int *channel_mask)
-{
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
-
-	if (!uc_pdata)
-		return -ENOSYS;
-
-	*channel_mask = uc_pdata->channel_mask;
-
 	return 0;
 }
 
@@ -143,7 +134,7 @@ int adc_start_channels(struct udevice *dev, unsigned int channel_mask)
 
 int adc_channel_data(struct udevice *dev, int channel, unsigned int *data)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	const struct adc_ops *ops = dev_get_driver_ops(dev);
 	unsigned int timeout_us = uc_pdata->data_timeout_us;
 	int ret;
@@ -170,7 +161,7 @@ int adc_channel_data(struct udevice *dev, int channel, unsigned int *data)
 int adc_channels_data(struct udevice *dev, unsigned int channel_mask,
 		      struct adc_channel *channels)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	unsigned int timeout_us = uc_pdata->multidata_timeout_us;
 	const struct adc_ops *ops = dev_get_driver_ops(dev);
 	int ret;
@@ -269,9 +260,10 @@ try_manual:
 	return _adc_channels_single_shot(dev, channel_mask, channels);
 }
 
-static int adc_vdd_plat_update(struct udevice *dev)
+#ifdef CONFIG_ADC_REQ_REGULATOR
+static int adc_vdd_platdata_update(struct udevice *dev)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret;
 
 	/* Warning!
@@ -280,8 +272,10 @@ static int adc_vdd_plat_update(struct udevice *dev)
 	 * will bind before its supply regulator device, then the below 'get'
 	 * will return an error.
 	 */
-	if (!uc_pdata->vdd_supply)
-		return 0;
+	ret = device_get_supply_regulator(dev, "vdd-supply",
+					  &uc_pdata->vdd_supply);
+	if (ret)
+		return ret;
 
 	ret = regulator_get_value(uc_pdata->vdd_supply);
 	if (ret < 0)
@@ -291,14 +285,20 @@ static int adc_vdd_plat_update(struct udevice *dev)
 
 	return 0;
 }
+#else
+static inline int adc_vdd_platdata_update(struct udevice *dev) { return 0; }
+#endif
 
-static int adc_vss_plat_update(struct udevice *dev)
+#ifdef CONFIG_ADC_REQ_REGULATOR
+static int adc_vss_platdata_update(struct udevice *dev)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret;
 
-	if (!uc_pdata->vss_supply)
-		return 0;
+	ret = device_get_supply_regulator(dev, "vss-supply",
+					  &uc_pdata->vss_supply);
+	if (ret)
+		return ret;
 
 	ret = regulator_get_value(uc_pdata->vss_supply);
 	if (ret < 0)
@@ -308,17 +308,23 @@ static int adc_vss_plat_update(struct udevice *dev)
 
 	return 0;
 }
+#else
+static inline int adc_vss_platdata_update(struct udevice *dev) { return 0; }
+#endif
 
 int adc_vdd_value(struct udevice *dev, int *uV)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret, value_sign = uc_pdata->vdd_polarity_negative ? -1 : 1;
 
+	if (!uc_pdata->vdd_supply)
+		goto nodev;
+
 	/* Update the regulator Value. */
-	ret = adc_vdd_plat_update(dev);
+	ret = adc_vdd_platdata_update(dev);
 	if (ret)
 		return ret;
-
+nodev:
 	if (uc_pdata->vdd_microvolts == -ENODATA)
 		return -ENODATA;
 
@@ -329,14 +335,17 @@ int adc_vdd_value(struct udevice *dev, int *uV)
 
 int adc_vss_value(struct udevice *dev, int *uV)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret, value_sign = uc_pdata->vss_polarity_negative ? -1 : 1;
 
+	if (!uc_pdata->vss_supply)
+		goto nodev;
+
 	/* Update the regulator Value. */
-	ret = adc_vss_plat_update(dev);
+	ret = adc_vss_platdata_update(dev);
 	if (ret)
 		return ret;
-
+nodev:
 	if (uc_pdata->vss_microvolts == -ENODATA)
 		return -ENODATA;
 
@@ -345,45 +354,16 @@ int adc_vss_value(struct udevice *dev, int *uV)
 	return 0;
 }
 
-int adc_raw_to_uV(struct udevice *dev, unsigned int raw, int *uV)
+static int adc_vdd_platdata_set(struct udevice *dev)
 {
-	unsigned int data_mask;
-	int ret, val, vref;
-	u64 raw64 = raw;
-
-	ret = adc_vdd_value(dev, &vref);
-	if (ret)
-		return ret;
-
-	if (!adc_vss_value(dev, &val))
-		vref -= val;
-
-	ret = adc_data_mask(dev, &data_mask);
-	if (ret)
-		return ret;
-
-	raw64 *= vref;
-	do_div(raw64, data_mask);
-	*uV = raw64;
-
-	return 0;
-}
-
-static int adc_vdd_plat_set(struct udevice *dev)
-{
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret;
 	char *prop;
 
 	prop = "vdd-polarity-negative";
 	uc_pdata->vdd_polarity_negative = dev_read_bool(dev, prop);
 
-	/* Optionally get regulators */
-	ret = device_get_supply_regulator(dev, "vdd-supply",
-					  &uc_pdata->vdd_supply);
-	if (!ret)
-		return adc_vdd_plat_update(dev);
-
+	ret = adc_vdd_platdata_update(dev);
 	if (ret != -ENOENT)
 		return ret;
 
@@ -394,20 +374,16 @@ static int adc_vdd_plat_set(struct udevice *dev)
 	return 0;
 }
 
-static int adc_vss_plat_set(struct udevice *dev)
+static int adc_vss_platdata_set(struct udevice *dev)
 {
-	struct adc_uclass_plat *uc_pdata = dev_get_uclass_plat(dev);
+	struct adc_uclass_platdata *uc_pdata = dev_get_uclass_platdata(dev);
 	int ret;
 	char *prop;
 
 	prop = "vss-polarity-negative";
 	uc_pdata->vss_polarity_negative = dev_read_bool(dev, prop);
 
-	ret = device_get_supply_regulator(dev, "vss-supply",
-					  &uc_pdata->vss_supply);
-	if (!ret)
-		return adc_vss_plat_update(dev);
-
+	ret = adc_vss_platdata_update(dev);
 	if (ret != -ENOENT)
 		return ret;
 
@@ -422,13 +398,13 @@ static int adc_pre_probe(struct udevice *dev)
 {
 	int ret;
 
-	/* Set ADC VDD plat: polarity, uV, regulator (phandle). */
-	ret = adc_vdd_plat_set(dev);
+	/* Set ADC VDD platdata: polarity, uV, regulator (phandle). */
+	ret = adc_vdd_platdata_set(dev);
 	if (ret)
 		pr_err("%s: Can't update Vdd. Error: %d", dev->name, ret);
 
-	/* Set ADC VSS plat: polarity, uV, regulator (phandle). */
-	ret = adc_vss_plat_set(dev);
+	/* Set ADC VSS platdata: polarity, uV, regulator (phandle). */
+	ret = adc_vss_platdata_set(dev);
 	if (ret)
 		pr_err("%s: Can't update Vss. Error: %d", dev->name, ret);
 
@@ -439,5 +415,5 @@ UCLASS_DRIVER(adc) = {
 	.id	= UCLASS_ADC,
 	.name	= "adc",
 	.pre_probe =  adc_pre_probe,
-	.per_device_plat_auto	= ADC_UCLASS_PLATDATA_SIZE,
+	.per_device_platdata_auto_alloc_size = ADC_UCLASS_PLATDATA_SIZE,
 };

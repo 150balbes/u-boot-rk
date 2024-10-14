@@ -8,10 +8,7 @@
  */
 
 #include <common.h>
-#include <cpu_func.h>
 #include <kgdb.h>
-#include <serial.h>
-#include <asm/ptrace.h>
 
 int (*debugger_exception_handler)(struct pt_regs *);
 

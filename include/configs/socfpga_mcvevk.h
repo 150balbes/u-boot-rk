@@ -1,28 +1,38 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Marek Vasut <marex@denx.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef __CONFIG_ARIES_MCVEVK_H__
 #define __CONFIG_ARIES_MCVEVK_H__
 
 #include <asm/arch/base_addr_ac5.h>
 
+#define CONFIG_HW_WATCHDOG
+
 /* Memory configurations */
 #define PHYS_SDRAM_1_SIZE		0x40000000	/* 1GiB on MCV */
 
+/* Booting Linux */
+#define CONFIG_BOOTFILE		"fitImage"
+#define CONFIG_PREBOOT		"run try_bootscript"
+#define CONFIG_BOOTCOMMAND	"run mmc_mmc"
+#define CONFIG_LOADADDR		0x01000000
+#define CONFIG_SYS_LOAD_ADDR	CONFIG_LOADADDR
+
 /* Environment is in MMC */
+#define CONFIG_ENV_OVERWRITE
 
 /* Extra Environment */
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"consdev=ttyS0\0"						\
 	"baudrate=115200\0"						\
 	"bootscript=boot.scr\0"						\
-	"setuuid=part uuid mmc 0:3 uuid\0"				\
+	"bootdev=/dev/mmcblk0p2\0"					\
+	"rootdev=/dev/mmcblk0p3\0"					\
 	"netdev=eth0\0"							\
 	"hostname=mcvevk\0"						\
 	"kernel_addr_r=0x10000000\0"					\
-	"socfpga_legacy_reset_compat=1\0"				\
-	"bootm_size=0xa000000\0"					\
 	"dfu_alt_info=mmc raw 0 3867148288\0"				\
 	"update_filename=u-boot-with-spl.sfp\0"				\
 	"update_sd_offset=0x800\0"					\
@@ -63,18 +73,18 @@
 	"netload="							\
 		"tftp ${kernel_addr_r} ${hostname}/${bootfile}\0"	\
 	"miscargs=nohlt panic=1\0"					\
-	"mmcargs=setenv bootargs root=PARTUUID=${uuid} rw rootwait\0"	\
+	"mmcargs=setenv bootargs root=${rootdev} rw rootwait\0"		\
 	"nfsargs="							\
 		"setenv bootargs root=/dev/nfs rw "			\
 			"nfsroot=${serverip}:${rootpath},v3,tcp\0"	\
 	"mmc_mmc="							\
-	"run mmcload setuuid mmcargs addargs ; "			\
+		"run mmcload mmcargs addargs ; "			\
 		"bootm ${kernel_addr_r}\0"				\
 	"mmc_nfs="							\
 		"run mmcload nfsargs addip addargs ; "			\
 		"bootm ${kernel_addr_r}\0"				\
 	"net_mmc="							\
-	"run netload setuuid mmcargs addargs ; "			\
+		"run netload mmcargs addargs ; "			\
 		"bootm ${kernel_addr_r}\0"				\
 	"net_nfs="							\
 		"run netload nfsargs addip addargs ; "			\

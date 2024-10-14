@@ -1,13 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * g_dnl.c -- USB Downloader Gadget
  *
  * Copyright (C) 2012 Samsung Electronics
  * Lukasz Majewski  <l.majewski@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <log.h>
 #include <malloc.h>
 
 #include <mmc.h>
@@ -51,7 +51,8 @@ static const char manufacturer[] = CONFIG_USB_GADGET_MANUFACTURER;
 void g_dnl_set_serialnumber(char *s)
 {
 	memset(g_dnl_serial, 0, MAX_STRING_SERIAL);
-	strncpy(g_dnl_serial, s, MAX_STRING_SERIAL - 1);
+	if (s)
+		strncpy(g_dnl_serial, s, MAX_STRING_SERIAL - 1);
 }
 
 static struct usb_device_descriptor device_desc = {
@@ -89,14 +90,6 @@ static struct usb_gadget_strings *g_dnl_composite_strings[] = {
 	&g_dnl_string_tab,
 	NULL,
 };
-
-void g_dnl_set_product(const char *s)
-{
-	if (s)
-		g_dnl_string_defs[1].s = s;
-	else
-		g_dnl_string_defs[1].s = product;
-}
 
 static int g_dnl_unbind(struct usb_composite_dev *cdev)
 {
@@ -286,7 +279,6 @@ static struct usb_composite_driver g_dnl_driver = {
 	.name = NULL,
 	.dev = &device_desc,
 	.strings = g_dnl_composite_strings,
-	.max_speed = USB_SPEED_SUPER,
 
 	.bind = g_dnl_bind,
 	.unbind = g_dnl_unbind,

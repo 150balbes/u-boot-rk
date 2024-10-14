@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011-2014 Panasonic Corporation
  * Copyright (C) 2015-2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <linux/io.h>
@@ -14,7 +15,7 @@ void uniphier_ld4_dpll_ssc_en(void)
 {
 	u32 tmp;
 
-	tmp = readl(sc_base + SC_DPLLCTRL);
+	tmp = readl(SC_DPLLCTRL);
 	tmp |= SC_DPLLCTRL_SSC_EN;
-	writel(tmp, sc_base + SC_DPLLCTRL);
+	writel(tmp, SC_DPLLCTRL);
 }

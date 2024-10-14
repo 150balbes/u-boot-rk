@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2013
  * David Feng <fenghua@phytium.com.cn>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm-offsets.h>
@@ -40,7 +41,7 @@ ENTRY(armv8_switch_to_el1)
 	 * now, jump to the address saved in x4.
 	 */
 	br x4
-1:	armv8_switch_to_el1_m x4, x5, x6, x7
+1:	armv8_switch_to_el1_m x4, x5, x6
 ENDPROC(armv8_switch_to_el1)
 .popsection
 

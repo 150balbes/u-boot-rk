@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * crt0 - C-runtime startup Code for AArch64 U-Boot
  *
@@ -7,13 +6,15 @@
  *
  * (C) Copyright 2012
  * Albert ARIBAUD <albert.u.boot@aribaud.net>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
 #include <asm-offsets.h>
 #include <asm/macro.h>
+#include <asm/system.h>
 #include <linux/linkage.h>
-#include <system-constants.h>
 
 /*
  * This file handles the target-independent stages of the U-Boot
@@ -73,16 +74,8 @@ ENTRY(_main)
 	ldr	x0, =(CONFIG_TPL_STACK)
 #elif defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
 	ldr	x0, =(CONFIG_SPL_STACK)
-#elif defined(CONFIG_INIT_SP_RELATIVE)
-#if CONFIG_POSITION_INDEPENDENT
-	adrp	x0, __bss_start     /* x0 <- Runtime &__bss_start */
-	add	x0, x0, #:lo12:__bss_start
 #else
-	adr	x0, __bss_start
-#endif
-	add	x0, x0, #CONFIG_SYS_INIT_SP_BSS_OFFSET
-#else
-	ldr	x0, =(SYS_INIT_SP_ADDR)
+	ldr	x0, =(CONFIG_SYS_INIT_SP_ADDR)
 #endif
 	bic	sp, x0, #0xf	/* 16-byte alignment for ABI compliance */
 	mov	x0, sp
@@ -91,15 +84,12 @@ ENTRY(_main)
 	/* set up gd here, outside any C code */
 	mov	x18, x0
 	bl	board_init_f_init_reserve
+	bl	board_init_f_boot_flags
 
-#if defined(CONFIG_DEBUG_UART) && CONFIG_IS_ENABLED(SERIAL)
-	bl	debug_uart_init
-#endif
-
-	mov	x0, #0
 	bl	board_init_f
 
-#if !defined(CONFIG_SPL_BUILD)
+#if (defined(CONFIG_SPL_BUILD) && !defined(CONFIG_TPL_BUILD) && !defined(CONFIG_SPL_SKIP_RELOCATE)) || \
+	!defined(CONFIG_SPL_BUILD)
 /*
  * Set up intermediate environment (new sp and gd) and call
  * relocate_code(addr_moni). Trick here is that we'll return
@@ -109,29 +99,21 @@ ENTRY(_main)
 	bic	sp, x0, #0xf	/* 16-byte alignment for ABI compliance */
 	ldr	x18, [x18, #GD_NEW_GD]		/* x18 <- gd->new_gd */
 
-	/* Skip relocation in case gd->gd_flags & GD_FLG_SKIP_RELOC */
-	ldr	x0, [x18, #GD_FLAGS]		/* x0 <- gd->flags */
-	tbnz	x0, 11, relocation_return	/* GD_FLG_SKIP_RELOC is bit 11 */
-
+#ifndef CONFIG_SKIP_RELOCATE_UBOOT
 	adr	lr, relocation_return
 #if CONFIG_POSITION_INDEPENDENT
 	/* Add in link-vs-runtime offset */
-	adrp	x0, _start		/* x0 <- Runtime value of _start */
-	add	x0, x0, #:lo12:_start
+	adr	x0, _start		/* x0 <- Runtime value of _start */
 	ldr	x9, _TEXT_BASE		/* x9 <- Linked value of _start */
 	sub	x9, x9, x0		/* x9 <- Run-vs-link offset */
 	add	lr, lr, x9
-#if defined(CONFIG_SYS_RELOC_GD_ENV_ADDR)
-	ldr	x0, [x18, #GD_ENV_ADDR]	/* x0 <- gd->env_addr */
-	add	x0, x0, x9
-	str	x0, [x18, #GD_ENV_ADDR]
-#endif
 #endif
 	/* Add in link-vs-relocation offset */
 	ldr	x9, [x18, #GD_RELOC_OFF]	/* x9 <- gd->reloc_off */
 	add	lr, lr, x9	/* new return address after relocation */
 	ldr	x0, [x18, #GD_RELOCADDR]	/* x0 <- gd->relocaddr */
 	b	relocate_code
+#endif
 
 relocation_return:
 
@@ -140,7 +122,6 @@ relocation_return:
  */
 	bl	c_runtime_cpu_setup		/* still call old routine */
 #endif /* !CONFIG_SPL_BUILD */
-#if !defined(CONFIG_SPL_BUILD) || CONFIG_IS_ENABLED(FRAMEWORK)
 #if defined(CONFIG_SPL_BUILD)
 	bl	spl_relocate_stack_gd           /* may return NULL */
 	/* set up gd here, outside any C code, if new stack is returned */
@@ -173,6 +154,5 @@ clear_loop:
 	b	board_init_r			/* PC relative jump */
 
 	/* NOTREACHED - board_init_r() does not return */
-#endif
 
 ENDPROC(_main)

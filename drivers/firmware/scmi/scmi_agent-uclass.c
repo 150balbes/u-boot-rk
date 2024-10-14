@@ -3,14 +3,13 @@
  * Copyright (C) 2020 Linaro Limited.
  */
 
-#define LOG_CATEGORY UCLASS_SCMI_AGENT
-
 #include <common.h>
 #include <dm.h>
+#include <dm/device.h>
 #include <errno.h>
 #include <scmi_agent-uclass.h>
 #include <scmi_protocols.h>
-#include <dm/device_compat.h>
+
 #include <dm/device-internal.h>
 #include <linux/compat.h>
 
@@ -60,37 +59,25 @@ static int scmi_bind_protocols(struct udevice *dev)
 {
 	int ret = 0;
 	ofnode node;
-	const char *name;
 
 	dev_for_each_subnode(node, dev) {
 		struct driver *drv = NULL;
 		u32 protocol_id;
 
-		if (!ofnode_is_enabled(node))
+		if (!ofnode_is_available(node))
 			continue;
 
 		if (ofnode_read_u32(node, "reg", &protocol_id))
 			continue;
 
-		name = ofnode_get_name(node);
 		switch (protocol_id) {
 		case SCMI_PROTOCOL_ID_CLOCK:
 			if (IS_ENABLED(CONFIG_CLK_SCMI))
-				drv = DM_DRIVER_GET(scmi_clock);
+				drv = DM_GET_DRIVER(scmi_clock);
 			break;
 		case SCMI_PROTOCOL_ID_RESET_DOMAIN:
 			if (IS_ENABLED(CONFIG_RESET_SCMI))
-				drv = DM_DRIVER_GET(scmi_reset_domain);
-			break;
-		case SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN:
-			if (IS_ENABLED(CONFIG_DM_REGULATOR_SCMI)) {
-				node = ofnode_find_subnode(node, "regulators");
-				if (!ofnode_valid(node)) {
-					dev_err(dev, "no regulators node\n");
-					return -ENXIO;
-				}
-				drv = DM_DRIVER_GET(scmi_voltage_domain);
-			}
+				drv = DM_GET_DRIVER(scmi_reset_domain);
 			break;
 		default:
 			break;
@@ -102,26 +89,14 @@ static int scmi_bind_protocols(struct udevice *dev)
 			continue;
 		}
 
-		ret = device_bind(dev, drv, name, NULL, node, NULL);
+		ret = device_bind_with_driver_data(dev, drv,
+				ofnode_get_name(node), 0, node, NULL);
 		if (ret)
 			break;
 	}
 
+
 	return ret;
-}
-
-static struct udevice *find_scmi_transport_device(struct udevice *dev)
-{
-	struct udevice *parent = dev;
-
-	do {
-		parent = dev_get_parent(parent);
-	} while (parent && device_get_uclass_id(parent) != UCLASS_SCMI_AGENT);
-
-	if (!parent)
-		dev_err(dev, "Invalid SCMI device, agent not found\n");
-
-	return parent;
 }
 
 static const struct scmi_agent_ops *transport_dev_ops(struct udevice *dev)
@@ -129,37 +104,12 @@ static const struct scmi_agent_ops *transport_dev_ops(struct udevice *dev)
 	return (const struct scmi_agent_ops *)dev->driver->ops;
 }
 
-int devm_scmi_of_get_channel(struct udevice *dev, struct scmi_channel **channel)
+int devm_scmi_process_msg(struct udevice *dev, struct scmi_msg *msg)
 {
-	struct udevice *parent;
-
-	parent = find_scmi_transport_device(dev);
-	if (!parent)
-		return -ENODEV;
-
-	if (transport_dev_ops(parent)->of_get_channel)
-		return transport_dev_ops(parent)->of_get_channel(parent, channel);
-
-	/* Drivers without a get_channel operator don't need a channel ref */
-	*channel = NULL;
-
-	return 0;
-}
-
-int devm_scmi_process_msg(struct udevice *dev, struct scmi_channel *channel,
-			  struct scmi_msg *msg)
-{
-	const struct scmi_agent_ops *ops;
-	struct udevice *parent;
-
-	parent = find_scmi_transport_device(dev);
-	if (!parent)
-		return -ENODEV;
-
-	ops = transport_dev_ops(parent);
+	const struct scmi_agent_ops *ops = transport_dev_ops(dev);
 
 	if (ops->process_msg)
-		return ops->process_msg(parent, channel, msg);
+		return ops->process_msg(dev, msg);
 
 	return -EPROTONOSUPPORT;
 }

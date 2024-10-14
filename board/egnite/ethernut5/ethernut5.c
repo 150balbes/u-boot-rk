@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2011
  * egnite GmbH <info@egnite.de>
  *
  * (C) Copyright 2010
  * Ole Reinhardt <ole.reinhardt@thermotemp.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -53,14 +54,12 @@
  */
 
 #include <common.h>
-#include <init.h>
 #include <net.h>
 #include <netdev.h>
 #include <miiphy.h>
 #include <i2c.h>
 #include <mmc.h>
 #include <atmel_mci.h>
-#include <asm/global_data.h>
 
 #include <asm/arch/at91sam9260.h>
 #include <asm/arch/at91sam9260_matrix.h>
@@ -85,8 +84,8 @@ DECLARE_GLOBAL_DATA_PTR;
 int dram_init(void)
 {
 	gd->ram_size = get_ram_size(
-			(void *)CFG_SYS_SDRAM_BASE,
-			CFG_SYS_SDRAM_SIZE);
+			(void *)CONFIG_SYS_SDRAM_BASE,
+			CONFIG_SYS_SDRAM_SIZE);
 	return 0;
 }
 
@@ -117,11 +116,11 @@ static void ethernut5_nand_hw_init(void)
 		AT91_SMC_MODE_TDF_CYCLE(2),
 		&smc->cs[3].mode);
 
-#ifdef CFG_SYS_NAND_READY_PIN
+#ifdef CONFIG_SYS_NAND_READY_PIN
 	/* Ready pin is optional. */
-	at91_set_pio_input(CFG_SYS_NAND_READY_PIN, 1);
+	at91_set_pio_input(CONFIG_SYS_NAND_READY_PIN, 1);
 #endif
-	gpio_direction_output(CFG_SYS_NAND_ENABLE_PIN, 1);
+	gpio_direction_output(CONFIG_SYS_NAND_ENABLE_PIN, 1);
 }
 #endif
 
@@ -135,7 +134,7 @@ int board_init(void)
 	at91_periph_clk_enable(ATMEL_ID_PIOC);
 
 	/* Set adress of boot parameters. */
-	gd->bd->bi_boot_params = CFG_SYS_SDRAM_BASE + 0x100;
+	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 	/* Initialize UARTs and power management. */
 	ethernut5_power_init();
 #ifdef CONFIG_CMD_NAND
@@ -148,7 +147,7 @@ int board_init(void)
 /*
  * This is optionally called last during late initialization.
  */
-int board_eth_init(struct bd_info *bis)
+int board_eth_init(bd_t *bis)
 {
 	const char *devname;
 	unsigned short mode;
@@ -160,7 +159,7 @@ int board_eth_init(struct bd_info *bis)
 	/* Set peripheral pins. */
 	at91_macb_hw_init();
 	/* Basic EMAC initialization. */
-	if (macb_eth_initialize(0, (void *)ATMEL_BASE_EMAC0, CFG_PHY_ID))
+	if (macb_eth_initialize(0, (void *)ATMEL_BASE_EMAC0, CONFIG_PHY_ID))
 		return -1;
 	/*
 	 * Early board revisions have a pull-down at the PHY's MODE0
@@ -181,7 +180,7 @@ int board_eth_init(struct bd_info *bis)
 #endif
 
 #ifdef CONFIG_GENERIC_ATMEL_MCI
-int board_mmc_init(struct bd_info *bd)
+int board_mmc_init(bd_t *bd)
 {
 	at91_periph_clk_enable(ATMEL_ID_MCI);
 
@@ -193,6 +192,6 @@ int board_mmc_init(struct bd_info *bd)
 
 int board_mmc_getcd(struct mmc *mmc)
 {
-	return !at91_get_pio_value(CFG_SYS_MMC_CD_PIN);
+	return !at91_get_pio_value(CONFIG_SYS_MMC_CD_PIN);
 }
 #endif

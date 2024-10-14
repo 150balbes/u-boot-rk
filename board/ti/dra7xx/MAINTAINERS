@@ -1,5 +1,5 @@
 DRA7XX BOARD
-M:	Tom Rini <trini@konsulko.com>
+M:	Lokesh Vutla <lokeshvutla@ti.com>
 S:	Maintained
 F:	board/ti/dra7xx/
 F:	include/configs/dra7xx_evm.h

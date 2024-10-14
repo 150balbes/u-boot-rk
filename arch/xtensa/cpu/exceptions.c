@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2008 - 2013 Tensilica Inc.
  * (C) Copyright 2014 - 2016 Cadence Design Systems Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -12,8 +13,6 @@
 
 #include <common.h>
 #include <command.h>
-#include <irq_func.h>
-#include <asm/ptrace.h>
 #include <asm/string.h>
 #include <asm/regs.h>
 

@@ -1,18 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
   * Copyright (C) 2010 Albert ARIBAUD <albert.u.boot@aribaud.net>
  *
  * Based on original Kirkwood support which is
  * Copyright (C) Marvell International Ltd. and its affiliates
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <time.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
-#include <linux/delay.h>
 
 #define UBOOT_CNTR	0	/* counter to use for uboot timer */
 
@@ -69,12 +66,12 @@ struct orion5x_tmr_registers *orion5x_tmr_regs =
 #define TVR_ARM_TIMER_OFFS		0
 #define TVR_ARM_TIMER_MASK		0xffffffff
 #define TVR_ARM_TIMER_MAX		0xffffffff
-#define TIMER_LOAD_VAL			0xffffffff
+#define TIMER_LOAD_VAL 			0xffffffff
 
 static inline ulong read_timer(void)
 {
 	return readl(CNTMR_VAL_REG(UBOOT_CNTR))
-	      / (CFG_SYS_TCLK / 1000);
+	      / (CONFIG_SYS_TCLK / 1000);
 }
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -82,7 +79,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define timestamp gd->arch.tbl
 #define lastdec gd->arch.lastinc
 
-static ulong get_timer_masked(void)
+ulong get_timer_masked(void)
 {
 	ulong now = read_timer();
 
@@ -92,7 +89,7 @@ static ulong get_timer_masked(void)
 	} else {
 		/* we have an overflow ... */
 		timestamp += lastdec +
-			(TIMER_LOAD_VAL / (CFG_SYS_TCLK / 1000)) - now;
+			(TIMER_LOAD_VAL / (CONFIG_SYS_TCLK / 1000)) - now;
 	}
 	lastdec = now;
 
@@ -115,7 +112,7 @@ void __udelay(unsigned long usec)
 	ulong delayticks;
 
 	current = uboot_cntr_val();
-	delayticks = (usec * (CFG_SYS_TCLK / 1000000));
+	delayticks = (usec * (CONFIG_SYS_TCLK / 1000000));
 
 	if (current < delayticks) {
 		delayticks -= current;
@@ -168,7 +165,7 @@ unsigned long long get_ticks(void)
  * This function is derived from PowerPC code (timebase clock frequency).
  * On ARM it returns the number of timer ticks per second.
  */
-ulong get_tbclk(void)
+ulong get_tbclk (void)
 {
 	return (ulong)CONFIG_SYS_HZ;
 }

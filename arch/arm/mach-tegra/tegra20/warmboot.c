@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010 - 2011
  * NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <asm/arch/clock.h>
@@ -22,6 +22,10 @@
 #include <asm/arch-tegra/warmboot.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#ifndef CONFIG_TEGRA_CLOCK_SCALING
+#error "You must enable CONFIG_TEGRA_CLOCK_SCALING to use CONFIG_TEGRA_LP0"
+#endif
 
 /*
  * This is the place in SRAM where the SDRAM parameters are stored. There

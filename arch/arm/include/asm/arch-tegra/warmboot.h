@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010, 2011
  * NVIDIA Corporation <www.nvidia.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _WARM_BOOT_H_
@@ -121,7 +122,7 @@ union scratch3_reg {
 /**
  * Save warmboot memory settings for a later resume
  *
- * Return: 0 if ok, -1 on error
+ * @return 0 if ok, -1 on error
  */
 int warmboot_save_sdram_params(void);
 

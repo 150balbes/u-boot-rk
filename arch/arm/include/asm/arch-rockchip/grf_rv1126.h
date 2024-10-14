@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2019 Rockchip Electronics Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
-
 #ifndef _ASM_ARCH_GRF_RV1126_H
 #define _ASM_ARCH_GRF_RV1126_H
+
+#include <common.h>
 
 struct rv1126_grf {
 	unsigned int soc_con0;

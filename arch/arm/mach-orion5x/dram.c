@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 Albert ARIBAUD <albert.u.boot@aribaud.net>
  *
@@ -6,13 +5,13 @@
  * (C) Copyright 2009
  * Marvell Semiconductor <www.marvell.com>
  * Written-by: Prafulla Wadaskar <prafulla@marvell.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <config.h>
-#include <init.h>
 #include <asm/arch/cpu.h>
-#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -39,7 +38,7 @@ int dram_init (void)
 	/* dram_init must store complete ramsize in gd->ram_size */
 	gd->ram_size = get_ram_size(
 			(long *) orion5x_sdram_bar(0),
-			CFG_MAX_RAM_BANK_SIZE);
+			CONFIG_MAX_RAM_BANK_SIZE);
 	return 0;
 }
 
@@ -51,7 +50,7 @@ int dram_init_banksize(void)
 		gd->bd->bi_dram[i].start = orion5x_sdram_bar(i);
 		gd->bd->bi_dram[i].size = get_ram_size(
 			(long *) (gd->bd->bi_dram[i].start),
-			CFG_MAX_RAM_BANK_SIZE);
+			CONFIG_MAX_RAM_BANK_SIZE);
 	}
 
 	return 0;

@@ -1,15 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016-2017 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_SDRAM_RK3399_H
 #define _ASM_ARCH_SDRAM_RK3399_H
-#include <asm/arch-rockchip/sdram_common.h>
-#include <asm/arch-rockchip/sdram_msch.h>
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
+#include <asm/arch/sdram_common.h>
+#include <asm/arch/sdram_msch.h>
 
 struct rk3399_ddr_pctl_regs {
 	u32 denali_ctl[332];
@@ -39,7 +37,7 @@ struct rk3399_ddr_cic_regs {
 #define START		1
 
 /* DENALI_CTL_68 */
-#define PWRUP_SREFRESH_EXIT	BIT(16)
+#define PWRUP_SREFRESH_EXIT	(1 << 16)
 
 /* DENALI_CTL_274 */
 #define MEM_RST_VALID	1
@@ -81,11 +79,11 @@ struct rk3399_sdram_params {
 	struct rk3399_ddr_publ_regs phy_regs;
 };
 
-#define PI_CA_TRAINING		BIT(0)
-#define PI_WRITE_LEVELING	BIT(1)
-#define PI_READ_GATE_TRAINING	BIT(2)
-#define PI_READ_LEVELING	BIT(3)
-#define PI_WDQ_LEVELING		BIT(4)
+#define PI_CA_TRAINING		(1 << 0)
+#define PI_WRITE_LEVELING	(1 << 1)
+#define PI_READ_GATE_TRAINING	(1 << 2)
+#define PI_READ_LEVELING	(1 << 3)
+#define PI_WDQ_LEVELING		(1 << 4)
 #define PI_FULL_TRAINING	0xff
 
 enum {
@@ -94,7 +92,7 @@ enum {
 	STRIDE_512B = 2,
 	STRIDE_4KB = 3,
 	UN_STRIDE = 4,
-	PART_STRIDE = 5,
+	PART_STRIDE = 5
 };
 
 #endif

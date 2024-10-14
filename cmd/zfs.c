@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  * ZFS filesystem porting to Uboot by
@@ -6,13 +5,14 @@
  *
  * zfsfs support
  * made from existing GRUB Sources by Sun, GNU and others.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <part.h>
 #include <config.h>
 #include <command.h>
-#include <env.h>
 #include <image.h>
 #include <linux/ctype.h>
 #include <asm/byteorder.h>
@@ -32,15 +32,15 @@
 #define DOS_FS_TYPE_OFFSET	0x36
 #define DOS_FS32_TYPE_OFFSET	0x52
 
-static int do_zfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
-		       char *const argv[])
+static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *filename = NULL;
 	int dev;
 	int part;
 	ulong addr = 0;
-	struct disk_partition info;
+	disk_partition_t info;
 	struct blk_desc *dev_desc;
+	char buf[12];
 	unsigned long count;
 	const char *addr_str;
 	struct zfs_file zfile;
@@ -50,13 +50,13 @@ static int do_zfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_USAGE;
 
 	count = 0;
-	addr = hextoul(argv[3], NULL);
+	addr = simple_strtoul(argv[3], NULL, 16);
 	filename = env_get("bootfile");
 	switch (argc) {
 	case 3:
 		addr_str = env_get("loadaddr");
 		if (addr_str != NULL)
-			addr = hextoul(addr_str, NULL);
+			addr = simple_strtoul(addr_str, NULL, 16);
 		else
 			addr = CONFIG_SYS_LOAD_ADDR;
 
@@ -68,7 +68,7 @@ static int do_zfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		break;
 	case 6:
 		filename = argv[4];
-		count = hextoul(argv[5], NULL);
+		count = simple_strtoul(argv[5], NULL, 16);
 		break;
 
 	default:
@@ -112,7 +112,7 @@ static int do_zfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	zfs_close(&zfile);
 
 	/* Loading ok, update default load address */
-	image_load_addr = addr;
+	load_addr = addr;
 
 	printf("%llu bytes read\n", zfile.size);
 	env_set_hex("filesize", zfile.size);
@@ -130,13 +130,13 @@ int zfs_print(const char *entry, const struct zfs_dirhook_info *data)
 }
 
 
-static int do_zfs_ls(struct cmd_tbl *cmdtp, int flag, int argc,
-		     char *const argv[])
+
+static int do_zfs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *filename = "/";
 	int part;
 	struct blk_desc *dev_desc;
-	struct disk_partition info;
+	disk_partition_t info;
 	struct device_s vdev;
 
 	if (argc < 2)

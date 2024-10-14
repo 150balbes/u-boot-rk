@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2012-2016 Freescale Semiconductor, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __PAMU_H
 #define __PAMU_H
 
-#define CFG_NUM_PAMU		16
+#define CONFIG_NUM_PAMU		16
 #define NUM_PPAACT_ENTRIES	512
 #define NUM_SPAACT_ENTRIES	256
 

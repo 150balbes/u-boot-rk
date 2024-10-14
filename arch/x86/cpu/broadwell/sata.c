@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Google, Inc
  *
  * From coreboot src/soc/intel/broadwell/sata.c
+ *
+ * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <dm.h>
-#include <log.h>
-#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/intel_regs.h>
@@ -16,9 +15,8 @@
 #include <asm/pch_common.h>
 #include <asm/pch_common.h>
 #include <asm/arch/pch.h>
-#include <linux/delay.h>
 
-struct sata_plat {
+struct sata_platdata {
 	int port_map;
 	uint port0_gen3_tx;
 	uint port1_gen3_tx;
@@ -42,7 +40,7 @@ struct sata_plat {
 
 static void broadwell_sata_init(struct udevice *dev)
 {
-	struct sata_plat *plat = dev_get_plat(dev);
+	struct sata_platdata *plat = dev_get_platdata(dev);
 	u32 reg32;
 	u8 *abar;
 	u16 reg16;
@@ -212,7 +210,7 @@ static void broadwell_sata_init(struct udevice *dev)
 
 static int broadwell_sata_enable(struct udevice *dev)
 {
-	struct sata_plat *plat = dev_get_plat(dev);
+	struct sata_platdata *plat = dev_get_platdata(dev);
 	struct gpio_desc desc;
 	u16 map;
 	int ret;
@@ -233,9 +231,9 @@ static int broadwell_sata_enable(struct udevice *dev)
 	return 0;
 }
 
-static int broadwell_sata_of_to_plat(struct udevice *dev)
+static int broadwell_sata_ofdata_to_platdata(struct udevice *dev)
 {
-	struct sata_plat *plat = dev_get_plat(dev);
+	struct sata_platdata *plat = dev_get_platdata(dev);
 	const void *blob = gd->fdt_blob;
 	int node = dev_of_offset(dev);
 
@@ -265,7 +263,7 @@ U_BOOT_DRIVER(ahci_broadwell_drv) = {
 	.name		= "ahci_broadwell",
 	.id		= UCLASS_AHCI,
 	.of_match	= broadwell_ahci_ids,
-	.of_to_plat	= broadwell_sata_of_to_plat,
+	.ofdata_to_platdata	= broadwell_sata_ofdata_to_platdata,
 	.probe		= broadwell_sata_probe,
-	.plat_auto	 = sizeof(struct sata_plat),
+	.platdata_auto_alloc_size	 = sizeof(struct sata_platdata),
 };

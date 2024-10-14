@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Jason Kridner <jkridner@beagleboard.org>
@@ -7,6 +6,8 @@
  * http://www.mail-archive.com/u-boot@lists.denx.de/msg06873.html
  * (C) Copyright 2008
  * Ulf Samuelsson <ulf.samuelsson@atmel.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -85,7 +86,7 @@ void __weak __led_blink(led_id_t mask, int freq)
 {
 }
 
-int do_legacy_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_legacy_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int i, match = 0;
 	enum led_cmd cmd;
@@ -129,7 +130,7 @@ int do_legacy_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 				if (argc != 4)
 					return CMD_RET_USAGE;
 
-				freq = dectoul(argv[3], NULL);
+				freq = simple_strtoul(argv[3], NULL, 10);
 				__led_blink(led_commands[i].mask, freq);
 			}
 			/* Need to set only 1 led if led_name wasn't 'all' */

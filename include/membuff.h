@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2015 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
  *
  * Copyright (c) 1992 Simon Glass
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _MEMBUFF_H
@@ -62,7 +63,7 @@ void membuff_purge(struct membuff *mb);
  * @maxlen: the number of bytes we want to write
  * @update: true to update the membuff as if the write happened, false to not
  * @data: the address data can be written to
- * Return: number of bytes which can be written
+ * @return number of bytes which can be written
  */
 int membuff_putraw(struct membuff *mb, int maxlen, bool update, char **data);
 
@@ -80,7 +81,7 @@ int membuff_putraw(struct membuff *mb, int maxlen, bool update, char **data);
  * @update: true to update the membuff as if the bytes have been read (use
  * false to check bytes without reading them)
  * @data: returns address of data in input membuff
- * Return: the number of bytes available at *@data
+ * @return the number of bytes available at *@data
  */
 int membuff_getraw(struct membuff *mb, int maxlen, bool update, char **data);
 
@@ -89,14 +90,14 @@ int membuff_getraw(struct membuff *mb, int maxlen, bool update, char **data);
  *
  * @mb: membuff to adjust
  * @ch: byte to write
- * Return: true on success, false if membuff is full
+ * @return true on success, false if membuff is full
  */
 bool membuff_putbyte(struct membuff *mb, int ch);
 
 /**
  * @mb: membuff to adjust
  * membuff_getbyte() - Read a byte from the membuff
- * Return: the byte read, or -1 if the membuff is empty
+ * @return the byte read, or -1 if the membuff is empty
  */
 int membuff_getbyte(struct membuff *mb);
 
@@ -107,7 +108,7 @@ int membuff_getbyte(struct membuff *mb);
  * removing it from the membuff.
  *
  * @mb: membuff to adjust
- * Return: the byte peeked, or -1 if the membuff is empty
+ * @return the byte peeked, or -1 if the membuff is empty
  */
 int membuff_peekbyte(struct membuff *mb);
 
@@ -120,7 +121,7 @@ int membuff_peekbyte(struct membuff *mb);
  * @mb: membuff to adjust
  * @Buff: address of membuff to transfer bytes to
  * @maxlen: maximum number of bytes to read
- * Return: the number of bytes read
+ * @return the number of bytes read
  */
 int membuff_get(struct membuff *mb, char *buff, int maxlen);
 
@@ -133,7 +134,7 @@ int membuff_get(struct membuff *mb, char *buff, int maxlen);
  * @mb: membuff to adjust
  * @data: the data to write
  * @length: number of bytes to write from 'data'
- * Return: the number of bytes added
+ * @return the number of bytes added
  */
 int membuff_put(struct membuff *mb, const char *buff, int length);
 
@@ -141,7 +142,7 @@ int membuff_put(struct membuff *mb, const char *buff, int length);
  * membuff_isempty() - check if a membuff is empty
  *
  * @mb: membuff to check
- * Return: true if empty, else false
+ * @return true if empty, else false
  */
 bool membuff_isempty(struct membuff *mb);
 
@@ -149,7 +150,7 @@ bool membuff_isempty(struct membuff *mb);
  * membuff_avail() - check available data in a membuff
  *
  * @mb: membuff to check
- * Return: number of bytes of data available
+ * @return number of bytes of data available
  */
 int membuff_avail(struct membuff *mb);
 
@@ -159,7 +160,7 @@ int membuff_avail(struct membuff *mb);
  * Note that a membuff can only old data up to one byte less than its size.
  *
  * @mb: membuff to check
- * Return: total size
+ * @return total size
  */
 int membuff_size(struct membuff *mb);
 
@@ -170,7 +171,7 @@ int membuff_size(struct membuff *mb);
  * possible
  *
  * @mb: membuff to adjust
- * Return: true on success
+ * @return true on success
  */
 bool membuff_makecontig(struct membuff *mb);
 
@@ -178,7 +179,7 @@ bool membuff_makecontig(struct membuff *mb);
  * membuff_free() - find the number of bytes that can be written to a membuff
  *
  * @mb: membuff to check
- * Return: returns the number of bytes free in a membuff
+ * @return returns the number of bytes free in a membuff
  */
 int membuff_free(struct membuff *mb);
 
@@ -192,7 +193,7 @@ int membuff_free(struct membuff *mb);
  * @mb: membuff to adjust
  * @str: Place to put the line
  * @maxlen: Maximum line length (excluding terminator)
- * Return: number of bytes read (including terminator) if a line has been
+ * @return number of bytes read (including terminator) if a line has been
  *	   read, 0 if nothing was there
  */
 int membuff_readline(struct membuff *mb, char *str, int maxlen, int minch);
@@ -205,7 +206,7 @@ int membuff_readline(struct membuff *mb, char *str, int maxlen, int minch);
  * @mb: membuff to adjust
  * @by: Number of bytes to increase the size by
  * @max: Maximum size to allow
- * Return: 0 if the expand succeeded, -ENOMEM if not enough memory, -E2BIG
+ * @return 0 if the expand succeeded, -ENOMEM if not enough memory, -E2BIG
  * if the the size would exceed @max
  */
 int membuff_extend_by(struct membuff *mb, int by, int max);
@@ -231,7 +232,7 @@ void membuff_uninit(struct membuff *mb);
  *
  * @mb: membuff to init
  * @size: size of membuff to create
- * Return: 0 if OK, -ENOMEM if out of memory
+ * @return 0 if OK, -ENOMEM if out of memory
  */
 int membuff_new(struct membuff *mb, int size);
 

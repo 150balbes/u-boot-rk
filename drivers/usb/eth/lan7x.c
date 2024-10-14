@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 Microchip Technology Inc. All rights reserved.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <dm.h>
-#include <log.h>
 #include <malloc.h>
 #include <miiphy.h>
 #include <memalign.h>
-#include <net.h>
 #include <usb.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>

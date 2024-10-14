@@ -1,21 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
- * Copyright 2020 NXP
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <command.h>
-#include <image.h>
-#include <init.h>
-#include <net.h>
-#include <asm/global_data.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/cache.h>
 #include <asm/immap_85xx.h>
 #include <asm/io.h>
-#include <env.h>
 #include <miiphy.h>
 #include <linux/libfdt.h>
 #include <fdt_support.h>
@@ -82,8 +76,8 @@ struct cpld_data {
 
 int board_early_init_f(void)
 {
-	ccsr_gpio_t *pgpio = (void *)(CFG_SYS_MPC85xx_GPIO_ADDR);
-	struct fsl_ifc ifc = {(void *)CFG_SYS_IFC_ADDR, (void *)NULL};
+	ccsr_gpio_t *pgpio = (void *)(CONFIG_SYS_MPC85xx_GPIO_ADDR);
+	struct fsl_ifc ifc = {(void *)CONFIG_SYS_IFC_ADDR, (void *)NULL};
 	/* Clock configuration to access CPLD using IFC(GPCM) */
 	setbits_be32(&ifc.gregs->ifc_gcr, 1 << IFC_GCR_TBCTL_TRN_TIME_SHIFT);
 	/*
@@ -97,7 +91,7 @@ int board_early_init_f(void)
 
 int board_early_init_r(void)
 {
-	const unsigned int flashbase = CFG_SYS_FLASH_BASE;
+	const unsigned int flashbase = CONFIG_SYS_FLASH_BASE;
 	int flash_esel = find_tlb_idx((void *)flashbase, 1);
 
 	/*
@@ -118,143 +112,31 @@ int board_early_init_r(void)
 		disable_tlb(flash_esel);
 	}
 
-	set_tlb(1, flashbase, CFG_SYS_FLASH_BASE_PHYS,
+	set_tlb(1, flashbase, CONFIG_SYS_FLASH_BASE_PHYS,
 			MAS3_SX|MAS3_SW|MAS3_SR, MAS2_I|MAS2_G,
 			0, flash_esel, BOOKE_PAGESZ_16M, 1);
 
 	set_tlb(1, flashbase + 0x1000000,
-			CFG_SYS_FLASH_BASE_PHYS + 0x1000000,
+			CONFIG_SYS_FLASH_BASE_PHYS + 0x1000000,
 			MAS3_SX|MAS3_SW|MAS3_SR, MAS2_I|MAS2_G,
 			0, flash_esel+1, BOOKE_PAGESZ_16M, 1);
 	return 0;
 }
 
+#ifdef CONFIG_PCI
+void pci_init_board(void)
+{
+	fsl_pcie_init_board(0);
+}
+#endif /* ifdef CONFIG_PCI */
+
 int config_board_mux(int ctrl_type)
 {
-	ccsr_gur_t __iomem *gur = (void *)(CFG_SYS_MPC85xx_GUTS_ADDR);
+	ccsr_gur_t __iomem *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
 	u8 tmp;
 
-#if CONFIG_IS_ENABLED(DM_I2C)
-	struct udevice *dev;
-	int ret;
 #if defined(CONFIG_TARGET_P1010RDB_PA)
-	struct cpld_data *cpld_data = (void *)(CFG_SYS_CPLD_BASE);
-
-	ret = i2c_get_chip_for_busnum(I2C_PCA9557_BUS_NUM,
-				      I2C_PCA9557_ADDR1, 1, &dev);
-	if (ret) {
-		printf("%s: Cannot find udev for a bus %d\n",
-		       __func__, I2C_PCA9557_BUS_NUM);
-		return ret;
-	}
-	switch (ctrl_type) {
-	case MUX_TYPE_IFC:
-		tmp = 0xf0;
-		dm_i2c_write(dev, 3, &tmp, 1);
-		tmp = 0x01;
-		dm_i2c_write(dev, 1, &tmp, 1);
-		sd_ifc_mux = MUX_TYPE_IFC;
-		clrbits_be32(&gur->pmuxcr, PMUXCR1_IFC_MASK);
-		break;
-	case MUX_TYPE_SDHC:
-		tmp = 0xf0;
-		dm_i2c_write(dev, 3, &tmp, 1);
-		tmp = 0x05;
-		dm_i2c_write(dev, 1, &tmp, 1);
-		sd_ifc_mux = MUX_TYPE_SDHC;
-		clrsetbits_be32(&gur->pmuxcr, PMUXCR1_SDHC_MASK,
-				PMUXCR1_SDHC_ENABLE);
-		break;
-	case MUX_TYPE_SPIFLASH:
-		out_8(&cpld_data->spi_cs0_sel, MUX_CPLD_SPICS0_FLASH);
-		break;
-	case MUX_TYPE_TDM:
-		out_8(&cpld_data->tdm_can_sel, MUX_CPLD_TDM);
-		out_8(&cpld_data->spi_cs0_sel, MUX_CPLD_SPICS0_SLIC);
-		break;
-	case MUX_TYPE_CAN:
-		out_8(&cpld_data->tdm_can_sel, MUX_CPLD_CAN_UART);
-		break;
-	default:
-		break;
-	}
-#elif defined(CONFIG_TARGET_P1010RDB_PB)
-	ret = i2c_get_chip_for_busnum(I2C_PCA9557_BUS_NUM,
-				      I2C_PCA9557_ADDR2, 1, &dev);
-	if (ret) {
-		printf("%s: Cannot find udev for a bus %d\n",
-		       __func__, I2C_PCA9557_BUS_NUM);
-		return ret;
-	}
-	switch (ctrl_type) {
-	case MUX_TYPE_IFC:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		clrbits_8(&tmp, 0x04);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x04);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		sd_ifc_mux = MUX_TYPE_IFC;
-		clrbits_be32(&gur->pmuxcr, PMUXCR1_IFC_MASK);
-		break;
-	case MUX_TYPE_SDHC:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		setbits_8(&tmp, 0x04);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x04);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		sd_ifc_mux = MUX_TYPE_SDHC;
-		clrsetbits_be32(&gur->pmuxcr, PMUXCR1_SDHC_MASK,
-				PMUXCR1_SDHC_ENABLE);
-		break;
-	case MUX_TYPE_SPIFLASH:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		clrbits_8(&tmp, 0x80);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x80);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		break;
-	case MUX_TYPE_TDM:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		setbits_8(&tmp, 0x82);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x82);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		break;
-	case MUX_TYPE_CAN:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		clrbits_8(&tmp, 0x02);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x02);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		break;
-	case MUX_TYPE_CS0_NOR:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		clrbits_8(&tmp, 0x08);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x08);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		break;
-	case MUX_TYPE_CS0_NAND:
-		dm_i2c_read(dev, 0, &tmp, 1);
-		setbits_8(&tmp, 0x08);
-		dm_i2c_write(dev, 1, &tmp, 1);
-		dm_i2c_read(dev, 3, &tmp, 1);
-		clrbits_8(&tmp, 0x08);
-		dm_i2c_write(dev, 3, &tmp, 1);
-		break;
-	default:
-		break;
-	}
-#endif
-#else
-#if defined(CONFIG_TARGET_P1010RDB_PA)
-	struct cpld_data *cpld_data = (void *)(CFG_SYS_CPLD_BASE);
+	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
 
 	switch (ctrl_type) {
 	case MUX_TYPE_IFC:
@@ -360,7 +242,6 @@ int config_board_mux(int ctrl_type)
 	}
 	i2c_set_bus_num(orig_bus);
 #endif
-#endif
 	return 0;
 }
 
@@ -368,23 +249,9 @@ int config_board_mux(int ctrl_type)
 int i2c_pca9557_read(int type)
 {
 	u8 val;
-	int bus_num = I2C_PCA9557_BUS_NUM;
 
-#if CONFIG_IS_ENABLED(DM_I2C)
-	struct udevice *dev;
-	int ret;
-
-	ret = i2c_get_chip_for_busnum(bus_num, I2C_PCA9557_ADDR2, 1, &dev);
-	if (ret) {
-		printf("%s: Cannot find udev for a bus %d\n",
-		       __func__, bus_num);
-		return ret;
-	}
-	dm_i2c_read(dev, 0, &val, 1);
-#else
-	i2c_set_bus_num(bus_num);
+	i2c_set_bus_num(I2C_PCA9557_BUS_NUM);
 	i2c_read(I2C_PCA9557_ADDR2, 0, 1, &val, 1);
-#endif
 
 	switch (type) {
 	case I2C_READ_BANK:
@@ -404,7 +271,7 @@ int i2c_pca9557_read(int type)
 int checkboard(void)
 {
 	struct cpu_type *cpu;
-	struct cpld_data *cpld_data = (void *)(CFG_SYS_CPLD_BASE);
+	struct cpld_data *cpld_data = (void *)(CONFIG_SYS_CPLD_BASE);
 	u8 val;
 
 	cpu = gd->arch.cpu;
@@ -412,25 +279,10 @@ int checkboard(void)
 	printf("Board: %sRDB-PA, ", cpu->name);
 #elif defined(CONFIG_TARGET_P1010RDB_PB)
 	printf("Board: %sRDB-PB, ", cpu->name);
-#if CONFIG_IS_ENABLED(DM_I2C)
-	struct udevice *dev;
-	int ret;
-
-	ret = i2c_get_chip_for_busnum(I2C_PCA9557_BUS_NUM, I2C_PCA9557_ADDR2,
-				      1, &dev);
-	if (ret) {
-		printf("%s: Cannot find udev for a bus %d\n", __func__,
-		       I2C_PCA9557_BUS_NUM);
-		return ret;
-	}
-	val = 0x0;  /* no polarity inversion */
-	dm_i2c_write(dev, 2, &val, 1);
-#else
 	i2c_set_bus_num(I2C_PCA9557_BUS_NUM);
-	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+	i2c_init(CONFIG_SYS_FSL_I2C_SPEED, CONFIG_SYS_FSL_I2C_SLAVE);
 	val = 0x0;  /* no polarity inversion */
 	i2c_write(I2C_PCA9557_ADDR2, 2, 1, &val, 1);
-#endif
 #endif
 
 #ifdef CONFIG_SDCARD
@@ -455,11 +307,7 @@ int checkboard(void)
 	case 0xe:
 		puts("SDHC\n");
 		val = 0x60; /* set pca9557 pin input/output */
-#if CONFIG_IS_ENABLED(DM_I2C)
-		dm_i2c_write(dev, 3, &val, 1);
-#else
 		i2c_write(I2C_PCA9557_ADDR2, 3, 1, &val, 1);
-#endif
 		break;
 	case 0x5:
 		config_board_mux(MUX_TYPE_IFC);
@@ -476,6 +324,47 @@ int checkboard(void)
 	}
 #endif
 	return 0;
+}
+
+int board_eth_init(bd_t *bis)
+{
+#ifdef CONFIG_TSEC_ENET
+	struct fsl_pq_mdio_info mdio_info;
+	struct tsec_info_struct tsec_info[4];
+	struct cpu_type *cpu;
+	int num = 0;
+
+	cpu = gd->arch.cpu;
+
+#ifdef CONFIG_TSEC1
+	SET_STD_TSEC_INFO(tsec_info[num], 1);
+	num++;
+#endif
+#ifdef CONFIG_TSEC2
+	SET_STD_TSEC_INFO(tsec_info[num], 2);
+	num++;
+#endif
+#ifdef CONFIG_TSEC3
+	/* P1014 and it's derivatives do not support eTSEC3 */
+	if (cpu->soc_ver != SVR_P1014) {
+		SET_STD_TSEC_INFO(tsec_info[num], 3);
+		num++;
+	}
+#endif
+	if (!num) {
+		printf("No TSECs initialized\n");
+		return 0;
+	}
+
+	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO_BASE_ADDR;
+	mdio_info.name = DEFAULT_MII_NAME;
+
+	fsl_pq_mdio_init(bis, &mdio_info);
+
+	tsec_eth_init(bis, tsec_info, num);
+#endif
+
+	return pci_eth_init(bis);
 }
 
 #if defined(CONFIG_OF_BOARD_SETUP)
@@ -544,7 +433,7 @@ void fdt_disable_uart1(void *blob)
 	int nodeoff;
 
 	nodeoff = fdt_node_offset_by_compat_reg(blob, "fsl,ns16550",
-					CFG_SYS_NS16550_COM2);
+					CONFIG_SYS_NS16550_COM2);
 
 	if (nodeoff > 0) {
 		fdt_status_disabled(blob, nodeoff);
@@ -554,7 +443,7 @@ void fdt_disable_uart1(void *blob)
 	}
 }
 
-int ft_board_setup(void *blob, struct bd_info *bd)
+int ft_board_setup(void *blob, bd_t *bd)
 {
 	phys_addr_t base;
 	phys_size_t size;
@@ -566,6 +455,10 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 
 	base = env_get_bootm_low();
 	size = env_get_bootm_size();
+
+#if defined(CONFIG_PCI)
+	FT_FSL_PCI_SETUP;
+#endif
 
 	fdt_fixup_memory(blob, (u64)base, (u64)size);
 
@@ -608,7 +501,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 #endif
 
 #ifdef CONFIG_SDCARD
-int board_mmc_init(struct bd_info *bis)
+int board_mmc_init(bd_t *bis)
 {
 	config_board_mux(MUX_TYPE_SDHC);
 		return -1;
@@ -625,7 +518,7 @@ void board_reset(void)
 
 int misc_init_r(void)
 {
-	ccsr_gur_t *gur = (void *)(CFG_SYS_MPC85xx_GUTS_ADDR);
+	ccsr_gur_t *gur = (void *)(CONFIG_SYS_MPC85xx_GUTS_ADDR);
 
 	if (hwconfig_subarg_cmp("fsl_p1010mux", "tdm_can", "can")) {
 		clrbits_be32(&gur->pmuxcr, MPC85xx_PMUXCR_CAN1_TDM |
@@ -657,9 +550,8 @@ int misc_init_r(void)
 	return 0;
 }
 
-#ifndef CONFIG_SPL_BUILD
-static int pin_mux_cmd(struct cmd_tbl *cmdtp, int flag, int argc,
-		       char *const argv[])
+static int pin_mux_cmd(cmd_tbl_t *cmdtp, int flag, int argc,
+				char * const argv[])
 {
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -677,4 +569,3 @@ U_BOOT_CMD(
 	"configure multiplexing pin for IFC/SDHC bus in runtime",
 	"bus_type (e.g. mux sdhc)"
 );
-#endif

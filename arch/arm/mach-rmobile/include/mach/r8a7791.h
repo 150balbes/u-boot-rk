@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/include/asm/arch-rmobile/r8a7791.h
  *
  * Copyright (C) 2013,2014 Renesas Electronics Corporation
- */
+ *
+ * SPDX-License-Identifier: GPL-2.0
+*/
 
 #ifndef __ASM_ARCH_R8A7791_H
 #define __ASM_ARCH_R8A7791_H
@@ -13,8 +14,13 @@
  * R-Car (R8A7791) I/O Addresses
  */
 
+/* SH-I2C */
+#define CONFIG_SYS_I2C_SH_BASE2	0xE60B0000
+
 /* SDHI */
-#define CFG_SYS_SH_SDHI_NR_CHANNEL 3
+#define CONFIG_SYS_SH_SDHI1_BASE 0xEE140000
+#define CONFIG_SYS_SH_SDHI2_BASE 0xEE160000
+#define CONFIG_SYS_SH_SDHI_NR_CHANNEL 3
 
 #define DBSC3_1_QOS_R0_BASE	0xE67A1000
 #define DBSC3_1_QOS_R1_BASE	0xE67A1100

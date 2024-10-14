@@ -1,30 +1,25 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Samsung Electronics
  * Rajeshwari Shinde <rajeshwari.s@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <dm.h>
 #include <fdtdec.h>
 #include <sound.h>
-#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 /* Initilaise sound subsystem */
-static int do_init(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_init(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
-	struct udevice *dev;
 	int ret;
 
-	ret = uclass_first_device_err(UCLASS_SOUND, &dev);
-	if (!ret)
-		ret = sound_setup(dev);
+	ret = sound_init(gd->fdt_blob);
 	if (ret) {
-		printf("Initialise Audio driver failed (ret=%d)\n", ret);
+		printf("Initialise Audio driver failed\n");
 		return CMD_RET_FAILURE;
 	}
 
@@ -32,53 +27,35 @@ static int do_init(struct cmd_tbl *cmdtp, int flag, int argc,
 }
 
 /* play sound from buffer */
-static int do_play(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+static int do_play(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
-	struct udevice *dev;
 	int ret = 0;
 	int msec = 1000;
 	int freq = 400;
-	bool first = true;
 
-	ret = uclass_first_device_err(UCLASS_SOUND, &dev);
-	if (ret)
-		goto err;
-	--argc;
-	++argv;
-	while (argc || first) {
-		first = false;
-		if (argc) {
-			msec = dectoul(argv[0], NULL);
-			--argc;
-			++argv;
-		}
-		if (argc) {
-			freq = dectoul(argv[0], NULL);
-			--argc;
-			++argv;
-		}
-		ret = sound_beep(dev, msec, freq);
-		if (ret)
-			goto err;
+	if (argc > 1)
+		msec = simple_strtoul(argv[1], NULL, 10);
+	if (argc > 2)
+		freq = simple_strtoul(argv[2], NULL, 10);
+
+	ret = sound_play(msec, freq);
+	if (ret) {
+		printf("play failed");
+		return CMD_RET_FAILURE;
 	}
-	return 0;
 
-err:
-	printf("Sound device failed to play (err=%d)\n", ret);
-	return CMD_RET_FAILURE;
+	return 0;
 }
 
-static struct cmd_tbl cmd_sound_sub[] = {
+static cmd_tbl_t cmd_sound_sub[] = {
 	U_BOOT_CMD_MKENT(init, 0, 1, do_init, "", ""),
-	U_BOOT_CMD_MKENT(play, INT_MAX, 1, do_play, "", ""),
+	U_BOOT_CMD_MKENT(play, 2, 1, do_play, "", ""),
 };
 
 /* process sound command */
-static int do_sound(struct cmd_tbl *cmdtp, int flag, int argc,
-		    char *const argv[])
+static int do_sound(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
-	struct cmd_tbl *c;
+	cmd_tbl_t *c;
 
 	if (argc < 1)
 		return CMD_RET_USAGE;
@@ -96,10 +73,8 @@ static int do_sound(struct cmd_tbl *cmdtp, int flag, int argc,
 }
 
 U_BOOT_CMD(
-	sound, INT_MAX, 1, do_sound,
+	sound, 4, 1, do_sound,
 	"sound sub-system",
 	"init - initialise the sound driver\n"
-	"sound play [[[-q|-s] len [freq]] ...] - play sounds\n"
-	"  len - duration in ms\n"
-	"  freq - frequency in Hz\n"
+	"sound play [len] [freq] - play a sound for len ms at freq hz\n"
 );

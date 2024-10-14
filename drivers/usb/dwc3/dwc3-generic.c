@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier:     GPL-2.0
 /*
  * Generic DWC3 Glue layer
  *
@@ -8,15 +8,11 @@
  */
 
 #include <common.h>
-#include <cpu_func.h>
-#include <log.h>
+#include <asm-generic/io.h>
 #include <dm.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <dwc3-uboot.h>
-#include <generic-phy.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <malloc.h>
@@ -26,7 +22,6 @@
 #include <reset.h>
 #include <clk.h>
 #include <usb/xhci.h>
-#include <asm/gpio.h>
 
 struct dwc3_glue_data {
 	struct clk_bulk		clks;
@@ -43,8 +38,8 @@ struct dwc3_generic_plat {
 struct dwc3_generic_priv {
 	void *base;
 	struct dwc3 dwc3;
-	struct phy_bulk phys;
-	struct gpio_desc *ulpi_reset;
+	struct phy *phys;
+	int num_phys;
 };
 
 struct dwc3_generic_host_priv {
@@ -56,24 +51,15 @@ static int dwc3_generic_probe(struct udevice *dev,
 			      struct dwc3_generic_priv *priv)
 {
 	int rc;
-	struct dwc3_generic_plat *plat = dev_get_plat(dev);
+	struct dwc3_generic_plat *plat = dev_get_platdata(dev);
 	struct dwc3 *dwc3 = &priv->dwc3;
-	struct dwc3_glue_data *glue = dev_get_plat(dev->parent);
-	int __maybe_unused index;
-	ofnode __maybe_unused node;
+	struct dwc3_glue_data *glue = dev_get_platdata(dev->parent);
 
 	dwc3->dev = dev;
 	dwc3->maximum_speed = plat->maximum_speed;
 	dwc3->dr_mode = plat->dr_mode;
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	dwc3_of_parse(dwc3);
-
-	node = dev_ofnode(dev->parent);
-	index = ofnode_stringlist_search(node, "clock-names", "ref");
-	if (index < 0)
-		index = ofnode_stringlist_search(node, "clock-names", "ref_clk");
-	if (index >= 0)
-		dwc3->ref_clk = &glue->clks.clks[index];
 #endif
 
 	/*
@@ -85,30 +71,9 @@ static int dwc3_generic_probe(struct udevice *dev,
 		udelay(1);
 	}
 
-	rc = dwc3_setup_phy(dev, &priv->phys);
-	if (rc && rc != -ENOTSUPP)
+	rc = dwc3_setup_phy(dev, &priv->phys, &priv->num_phys);
+	if (rc)
 		return rc;
-
-	if (CONFIG_IS_ENABLED(DM_GPIO) &&
-	    device_is_compatible(dev->parent, "xlnx,zynqmp-dwc3")) {
-		priv->ulpi_reset = devm_gpiod_get_optional(dev->parent, "reset",
-								GPIOD_ACTIVE_LOW);
-		/* property is optional, don't return error! */
-		if (priv->ulpi_reset) {
-			/* Toggle ulpi to reset the phy. */
-			rc = dm_gpio_set_value(priv->ulpi_reset, 1);
-			if (rc)
-				return rc;
-
-			mdelay(5);
-
-			rc = dm_gpio_set_value(priv->ulpi_reset, 0);
-			if (rc)
-				return rc;
-
-			mdelay(5);
-		}
-	}
 
 	if (device_is_compatible(dev->parent, "rockchip,rk3399-dwc3"))
 		reset_deassert_bulk(&glue->resets);
@@ -131,31 +96,19 @@ static int dwc3_generic_remove(struct udevice *dev,
 {
 	struct dwc3 *dwc3 = &priv->dwc3;
 
-	if (CONFIG_IS_ENABLED(DM_GPIO) &&
-	    device_is_compatible(dev->parent, "xlnx,zynqmp-dwc3")) {
-		struct gpio_desc *ulpi_reset = priv->ulpi_reset;
-
-		dm_gpio_free(ulpi_reset->dev, ulpi_reset);
-	}
-
 	dwc3_remove(dwc3);
-	dwc3_shutdown_phy(dev, &priv->phys);
+	dwc3_shutdown_phy(dev, priv->phys, priv->num_phys);
 	unmap_physmem(dwc3->regs, MAP_NOCACHE);
 
 	return 0;
 }
 
-static int dwc3_generic_of_to_plat(struct udevice *dev)
+static int dwc3_generic_ofdata_to_platdata(struct udevice *dev)
 {
-	struct dwc3_generic_plat *plat = dev_get_plat(dev);
-	ofnode node = dev_ofnode(dev);
+	struct dwc3_generic_plat *plat = dev_get_platdata(dev);
+	ofnode node = dev->node;
 
-	if (!strncmp(dev->name, "port", 4) || !strncmp(dev->name, "hub", 3)) {
-		/* This is a leaf so check the parent */
-		plat->base = dev_read_addr(dev->parent);
-	} else {
-		plat->base = dev_read_addr(dev);
-	}
+	plat->base = dev_read_addr(dev);
 
 	plat->maximum_speed = usb_get_maximum_speed(node);
 	if (plat->maximum_speed == USB_SPEED_UNKNOWN) {
@@ -165,13 +118,12 @@ static int dwc3_generic_of_to_plat(struct udevice *dev)
 
 	plat->dr_mode = usb_get_dr_mode(node);
 	if (plat->dr_mode == USB_DR_MODE_UNKNOWN) {
-		/* might be a leaf so check the parent for mode */
-		node = dev_ofnode(dev->parent);
-		plat->dr_mode = usb_get_dr_mode(node);
-		if (plat->dr_mode == USB_DR_MODE_UNKNOWN) {
-			pr_err("Invalid usb mode setup\n");
-			return -ENODEV;
-		}
+		pr_err("Invalid usb mode setup\n");
+		return -ENODEV;
+	} else if (plat->dr_mode != USB_DR_MODE_HOST &&
+		   !strcmp(dev->driver->name, "dwc3-generic-host")) {
+		pr_info("Set dr_mode to HOST\n");
+		plat->dr_mode = USB_DR_MODE_HOST;
 	}
 
 	return 0;
@@ -205,16 +157,15 @@ static int dwc3_generic_peripheral_remove(struct udevice *dev)
 U_BOOT_DRIVER(dwc3_generic_peripheral) = {
 	.name	= "dwc3-generic-peripheral",
 	.id	= UCLASS_USB_GADGET_GENERIC,
-	.of_to_plat = dwc3_generic_of_to_plat,
+	.ofdata_to_platdata = dwc3_generic_ofdata_to_platdata,
 	.probe = dwc3_generic_peripheral_probe,
 	.remove = dwc3_generic_peripheral_remove,
-	.priv_auto	= sizeof(struct dwc3_generic_priv),
-	.plat_auto	= sizeof(struct dwc3_generic_plat),
+	.priv_auto_alloc_size = sizeof(struct dwc3_generic_priv),
+	.platdata_auto_alloc_size = sizeof(struct dwc3_generic_plat),
 };
 #endif
 
-#if defined(CONFIG_SPL_USB_HOST) || \
-	!defined(CONFIG_SPL_BUILD) && defined(CONFIG_USB_HOST)
+#if defined(CONFIG_SPL_USB_HOST_SUPPORT) || !defined(CONFIG_SPL_BUILD)
 static int dwc3_generic_host_probe(struct udevice *dev)
 {
 	struct xhci_hcor *hcor;
@@ -248,73 +199,22 @@ static int dwc3_generic_host_remove(struct udevice *dev)
 U_BOOT_DRIVER(dwc3_generic_host) = {
 	.name	= "dwc3-generic-host",
 	.id	= UCLASS_USB,
-	.of_to_plat = dwc3_generic_of_to_plat,
+	.ofdata_to_platdata = dwc3_generic_ofdata_to_platdata,
 	.probe = dwc3_generic_host_probe,
 	.remove = dwc3_generic_host_remove,
-	.priv_auto	= sizeof(struct dwc3_generic_host_priv),
-	.plat_auto	= sizeof(struct dwc3_generic_plat),
+	.priv_auto_alloc_size = sizeof(struct dwc3_generic_host_priv),
+	.platdata_auto_alloc_size = sizeof(struct dwc3_generic_plat),
 	.ops = &xhci_usb_ops,
 	.flags = DM_FLAG_ALLOC_PRIV_DMA,
 };
 #endif
 
 struct dwc3_glue_ops {
-	void (*glue_configure)(struct udevice *dev, int index,
+	void (*select_dr_mode)(struct udevice *dev, int index,
 			       enum usb_dr_mode mode);
 };
 
-void dwc3_imx8mp_glue_configure(struct udevice *dev, int index,
-				enum usb_dr_mode mode)
-{
-/* USB glue registers */
-#define USB_CTRL0		0x00
-#define USB_CTRL1		0x04
-
-#define USB_CTRL0_PORTPWR_EN	BIT(12) /* 1 - PPC enabled (default) */
-#define USB_CTRL0_USB3_FIXED	BIT(22) /* 1 - USB3 permanent attached */
-#define USB_CTRL0_USB2_FIXED	BIT(23) /* 1 - USB2 permanent attached */
-
-#define USB_CTRL1_OC_POLARITY	BIT(16) /* 0 - HIGH / 1 - LOW */
-#define USB_CTRL1_PWR_POLARITY	BIT(17) /* 0 - HIGH / 1 - LOW */
-	fdt_addr_t regs = dev_read_addr_index(dev, 1);
-	void *base = map_physmem(regs, 0x8, MAP_NOCACHE);
-	u32 value;
-
-	value = readl(base + USB_CTRL0);
-
-	if (dev_read_bool(dev, "fsl,permanently-attached"))
-		value |= (USB_CTRL0_USB2_FIXED | USB_CTRL0_USB3_FIXED);
-	else
-		value &= ~(USB_CTRL0_USB2_FIXED | USB_CTRL0_USB3_FIXED);
-
-	if (dev_read_bool(dev, "fsl,disable-port-power-control"))
-		value &= ~(USB_CTRL0_PORTPWR_EN);
-	else
-		value |= USB_CTRL0_PORTPWR_EN;
-
-	writel(value, base + USB_CTRL0);
-
-	value = readl(base + USB_CTRL1);
-	if (dev_read_bool(dev, "fsl,over-current-active-low"))
-		value |= USB_CTRL1_OC_POLARITY;
-	else
-		value &= ~USB_CTRL1_OC_POLARITY;
-
-	if (dev_read_bool(dev, "fsl,power-active-low"))
-		value |= USB_CTRL1_PWR_POLARITY;
-	else
-		value &= ~USB_CTRL1_PWR_POLARITY;
-
-	writel(value, base + USB_CTRL1);
-
-	unmap_physmem(base, MAP_NOCACHE);
-}
-
-struct dwc3_glue_ops imx8mp_ops = {
-	.glue_configure = dwc3_imx8mp_glue_configure,
-};
-
-void dwc3_ti_glue_configure(struct udevice *dev, int index,
+void dwc3_ti_select_dr_mode(struct udevice *dev, int index,
 			    enum usb_dr_mode mode)
 {
 #define USBOTGSS_UTMI_OTG_STATUS		0x0084
@@ -340,7 +240,7 @@ enum dwc3_omap_utmi_mode {
 	u32 utmi_mode;
 	u32 utmi_status_offset = USBOTGSS_UTMI_OTG_STATUS;
 
-	struct dwc3_glue_data *glue = dev_get_plat(dev);
+	struct dwc3_glue_data *glue = dev_get_platdata(dev);
 	void *base = map_physmem(glue->regs, 0x10000, MAP_NOCACHE);
 
 	if (device_is_compatible(dev, "ti,am437x-dwc3"))
@@ -395,37 +295,38 @@ enum dwc3_omap_utmi_mode {
 }
 
 struct dwc3_glue_ops ti_ops = {
-	.glue_configure = dwc3_ti_glue_configure,
+	.select_dr_mode = dwc3_ti_select_dr_mode,
 };
 
 static int dwc3_glue_bind(struct udevice *parent)
 {
 	ofnode node;
 	int ret;
-	enum usb_dr_mode dr_mode;
 
-	dr_mode = usb_get_dr_mode(dev_ofnode(parent));
-
-	ofnode_for_each_subnode(node, dev_ofnode(parent)) {
+	ofnode_for_each_subnode(node, parent->node) {
 		const char *name = ofnode_get_name(node);
+		enum usb_dr_mode dr_mode;
 		struct udevice *dev;
 		const char *driver = NULL;
 
 		debug("%s: subnode name: %s\n", __func__, name);
 
-		/* if the parent node doesn't have a mode check the leaf */
-		if (!dr_mode)
-			dr_mode = usb_get_dr_mode(node);
+		dr_mode = usb_get_dr_mode(node);
 
 		switch (dr_mode) {
-		case USB_DR_MODE_PERIPHERAL:
 		case USB_DR_MODE_OTG:
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_USB_XHCI_HCD)
+			debug("%s: dr_mode: force to HOST\n", __func__);
+			driver = "dwc3-generic-host";
+			break;
+#endif
+		case USB_DR_MODE_PERIPHERAL:
 #if CONFIG_IS_ENABLED(DM_USB_GADGET)
 			debug("%s: dr_mode: OTG or Peripheral\n", __func__);
 			driver = "dwc3-generic-peripheral";
 #endif
 			break;
-#if defined(CONFIG_SPL_USB_HOST) || !defined(CONFIG_SPL_BUILD)
+#if defined(CONFIG_SPL_USB_HOST_SUPPORT) || !defined(CONFIG_SPL_BUILD)
 		case USB_DR_MODE_HOST:
 			debug("%s: dr_mode: HOST\n", __func__);
 			driver = "dwc3-generic-host";
@@ -496,23 +397,10 @@ static int dwc3_glue_clk_init(struct udevice *dev,
 static int dwc3_glue_probe(struct udevice *dev)
 {
 	struct dwc3_glue_ops *ops = (struct dwc3_glue_ops *)dev_get_driver_data(dev);
-	struct dwc3_glue_data *glue = dev_get_plat(dev);
+	struct dwc3_glue_data *glue = dev_get_platdata(dev);
 	struct udevice *child = NULL;
 	int index = 0;
 	int ret;
-	struct phy phy;
-
-	ret = generic_phy_get_by_name(dev, "usb3-phy", &phy);
-	if (!ret) {
-		ret = generic_phy_init(&phy);
-		if (ret)
-			return ret;
-	} else if (ret != -ENOENT && ret != -ENODATA) {
-		debug("could not get phy (err %d)\n", ret);
-		return ret;
-	} else {
-		phy.dev = NULL;
-	}
 
 	glue->regs = dev_read_addr(dev);
 
@@ -524,17 +412,11 @@ static int dwc3_glue_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	if (phy.dev) {
-		ret = generic_phy_power_on(&phy);
-		if (ret)
-			return ret;
-	}
-
 	ret = device_find_first_child(dev, &child);
 	if (ret)
 		return ret;
 
-	if (glue->resets.count == 0) {
+	if (glue->resets.count < 1) {
 		ret = dwc3_glue_reset_init(child, glue);
 		if (ret)
 			return ret;
@@ -543,10 +425,10 @@ static int dwc3_glue_probe(struct udevice *dev)
 	while (child) {
 		enum usb_dr_mode dr_mode;
 
-		dr_mode = usb_get_dr_mode(dev_ofnode(child));
+		dr_mode = usb_get_dr_mode(child->node);
 		device_find_next_child(&child);
-		if (ops && ops->glue_configure)
-			ops->glue_configure(dev, index, dr_mode);
+		if (ops && ops->select_dr_mode)
+			ops->select_dr_mode(dev, index, dr_mode);
 		index++;
 	}
 
@@ -555,7 +437,7 @@ static int dwc3_glue_probe(struct udevice *dev)
 
 static int dwc3_glue_remove(struct udevice *dev)
 {
-	struct dwc3_glue_data *glue = dev_get_plat(dev);
+	struct dwc3_glue_data *glue = dev_get_platdata(dev);
 
 	reset_release_bulk(&glue->resets);
 
@@ -566,17 +448,11 @@ static int dwc3_glue_remove(struct udevice *dev)
 
 static const struct udevice_id dwc3_glue_ids[] = {
 	{ .compatible = "xlnx,zynqmp-dwc3" },
-	{ .compatible = "xlnx,versal-dwc3" },
 	{ .compatible = "ti,keystone-dwc3"},
 	{ .compatible = "ti,dwc3", .data = (ulong)&ti_ops },
 	{ .compatible = "ti,am437x-dwc3", .data = (ulong)&ti_ops },
-	{ .compatible = "ti,am654-dwc3" },
 	{ .compatible = "rockchip,rk3328-dwc3" },
 	{ .compatible = "rockchip,rk3399-dwc3" },
-	{ .compatible = "qcom,dwc3" },
-	{ .compatible = "fsl,imx8mp-dwc3", .data = (ulong)&imx8mp_ops },
-	{ .compatible = "fsl,imx8mq-dwc3" },
-	{ .compatible = "intel,tangier-dwc3" },
 	{ }
 };
 
@@ -587,6 +463,6 @@ U_BOOT_DRIVER(dwc3_generic_wrapper) = {
 	.bind = dwc3_glue_bind,
 	.probe = dwc3_glue_probe,
 	.remove = dwc3_glue_remove,
-	.plat_auto	= sizeof(struct dwc3_glue_data),
+	.platdata_auto_alloc_size = sizeof(struct dwc3_glue_data),
 
 };

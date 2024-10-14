@@ -13,7 +13,6 @@
 #include <dm/device.h>
 #include <dm/test.h>
 #include <misc.h>
-#include <test/test.h>
 #include <test/ut.h>
 
 static int noptest_bind(struct udevice *parent)
@@ -25,7 +24,7 @@ static int noptest_bind(struct udevice *parent)
 		const char *bind_flag = ofnode_read_string(ofnode, "bind");
 
 		if (bind_flag && (strcmp(bind_flag, "True") == 0))
-			lists_bind_fdt(parent, ofnode, &dev, NULL, false);
+			lists_bind_fdt(parent, ofnode, &dev, false);
 		ofnode = dev_read_next_subnode(ofnode);
 	}
 
@@ -71,4 +70,4 @@ static int dm_test_nop(struct unit_test_state *uts)
 	return 0;
 }
 
-DM_TEST(dm_test_nop, UT_TESTF_FLAT_TREE | UT_TESTF_SCAN_FDT);
+DM_TEST(dm_test_nop, DM_TESTF_FLAT_TREE | DM_TESTF_SCAN_FDT);

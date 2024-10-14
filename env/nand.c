@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2010
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -11,32 +10,42 @@
  *
  * (C) Copyright 2001 Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Andreas Heppel <aheppel@sysgo.de>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <env_internal.h>
-#include <asm/global_data.h>
+#include <environment.h>
 #include <linux/stddef.h>
 #include <malloc.h>
 #include <memalign.h>
 #include <nand.h>
 #include <search.h>
 #include <errno.h>
-#include <u-boot/crc.h>
 
 #if defined(CONFIG_CMD_SAVEENV) && defined(CONFIG_CMD_NAND) && \
 		!defined(CONFIG_SPL_BUILD)
 #define CMD_SAVEENV
-#elif defined(CONFIG_ENV_OFFSET_REDUND) && !defined(CONFIG_SPL_BUILD)
+#elif defined(CONFIG_ENV_OFFSET_REDUND)
 #error CONFIG_ENV_OFFSET_REDUND must have CONFIG_CMD_SAVEENV & CONFIG_CMD_NAND
 #endif
 
+#if defined(CONFIG_ENV_SIZE_REDUND) &&	\
+	(CONFIG_ENV_SIZE_REDUND != CONFIG_ENV_SIZE)
+#error CONFIG_ENV_SIZE_REDUND should be the same as CONFIG_ENV_SIZE
+#endif
+
+#ifndef CONFIG_ENV_RANGE
+#define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
+#endif
+
 #if defined(ENV_IS_EMBEDDED)
-static env_t *env_ptr = &environment;
+env_t *env_ptr = &environment;
 #elif defined(CONFIG_NAND_ENV_DST)
-static env_t *env_ptr = (env_t *)CONFIG_NAND_ENV_DST;
+env_t *env_ptr = (env_t *)CONFIG_NAND_ENV_DST;
+#else /* ! ENV_IS_EMBEDDED */
+env_t *env_ptr;
 #endif /* ENV_IS_EMBEDDED */
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -103,7 +112,8 @@ static int env_nand_init(void)
 	gd->env_addr = (ulong)env_ptr->data;
 
 #else /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
-	gd->env_valid	= ENV_INVALID;
+	gd->env_addr	= (ulong)&default_environment[0];
+	gd->env_valid	= ENV_VALID;
 #endif /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
 
 	return 0;
@@ -196,6 +206,10 @@ static int env_nand_save(void)
 		},
 #endif
 	};
+
+
+	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+		return 1;
 
 	ret = env_export(env_new);
 	if (ret)
@@ -306,7 +320,7 @@ static int env_nand_load(void)
 #if defined(ENV_IS_EMBEDDED)
 	return 0;
 #else
-	int read1_fail, read2_fail;
+	int read1_fail = 0, read2_fail = 0;
 	env_t *tmp_env1, *tmp_env2;
 	int ret = 0;
 
@@ -314,7 +328,7 @@ static int env_nand_load(void)
 	tmp_env2 = (env_t *)malloc(CONFIG_ENV_SIZE);
 	if (tmp_env1 == NULL || tmp_env2 == NULL) {
 		puts("Can't allocate buffers for environment\n");
-		env_set_default("malloc() failed", 0);
+		set_default_env("!malloc() failed");
 		ret = -EIO;
 		goto done;
 	}
@@ -322,8 +336,24 @@ static int env_nand_load(void)
 	read1_fail = readenv(CONFIG_ENV_OFFSET, (u_char *) tmp_env1);
 	read2_fail = readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *) tmp_env2);
 
-	ret = env_import_redund((char *)tmp_env1, read1_fail, (char *)tmp_env2,
-				read2_fail, H_EXTERNAL);
+	if (read1_fail && read2_fail)
+		puts("*** Error - No Valid Environment Area found\n");
+	else if (read1_fail || read2_fail)
+		puts("*** Warning - some problems detected "
+		     "reading environment; recovered successfully\n");
+
+	if (read1_fail && read2_fail) {
+		set_default_env("!bad env area");
+		goto done;
+	} else if (!read1_fail && read2_fail) {
+		gd->env_valid = ENV_VALID;
+		env_import((char *)tmp_env1, 1);
+	} else if (read1_fail && !read2_fail) {
+		gd->env_valid = ENV_REDUND;
+		env_import((char *)tmp_env2, 1);
+	} else {
+		env_import_redund((char *)tmp_env1, (char *)tmp_env2);
+	}
 
 done:
 	free(tmp_env1);
@@ -353,18 +383,18 @@ static int env_nand_load(void)
 	if (mtd && !get_nand_env_oob(mtd, &nand_env_oob_offset)) {
 		printf("Found Environment offset in OOB..\n");
 	} else {
-		env_set_default("no env offset in OOB", 0);
+		set_default_env("!no env offset in OOB");
 		return;
 	}
 #endif
 
 	ret = readenv(CONFIG_ENV_OFFSET, (u_char *)buf);
 	if (ret) {
-		env_set_default("readenv() failed", 0);
+		set_default_env("!readenv() failed");
 		return -EIO;
 	}
 
-	return env_import(buf, 1, H_EXTERNAL);
+	env_import(buf, 1);
 #endif /* ! ENV_IS_EMBEDDED */
 
 	return 0;

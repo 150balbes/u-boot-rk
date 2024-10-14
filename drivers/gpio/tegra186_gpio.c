@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2010-2016, NVIDIA CORPORATION.
  * (based on tegra_gpio.c)
+ *
+ * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <common.h>
@@ -16,6 +17,8 @@
 #include <dt-bindings/gpio/gpio.h>
 #include "tegra186_gpio_priv.h"
 
+DECLARE_GLOBAL_DATA_PTR;
+
 struct tegra186_gpio_port_data {
 	const char *name;
 	uint32_t offset;
@@ -26,7 +29,7 @@ struct tegra186_gpio_ctlr_data {
 	uint32_t port_count;
 };
 
-struct tegra186_gpio_plat {
+struct tegra186_gpio_platdata {
 	const char *name;
 	uint32_t *regs;
 };
@@ -34,7 +37,7 @@ struct tegra186_gpio_plat {
 static uint32_t *tegra186_gpio_reg(struct udevice *dev, uint32_t reg,
 				   uint32_t gpio)
 {
-	struct tegra186_gpio_plat *plat = dev_get_plat(dev);
+	struct tegra186_gpio_platdata *plat = dev->platdata;
 	uint32_t index = (reg + (gpio * TEGRA186_GPIO_PER_GPIO_STRIDE)) / 4;
 
 	return &(plat->regs[index]);
@@ -166,7 +169,7 @@ static const struct dm_gpio_ops tegra186_gpio_ops = {
  */
 static int tegra186_gpio_bind(struct udevice *parent)
 {
-	struct tegra186_gpio_plat *parent_plat = dev_get_plat(parent);
+	struct tegra186_gpio_platdata *parent_plat = parent->platdata;
 	struct tegra186_gpio_ctlr_data *ctlr_data =
 		(struct tegra186_gpio_ctlr_data *)dev_get_driver_data(parent);
 	uint32_t *regs;
@@ -181,7 +184,7 @@ static int tegra186_gpio_bind(struct udevice *parent)
 		return -EINVAL;
 
 	for (port = 0; port < ctlr_data->port_count; port++) {
-		struct tegra186_gpio_plat *plat;
+		struct tegra186_gpio_platdata *plat;
 		struct udevice *dev;
 
 		plat = calloc(1, sizeof(*plat));
@@ -191,9 +194,10 @@ static int tegra186_gpio_bind(struct udevice *parent)
 		plat->regs = &(regs[ctlr_data->ports[port].offset / 4]);
 
 		ret = device_bind(parent, parent->driver, plat->name, plat,
-				  dev_ofnode(parent), &dev);
+				  -1, &dev);
 		if (ret)
 			return ret;
+		dev_set_of_offset(dev, dev_of_offset(parent));
 	}
 
 	return 0;
@@ -201,7 +205,7 @@ static int tegra186_gpio_bind(struct udevice *parent)
 
 static int tegra186_gpio_probe(struct udevice *dev)
 {
-	struct tegra186_gpio_plat *plat = dev_get_plat(dev);
+	struct tegra186_gpio_platdata *plat = dev->platdata;
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 
 	/* Only child devices have ports */
@@ -280,4 +284,5 @@ U_BOOT_DRIVER(tegra186_gpio) = {
 	.bind = tegra186_gpio_bind,
 	.probe = tegra186_gpio_probe,
 	.ops = &tegra186_gpio_ops,
+	.flags = DM_FLAG_PRE_RELOC,
 };

@@ -23,7 +23,6 @@
 #include <part.h>
 #include <malloc.h>
 #include <mmc.h>
-#include <time.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -504,7 +503,7 @@ static struct mmc_config mxcmci_cfg = {
 	.b_max		= CONFIG_SYS_MMC_MAX_BLK_COUNT,
 };
 
-static int mxcmci_initialize(struct bd_info *bis)
+static int mxcmci_initialize(bd_t *bis)
 {
 	host->base = (struct mxcmci_regs *)CONFIG_MXC_MCI_REGS_BASE;
 
@@ -518,7 +517,7 @@ static int mxcmci_initialize(struct bd_info *bis)
 	return 0;
 }
 
-int mxc_mmc_init(struct bd_info *bis)
+int mxc_mmc_init(bd_t *bis)
 {
 	return mxcmci_initialize(bis);
 }

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * Board file for the VInCo platform
  * Based on the the SAMA5-EK board file
@@ -7,11 +6,11 @@
  *		      Bo Shen <voice.shen@atmel.com>
  * Copyright (C) 2015 Free Electrons
  *		      Gregory CLEMENT <gregory.clement@free-electrons.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <init.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/at91_common.h>
 #include <asm/arch/at91_pmc.h>
@@ -24,16 +23,17 @@
 #include <asm/arch/sama5d4.h>
 #include <atmel_hlcdc.h>
 #include <atmel_mci.h>
+#include <lcd.h>
 #include <mmc.h>
 #include <net.h>
 #include <netdev.h>
 #include <nand.h>
 #include <spi.h>
+#include <version.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-/* FIXME gpio code here need to handle through DM_GPIO */
-#if !CONFIG_IS_ENABLED(DM_SPI)
+#ifdef CONFIG_ATMEL_SPI
 int spi_cs_is_valid(unsigned int bus, unsigned int cs)
 {
 	return bus == 0 && cs == 0;
@@ -108,7 +108,7 @@ void vinco_mci0_hw_init(void)
 	at91_periph_clk_enable(ATMEL_ID_MCI0);
 }
 
-int board_mmc_init(struct bd_info *bis)
+int board_mmc_init(bd_t *bis)
 {
 	/* Enable power for MCI0 interface */
 	at91_set_pio_output(AT91_PIO_PORTE, 7, 1);
@@ -164,9 +164,9 @@ int board_early_init_f(void)
 int board_init(void)
 {
 	/* adress of boot parameters */
-	gd->bd->bi_boot_params = CFG_SYS_SDRAM_BASE + 0x100;
+	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 
-#if !CONFIG_IS_ENABLED(DM_SPI)
+#ifdef CONFIG_ATMEL_SPI
 	vinco_spi0_hw_init();
 #endif
 
@@ -188,12 +188,12 @@ int board_init(void)
 
 int dram_init(void)
 {
-	gd->ram_size = get_ram_size((void *)CFG_SYS_SDRAM_BASE,
-				    CFG_SYS_SDRAM_SIZE);
+	gd->ram_size = get_ram_size((void *)CONFIG_SYS_SDRAM_BASE,
+				    CONFIG_SYS_SDRAM_SIZE);
 	return 0;
 }
 
-int board_eth_init(struct bd_info *bis)
+int board_eth_init(bd_t *bis)
 {
 	int rc = 0;
 
@@ -203,6 +203,9 @@ int board_eth_init(struct bd_info *bis)
 
 #ifdef CONFIG_USB_GADGET_ATMEL_USBA
 	usba_udc_probe(&pdata);
+#ifdef CONFIG_USB_ETH_RNDIS
+	usb_eth_initialize(bis);
+#endif
 #endif
 
 	return rc;

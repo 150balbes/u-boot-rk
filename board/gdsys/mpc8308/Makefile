@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2014
-# Dirk Eibach,  Guntermann & Drunck GmbH, dirk.eibach@gdsys.cc
+# Dirk Eibach,  Guntermann & Drunck GmbH, eibach@gdsys.de
+#
+# SPDX-License-Identifier:	GPL-2.0+
+#
 
 obj-y := mpc8308.o sdram.o
-obj-$(CONFIG_TARGET_GAZERBEAM) += gazerbeam.o
+obj-$(CONFIG_HRCON) += hrcon.o
+obj-$(CONFIG_STRIDER) += strider.o

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2004-2008
  * Texas Instruments, <www.ti.com>
@@ -14,15 +13,13 @@
  *	Richard Woodruff <r-woodruff2@ti.com>
  *	Syed Mohammed Khasim <khasim@ti.com>
  *
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
-#include <env.h>
-#include <init.h>
-#include <malloc.h>
 #include <ns16550.h>
 #include <twl4030.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/mmc_host_def.h>
 #include <asm/arch/mux.h>
@@ -48,14 +45,14 @@ static u32 gpmc_net_config[GPMC_MAX_REG] = {
 	0
 };
 
-static const struct ns16550_plat devkit8000_serial = {
+static const struct ns16550_platdata devkit8000_serial = {
 	.base = OMAP34XX_UART3,
 	.reg_shift = 2,
 	.clock = V_NS16550_CLK,
 	.fcr = UART_FCR_DEFVAL,
 };
 
-U_BOOT_DRVINFO(devkit8000_uart) = {
+U_BOOT_DEVICE(devkit8000_uart) = {
 	"ns16550_serial",
 	&devkit8000_serial
 };
@@ -76,11 +73,10 @@ int board_init(void)
 }
 
 /* Configure GPMC registers for DM9000 */
-#define DM9000_BASE	0x2c000000
 static void gpmc_dm9000_config(void)
 {
 	enable_gpmc_cs_config(gpmc_net_config, &gpmc_cfg->cs[6],
-		DM9000_BASE, GPMC_SIZE_16M);
+		CONFIG_DM9000_BASE, GPMC_SIZE_16M);
 }
 
 /*
@@ -101,7 +97,9 @@ int misc_init_r(void)
 #endif
 
 #ifdef CONFIG_DRIVER_DM9000
-	gpmc_dm9000_config();
+	/* Configure GPMC registers for DM9000 */
+	enable_gpmc_cs_config(gpmc_net_config, &gpmc_cfg->cs[6],
+			CONFIG_DM9000_BASE, GPMC_SIZE_16M);
 
 	/* Use OMAP DIE_ID as MAC address */
 	if (!eth_env_get_enetaddr("ethaddr", enetaddr)) {
@@ -134,7 +132,7 @@ void set_muxconf_regs(void)
 }
 
 #if defined(CONFIG_MMC)
-int board_mmc_init(struct bd_info *bis)
+int board_mmc_init(bd_t *bis)
 {
 	return omap_mmc_init(0, 0, 0, -1, -1);
 }
@@ -152,7 +150,7 @@ void board_mmc_power_init(void)
  * Routine: board_eth_init
  * Description: Setting up the Ethernet hardware.
  */
-int board_eth_init(struct bd_info *bis)
+int board_eth_init(bd_t *bis)
 {
 	return dm9000_initialize(bis);
 }

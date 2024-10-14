@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2013 Samsung Electronics
  * Akshay Saraswat <akshay.s@samsung.com>
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -21,7 +22,7 @@ relocate_wait_code:
 	.ltorg
 /*
  * Secondary core waits here until Primary wake it up.
- * Below code is copied to (CFG_IRAM_TOP - 0x1000)
+ * Below code is copied to CONFIG_EXYNOS_RELOCATE_CODE_BASE.
  * This is a workaround code which is supposed to act as a
  * substitute/supplement to the iROM code.
  *
