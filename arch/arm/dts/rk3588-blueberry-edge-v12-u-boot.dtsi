@@ -1,0 +1,584 @@
+/*
+ * (C) Copyright 2021 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
+	};
+
+	chosen {
+		stdout-path = &uart2;
+		u-boot,spl-boot-order = &sdmmc, &sdhci, &spi_nand, &spi_nor;
+	};
+
+	secure-otp@fe3a0000 {
+		u-boot,dm-spl;
+		compatible = "rockchip,rk3588-secure-otp";
+		reg = <0x0 0xfe3a0000 0x0 0x4000>;
+	};
+
+	vcc12v_dcin: vcc12v-dcin {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc3v3_pcie30: vcc3v3-pcie30 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie30";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc3v3_pcie30_en>;		
+		gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;    //hugsun gpio1_c4
+		startup-delay-us = <10000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc5v0_host: vcc5v0-host-regulator {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_host_en>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc5v0_otg: vcc5v0-otg-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg_en>;
+	};
+
+	vcc3v3_pcie30: vcc3v3-pcie30 {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie30";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;    //hugsun gpio1_c4
+		regulator-boot-on;
+		regulator-always-on;
+		startup-delay-us = <10000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc3v3_pcie30_en>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	/* work led is actually blue "PWR" LED and the powerbutton backlight LED */
+	led_work: led_work {
+		u-boot,dm-pre-reloc;
+		compatible = "regulator-fixed";
+		regulator-name = "led_work";
+		enable-active-high;
+		gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>; // Turn on work led
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+};
+
+&firmware {
+	u-boot,dm-spl;
+};
+
+&gpio0 {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&gpio1 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio2 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+&gpio3 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio4 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&scmi {
+	u-boot,dm-spl;
+};
+
+&scmi_clk {
+	u-boot,dm-spl;
+};
+
+&sram {
+	u-boot,dm-spl;
+};
+
+&scmi_shmem {
+	u-boot,dm-spl;
+};
+
+&xin24m {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&cru {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&psci {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&crypto {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&sys_grf {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&pcie30_phy_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&php_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&pipe_phy0_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&pipe_phy1_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&pipe_phy2_grf {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&uart2 {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&hw_decompress {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&rng {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&sfc {
+	u-boot,dm-spl;
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi_nand: flash@0 {
+		u-boot,dm-spl;
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <80000000>;
+	};
+
+	spi_nor: flash@1 {
+		u-boot,dm-spl;
+		compatible = "jedec,spi-nor";
+		label = "sfc_nor";
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <80000000>;
+	};
+};
+
+&saradc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	u-boot,dm-spl;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	u-boot,dm-spl;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	status = "okay";
+};
+
+&usb2phy0_grf {
+	u-boot,dm-pre-reloc;
+};
+
+&u2phy0 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usb_grf{
+	u-boot,dm-pre-reloc;
+};
+
+&usbdpphy0_grf{
+	u-boot,dm-pre-reloc;
+};
+
+&usbdp_phy0{
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usbdp_phy0_u3{
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+
+&usb2phy2_grf {
+	u-boot,dm-pre-reloc;
+};
+
+&u2phy2 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+	maximum-speed = "super-speed";
+};
+
+&u2phy2_host {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usb2phy3_grf {
+	u-boot,dm-pre-reloc;
+};
+
+&u2phy3 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&u2phy3_host {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&usbhost3_0 {
+	u-boot,dm-pre-reloc;
+};
+
+&usbhost_dwc3_0 {
+	u-boot,dm-pre-reloc;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+/* Support SPL-PINCTRL:
+ * 1. ioc
+ * 2. pinctrl(sdmmc)
+ * 3. gpio if need
+ */
+&ioc {
+	u-boot,dm-spl;
+};
+
+&pinctrl {
+	u-boot,dm-spl;
+	/delete-node/ sdmmc;
+	sdmmc {
+		u-boot,dm-spl;
+		sdmmc_bus4: sdmmc-bus4 {
+			u-boot,dm-spl;
+			rockchip,pins =
+				/* sdmmc_d0 */
+				<4 RK_PD0 1 &pcfg_pull_up_drv_level_2>,
+				/* sdmmc_d1 */
+				<4 RK_PD1 1 &pcfg_pull_up_drv_level_2>,
+				/* sdmmc_d2 */
+				<4 RK_PD2 1 &pcfg_pull_up_drv_level_2>,
+				/* sdmmc_d3 */
+				<4 RK_PD3 1 &pcfg_pull_up_drv_level_2>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			u-boot,dm-spl;
+			rockchip,pins =
+				/* sdmmc_clk */
+				<4 RK_PD5 1 &pcfg_pull_up_drv_level_2>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			u-boot,dm-spl;
+			rockchip,pins =
+				/* sdmmc_cmd */
+				<4 RK_PD4 1 &pcfg_pull_up_drv_level_2>;
+		};
+
+		sdmmc_det: sdmmc-det {
+			u-boot,dm-spl;
+			rockchip,pins =
+				/* sdmmc_det */
+				<0 RK_PA4 1 &pcfg_pull_up>;
+		};
+
+		sdmmc_pwren: sdmmc-pwren {
+			u-boot,dm-spl;
+			rockchip,pins =
+				/* sdmmc_pwren */
+				<0 RK_PA5 2 &pcfg_pull_none>;
+		};
+	};
+
+	usb {
+		u-boot,dm-pre-reloc;
+		vcc5v0_host_en: vcc5v0-host-en {
+			u-boot,dm-pre-reloc;
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+	};
+
+	usb-typec {
+		usbc0_int: usbc0-int {
+			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		vcc5v0_otg_en: vcc5v0-otg-en {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pcie {
+		u-boot,dm-spl;
+		vcc3v3_pcie30_en: vcc3v3-pcie30-en {
+			u-boot,dm-spl;
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	
+	};
+
+};
+
+&pcfg_pull_up_drv_level_2 {
+	u-boot,dm-spl;
+};
+
+&pcfg_pull_up {
+	u-boot,dm-spl;
+};
+
+&pcfg_pull_none
+{
+	u-boot,dm-spl;
+};
+
+&pcie3x4 {
+	u-boot,dm-pre-reloc;
+	vpcie3v3-supply = <&vcc3v3_pcie30>;
+	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pcie30phy {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&combphy0_ps {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&combphy1_ps {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&combphy2_psu {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+
+
+//type-c0
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+//usb2.0 host0
+&u2phy2 {
+	status = "okay";
+};
+
+//usb2.0 host1
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+	status = "okay";
+};
+
+&u2phy1_otg {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usbdrd_dwc3_0 {
+	dr_mode = "otg";
+	usb-role-switch;
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dwc3_0_role_switch: endpoint@0 {
+			reg = <0>;
+//			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
+};
+
+&usbdrd3_0 {
+	status = "okay";
+};
+
+&usbdrd3_1 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+/* related to usbhost_dwc3_0 */
+&usbhost3_0 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+	maximum-speed = "super-speed";
+};
+
+/* related to usbhost3_0 */
+&usbhost_dwc3_0 {
+	u-boot,dm-pre-reloc;
+	dr_mode = "host";
+	status = "okay";
+	maximum-speed = "super-speed";
+};
