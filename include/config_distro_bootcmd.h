@@ -313,15 +313,15 @@
 #define BOOTENV_DEV(devtypeu, devtypel, instance) \
 	BOOTENV_DEV_##devtypeu(devtypeu, devtypel, instance)
 #define BOOTENV \
-	BOOTENV_SHARED_USB \
+	BOOTENV_SHARED_HOST \
 	BOOTENV_SHARED_MMC \
 	BOOTENV_SHARED_PCI \
+	BOOTENV_SHARED_USB \
 	BOOTENV_SHARED_SATA \
 	BOOTENV_SHARED_SCSI \
 	BOOTENV_SHARED_IDE \
 	BOOTENV_SHARED_UBIFS \
 	BOOTENV_SHARED_EFI \
-	BOOTENV_SHARED_HOST \
 	"boot_prefixes=/ /boot/\0" \
 	"boot_scripts=boot.scr.uimg boot.scr\0" \
 	"boot_script_dhcp=boot.scr.uimg\0" \
