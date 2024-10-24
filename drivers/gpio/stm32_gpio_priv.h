@@ -81,4 +81,6 @@ struct stm32_gpio_priv {
 	unsigned int gpio_range;
 };
 
+int stm32_offset_to_index(struct udevice *dev, unsigned int offset);
+
 #endif /* _STM32_GPIO_PRIV_H_ */

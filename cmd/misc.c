@@ -44,6 +44,7 @@ static int do_misc_list(struct cmd_tbl *cmdtp, int flag,
 static int do_misc_op(struct cmd_tbl *cmdtp, int flag,
 		      int argc, char *const argv[], enum misc_op op)
 {
+	int (*misc_op)(struct udevice *, int, void *, int);
 	struct udevice *dev;
 	int offset;
 	void *buf;
@@ -61,10 +62,11 @@ static int do_misc_op(struct cmd_tbl *cmdtp, int flag,
 	size = hextoul(argv[3], NULL);
 
 	if (op == MISC_OP_READ)
-		ret = misc_read(dev, offset, buf, size);
+		misc_op = misc_read;
 	else
-		ret = misc_write(dev, offset, buf, size);
+		misc_op = misc_write;
 
+	ret = misc_op(dev, offset, buf, size);
 	if (ret < 0) {
 		if (ret == -ENOSYS) {
 			printf("The device does not support %s\n",

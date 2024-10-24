@@ -17,13 +17,6 @@ struct rtc_time;
 struct sandbox_state;
 
 /**
- * os_printf() - print directly to OS console
- *
- * @format: format string
- */
-int os_printf(const char *format, ...);
-
-/**
  * Access to the OS read() system call
  *
  * @fd:		File descriptor as returned by os_open()

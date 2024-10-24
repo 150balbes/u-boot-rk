@@ -155,7 +155,7 @@ struct phy_bulk {
 	unsigned int count;
 };
 
-#if CONFIG_IS_ENABLED(PHY)
+#ifdef CONFIG_PHY
 
 /**
  * generic_phy_init() - initialize the PHY port

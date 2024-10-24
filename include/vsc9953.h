@@ -691,7 +691,7 @@ struct vsc9953_vcap {
 	.phyaddr	= 0,						\
 	.index		= idx,						\
 	.phy_regs	= NULL,						\
-	.enet_if	= PHY_INTERFACE_MODE_NA,			\
+	.enet_if	= PHY_INTERFACE_MODE_NONE,			\
 	.bus		= NULL,						\
 	.phydev		= NULL,						\
 }

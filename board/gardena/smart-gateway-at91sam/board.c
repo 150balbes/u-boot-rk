@@ -24,6 +24,9 @@ int board_late_init(void)
 {
 	at91_prepare_cpu_var();
 
+	if (IS_ENABLED(CONFIG_LED))
+		led_default_state();
+
 	return 0;
 }
 

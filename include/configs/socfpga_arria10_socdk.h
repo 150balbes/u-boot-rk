@@ -32,6 +32,7 @@
  */
 
 /* SPL memory allocation configuration, this is for FAT implementation */
+#define CONFIG_SYS_SPL_MALLOC_SIZE	0x00015000
 
 /* The rest of the configuration is shared */
 #include <configs/socfpga_common.h>

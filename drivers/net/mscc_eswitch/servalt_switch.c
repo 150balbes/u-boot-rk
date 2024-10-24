@@ -482,7 +482,7 @@ static int servalt_probe(struct udevice *dev)
 			continue;
 
 		phy_connect(priv->ports[i].bus, priv->ports[i].phy_addr, dev,
-			    PHY_INTERFACE_MODE_NA);
+			    PHY_INTERFACE_MODE_NONE);
 	}
 
 	return 0;

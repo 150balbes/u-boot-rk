@@ -15,4 +15,6 @@
 #include <configs/x86-common.h>
 #include <configs/x86-chromebook.h>
 
+#define CONFIG_SPL_BOARD_LOAD_IMAGE
+
 #endif	/* __CONFIG_H */

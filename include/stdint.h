@@ -5,10 +5,3 @@
  *
  * U-Boot uses linux types (linux/types.h) so does not make use of stdint.h
  */
-
-#ifndef __UB_STDINT_H
-#define __UB_STDINT_H
-
-#define UINT8_MAX	0xff
-
-#endif

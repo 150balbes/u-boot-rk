@@ -76,7 +76,6 @@
 
 /* eSDHC control register */
 #define ESDHCCTL		0x0002e40c
-#define ESDHCCTL_SNOOP		(0x00000040)
 #define ESDHCCTL_PCS		(0x00080000)
 #define ESDHCCTL_FAF		(0x00040000)
 

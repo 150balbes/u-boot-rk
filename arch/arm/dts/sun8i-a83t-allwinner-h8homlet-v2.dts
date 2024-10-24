@@ -79,14 +79,6 @@
 	};
 };
 
-&cpu0 {
-	cpu-supply = <&reg_dcdc2>;
-};
-
-&cpu100 {
-	cpu-supply = <&reg_dcdc3>;
-};
-
 &ehci0 {
 	status = "okay";
 };
@@ -153,10 +145,6 @@
 };
 
 #include "axp81x.dtsi"
-
-&ac_power_supply {
-	status = "okay";
-};
 
 &reg_aldo1 {
 	regulator-always-on;

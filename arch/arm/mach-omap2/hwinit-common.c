@@ -12,7 +12,6 @@
  */
 #include <common.h>
 #include <debug_uart.h>
-#include <event.h>
 #include <fdtdec.h>
 #include <init.h>
 #include <spl.h>
@@ -240,13 +239,11 @@ void board_init_f(ulong dummy)
 }
 #endif
 
-static int omap2_system_init(void *ctx, struct event *event)
+int arch_cpu_init_dm(void)
 {
 	early_system_init();
-
 	return 0;
 }
-EVENT_SPY(EVT_DM_POST_INIT, omap2_system_init);
 
 /*
  * Routine: wait_for_command_complete

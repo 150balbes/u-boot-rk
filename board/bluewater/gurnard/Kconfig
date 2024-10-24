@@ -1,8 +1,5 @@
 if TARGET_GURNARD
 
-config GURNARD_SPLASH
-	def_bool y
-
 config SYS_BOARD
 	default "gurnard"
 

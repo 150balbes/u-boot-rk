@@ -14,13 +14,10 @@
 #include <fdtdec.h>
 #include <time.h>
 #include <asm/global_data.h>
-#include <asm-generic/gpio.h>
-#include <dm/device.h>
 #include <linux/libfdt.h>
 
 #include <mach/cvmx-helper-sfp.h>
 
-/* todo: this is deprecated and some of it can be removed at some time */
 enum cvmx_i2c_bus_type {
 	CVMX_I2C_BUS_OCTEON,
 	CVMX_I2C_MUX_PCA9540,
@@ -58,8 +55,6 @@ struct cvmx_fdt_i2c_bus_info {
 	u8 enable_bit;
 	/** True if mux, false if switch */
 	bool is_mux;
-
-	struct udevice *i2c_bus;
 };
 
 /**
@@ -90,24 +85,22 @@ struct cvmx_fdt_sfp_info {
 	bool is_qsfp;
 	/** True if EEPROM data is valid */
 	bool valid;
-
 	/** SFP tx_disable GPIO descriptor */
-	struct gpio_desc tx_disable;
+	struct cvmx_fdt_gpio_info *tx_disable;
 	/** SFP mod_abs/QSFP mod_prs GPIO descriptor */
-	struct gpio_desc mod_abs;
+	struct cvmx_fdt_gpio_info *mod_abs;
 	/** SFP tx_error GPIO descriptor */
-	struct gpio_desc tx_error;
+	struct cvmx_fdt_gpio_info *tx_error;
 	/** SFP rx_los GPIO discriptor */
-	struct gpio_desc rx_los;
+	struct cvmx_fdt_gpio_info *rx_los;
 	/** QSFP select GPIO descriptor */
-	struct gpio_desc select;
+	struct cvmx_fdt_gpio_info *select;
 	/** QSFP reset GPIO descriptor */
-	struct gpio_desc reset;
+	struct cvmx_fdt_gpio_info *reset;
 	/** QSFP interrupt GPIO descriptor */
-	struct gpio_desc interrupt;
+	struct cvmx_fdt_gpio_info *interrupt;
 	/** QSFP lp_mode GPIO descriptor */
-	struct gpio_desc lp_mode;
-
+	struct cvmx_fdt_gpio_info *lp_mode;
 	/** Last mod_abs value */
 	int last_mod_abs;
 	/** Last rx_los value */
@@ -152,9 +145,6 @@ struct cvmx_fdt_sfp_info {
  */
 int cvmx_fdt_lookup_phandles(const void *fdt_addr, int node, const char *prop_name, int *lenp,
 			     int *nodes);
-
-int cvmx_ofnode_lookup_phandles(ofnode node, const char *prop_name,
-				int *lenp, ofnode *nodes);
 
 /**
  * Helper to return the address property
@@ -351,7 +341,8 @@ int cvmx_fdt_node_offset_by_compatible_list(const void *fdt_addr, int startoffse
  * Given the parent offset of an i2c device build up a list describing the bus
  * which can contain i2c muxes and switches.
  *
- * @param[in]	node		ofnode of the parent node of a GPIO device in
+ * @param[in]	fdt_addr	address of device tree
+ * @param	of_offset	Offset of the parent node of a GPIO device in
  *				the device tree.
  *
  * Return:	pointer to list of i2c devices starting from the root which
@@ -360,7 +351,7 @@ int cvmx_fdt_node_offset_by_compatible_list(const void *fdt_addr, int startoffse
  *
  * @see cvmx_fdt_free_i2c_bus()
  */
-struct cvmx_fdt_i2c_bus_info *cvmx_ofnode_get_i2c_bus(ofnode node);
+struct cvmx_fdt_i2c_bus_info *cvmx_fdt_get_i2c_bus(const void *fdt_addr, int of_offset);
 
 /**
  * Return the Octeon bus number for a bus descriptor
@@ -504,6 +495,15 @@ int __cvmx_fdt_parse_vsc7224(const void *fdt_addr);
  * Return:      0 for success, error otherwise
  */
 int __cvmx_fdt_parse_avsp5410(const void *fdt_addr);
+
+/**
+ * Parse SFP information from device tree
+ *
+ * @param[in]	fdt_addr	Address of flat device tree
+ *
+ * Return: pointer to sfp info or NULL if error
+ */
+struct cvmx_fdt_sfp_info *cvmx_helper_fdt_parse_sfp_info(const void *fdt_addr, int of_offset);
 
 /**
  * @INTERNAL

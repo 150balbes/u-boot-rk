@@ -192,22 +192,6 @@
 	u-boot,dm-spl;
 };
 
-&hbmc {
-	u-boot,dm-spl;
-
-	flash@0,0 {
-		u-boot,dm-spl;
-	};
-};
-
-&hbmc_mux {
-	u-boot,dm-spl;
-};
-
-&wkup_gpio0 {
-	u-boot,dm-spl;
-};
-
 &ospi0 {
 	u-boot,dm-spl;
 
@@ -222,14 +206,6 @@
 	flash@0 {
 		u-boot,dm-spl;
 	};
-};
-
-&mcu_fss0_hpb0_pins_default {
-	u-boot,dm-spl;
-};
-
-&wkup_gpio_pins_default {
-	u-boot,dm-spl;
 };
 
 &mcu_fss0_ospi1_pins_default {

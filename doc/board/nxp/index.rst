@@ -13,7 +13,6 @@ NXP Semiconductors
    imx8qxp_mek
    imxrt1020-evk
    imxrt1050-evk
-   ls1046ardb
    mx6sabreauto
    mx6sabresd
    mx6ul_14x14_evk

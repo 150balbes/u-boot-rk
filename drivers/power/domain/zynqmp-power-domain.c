@@ -5,7 +5,6 @@
 
 #include <common.h>
 #include <dm.h>
-#include <dm/device_compat.h>
 #include <log.h>
 #include <malloc.h>
 #include <misc.h>
@@ -13,6 +12,25 @@
 #include <linux/bitops.h>
 
 #include <zynqmp_firmware.h>
+
+#define NODE_ID_LOCATION	5
+
+static unsigned int xpm_configobject[] = {
+	/* HEADER */
+	2,	/* Number of remaining words in the header */
+	1,	/* Number of sections included in config object */
+	PM_CONFIG_OBJECT_TYPE_OVERLAY,	/* Type of Config object as overlay */
+	/* SLAVE SECTION */
+
+	PM_CONFIG_SLAVE_SECTION_ID,	/* Section ID */
+	1,				/* Number of slaves */
+
+	0, /* Node ID which will be changed below */
+	PM_SLAVE_FLAG_IS_SHAREABLE,
+	PM_CONFIG_IPI_PSU_CORTEXA53_0_MASK |
+	PM_CONFIG_IPI_PSU_CORTEXR5_0_MASK |
+	PM_CONFIG_IPI_PSU_CORTEXR5_1_MASK, /* IPI Mask */
+};
 
 static int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 				  const u32 qos, const enum zynqmp_pm_request_ack ack)
@@ -23,9 +41,12 @@ static int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 
 static int zynqmp_power_domain_request(struct power_domain *power_domain)
 {
-	dev_dbg(power_domain->dev, "Request for id: %ld\n", power_domain->id);
+	/* Record power domain id */
+	xpm_configobject[NODE_ID_LOCATION] = power_domain->id;
 
-	return zynqmp_pmufw_node(power_domain->id);
+	zynqmp_pmufw_load_config_object(xpm_configobject, sizeof(xpm_configobject));
+
+	return 0;
 }
 
 static int zynqmp_power_domain_free(struct power_domain *power_domain)
@@ -36,8 +57,6 @@ static int zynqmp_power_domain_free(struct power_domain *power_domain)
 
 static int zynqmp_power_domain_on(struct power_domain *power_domain)
 {
-	dev_dbg(power_domain->dev, "Domain ON for id: %ld\n", power_domain->id);
-
 	return zynqmp_pm_request_node(power_domain->id,
 				      ZYNQMP_PM_CAPABILITY_ACCESS,
 				      ZYNQMP_PM_MAX_QOS,

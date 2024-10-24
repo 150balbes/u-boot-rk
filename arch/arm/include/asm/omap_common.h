@@ -13,7 +13,6 @@
 #include <linux/types.h>
 
 #define NUM_SYS_CLKS	7
-#define SYS_PTV		2	/* Divisor: 2^(PTV+1) => 8 */
 
 struct bd_info;
 

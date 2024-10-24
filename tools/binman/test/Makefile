@@ -21,7 +21,7 @@ CC		= $(CROSS_COMPILE)gcc
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 
 VPATH := $(SRC)
-CFLAGS := -march=i386 -m32 -nostdlib -I $(SRC)../../../include -I $(SRC) \
+CFLAGS := -march=i386 -m32 -nostdlib -I $(SRC)../../../include \
 	-Wl,--no-dynamic-linker
 
 LDS_UCODE := -T $(SRC)u_boot_ucode_ptr.lds

@@ -29,11 +29,9 @@ static int boot_prep_linux(bootm_headers_t *images)
 {
 	int ret;
 
-	if (CONFIG_IS_ENABLED(LMB)) {
-		ret = image_setup_linux(images);
-		if (ret)
-			return ret;
-	}
+	ret = image_setup_linux(images);
+	if (ret)
+		return ret;
 
 	return board_prep_linux(images);
 }

@@ -40,8 +40,6 @@ source "drivers/fastboot/Kconfig"
 
 source "drivers/firmware/Kconfig"
 
-source "drivers/fuzz/Kconfig"
-
 source "drivers/fpga/Kconfig"
 
 source "drivers/gpio/Kconfig"

@@ -178,8 +178,11 @@ static int dm_test_devres_phase(struct unit_test_state *uts)
 	ut_asserteq(1, stats.allocs);
 	ut_asserteq(TEST_DEVRES_SIZE, stats.total_size);
 
-	/* Unbinding removes the other. */
+	/* Unbinding removes the other. Note this access a freed pointer */
 	device_unbind(dev);
+	devres_get_stats(dev, &stats);
+	ut_asserteq(0, stats.allocs);
+	ut_asserteq(0, stats.total_size);
 
 	return 0;
 }

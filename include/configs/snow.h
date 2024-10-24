@@ -15,4 +15,6 @@
 #include <configs/exynos5-dt-common.h>
 #include <configs/exynos5-common.h>
 
+#define CONFIG_BOARD_COMMON
+
 #endif	/* __CONFIG_SNOW_H */

@@ -39,13 +39,6 @@ config TARGET_PINEBOOK_PRO_RK3399
 	  with 4Gb RAM, onboard eMMC, USB-C, a USB3 and USB2 port,
 	  1920*1080 screen and all the usual laptop features.
 
-config TARGET_PINEPHONE_PRO_RK3399
-	bool "PinePhone Pro"
-	help
-	  PinePhone Pro is a phone based on the Rockchip rk3399 SoC
-	  with 4Gb RAM, onboard eMMC, USB-C, a headphone jack,
-	  720x1440 screen and an external Quectel USB modem.
-
 config TARGET_HELIOS64
 	bool "Kobol Innovations Helios64"
 	select BOARD_LATE_INIT
@@ -153,9 +146,6 @@ endchoice
 config ROCKCHIP_BOOT_MODE_REG
 	default 0xff320300
 
-config ROCKCHIP_STIMER_BASE
-	default 0xff8680a0
-
 config SYS_SOC
 	default "rk3399"
 
@@ -170,6 +160,9 @@ config SPL_LIBGENERIC_SUPPORT
 
 config TPL_LDSCRIPT
 	default "arch/arm/mach-rockchip/u-boot-tpl-v8.lds"
+
+config TPL_MAX_SIZE
+        default 188416
 
 config TPL_STACK
         default 0xff8effff
@@ -194,7 +187,6 @@ source "board/firefly/roc-pc-rk3399/Kconfig"
 source "board/google/gru/Kconfig"
 source "board/kobol/helios64/Kconfig"
 source "board/pine64/pinebook-pro-rk3399/Kconfig"
-source "board/pine64/pinephone-pro-rk3399/Kconfig"
 source "board/pine64/rockpro64_rk3399/Kconfig"
 source "board/rockchip/evb_rk3399/Kconfig"
 source "board/theobroma-systems/puma_rk3399/Kconfig"

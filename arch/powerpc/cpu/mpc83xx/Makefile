@@ -8,10 +8,8 @@
 MINIMAL=
 
 ifdef CONFIG_SPL_BUILD
-ifndef CONFIG_TPL_BUILD
 ifdef CONFIG_SPL_INIT_MINIMAL
 MINIMAL=y
-endif
 endif
 endif
 

@@ -9,6 +9,7 @@
 /*
  * General board configuration
  */
+#define CONFIG_SYS_BOOTM_LEN		(64 * 1024 * 1024)
 
 /*
  * CPU
@@ -30,9 +31,17 @@
 
 #define CONFIG_SYS_INIT_SP_OFFSET	0x400000
 
+#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
+
 /*
  * Console
  */
+
+/*
+ * Flash
+ */
+
+#define CONFIG_SYS_MAX_FLASH_SECT		1024
 
 /*
  * Environment

@@ -73,6 +73,7 @@ static struct dm_pmic_ops pmic_fan53555_ops = {
 
 static const struct udevice_id pmic_fan53555_match[] = {
 	{ .compatible = "fcs,fan53555", .data = FAN53555_VENDOR_FAIRCHILD, },
+	{ .compatible = "fcs,fan53200", .data = FAN53200_VENDOR_FAIRCHILD, },
 	{ .compatible = "silergy,syr827", .data = FAN53555_VENDOR_SILERGY, },
 	{ .compatible = "silergy,syr828", .data = FAN53555_VENDOR_SILERGY, },
 	{ },

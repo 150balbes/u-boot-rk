@@ -260,6 +260,9 @@ static int enetc_init_sxgmii(struct udevice *dev)
 static void enetc_start_pcs(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
+	const char *if_str;
+
+	priv->if_type = PHY_INTERFACE_MODE_NONE;
 
 	/* register internal MDIO for debug purposes */
 	if (enetc_read_port(priv, ENETC_PCAPR0) & ENETC_PCAPRO_MDIO) {
@@ -276,12 +279,14 @@ static void enetc_start_pcs(struct udevice *dev)
 		return;
 	}
 
-	priv->if_type = dev_read_phy_mode(dev);
-	if (priv->if_type == PHY_INTERFACE_MODE_NA) {
+	if_str = ofnode_read_string(dev_ofnode(dev), "phy-mode");
+	if (if_str)
+		priv->if_type = phy_get_interface_by_name(if_str);
+	else
 		enetc_dbg(dev,
 			  "phy-mode property not found, defaulting to SGMII\n");
-		priv->if_type = PHY_INTERFACE_MODE_SGMII;
-	}
+	if (priv->if_type < 0)
+		priv->if_type = PHY_INTERFACE_MODE_NONE;
 
 	switch (priv->if_type) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -339,7 +344,7 @@ static int enetc_probe(struct udevice *dev)
 	}
 
 	/* initialize register */
-	priv->regs_base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0, 0, PCI_REGION_TYPE, 0);
+	priv->regs_base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0);
 	if (!priv->regs_base) {
 		enetc_dbg(dev, "failed to map BAR0\n");
 		return -EINVAL;
@@ -360,9 +365,6 @@ static int enetc_probe(struct udevice *dev)
 static int enetc_remove(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
-
-	if (miiphy_get_dev_by_name(priv->imdio.name))
-		mdio_unregister(&priv->imdio);
 
 	free(priv->enetc_txbd);
 	free(priv->enetc_rxbd);

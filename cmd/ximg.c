@@ -171,8 +171,11 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			return 1;
 		}
 
-		if (fit_image_get_comp(fit_hdr, noffset, &comp))
-			comp = IH_COMP_NONE;
+		if (fit_image_get_comp(fit_hdr, noffset, &comp)) {
+			puts("Could not find script subimage "
+				"compression type\n");
+			return 1;
+		}
 
 		data = (ulong)fit_data;
 		len = (ulong)fit_len;

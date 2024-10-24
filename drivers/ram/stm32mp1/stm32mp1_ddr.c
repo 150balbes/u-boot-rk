@@ -653,13 +653,9 @@ static void stm32mp1_refresh_restore(struct stm32mp1_ddrctl *ctl,
 	wait_sw_done_ack(ctl);
 }
 
-static void stm32mp1_asr_enable(struct ddr_info *priv, const u32 pwrctl)
+static void stm32mp1_asr_enable(struct ddr_info *priv)
 {
 	struct stm32mp1_ddrctl *ctl = priv->ctl;
-
-	/* SSR is the best we can do. */
-	if (!(pwrctl & DDRCTRL_PWRCTL_EN_DFI_DRAM_CLK_DISABLE))
-		return;
 
 	clrsetbits_le32(priv->rcc + RCC_DDRITFCR, RCC_DDRITFCR_DDRCKMOD_MASK,
 			RCC_DDRITFCR_DDRCKMOD_ASR);
@@ -670,12 +666,8 @@ static void stm32mp1_asr_enable(struct ddr_info *priv, const u32 pwrctl)
 	writel(DDRCTRL_PWRTMG_POWERDOWN_TO_X32(0x10) |
 	       DDRCTRL_PWRTMG_SELFREF_TO_X32(0x01),
 	       &ctl->pwrtmg);
-
-	/* HSR we can do. */
 	setbits_le32(&ctl->pwrctl, DDRCTRL_PWRCTL_EN_DFI_DRAM_CLK_DISABLE);
-
-	if (pwrctl & DDRCTRL_PWRCTL_SELFREF_EN)	/* ASR we can do. */
-		setbits_le32(&ctl->pwrctl, DDRCTRL_PWRCTL_SELFREF_EN);
+	setbits_le32(&ctl->pwrctl, DDRCTRL_PWRCTL_SELFREF_EN);
 
 	setbits_le32(&ctl->dfimisc, DDRCTRL_DFIMISC_DFI_INIT_COMPLETE_EN);
 	wait_sw_done_ack(ctl);
@@ -853,7 +845,7 @@ start:
 				 config->c_reg.pwrctl);
 
 /* Enable auto-self-refresh, which saves a bit of power at runtime. */
-	stm32mp1_asr_enable(priv, config->c_reg.pwrctl);
+	stm32mp1_asr_enable(priv);
 
 	/* enable uMCTL2 AXI port 0 and 1 */
 	setbits_le32(&priv->ctl->pctrl_0, DDRCTRL_PCTRL_N_PORT_EN);

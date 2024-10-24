@@ -268,8 +268,10 @@ int bmp_display(ulong addr, int x, int y)
 	}
 #elif defined(CONFIG_LCD)
 	ret = lcd_display_bitmap(addr, x, y);
+#elif defined(CONFIG_VIDEO)
+	ret = video_display_bitmap(addr, x, y);
 #else
-# error bmp_display() requires CONFIG_LCD
+# error bmp_display() requires CONFIG_LCD or CONFIG_VIDEO
 #endif
 
 	if (bmp_alloc_addr)

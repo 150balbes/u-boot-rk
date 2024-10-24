@@ -7,6 +7,7 @@
 
 #include <common.h>
 #include <debug_uart.h>
+#include <flash.h>
 #include <init.h>
 #include <net.h>
 #include <vsprintf.h>
@@ -139,7 +140,7 @@ static void at91sam9263ek_lcd_hw_init(void)
 #include <version.h>
 
 #ifdef CONFIG_MTD_NOR_FLASH
-#include <flash.h>
+extern flash_info_t flash_info[];
 #endif
 
 void lcd_show_board_info(void)
@@ -191,6 +192,9 @@ void board_debug_uart_init(void)
 #ifdef CONFIG_BOARD_EARLY_INIT_F
 int board_early_init_f(void)
 {
+#ifdef CONFIG_DEBUG_UART
+	debug_uart_init();
+#endif
 	return 0;
 }
 #endif

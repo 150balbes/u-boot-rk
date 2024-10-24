@@ -17,6 +17,13 @@ class CommandResult:
         return_code: Return code from command
         exception: Exception received, or None if all ok
     """
+    def __init__(self):
+        self.stdout = None
+        self.stderr = None
+        self.combined = None
+        self.return_code = None
+        self.exception = None
+
     def __init__(self, stdout='', stderr='', combined='', return_code=0,
                  exception=None):
         self.stdout = stdout
@@ -65,7 +72,6 @@ def run_pipe(pipe_list, infile=None, outfile=None,
     """
     if test_result:
         if hasattr(test_result, '__call__'):
-            # pylint: disable=E1102
             result = test_result(pipe_list=pipe_list)
             if result:
                 return result

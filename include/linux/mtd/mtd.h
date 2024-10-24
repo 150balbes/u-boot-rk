@@ -25,7 +25,6 @@
 #if IS_ENABLED(CONFIG_DM)
 #include <dm/device.h>
 #endif
-#include <dm/ofnode.h>
 
 #define MAX_MTD_DEVICES 32
 #endif
@@ -306,7 +305,6 @@ struct mtd_info {
 	struct device dev;
 #else
 	struct udevice *dev;
-	ofnode flash_node;
 #endif
 	int usecount;
 

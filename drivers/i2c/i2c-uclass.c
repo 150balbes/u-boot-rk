@@ -168,9 +168,6 @@ int dm_i2c_write(struct udevice *dev, uint offset, const uint8_t *buffer,
 	struct udevice *bus = dev_get_parent(dev);
 	struct dm_i2c_ops *ops = i2c_get_ops(bus);
 	struct i2c_msg msg[1];
-	uint8_t _buf[I2C_MAX_OFFSET_LEN + 64];
-	uint8_t *buf = _buf;
-	int ret;
 
 	if (!ops->xfer)
 		return -ENOSYS;
@@ -195,20 +192,29 @@ int dm_i2c_write(struct udevice *dev, uint offset, const uint8_t *buffer,
 	 * need to allow space for the offset (up to 4 bytes) and the message
 	 * itself.
 	 */
-	if (len > sizeof(_buf) - I2C_MAX_OFFSET_LEN) {
+	if (len < 64) {
+		uint8_t buf[I2C_MAX_OFFSET_LEN + len];
+
+		i2c_setup_offset(chip, offset, buf, msg);
+		msg->len += len;
+		memcpy(buf + chip->offset_len, buffer, len);
+
+		return ops->xfer(bus, msg, 1);
+	} else {
+		uint8_t *buf;
+		int ret;
+
 		buf = malloc(I2C_MAX_OFFSET_LEN + len);
 		if (!buf)
 			return -ENOMEM;
-	}
+		i2c_setup_offset(chip, offset, buf, msg);
+		msg->len += len;
+		memcpy(buf + chip->offset_len, buffer, len);
 
-	i2c_setup_offset(chip, offset, buf, msg);
-	msg->len += len;
-	memcpy(buf + chip->offset_len, buffer, len);
-
-	ret = ops->xfer(bus, msg, 1);
-	if (buf != _buf)
+		ret = ops->xfer(bus, msg, 1);
 		free(buf);
-	return ret;
+		return ret;
+	}
 }
 
 int dm_i2c_xfer(struct udevice *dev, struct i2c_msg *msg, int nmsgs)

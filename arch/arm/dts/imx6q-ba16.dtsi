@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+ OR X11
 /*
  * Support for imx6 based Advantech DMS-BA16 Qseven module
  *
@@ -124,9 +125,6 @@
 		regulator-name = "usb_otg_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		pinctrl-0 = <&pinctrl_usbotg_vbus>;
-		gpio = <&gpio4 15 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
 	};
 };
 
@@ -137,12 +135,12 @@
 };
 
 &ecspi1 {
-	cs-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
-	flash: flash@0 {
+	flash: n25q032@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -175,9 +173,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_3p3v>;
-	phy-handle = <&phy0>;
 	status = "okay";
+	phy-handle = <&phy0>;
 
 	mdio {
 		#address-cells = <1>;
@@ -349,7 +346,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -587,12 +583,6 @@
 	pinctrl_usbotg: usbotggrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x17059
-		>;
-	};
-
-	pinctrl_usbotg_vbus: usbotgvbusgrp {
-		fsl,pins = <
-			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15 0x000b0
 		>;
 	};
 

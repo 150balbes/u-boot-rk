@@ -130,27 +130,27 @@
 			filename = "u-boot-spl.bin";
 		};
 
-		ddr-1d-imem-fw {
+		1d-imem {
 			filename = "ddr4_imem_1d.bin";
-			align-end = <4>;
+			size = <0x8000>;
 			type = "blob-ext";
 		};
 
-		ddr-1d-dmem-fw {
+		1d_dmem {
 			filename = "ddr4_dmem_1d.bin";
-			align-end = <4>;
+			size = <0x4000>;
 			type = "blob-ext";
 		};
 
-		ddr-2d-imem-fw {
+		2d_imem {
 			filename = "ddr4_imem_2d.bin";
-			align-end = <4>;
+			size = <0x8000>;
 			type = "blob-ext";
 		};
 
-		ddr-2d-dmem-fw {
+		2d_dmem {
 			filename = "ddr4_dmem_2d.bin";
-			align-end = <4>;
+			size = <0x4000>;
 			type = "blob-ext";
 		};
 	};
@@ -200,7 +200,7 @@
 
 					atf_blob {
 						filename = "bl31.bin";
-						type = "atf-bl31";
+						type = "blob-ext";
 					};
 				};
 

@@ -287,8 +287,6 @@
 &usart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usart3_pins_a>;
-	/delete-property/dmas;
-	/delete-property/dma-names;
 	status = "okay";
 };
 
@@ -296,8 +294,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart8_pins_a &uart8_rtscts_pins_a>;
 	uart-has-rtscts;
-	/delete-property/dmas;
-	/delete-property/dma-names;
 	status = "okay";
 };
 

@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2022 Sean Anderson <sean.anderson@seco.com>
  * Copyright 2014 Broadcom Corporation
  */
 
 /*
- * This code has been tested on arm64/aarch64 fastmodel only.  An untested
- * placeholder exists for armv7 architectures, but since they are commonly
- * available in silicon now, fastmodel usage makes less sense for them.
+ * Minimal semihosting implementation for reading files into memory. If more
+ * features like writing files or console output are required they can be
+ * added later. This code has been tested on arm64/aarch64 fastmodel only.
+ * An untested placeholder exists for armv7 architectures, but since they
+ * are commonly available in silicon now, fastmodel usage makes less sense
+ * for them.
  */
 #include <common.h>
+#include <command.h>
+#include <env.h>
 #include <log.h>
-#include <semihosting.h>
 
 #define SYSOPEN		0x01
 #define SYSCLOSE	0x02
-#define SYSWRITEC	0x03
-#define SYSWRITE0	0x04
-#define SYSWRITE	0x05
 #define SYSREAD		0x06
-#define SYSREADC	0x07
-#define SYSISERROR	0x08
-#define SYSSEEK		0x0A
 #define SYSFLEN		0x0C
-#define SYSERRNO	0x13
+
+#define MODE_READ	0x0
+#define MODE_READBIN	0x1
 
 /*
  * Call the handler
@@ -32,64 +31,42 @@ static noinline long smh_trap(unsigned int sysnum, void *addr)
 {
 	register long result asm("r0");
 #if defined(CONFIG_ARM64)
-	asm volatile ("hlt #0xf000" : "=r" (result) : "0"(sysnum), "r"(addr) : "memory");
+	asm volatile ("hlt #0xf000" : "=r" (result) : "0"(sysnum), "r"(addr));
 #elif defined(CONFIG_CPU_V7M)
-	asm volatile ("bkpt #0xAB" : "=r" (result) : "0"(sysnum), "r"(addr) : "memory");
+	asm volatile ("bkpt #0xAB" : "=r" (result) : "0"(sysnum), "r"(addr));
 #else
 	/* Note - untested placeholder */
-	asm volatile ("svc #0x123456" : "=r" (result) : "0"(sysnum), "r"(addr) : "memory");
+	asm volatile ("svc #0x123456" : "=r" (result) : "0"(sysnum), "r"(addr));
 #endif
 	return result;
 }
 
-#if CONFIG_IS_ENABLED(SEMIHOSTING_FALLBACK)
-static bool _semihosting_enabled = true;
-static bool try_semihosting = true;
-
-bool semihosting_enabled(void)
-{
-	if (try_semihosting) {
-		smh_trap(SYSERRNO, NULL);
-		try_semihosting = false;
-	}
-
-	return _semihosting_enabled;
-}
-
-void disable_semihosting(void)
-{
-	_semihosting_enabled = false;
-}
-#endif
-
-/**
- * smh_errno() - Read the host's errno
- *
- * This gets the value of the host's errno and negates it. The host's errno may
- * or may not be set, so only call this function if a previous semihosting call
- * has failed.
- *
- * Return: a negative error value
+/*
+ * Open a file on the host. Mode is "r" or "rb" currently. Returns a file
+ * descriptor or -1 on error.
  */
-static int smh_errno(void)
-{
-	long ret = smh_trap(SYSERRNO, NULL);
-
-	if (ret > 0 && ret < INT_MAX)
-		return -ret;
-	return -EIO;
-}
-
-long smh_open(const char *fname, enum smh_open_mode mode)
+static long smh_open(const char *fname, char *modestr)
 {
 	long fd;
+	unsigned long mode;
 	struct smh_open_s {
 		const char *fname;
 		unsigned long mode;
 		size_t len;
 	} open;
 
-	debug("%s: file \'%s\', mode \'%u\'\n", __func__, fname, mode);
+	debug("%s: file \'%s\', mode \'%s\'\n", __func__, fname, modestr);
+
+	/* Check the file mode */
+	if (!(strcmp(modestr, "r"))) {
+		mode = MODE_READ;
+	} else if (!(strcmp(modestr, "rb"))) {
+		mode = MODE_READBIN;
+	} else {
+		printf("%s: ERROR mode \'%s\' not supported\n", __func__,
+		       modestr);
+		return -1;
+	}
 
 	open.fname = fname;
 	open.len = strlen(fname);
@@ -98,26 +75,23 @@ long smh_open(const char *fname, enum smh_open_mode mode)
 	/* Open the file on the host */
 	fd = smh_trap(SYSOPEN, &open);
 	if (fd == -1)
-		return smh_errno();
+		printf("%s: ERROR fd %ld for file \'%s\'\n", __func__, fd,
+		       fname);
+
 	return fd;
 }
 
-/**
- * struct smg_rdwr_s - Arguments for read and write
- * @fd: A file descriptor returned from smh_open()
- * @memp: Pointer to a buffer of memory of at least @len bytes
- * @len: The number of bytes to read or write
+/*
+ * Read 'len' bytes of file into 'memp'. Returns 0 on success, else failure
  */
-struct smh_rdwr_s {
-	long fd;
-	void *memp;
-	size_t len;
-};
-
-long smh_read(long fd, void *memp, size_t len)
+static long smh_read(long fd, void *memp, size_t len)
 {
 	long ret;
-	struct smh_rdwr_s read;
+	struct smh_read_s {
+		long fd;
+		void *memp;
+		size_t len;
+	} read;
 
 	debug("%s: fd %ld, memp %p, len %zu\n", __func__, fd, memp, len);
 
@@ -126,30 +100,25 @@ long smh_read(long fd, void *memp, size_t len)
 	read.len = len;
 
 	ret = smh_trap(SYSREAD, &read);
-	if (ret < 0)
-		return smh_errno();
-	return len - ret;
-}
+	if (ret < 0) {
+		/*
+		 * The ARM handler allows for returning partial lengths,
+		 * but in practice this never happens so rather than create
+		 * hard to maintain partial read loops and such, just fail
+		 * with an error message.
+		 */
+		printf("%s: ERROR ret %ld, fd %ld, len %zu memp %p\n",
+		       __func__, ret, fd, len, memp);
+		return -1;
+	}
 
-long smh_write(long fd, const void *memp, size_t len, ulong *written)
-{
-	long ret;
-	struct smh_rdwr_s write;
-
-	debug("%s: fd %ld, memp %p, len %zu\n", __func__, fd, memp, len);
-
-	write.fd = fd;
-	write.memp = (void *)memp;
-	write.len = len;
-
-	ret = smh_trap(SYSWRITE, &write);
-	*written = len - ret;
-	if (ret)
-		return smh_errno();
 	return 0;
 }
 
-long smh_close(long fd)
+/*
+ * Close the file using the file descriptor
+ */
+static long smh_close(long fd)
 {
 	long ret;
 
@@ -157,11 +126,15 @@ long smh_close(long fd)
 
 	ret = smh_trap(SYSCLOSE, &fd);
 	if (ret == -1)
-		return smh_errno();
-	return 0;
+		printf("%s: ERROR fd %ld\n", __func__, fd);
+
+	return ret;
 }
 
-long smh_flen(long fd)
+/*
+ * Get the file length from the file descriptor
+ */
+static long smh_len_fd(long fd)
 {
 	long ret;
 
@@ -169,40 +142,77 @@ long smh_flen(long fd)
 
 	ret = smh_trap(SYSFLEN, &fd);
 	if (ret == -1)
-		return smh_errno();
+		printf("%s: ERROR ret %ld, fd %ld\n", __func__, ret, fd);
+
 	return ret;
 }
 
-long smh_seek(long fd, long pos)
+static int smh_load_file(const char * const name, ulong load_addr,
+			 ulong *end_addr)
 {
+	long fd;
+	long len;
 	long ret;
-	struct smh_seek_s {
-		long fd;
-		long pos;
-	} seek;
 
-	debug("%s: fd %ld pos %ld\n", __func__, fd, pos);
+	fd = smh_open(name, "rb");
+	if (fd == -1)
+		return -1;
 
-	seek.fd = fd;
-	seek.pos = pos;
+	len = smh_len_fd(fd);
+	if (len < 0) {
+		smh_close(fd);
+		return -1;
+	}
 
-	ret = smh_trap(SYSSEEK, &seek);
-	if (ret)
-		return smh_errno();
+	ret = smh_read(fd, (void *)load_addr, len);
+	smh_close(fd);
+
+	if (ret == 0) {
+		*end_addr = load_addr + len - 1;
+		printf("loaded file %s from %08lX to %08lX, %08lX bytes\n",
+		       name,
+		       load_addr,
+		       *end_addr,
+		       len);
+	} else {
+		printf("read failed\n");
+		return 0;
+	}
+
 	return 0;
 }
 
-int smh_getc(void)
+static int do_smhload(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
-	return smh_trap(SYSREADC, NULL);
+	if (argc == 3 || argc == 4) {
+		ulong load_addr;
+		ulong end_addr = 0;
+		int ret;
+		char end_str[64];
+
+		load_addr = hextoul(argv[2], NULL);
+		if (!load_addr)
+			return -1;
+
+		ret = smh_load_file(argv[1], load_addr, &end_addr);
+		if (ret < 0)
+			return CMD_RET_FAILURE;
+
+		/* Optionally save returned end to the environment */
+		if (argc == 4) {
+			sprintf(end_str, "0x%08lx", end_addr);
+			env_set(argv[3], end_str);
+		}
+	} else {
+		return CMD_RET_USAGE;
+	}
+	return 0;
 }
 
-void smh_putc(char ch)
-{
-	smh_trap(SYSWRITEC, &ch);
-}
-
-void smh_puts(const char *s)
-{
-	smh_trap(SYSWRITE0, (char *)s);
-}
+U_BOOT_CMD(smhload, 4, 0, do_smhload, "load a file using semihosting",
+	   "<file> 0x<address> [end var]\n"
+	   "    - load a semihosted file to the address specified\n"
+	   "      if the optional [end var] is specified, the end\n"
+	   "      address of the file will be stored in this environment\n"
+	   "      variable.\n");

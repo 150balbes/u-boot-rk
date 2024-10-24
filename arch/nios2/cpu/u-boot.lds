@@ -32,8 +32,8 @@ SECTIONS
 	 */
 
 	. = ALIGN(4);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	/* INIT DATA sections - "Small" data (see the gcc -G option)

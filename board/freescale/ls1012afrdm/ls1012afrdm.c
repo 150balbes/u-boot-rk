@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2017-2018, 2021 NXP
+ * Copyright 2017-2018 NXP
  */
 
 #include <common.h>
@@ -22,6 +22,7 @@
 #include <env_internal.h>
 #include <fsl_mmdc.h>
 #include <netdev.h>
+#include <fsl_sec.h>
 #include <net/pfe_eth/pfe/pfe_hw.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -170,6 +171,10 @@ int board_init(void)
 	 */
 	if (current_el() == 3)
 		out_le32(&cci->ctrl_ord, CCI400_CTRLORD_EN_BARRIER);
+
+#ifdef CONFIG_FSL_CAAM
+	sec_init();
+#endif
 
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();

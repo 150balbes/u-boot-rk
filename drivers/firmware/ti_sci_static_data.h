@@ -16,7 +16,7 @@ struct ti_sci_resource_static_data {
 
 #if IS_ENABLED(CONFIG_K3_DM_FW)
 
-#if IS_ENABLED(CONFIG_SOC_K3_J721E)
+#if IS_ENABLED(CONFIG_TARGET_J721E_R5_EVM)
 static struct ti_sci_resource_static_data rm_static_data[] = {
 	/* Free rings */
 	{
@@ -48,9 +48,43 @@ static struct ti_sci_resource_static_data rm_static_data[] = {
 	},
 	{ },
 };
-#endif /* CONFIG_SOC_K3_J721E */
+#endif /* CONFIG_TARGET_J721E_R5_EVM */
 
-#if IS_ENABLED(CONFIG_SOC_K3_J721S2)
+#if IS_ENABLED(CONFIG_TARGET_J7200_R5_EVM)
+static struct ti_sci_resource_static_data rm_static_data[] = {
+	/* Free rings */
+	{
+		.dev_id = 235,
+		.subtype = 1,
+		.range_start = 124,
+		.range_num = 32,
+	},
+	/* TX channels */
+	{
+		.dev_id = 236,
+		.subtype = 13,
+		.range_start = 6,
+		.range_num = 2,
+	},
+	/* RX channels */
+	{
+		.dev_id = 236,
+		.subtype = 10,
+		.range_start = 6,
+		.range_num = 2,
+	},
+	/* RX Free flows */
+	{
+		.dev_id = 236,
+		.subtype = 0,
+		.range_start = 60,
+		.range_num = 8,
+	},
+	{ },
+};
+#endif /* CONFIG_TARGET_J7200_R5_EVM */
+
+#if IS_ENABLED(CONFIG_TARGET_J721S2_R5_EVM)
 static struct ti_sci_resource_static_data rm_static_data[] = {
 	/* Free rings */
 	{
@@ -82,20 +116,7 @@ static struct ti_sci_resource_static_data rm_static_data[] = {
 	},
 	{ },
 };
-#endif /* CONFIG_SOC_K3_J721S2 */
-
-#if IS_ENABLED(CONFIG_SOC_K3_AM625)
-static struct ti_sci_resource_static_data rm_static_data[] = {
-	/* BC channels */
-	{
-		.dev_id = 26,
-		.subtype = 32,
-		.range_start = 18,
-		.range_num = 2,
-	},
-	{ },
-};
-#endif /* CONFIG_SOC_K3_AM625 */
+#endif /* CONFIG_TARGET_J721S2_R5_EVM */
 
 #else
 static struct ti_sci_resource_static_data rm_static_data[] = {

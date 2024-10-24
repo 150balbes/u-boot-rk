@@ -25,6 +25,7 @@
  */
 
 #include <common.h>
+#include <flash.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
 #include <linux/stat.h>
@@ -42,7 +43,7 @@ struct cramfs_super super;
 /* CPU address space offset calculation macro, struct part_info offset is
  * device address space offset, so we need to shift it by a device start address. */
 #if defined(CONFIG_MTD_NOR_FLASH)
-#include <flash.h>
+extern flash_info_t flash_info[];
 #define PART_OFFSET(x)	((ulong)x->offset + \
 			 flash_info[x->dev->id->num].start[0])
 #else

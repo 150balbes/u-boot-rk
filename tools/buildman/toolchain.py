@@ -441,7 +441,7 @@ class Toolchains:
             args = args[:m.start(0)] + value + args[m.end(0):]
         return args
 
-    def GetMakeArguments(self, brd):
+    def GetMakeArguments(self, board):
         """Returns 'make' arguments for a given board
 
         The flags are in a section called 'make-flags'. Flags are named
@@ -462,13 +462,13 @@ class Toolchains:
         A special 'target' variable is set to the board target.
 
         Args:
-            brd: Board object for the board to check.
+            board: Board object for the board to check.
         Returns:
             'make' flags for that board, or '' if none
         """
-        self._make_flags['target'] = brd.target
+        self._make_flags['target'] = board.target
         arg_str = self.ResolveReferences(self._make_flags,
-                           self._make_flags.get(brd.target, ''))
+                           self._make_flags.get(board.target, ''))
         args = re.findall("(?:\".*?\"|\S)+", arg_str)
         i = 0
         while i < len(args):

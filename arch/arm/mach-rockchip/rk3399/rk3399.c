@@ -27,7 +27,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define GRF_BASE	0xff770000
 
 const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
-	[BROM_BOOTSOURCE_EMMC] = "/mmc@fe330000",
+	[BROM_BOOTSOURCE_EMMC] = "/sdhci@fe330000",
 	[BROM_BOOTSOURCE_SPINOR] = "/spi@ff1d0000/flash@0",
 	[BROM_BOOTSOURCE_SD] = "/mmc@fe320000",
 };
@@ -180,9 +180,9 @@ const char *spl_decode_boot_device(u32 boot_device)
 		u32 boot_device;
 		const char *ofpath;
 	} spl_boot_devices_tbl[] = {
-		{ BOOT_DEVICE_MMC2, "/mmc@fe320000" },
-		{ BOOT_DEVICE_MMC1, "/mmc@fe330000" },
-		{ BOOT_DEVICE_SPI, "/spi@ff1d0000/flash@0" },
+		{ BOOT_DEVICE_MMC1, "/mmc@fe320000" },
+		{ BOOT_DEVICE_MMC2, "/sdhci@fe330000" },
+		{ BOOT_DEVICE_SPI, "/spi@ff1d0000" },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(spl_boot_devices_tbl); ++i)
@@ -285,32 +285,3 @@ void spl_board_init(void)
 #endif
 }
 #endif
-
-#if defined(CONFIG_USB_GADGET)
-#include <usb.h>
-
-#if defined(CONFIG_USB_DWC3_GADGET) && !defined(CONFIG_DM_USB_GADGET)
-#include <dwc3-uboot.h>
-
-static struct dwc3_device dwc3_device_data = {
-	.maximum_speed = USB_SPEED_HIGH,
-	.base = 0xfe800000,
-	.dr_mode = USB_DR_MODE_PERIPHERAL,
-	.index = 0,
-	.dis_u2_susphy_quirk = 1,
-	.hsphy_mode = USBPHY_INTERFACE_MODE_UTMIW,
-};
-
-int usb_gadget_handle_interrupts(int index)
-{
-	dwc3_uboot_handle_interrupt(0);
-	return 0;
-}
-
-int board_usb_init(int index, enum usb_init_type init)
-{
-	return dwc3_uboot_init(&dwc3_device_data);
-}
-#endif /* CONFIG_USB_DWC3_GADGET */
-
-#endif /* CONFIG_USB_GADGET */

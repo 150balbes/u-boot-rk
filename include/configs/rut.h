@@ -21,8 +21,12 @@
  /* Physical Memory Map */
 #define CONFIG_MAX_RAM_BANK_SIZE	(256 << 20) /* 256 MiB */
 
+#define CONFIG_FACTORYSET
+
 /* Watchdog */
 #define WATCHDOG_TRIGGER_GPIO	14
+
+#ifndef CONFIG_SPL_BUILD
 
 /* Use common default */
 
@@ -56,5 +60,21 @@
 		"run mmc_load_uimage; " \
 		"bootm ${kloadaddr}\0" \
 	""
+
+#ifndef CONFIG_RESTORE_FLASH
+/* set to negative value for no autoboot */
+#endif
+
+#endif /* CONFIG_SPL_BUILD */
+
+#if defined(CONFIG_VIDEO)
+#define CONFIG_VIDEO_DA8XX
+#define CONFIG_VIDEO_BMP_LOGO
+#define DA8XX_LCD_CNTL_BASE	LCD_CNTL_BASE
+
+#define BOARD_LCD_RESET		115	/* Bank 3 pin 19 */
+#define CONFIG_FORMIKE
+#define DISPL_PLL_SPREAD_SPECTRUM
+#endif
 
 #endif	/* ! __CONFIG_RUT_H */

@@ -31,13 +31,11 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_rgmii_pins>;
+	pinctrl-0 = <&gmac_pins_rgmii_a>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
-};
 
-&mdio {
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};
@@ -53,6 +51,6 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_ph_pins>;
+	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };

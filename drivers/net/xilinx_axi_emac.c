@@ -9,7 +9,6 @@
 #include <config.h>
 #include <common.h>
 #include <cpu_func.h>
-#include <display_options.h>
 #include <dm.h>
 #include <log.h>
 #include <net.h>
@@ -20,7 +19,6 @@
 #include <miiphy.h>
 #include <wait_bit.h>
 #include <linux/delay.h>
-#include <eth_phy.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -296,9 +294,6 @@ static int axiemac_phy_init(struct udevice *dev)
 
 	/* Set default MDIO divisor */
 	writel(XAE_MDIO_DIV_DFT | XAE_MDIO_MC_MDIOEN_MASK, &regs->mdio_mc);
-
-	if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-		priv->phyaddr = eth_phy_get_addr(dev);
 
 	if (priv->phyaddr == -1) {
 		/* Detect the PHY address */
@@ -783,28 +778,17 @@ static int axi_emac_probe(struct udevice *dev)
 		priv->phy_of_handle = plat->phy_of_handle;
 		priv->interface = pdata->phy_interface;
 
-		if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-			priv->bus = eth_phy_get_mdio_bus(dev);
+		priv->bus = mdio_alloc();
+		priv->bus->read = axiemac_miiphy_read;
+		priv->bus->write = axiemac_miiphy_write;
+		priv->bus->priv = priv;
 
-		if (!priv->bus) {
-			priv->bus = mdio_alloc();
-			priv->bus->read = axiemac_miiphy_read;
-			priv->bus->write = axiemac_miiphy_write;
-			priv->bus->priv = priv;
-
-			ret = mdio_register_seq(priv->bus, dev_seq(dev));
-			if (ret)
-				return ret;
-		}
-
-		if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-			eth_phy_set_mdio_bus(dev, priv->bus);
+		ret = mdio_register_seq(priv->bus, dev_seq(dev));
+		if (ret)
+			return ret;
 
 		axiemac_phy_init(dev);
 	}
-
-	printf("AXI EMAC: %lx, phyaddr %d, interface %s\n", (ulong)pdata->iobase,
-	       priv->phyaddr, phy_string_for_interface(pdata->phy_interface));
 
 	return 0;
 }
@@ -837,6 +821,7 @@ static int axi_emac_of_to_plat(struct udevice *dev)
 	struct eth_pdata *pdata = &plat->eth_pdata;
 	int node = dev_of_offset(dev);
 	int offset = 0;
+	const char *phy_mode;
 
 	pdata->iobase = dev_read_addr(dev);
 	plat->mactype = dev_get_driver_data(dev);
@@ -860,20 +845,26 @@ static int axi_emac_of_to_plat(struct udevice *dev)
 		offset = fdtdec_lookup_phandle(gd->fdt_blob, node,
 					       "phy-handle");
 		if (offset > 0) {
-			if (!(IS_ENABLED(CONFIG_DM_ETH_PHY)))
-				plat->phyaddr = fdtdec_get_int(gd->fdt_blob,
-							       offset,
-							       "reg", -1);
+			plat->phyaddr = fdtdec_get_int(gd->fdt_blob, offset,
+						       "reg", -1);
 			plat->phy_of_handle = offset;
 		}
 
-		pdata->phy_interface = dev_read_phy_mode(dev);
-		if (pdata->phy_interface == PHY_INTERFACE_MODE_NA)
+		phy_mode = fdt_getprop(gd->fdt_blob, node, "phy-mode", NULL);
+		if (phy_mode)
+			pdata->phy_interface = phy_get_interface_by_name(phy_mode);
+		if (pdata->phy_interface == -1) {
+			printf("%s: Invalid PHY interface '%s'\n", __func__,
+			       phy_mode);
 			return -EINVAL;
+		}
 
 		plat->eth_hasnobuf = fdtdec_get_bool(gd->fdt_blob, node,
 						     "xlnx,eth-hasnobuf");
 	}
+
+	printf("AXI EMAC: %lx, phyaddr %d, interface %s\n", (ulong)pdata->iobase,
+	       plat->phyaddr, phy_string_for_interface(pdata->phy_interface));
 
 	return 0;
 }

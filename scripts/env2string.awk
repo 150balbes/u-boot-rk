@@ -81,10 +81,7 @@ END {
 	if (do_output) {
 		printf("%s", "#define CONFIG_EXTRA_ENV_TEXT \"")
 
-		# Print out all the variables by alphabetic order, if using
-		# gawk. This allows test_env_test.py to work on both awk (where
-		# this next line does nothing)
-		PROCINFO["sorted_in"] = "@ind_str_asc"
+		# Print out all the variables
 		for (var in vars) {
 			env = vars[var]
 			print var "=" vars[var] "\\0"

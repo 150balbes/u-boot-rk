@@ -22,12 +22,10 @@
 		cpu0: PowerPC,P2020@0 {
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
 		};
 		cpu1: PowerPC,P2020@1 {
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
 		};
 	};
 };

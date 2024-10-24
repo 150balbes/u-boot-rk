@@ -1254,6 +1254,7 @@ static const struct eth_ops ag7xxx_eth_ops = {
 static int ag7xxx_eth_of_to_plat(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_plat(dev);
+	const char *phy_mode;
 	int ret;
 
 	pdata->iobase = dev_read_addr(dev);
@@ -1264,9 +1265,13 @@ static int ag7xxx_eth_of_to_plat(struct udevice *dev)
 	if (ret <= 0)
 		return ret;
 
-	pdata->phy_interface = dev_read_phy_mode(dev);
-	if (pdata->phy_interface == PHY_INTERFACE_MODE_NA)
+	phy_mode = fdt_getprop(gd->fdt_blob, ret, "phy-mode", NULL);
+	if (phy_mode)
+		pdata->phy_interface = phy_get_interface_by_name(phy_mode);
+	if (pdata->phy_interface == -1) {
+		debug("%s: Invalid PHY interface '%s'\n", __func__, phy_mode);
 		return -EINVAL;
+	}
 
 	return 0;
 }

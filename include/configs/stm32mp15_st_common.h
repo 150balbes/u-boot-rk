@@ -2,21 +2,13 @@
 /*
  * Copyright (C) 2021, STMicroelectronics - All Rights Reserved
  *
- * Configuration settings for the STMicroelectronics STM32MP15x boards
+ * Configuration settings for the STMicroelectonics STM32MP15x boards
  */
 
 #ifndef __CONFIG_STM32MP15_ST_COMMON_H__
 #define __CONFIG_STM32MP15_ST_COMMON_H__
 
-#define STM32MP_BOARD_EXTRA_ENV \
-	"console=ttySTM0\0"
-
 #include <configs/stm32mp15_common.h>
-
-/* uart with on-board st-link */
-#define CONFIG_SYS_BAUDRATE_TABLE      { 9600, 19200, 38400, 57600, 115200, \
-					 230400, 460800, 921600, \
-					 1000000, 2000000 }
 
 #ifdef CONFIG_EXTRA_ENV_SETTINGS
 /*
@@ -48,8 +40,7 @@
 	ST_STM32MP1_BOOTCMD \
 	STM32MP_PARTS_DEFAULT \
 	BOOTENV \
-	STM32MP_EXTRA \
-	STM32MP_BOARD_EXTRA_ENV
+	STM32MP_EXTRA
 
 #endif
 #endif

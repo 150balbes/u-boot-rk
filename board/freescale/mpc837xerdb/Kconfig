@@ -1,8 +1,5 @@
 if TARGET_MPC837XERDB
 
-config PCIE
-	def_bool y
-
 config SYS_BOARD
 	default "mpc837xerdb"
 

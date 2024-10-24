@@ -18,7 +18,6 @@
 #include <malloc.h>
 #include <mapmem.h>
 #include <sort.h>
-#include <sysreset.h>
 #include <asm/global_data.h>
 
 #include <crypto/pkcs7.h>
@@ -129,7 +128,6 @@ void set_capsule_result(int index, struct efi_capsule_header *capsule,
 /**
  * efi_fmp_find - search for Firmware Management Protocol drivers
  * @image_type:		Image type guid
- * @image_index:	Image Index
  * @instance:		Instance number
  * @handles:		Handles of FMP drivers
  * @no_handles:		Number of handles
@@ -143,8 +141,8 @@ void set_capsule_result(int index, struct efi_capsule_header *capsule,
  * * NULL		- on failure
  */
 static struct efi_firmware_management_protocol *
-efi_fmp_find(efi_guid_t *image_type, u8 image_index, u64 instance,
-	     efi_handle_t *handles, efi_uintn_t no_handles)
+efi_fmp_find(efi_guid_t *image_type, u64 instance, efi_handle_t *handles,
+	     efi_uintn_t no_handles)
 {
 	efi_handle_t *handle;
 	struct efi_firmware_management_protocol *fmp;
@@ -205,7 +203,6 @@ efi_fmp_find(efi_guid_t *image_type, u8 image_index, u64 instance,
 			log_debug("+++ desc[%d] index: %d, name: %ls\n",
 				  j, desc->image_index, desc->image_id_name);
 			if (!guidcmp(&desc->image_type_id, image_type) &&
-			    (desc->image_index == image_index) &&
 			    (!instance ||
 			     !desc->hardware_instance ||
 			      desc->hardware_instance == instance))
@@ -452,8 +449,8 @@ static efi_status_t efi_capsule_update_firmware(
 		}
 
 		/* find a device for update firmware */
+		/* TODO: should we pass index as well, or nothing but type? */
 		fmp = efi_fmp_find(&image->update_image_type_id,
-				   image->update_image_index,
 				   image->update_hardware_instance,
 				   handles, no_handles);
 		if (!fmp) {
@@ -620,36 +617,6 @@ efi_status_t EFIAPI efi_query_capsule_caps(
 	}
 out:
 	return EFI_EXIT(ret);
-}
-
-/**
- * efi_load_capsule_drivers - initialize capsule drivers
- *
- * Generic FMP drivers backed by DFU
- *
- * Return:	status code
- */
-efi_status_t __weak efi_load_capsule_drivers(void)
-{
-	__maybe_unused efi_handle_t handle;
-	efi_status_t ret = EFI_SUCCESS;
-
-	if (IS_ENABLED(CONFIG_EFI_CAPSULE_FIRMWARE_FIT)) {
-		handle = NULL;
-		ret = EFI_CALL(efi_install_multiple_protocol_interfaces(
-				&handle, &efi_guid_firmware_management_protocol,
-				&efi_fmp_fit, NULL));
-	}
-
-	if (IS_ENABLED(CONFIG_EFI_CAPSULE_FIRMWARE_RAW)) {
-		handle = NULL;
-		ret = EFI_CALL(efi_install_multiple_protocol_interfaces(
-				&handle,
-				&efi_guid_firmware_management_protocol,
-				&efi_fmp_raw, NULL));
-	}
-
-	return ret;
 }
 
 #ifdef CONFIG_EFI_CAPSULE_ON_DISK
@@ -1048,6 +1015,36 @@ static void efi_capsule_scan_done(void)
 }
 
 /**
+ * efi_load_capsule_drivers - initialize capsule drivers
+ *
+ * Generic FMP drivers backed by DFU
+ *
+ * Return:	status code
+ */
+efi_status_t __weak efi_load_capsule_drivers(void)
+{
+	__maybe_unused efi_handle_t handle;
+	efi_status_t ret = EFI_SUCCESS;
+
+	if (IS_ENABLED(CONFIG_EFI_CAPSULE_FIRMWARE_FIT)) {
+		handle = NULL;
+		ret = EFI_CALL(efi_install_multiple_protocol_interfaces(
+				&handle, &efi_guid_firmware_management_protocol,
+				&efi_fmp_fit, NULL));
+	}
+
+	if (IS_ENABLED(CONFIG_EFI_CAPSULE_FIRMWARE_RAW)) {
+		handle = NULL;
+		ret = EFI_CALL(efi_install_multiple_protocol_interfaces(
+				&handle,
+				&efi_guid_firmware_management_protocol,
+				&efi_fmp_raw, NULL));
+	}
+
+	return ret;
+}
+
+/**
  * check_run_capsules() - check whether capsule update should run
  *
  * The spec says OsIndications must be set in order to run the capsule update
@@ -1058,15 +1055,14 @@ static void efi_capsule_scan_done(void)
  */
 static efi_status_t check_run_capsules(void)
 {
-	u64 os_indications = 0x0;
+	u64 os_indications;
 	efi_uintn_t size;
 	efi_status_t r;
 
 	size = sizeof(os_indications);
 	r = efi_get_variable_int(u"OsIndications", &efi_global_variable_guid,
 				 NULL, &size, &os_indications, NULL);
-	if (!IS_ENABLED(CONFIG_EFI_IGNORE_OSINDICATIONS) &&
-	    (r != EFI_SUCCESS || size != sizeof(os_indications)))
+	if (r != EFI_SUCCESS || size != sizeof(os_indications))
 		return EFI_NOT_FOUND;
 
 	if (os_indications &
@@ -1085,7 +1081,7 @@ static efi_status_t check_run_capsules(void)
 		return EFI_SUCCESS;
 	} else if (IS_ENABLED(CONFIG_EFI_IGNORE_OSINDICATIONS)) {
 		return EFI_SUCCESS;
-	} else {
+	} else  {
 		return EFI_NOT_FOUND;
 	}
 }
@@ -1161,9 +1157,9 @@ efi_status_t efi_launch_capsules(void)
 	 * UEFI spec requires to reset system after complete processing capsule
 	 * update on the storage.
 	 */
-	log_info("Reboot after firmware update.\n");
+	log_info("Reboot after firmware update");
 	/* Cold reset is required for loading the new firmware. */
-	sysreset_walk_halt(SYSRESET_COLD);
+	do_reset(NULL, 0, 0, NULL);
 	hang();
 	/* not reach here */
 

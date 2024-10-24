@@ -107,9 +107,9 @@ int board_init(void)
 	}
 	boot_temp_check();
 #endif
-#if CONFIG_VAL(SYS_MEM_TOP_HIDE)
+#ifdef CONFIG_TZSW_RESERVED_DRAM_SIZE
 	/* The last few MB of memory can be reserved for secure firmware */
-	ulong size = CONFIG_SYS_MEM_TOP_HIDE;
+	ulong size = CONFIG_TZSW_RESERVED_DRAM_SIZE;
 
 	gd->ram_size -= size;
 	gd->bd->bi_dram[CONFIG_NR_DRAM_BANKS - 1].size -= size;

@@ -10,7 +10,6 @@
 
 #include <common.h>
 #include <clk.h>
-#include <display_options.h>
 #include <dm.h>
 #include <log.h>
 #include <mmc.h>

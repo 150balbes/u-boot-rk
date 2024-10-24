@@ -137,7 +137,9 @@ static int bcm6368_usbh_probe(struct udevice *dev)
 	if (ret < 0)
 		return ret;
 
-	clk_free(&clk);
+	ret = clk_free(&clk);
+	if (ret < 0)
+		return ret;
 
 #if defined(CONFIG_POWER_DOMAIN)
 	/* enable power domain */
@@ -174,7 +176,9 @@ static int bcm6368_usbh_probe(struct udevice *dev)
 		if (ret < 0)
 			return ret;
 
-		clk_free(&clk);
+		ret = clk_free(&clk);
+		if (ret < 0)
+			return ret;
 	}
 
 	mdelay(100);

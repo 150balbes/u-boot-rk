@@ -65,7 +65,7 @@ int timer_init(void)
 	/* Enable System Counter */
 	writel(SYS_COUNTER_CTRL_ENABLE, &sctr->cntcr);
 
-	freq = CONFIG_COUNTER_FREQUENCY;
+	freq = COUNTER_FREQUENCY;
 	asm("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
 
 	/* Set PL1 Physical Timer Ctrl */

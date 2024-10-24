@@ -137,8 +137,7 @@ void arch_lmb_reserve(struct lmb *lmb)
 
 	if (size < bootm_size) {
 		ulong base = bootmap_base + size;
-		printf("WARNING: adjusting available memory from 0x%lx to 0x%llx\n",
-		       size, (unsigned long long)bootm_size);
+		printf("WARNING: adjusting available memory to %lx\n", size);
 		lmb_reserve(lmb, base, bootm_size - size);
 	}
 
@@ -214,11 +213,9 @@ static int boot_body_linux(bootm_headers_t *images)
 	if (ret)
 		return ret;
 
-	if (CONFIG_IS_ENABLED(LMB)) {
-		ret = image_setup_linux(images);
-		if (ret)
-			return ret;
-	}
+	ret = image_setup_linux(images);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -269,6 +266,12 @@ static void set_clocks_in_mhz (struct bd_info *kbd)
 		/* convert all clock information to MHz */
 		kbd->bi_intfreq /= 1000000L;
 		kbd->bi_busfreq /= 1000000L;
+#if defined(CONFIG_CPM2)
+		kbd->bi_cpmfreq /= 1000000L;
+		kbd->bi_brgfreq /= 1000000L;
+		kbd->bi_sccfreq /= 1000000L;
+		kbd->bi_vco	/= 1000000L;
+#endif
 	}
 }
 

@@ -184,6 +184,16 @@ struct uniphier_reset_priv {
 	const struct uniphier_reset_data *data;
 };
 
+static int uniphier_reset_request(struct reset_ctl *reset_ctl)
+{
+	return 0;
+}
+
+static int uniphier_reset_free(struct reset_ctl *reset_ctl)
+{
+	return 0;
+}
+
 static int uniphier_reset_update(struct reset_ctl *reset_ctl, int assert)
 {
 	struct uniphier_reset_priv *priv = dev_get_priv(reset_ctl->dev);
@@ -229,6 +239,8 @@ static int uniphier_reset_deassert(struct reset_ctl *reset_ctl)
 }
 
 static const struct reset_ops uniphier_reset_ops = {
+	.request = uniphier_reset_request,
+	.rfree = uniphier_reset_free,
 	.rst_assert = uniphier_reset_assert,
 	.rst_deassert = uniphier_reset_deassert,
 };

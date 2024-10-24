@@ -355,7 +355,9 @@ static int bcm63xx_hsspi_probe(struct udevice *dev)
 	if (ret < 0 && ret != -ENOSYS)
 		return ret;
 
-	clk_free(&clk);
+	ret = clk_free(&clk);
+	if (ret < 0 && ret != -ENOSYS)
+		return ret;
 
 	/* get clock rate */
 	ret = clk_get_by_name(dev, "pll", &clk);
@@ -364,7 +366,9 @@ static int bcm63xx_hsspi_probe(struct udevice *dev)
 
 	priv->clk_rate = clk_get_rate(&clk);
 
-	clk_free(&clk);
+	ret = clk_free(&clk);
+	if (ret < 0 && ret != -ENOSYS)
+		return ret;
 
 	/* perform reset */
 	ret = reset_get_by_index(dev, 0, &rst_ctl);

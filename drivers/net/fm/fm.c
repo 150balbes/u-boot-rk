@@ -388,7 +388,7 @@ int fm_init_common(int index, struct ccsr_fman *reg)
 
 		/* speed and mode will be read from DT */
 		ret = spi_flash_probe_bus_cs(CONFIG_SF_DEFAULT_BUS,
-					     CONFIG_SF_DEFAULT_CS, &new);
+					     CONFIG_SF_DEFAULT_CS, 0, 0, &new);
 
 		ucode_flash = dev_get_uclass_priv(new);
 #else
@@ -475,7 +475,7 @@ int fm_init_common(int index, struct ccsr_fman *reg)
 
 	/* speed and mode will be read from DT */
 	ret = spi_flash_probe_bus_cs(CONFIG_SF_DEFAULT_BUS, CONFIG_SF_DEFAULT_CS,
-				     &new);
+				     0, 0, &new);
 
 	ucode_flash = dev_get_uclass_priv(new);
 #else

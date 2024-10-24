@@ -12,7 +12,6 @@
 #include <image.h>
 #include <init.h>
 #include <log.h>
-#include <semihosting.h>
 #include <spl.h>
 #include <asm/cache.h>
 #include <asm/global_data.h>
@@ -28,8 +27,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 u32 spl_boot_device(void)
 {
-	if (semihosting_enabled())
-		return BOOT_DEVICE_SMH;
 #ifdef CONFIG_SPL_MMC
 	return BOOT_DEVICE_MMC1;
 #endif

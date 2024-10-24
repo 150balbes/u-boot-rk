@@ -26,6 +26,4 @@ struct host_block_dev {
  */
 int host_dev_bind(int dev, char *filename, bool removable);
 
-int host_get_dev_err(int dev, struct blk_desc **blk_devp);
-
 #endif

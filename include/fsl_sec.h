@@ -3,7 +3,7 @@
  * Common internal memory map for some Freescale SoCs
  *
  * Copyright 2014 Freescale Semiconductor, Inc.
- * Copyright 2018, 2021 NXP
+ * Copyright 2018 NXP
  */
 
 #ifndef __FSL_SEC_H
@@ -48,11 +48,7 @@ struct rng4tst {
 	u32 rtmctl;		/* misc. control register */
 	u32 rtscmisc;		/* statistical check misc. register */
 	u32 rtpkrrng;		/* poker range register */
-#ifdef CONFIG_MX6SX
-#define RTSDCTL_ENT_DLY		12000
-#else
-#define RTSDCTL_ENT_DLY		3200
-#endif
+#define RTSDCTL_ENT_DLY_MIN	3200
 #define RTSDCTL_ENT_DLY_MAX	12800
 	union {
 		u32 rtpkrmax;	/* PRGM=1: poker max. limit register */
@@ -198,10 +194,12 @@ typedef struct ccsr_sec {
 #define SEC_CHAVID_LS_RNG_SHIFT		16
 #define SEC_CHAVID_RNG_LS_MASK		0x000f0000
 
+#define CONFIG_JRSTARTR_JR0		0x00000001
+
 struct jr_regs {
 #if defined(CONFIG_SYS_FSL_SEC_LE) && \
 	!(defined(CONFIG_MX6) || defined(CONFIG_MX7) || \
-	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8))
+	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M))
 	u32 irba_l;
 	u32 irba_h;
 #else
@@ -216,7 +214,7 @@ struct jr_regs {
 	u32 irja;
 #if defined(CONFIG_SYS_FSL_SEC_LE) && \
 	!(defined(CONFIG_MX6) || defined(CONFIG_MX7) || \
-	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8))
+	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M))
 	u32 orba_l;
 	u32 orba_h;
 #else
@@ -250,7 +248,7 @@ struct jr_regs {
 struct sg_entry {
 #if defined(CONFIG_SYS_FSL_SEC_LE) && \
 	!(defined(CONFIG_MX6) || defined(CONFIG_MX7) || \
-	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8))
+	  defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M))
 	uint32_t addr_lo;	/* Memory Address - lo */
 	uint32_t addr_hi;	/* Memory Address of start of buffer - hi */
 #else
@@ -270,7 +268,7 @@ struct sg_entry {
 };
 
 #if defined(CONFIG_MX6) || defined(CONFIG_MX7) || \
-	defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8)
+	defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M)
 /* Job Ring Base Address */
 #define JR_BASE_ADDR(x) (CONFIG_SYS_FSL_SEC_ADDR + 0x1000 * (x + 1))
 /* Secure Memory Offset varies accross versions */

@@ -8,4 +8,3 @@ Texas Instruments
 
    am335x_evm
    j721e_evm
-   am62x_sk

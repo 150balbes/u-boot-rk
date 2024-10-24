@@ -11,11 +11,14 @@ obj-$(CONFIG_EFI_LOADER) += efi_loader/
 obj-$(CONFIG_CMD_BOOTEFI_SELFTEST) += efi_selftest/
 obj-$(CONFIG_LZMA) += lzma/
 obj-$(CONFIG_BZIP2) += bzip2/
+obj-$(CONFIG_TIZEN) += tizen/
 obj-$(CONFIG_FIT) += libfdt/
 obj-$(CONFIG_OF_LIVE) += of_live.o
 obj-$(CONFIG_CMD_DHRYSTONE) += dhry/
 obj-$(CONFIG_ARCH_AT91) += at91/
 obj-$(CONFIG_OPTEE_LIB) += optee/
+obj-$(CONFIG_ASN1_DECODER) += asn1_decoder.o
+obj-y += crypto/
 
 obj-$(CONFIG_AES) += aes.o
 obj-$(CONFIG_AES) += aes/
@@ -35,7 +38,6 @@ endif
 
 obj-y += crc8.o
 obj-y += crc16.o
-obj-y += crc16-ccitt.o
 obj-$(CONFIG_ERRNO_STR) += errno_str.o
 obj-$(CONFIG_FIT) += fdtdec_common.o
 obj-$(CONFIG_TEST_FDTDEC) += fdtdec_test.o
@@ -62,8 +64,6 @@ obj-$(CONFIG_TPM_V1) += tpm-v1.o
 obj-$(CONFIG_TPM_V2) += tpm-v2.o
 endif
 
-obj-y += crypto/
-
 obj-$(CONFIG_$(SPL_TPL_)GENERATE_ACPI_TABLE) += acpi/
 obj-$(CONFIG_$(SPL_)MD5) += md5.o
 obj-$(CONFIG_ECDSA) += ecdsa/
@@ -74,7 +74,6 @@ obj-$(CONFIG_SHA1) += sha1.o
 obj-$(CONFIG_SHA256) += sha256.o
 obj-$(CONFIG_SHA512) += sha512.o
 obj-$(CONFIG_CRYPT_PW) += crypt/
-obj-$(CONFIG_$(SPL_)ASN1_DECODER) += asn1_decoder.o
 
 obj-$(CONFIG_$(SPL_)ZLIB) += zlib/
 obj-$(CONFIG_$(SPL_)ZSTD) += zstd/
@@ -91,9 +90,9 @@ obj-$(CONFIG_$(SPL_TPL_)OF_LIBFDT) += libfdt/
 obj-$(CONFIG_$(SPL_TPL_)OF_REAL) += fdtdec_common.o fdtdec.o
 
 ifdef CONFIG_SPL_BUILD
-obj-$(CONFIG_SPL_YMODEM_SUPPORT) += crc16-ccitt.o
-obj-$(CONFIG_$(SPL_TPL_)HASH) += crc16-ccitt.o
-obj-$(CONFIG_MMC_SPI_CRC_ON) += crc16-ccitt.o
+obj-$(CONFIG_SPL_YMODEM_SUPPORT) += crc16.o
+obj-$(CONFIG_$(SPL_TPL_)HASH) += crc16.o
+obj-$(CONFIG_MMC_SPI_CRC_ON) += crc16.o
 obj-y += net_utils.o
 endif
 obj-$(CONFIG_ADDR_MAP) += addr_map.o
@@ -136,9 +135,9 @@ obj-$(CONFIG_$(SPL_TPL_)STRTO) += strto.o
 else
 # Main U-Boot always uses the full printf support
 obj-y += vsprintf.o strto.o
+obj-$(CONFIG_OID_REGISTRY) += oid_registry.o
 obj-$(CONFIG_SSCANF) += sscanf.o
 endif
-obj-$(CONFIG_$(SPL_)OID_REGISTRY) += oid_registry.o
 
 obj-y += abuf.o
 obj-y += date.o

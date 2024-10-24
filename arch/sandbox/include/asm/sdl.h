@@ -94,11 +94,6 @@ static inline int sandbox_sdl_init_display(int width, int height, int log2_bpp,
 	return -ENODEV;
 }
 
-static inline int sandbox_sdl_remove_display(void)
-{
-	return -ENODEV;
-}
-
 static inline int sandbox_sdl_sync(void *lcd_base)
 {
 	return -ENODEV;

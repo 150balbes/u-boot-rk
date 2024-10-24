@@ -251,32 +251,24 @@ static int cdns_i2c_write_data(struct i2c_cdns_bus *i2c_bus, u32 addr, u8 *data,
 	u8 *cur_data = data;
 	struct cdns_i2c_regs *regs = i2c_bus->regs;
 	u32 ret;
-	bool start = 1;
 
 	/* Set the controller in Master transmit mode and clear FIFO */
 	setbits_le32(&regs->control, CDNS_I2C_CONTROL_CLR_FIFO);
 	clrbits_le32(&regs->control, CDNS_I2C_CONTROL_RW);
 
-	/*
-	 * For sequential data load hold the bus.
+	/* Check message size against FIFO depth, and set hold bus bit
+	 * if it is greater than FIFO depth
 	 */
-	if (len > 1)
+	if (len > CDNS_I2C_FIFO_DEPTH)
 		setbits_le32(&regs->control, CDNS_I2C_CONTROL_HOLD);
 
 	/* Clear the interrupts in status register */
 	writel(CDNS_I2C_INTERRUPTS_MASK, &regs->interrupt_status);
 
-	/* In case of Probe (i.e no data), start the transfer */
-	if (!len)
-		writel(addr, &regs->address);
+	writel(addr, &regs->address);
 
 	while (len-- && !is_arbitration_lost(regs)) {
 		writel(*(cur_data++), &regs->data);
-		/* Trigger write only after loading data */
-		if (start) {
-			writel(addr, &regs->address);
-			start = 0;
-		}
 		if (len && readl(&regs->transfer_size) == CDNS_I2C_FIFO_DEPTH) {
 			ret = cdns_i2c_wait(regs, CDNS_I2C_INTERRUPT_COMP |
 					    CDNS_I2C_INTERRUPT_ARBLOST);
@@ -383,6 +375,7 @@ static int cdns_i2c_read_data(struct i2c_cdns_bus *i2c_bus, u32 addr, u8 *data,
 				curr_recv_count = recv_count;
 			}
 		} else if (recv_count && !hold_quirk && !curr_recv_count) {
+			writel(addr, &regs->address);
 			if (recv_count > CDNS_I2C_TRANSFER_SIZE) {
 				writel(CDNS_I2C_TRANSFER_SIZE,
 				       &regs->transfer_size);
@@ -391,7 +384,6 @@ static int cdns_i2c_read_data(struct i2c_cdns_bus *i2c_bus, u32 addr, u8 *data,
 				writel(recv_count, &regs->transfer_size);
 				curr_recv_count = recv_count;
 			}
-			writel(addr, &regs->address);
 		}
 	}
 

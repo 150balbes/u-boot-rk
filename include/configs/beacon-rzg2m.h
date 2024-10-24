@@ -8,6 +8,9 @@
 
 #include "rcar-gen3-common.h"
 
+/* Ethernet RAVB */
+#define CONFIG_BITBANGMII_MULTI
+
 #undef CONFIG_EXTRA_ENV_SETTINGS
 
 #define CONFIG_EXTRA_ENV_SETTINGS		\

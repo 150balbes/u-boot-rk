@@ -9,7 +9,6 @@
 
 #include <common.h>
 #include <cpu.h>
-#include <display_options.h>
 #include <dm.h>
 #include <errno.h>
 #include <init.h>

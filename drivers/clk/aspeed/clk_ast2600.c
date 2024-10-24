@@ -471,7 +471,7 @@ static ulong ast2600_clk_get_rate(struct clk *clk)
 		rate = ast2600_get_uart_huxclk_rate(priv->scu);
 		break;
 	default:
-		debug("%s: unknown clk %ld\n", __func__, clk->id);
+		debug("can't get clk rate\n");
 		return -ENOENT;
 	}
 
@@ -1073,13 +1073,13 @@ static int ast2600_clk_enable(struct clk *clk)
 	case ASPEED_CLK_GATE_SDCLK:
 		ast2600_enable_sdclk(priv->scu);
 		break;
-	case ASPEED_CLK_SDIO:
+	case ASPEED_CLK_GATE_SDEXTCLK:
 		ast2600_enable_extsdclk(priv->scu);
 		break;
 	case ASPEED_CLK_GATE_EMMCCLK:
 		ast2600_enable_emmcclk(priv->scu);
 		break;
-	case ASPEED_CLK_EMMC:
+	case ASPEED_CLK_GATE_EMMCEXTCLK:
 		ast2600_enable_extemmcclk(priv->scu);
 		break;
 	case ASPEED_CLK_GATE_FSICLK:
@@ -1098,7 +1098,7 @@ static int ast2600_clk_enable(struct clk *clk)
 		ast2600_enable_rsaclk(priv->scu);
 		break;
 	default:
-		debug("%s: unknown clk %ld\n", __func__, clk->id);
+		pr_err("can't enable clk\n");
 		return -ENOENT;
 	}
 

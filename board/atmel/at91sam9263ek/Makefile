@@ -8,3 +8,4 @@
 # Lead Tech Design <www.leadtechdesign.com>
 
 obj-y += at91sam9263ek.o
+obj-$(CONFIG_AT91_LED) += led.o

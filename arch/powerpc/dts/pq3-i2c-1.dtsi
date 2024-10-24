@@ -12,5 +12,4 @@ i2c@3100 {
 	u-boot,dm-pre-reloc;
 	reg = <0x3100 0x100>;
 	interrupts = <43 2 0 0>;
-	dfsrr;
 };

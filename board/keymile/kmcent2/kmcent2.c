@@ -6,7 +6,6 @@
  * Copyright 2013 Freescale Semiconductor, Inc.
  */
 
-#include <event.h>
 #include <asm/cache.h>
 #include <asm/fsl_fdt.h>
 #include <asm/fsl_law.h>
@@ -182,7 +181,7 @@ unsigned long get_serial_clock(unsigned long dummy)
 	return (gd->bus_clk / 2);
 }
 
-static int kmcent2_misc_init_f(void *ctx, struct event *event)
+int misc_init_f(void)
 {
 	/* configure QRIO pis for i2c deblocking */
 	i2c_deblock_gpio_cfg();
@@ -210,7 +209,6 @@ static int kmcent2_misc_init_f(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_MISC_INIT_F, kmcent2_misc_init_f);
 
 #define USED_SRDS_BANK 0
 #define EXPECTED_SRDS_RFCK SRDS_PLLCR0_RFCK_SEL_100

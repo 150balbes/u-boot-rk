@@ -6,7 +6,6 @@
 #include <common.h>
 #include <command.h>
 #include <config.h>
-#include <display_options.h>
 #include <fuse.h>
 #include <mapmem.h>
 #include <image.h>

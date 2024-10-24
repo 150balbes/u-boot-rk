@@ -8,6 +8,7 @@
 #include <fdtdec.h>
 #include <errno.h>
 #include <dm.h>
+#include <i2c.h>
 #include <log.h>
 #include <asm/gpio.h>
 #include <power/pmic.h>

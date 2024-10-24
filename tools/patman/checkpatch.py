@@ -125,7 +125,7 @@ def check_patch_parse(checkpatch_output, verbose=False):
     Returns:
         namedtuple containing:
             ok: False=failure, True=ok
-            problems (list of problems): each a dict:
+            problems: List of problems, each a dict:
                 'type'; error or warning
                 'msg': text message
                 'file' : filename
@@ -186,7 +186,7 @@ def check_patch_parse(checkpatch_output, verbose=False):
     return result
 
 
-def check_patch(fname, verbose=False, show_types=False, use_tree=False):
+def check_patch(fname, verbose=False, show_types=False):
     """Run checkpatch.pl on a file and parse the results.
 
     Args:
@@ -194,7 +194,6 @@ def check_patch(fname, verbose=False, show_types=False, use_tree=False):
         verbose: True to print out every line of the checkpatch output as it is
             parsed
         show_types: Tell checkpatch to show the type (number) of each message
-        use_tree (bool): If False we'll pass '--no-tree' to checkpatch.
 
     Returns:
         namedtuple containing:
@@ -211,9 +210,7 @@ def check_patch(fname, verbose=False, show_types=False, use_tree=False):
             stdout: Full output of checkpatch
     """
     chk = find_check_patch()
-    args = [chk]
-    if not use_tree:
-        args.append('--no-tree')
+    args = [chk, '--no-tree']
     if show_types:
         args.append('--show-types')
     output = command.output(*args, fname, raise_on_error=False)
@@ -239,13 +236,13 @@ def get_warning_msg(col, msg_type, fname, line, msg):
     line_str = '' if line is None else '%d' % line
     return '%s:%s: %s: %s\n' % (fname, line_str, msg_type, msg)
 
-def check_patches(verbose, args, use_tree):
+def check_patches(verbose, args):
     '''Run the checkpatch.pl script on each patch'''
     error_count, warning_count, check_count = 0, 0, 0
     col = terminal.Color()
 
     for fname in args:
-        result = check_patch(fname, verbose, use_tree=use_tree)
+        result = check_patch(fname, verbose)
         if not result.ok:
             error_count += result.errors
             warning_count += result.warnings
@@ -255,8 +252,6 @@ def check_patches(verbose, args, use_tree):
             if (len(result.problems) != result.errors + result.warnings +
                     result.checks):
                 print("Internal error: some problems lost")
-            # Python seems to get confused by this
-            # pylint: disable=E1133
             for item in result.problems:
                 sys.stderr.write(
                     get_warning_msg(col, item.get('type', '<unknown>'),

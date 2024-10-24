@@ -70,8 +70,8 @@ SECTIONS
 	} >ram
 	PROVIDE (_egot = .);
 
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	} >ram
 
 	PROVIDE (__init_end = .);

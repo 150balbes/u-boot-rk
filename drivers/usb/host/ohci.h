@@ -151,7 +151,7 @@ struct ohci_hcca {
  * Maximum number of root hub ports.
  */
 #ifndef CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS
-#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 1
+# error "CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS undefined!"
 #endif
 
 /*

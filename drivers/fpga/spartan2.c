@@ -15,6 +15,7 @@
 #endif
 
 #undef CONFIG_SYS_FPGA_CHECK_BUSY
+#undef CONFIG_SYS_FPGA_PROG_FEEDBACK
 
 /* Note: The assumption is that we cannot possibly run fast enough to
  * overrun the device (the Slave Parallel mode can free run at 50MHz).
@@ -40,7 +41,7 @@ static int spartan2_ss_dump(xilinx_desc *desc, const void *buf, size_t bsize);
 /* ------------------------------------------------------------------------- */
 /* Spartan-II Generic Implementation */
 static int spartan2_load(xilinx_desc *desc, const void *buf, size_t bsize,
-			 bitstream_type bstype, int flags)
+			 bitstream_type bstype)
 {
 	int ret_val = FPGA_FAIL;
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * (C) Copyright 2014 STMicroelectronics
+ * (C) Copyright 2014 stmicroelectronics
  */
 
 #include <config.h>

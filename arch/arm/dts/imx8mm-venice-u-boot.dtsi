@@ -57,10 +57,6 @@
 	u-boot,dm-spl;
 };
 
-&gsc {
-	u-boot,dm-spl;
-};
-
 &i2c2 {
 	u-boot,dm-spl;
 };
@@ -70,9 +66,5 @@
 };
 
 &wdog1 {
-	u-boot,dm-spl;
-};
-
-&pinctrl_wdog {
 	u-boot,dm-spl;
 };

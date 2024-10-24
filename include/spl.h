@@ -14,7 +14,6 @@
 #include <asm/global_data.h>
 #include <asm/spl.h>
 #include <handoff.h>
-#include <mmc.h>
 
 struct blk_desc;
 struct image_header;
@@ -62,7 +61,6 @@ static inline bool u_boot_first_phase(void)
 enum u_boot_phase {
 	PHASE_NONE,	/* Invalid phase, signifying before U-Boot */
 	PHASE_TPL,	/* Running in TPL */
-	PHASE_VPL,	/* Running in VPL */
 	PHASE_SPL,	/* Running in SPL */
 	PHASE_BOARD_F,	/* Running in U-Boot before relocation */
 	PHASE_BOARD_R,	/* Running in U-Boot after relocation */
@@ -115,9 +113,7 @@ static inline enum u_boot_phase spl_phase(void)
 {
 #ifdef CONFIG_TPL_BUILD
 	return PHASE_TPL;
-#elif defined(CONFIG_VPL_BUILD)
-	return PHASE_VPL;
-#elif defined(CONFIG_SPL_BUILD)
+#elif CONFIG_SPL_BUILD
 	return PHASE_SPL;
 #else
 	DECLARE_GLOBAL_DATA_PTR;
@@ -139,15 +135,10 @@ static inline enum u_boot_phase spl_prev_phase(void)
 {
 #ifdef CONFIG_TPL_BUILD
 	return PHASE_NONE;
-#elif defined(CONFIG_VPL_BUILD)
-	return PHASE_TPL;	/* VPL requires TPL */
 #elif defined(CONFIG_SPL_BUILD)
-	return IS_ENABLED(CONFIG_VPL) ? PHASE_VPL :
-		IS_ENABLED(CONFIG_TPL) ? PHASE_TPL :
-		PHASE_NONE;
+	return IS_ENABLED(CONFIG_TPL) ? PHASE_TPL : PHASE_NONE;
 #else
-	return IS_ENABLED(CONFIG_SPL) ? PHASE_SPL :
-		PHASE_NONE;
+	return IS_ENABLED(CONFIG_SPL) ? PHASE_SPL : PHASE_NONE;
 #endif
 }
 
@@ -160,8 +151,6 @@ static inline enum u_boot_phase spl_prev_phase(void)
 static inline enum u_boot_phase spl_next_phase(void)
 {
 #ifdef CONFIG_TPL_BUILD
-	return IS_ENABLED(CONFIG_VPL) ? PHASE_VPL : PHASE_SPL;
-#elif defined(CONFIG_VPL_BUILD)
 	return PHASE_SPL;
 #else
 	return PHASE_BOARD_F;
@@ -178,8 +167,6 @@ static inline const char *spl_phase_name(enum u_boot_phase phase)
 	switch (phase) {
 	case PHASE_TPL:
 		return "TPL";
-	case PHASE_VPL:
-		return "VPL";
 	case PHASE_SPL:
 		return "SPL";
 	case PHASE_BOARD_F:
@@ -201,8 +188,6 @@ static inline const char *spl_phase_prefix(enum u_boot_phase phase)
 	switch (phase) {
 	case PHASE_TPL:
 		return "tpl";
-	case PHASE_VPL:
-		return "vpl";
 	case PHASE_SPL:
 		return "spl";
 	case PHASE_BOARD_F:
@@ -217,8 +202,6 @@ static inline const char *spl_phase_prefix(enum u_boot_phase phase)
 #ifdef CONFIG_SPL_BUILD
 # ifdef CONFIG_TPL_BUILD
 #  define SPL_TPL_NAME	"TPL"
-# elif defined(CONFIG_VPL_BUILD)
-#  define SPL_TPL_NAME	"VPL"
 # else
 #  define SPL_TPL_NAME	"SPL"
 # endif
@@ -288,8 +271,6 @@ binman_sym_extern(ulong, u_boot_any, image_pos);
 binman_sym_extern(ulong, u_boot_any, size);
 binman_sym_extern(ulong, u_boot_spl, image_pos);
 binman_sym_extern(ulong, u_boot_spl, size);
-binman_sym_extern(ulong, u_boot_vpl, image_pos);
-binman_sym_extern(ulong, u_boot_vpl, size);
 
 /**
  * spl_get_image_pos() - get the image position of the next phase
@@ -380,22 +361,6 @@ void preloader_console_init(void);
 u32 spl_boot_device(void);
 
 /**
- * spl_spi_boot_bus() - Lookup function for the SPI boot bus source.
- *
- * This function returns the SF bus to load from.
- * If not overridden, it is weakly defined in common/spl/spl_spi.c.
- */
-u32 spl_spi_boot_bus(void);
-
-/**
- * spl_spi_boot_cs() - Lookup function for the SPI boot CS source.
- *
- * This function returns the SF CS to load from.
- * If not overridden, it is weakly defined in common/spl/spl_spi.c.
- */
-u32 spl_spi_boot_cs(void);
-
-/**
  * spl_mmc_boot_mode() - Lookup function for the mode of an MMC boot source.
  * @boot_device:	ID of the device which the MMC driver wants to read
  *			from.  Common values are e.g. BOOT_DEVICE_MMC1,
@@ -410,7 +375,7 @@ u32 spl_spi_boot_cs(void);
  * Note:  It is important to use the boot_device parameter instead of e.g.
  * spl_boot_device() as U-Boot is not always loaded from the same device as SPL.
  */
-u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device);
+u32 spl_mmc_boot_mode(const u32 boot_device);
 
 /**
  * spl_mmc_boot_partition() - MMC partition to load U-Boot from.

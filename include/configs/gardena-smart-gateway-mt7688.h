@@ -17,6 +17,10 @@
 /* SPL */
 
 #define CONFIG_SYS_UBOOT_START		CONFIG_SYS_TEXT_BASE
+#define CONFIG_SPL_BSS_START_ADDR	0x80010000
+#define CONFIG_SPL_BSS_MAX_SIZE		0x10000
+#define CONFIG_SPL_MAX_SIZE		0x10000
+#define CONFIG_SPL_PAD_TO		0
 
 /* Dummy value */
 #define CONFIG_SYS_UBOOT_BASE		0
@@ -35,6 +39,20 @@
 
 /* RAM */
 
+/* Memory usage */
+#define CONFIG_SYS_MAXARGS		64
+#define CONFIG_SYS_BOOTPARAMS_LEN	(128 * 1024)
+#define CONFIG_SYS_CBSIZE		512
+
+/* U-Boot */
+#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
+
 /* Environment settings */
+
+/*
+ * Environment is right behind U-Boot in flash. Make sure U-Boot
+ * doesn't grow into the environment area.
+ */
+#define CONFIG_BOARD_SIZE_LIMIT		CONFIG_ENV_OFFSET
 
 #endif /* __CONFIG_GARDENA_SMART_GATEWAY_H */

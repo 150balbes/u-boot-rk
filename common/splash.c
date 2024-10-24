@@ -21,7 +21,6 @@
  */
 
 #include <common.h>
-#include <display_options.h>
 #include <env.h>
 #include <splash.h>
 #include <lcd.h>

@@ -91,9 +91,8 @@
 
 		sw4 {
 			label = "sw4";
-			linux,code = <KEY_POWER>;
+			linux,code = <BTN_0>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
-			wakeup-source;
 		};
 	};
 };

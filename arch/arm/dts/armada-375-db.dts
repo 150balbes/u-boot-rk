@@ -86,8 +86,10 @@
 				 * by default.
 				 */
 				status = "okay";
+				u-boot,dm-pre-reloc;
 
 				spi-flash@0 {
+					u-boot,dm-pre-reloc;
 					#address-cells = <1>;
 					#size-cells = <1>;
 					compatible = "n25q128a13", "jedec,spi-nor";
@@ -111,6 +113,7 @@
 			};
 
 			serial@12000 {
+				u-boot,dm-pre-reloc;
 				status = "okay";
 			};
 

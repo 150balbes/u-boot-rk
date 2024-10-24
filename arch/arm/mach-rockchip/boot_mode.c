@@ -54,7 +54,7 @@ __weak int rockchip_dnl_key_pressed(void)
 	ret = -ENODEV;
 	uclass_foreach_dev(dev, uc) {
 		if (!strncmp(dev->name, "saradc", 6)) {
-			ret = adc_channel_single_shot(dev->name, 0, &val);
+			ret = adc_channel_single_shot(dev->name, 1, &val);
 			break;
 		}
 	}
@@ -237,7 +237,6 @@ int setup_boot_mode(void)
 	boot_mode = readl(reg);
 	debug("%s: boot mode 0x%08x\n", __func__, boot_mode);
 
-#if !defined(CONFIG_SPL_BUILD) && !defined(CONFIG_TPL_BUILD)
 	/* Clear boot mode */
 	writel(BOOT_NORMAL, reg);
 
@@ -251,7 +250,6 @@ int setup_boot_mode(void)
 		env_set("preboot", "setenv preboot; ums mmc 0");
 		break;
 	}
-#endif
 
 	return 0;
 }

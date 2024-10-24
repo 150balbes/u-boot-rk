@@ -81,16 +81,14 @@ u32 tpm_nv_write_value(struct udevice *dev, u32 index, const void *data,
  *
  * @param dev		TPM device
  * @param index		index of the PCR
- * @param in_digest	160/256-bit value representing the event to be
+ * @param in_digest	160-bit value representing the event to be
  *			recorded
- * @param size		size of digest in bytes
- * @param out_digest	160/256-bit PCR value after execution of the
+ * @param out_digest	160-bit PCR value after execution of the
  *			command
- * @param name		digest source, used for log output
  * Return: return code of the operation
  */
 u32 tpm_pcr_extend(struct udevice *dev, u32 index, const void *in_digest,
-		   uint size, void *out_digest, const char *name);
+		   void *out_digest);
 
 /**
  * Issue a TPM_PCRRead command.
@@ -320,15 +318,5 @@ u32 tpm_write_lock(struct udevice *dev, u32 index);
  * Return: return code of the operation (0 = success)
  */
 u32 tpm_resume(struct udevice *dev);
-
-static inline bool tpm_is_v1(struct udevice *dev)
-{
-	return IS_ENABLED(CONFIG_TPM_V1) && tpm_get_version(dev) == TPM_V1;
-}
-
-static inline bool tpm_is_v2(struct udevice *dev)
-{
-	return IS_ENABLED(CONFIG_TPM_V2) && tpm_get_version(dev) == TPM_V2;
-}
 
 #endif /* __TPM_API_H */

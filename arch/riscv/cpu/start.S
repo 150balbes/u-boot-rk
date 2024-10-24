@@ -13,7 +13,6 @@
 #include <config.h>
 #include <common.h>
 #include <elf.h>
-#include <system-constants.h>
 #include <asm/encoding.h>
 #include <generated/asm-offsets.h>
 
@@ -95,7 +94,7 @@ call_board_init_f:
 #if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
 	li	t1, CONFIG_SPL_STACK
 #else
-	li	t1, SYS_INIT_SP_ADDR
+	li	t1, CONFIG_SYS_INIT_SP_ADDR
 #endif
 	and	sp, t1, t0		/* force 16 byte alignment */
 
@@ -140,12 +139,9 @@ call_harts_early_init:
 	 * accesses gd).
 	 */
 	mv	gp, s0
-#if CONFIG_IS_ENABLED(RISCV_MMODE)
 	bnez	tp, secondary_hart_loop
 #endif
-#endif
-	
-	mv      a0, s0
+
 	jal	board_init_f_init_reserve
 
 	SREG	s1, GD_FIRMWARE_FDT_ADDR(gp)

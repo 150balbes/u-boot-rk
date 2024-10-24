@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * 2017 by Marek Behún <kabel@kernel.org>
+ * 2017 by Marek Behun <marek.behun@nic.cz>
  */
 
 #include <common.h>

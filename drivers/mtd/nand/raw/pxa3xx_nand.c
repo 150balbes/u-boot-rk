@@ -429,7 +429,7 @@ static struct nand_ecclayout ecc_layout_8KB_bch8bit = {
 
 static const struct udevice_id pxa3xx_nand_dt_ids[] = {
 	{
-		.compatible = "marvell,armada370-nand-controller",
+		.compatible = "marvell,mvebu-pxa3xx-nand",
 		.data = PXA3XX_NAND_VARIANT_ARMADA370,
 	},
 	{

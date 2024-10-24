@@ -596,7 +596,11 @@ static int bcm6348_iudma_probe(struct udevice *dev)
 			return ret;
 		}
 
-		clk_free(&clk);
+		ret = clk_free(&clk);
+		if (ret < 0) {
+			pr_err("error freeing clock %d\n", i);
+			return ret;
+		}
 	}
 
 	/* try to perform resets */

@@ -20,11 +20,6 @@ struct toradex_eth_addr {
 	u32 nic:24;
 } __attribute__((__packed__));
 
-struct toradex_som {
-	const char *name;
-	int is_enabled;
-};
-
 enum {
 	COLIBRI_PXA270_V1_312MHZ = 1,
 	COLIBRI_PXA270_V1_520MHZ,
@@ -36,7 +31,7 @@ enum {
 	COLIBRI_PXA270_312MHZ,
 	COLIBRI_PXA270_520MHZ,
 	COLIBRI_VF50, /* 10 */
-	COLIBRI_VF61,
+	COLIBRI_VF61, /* not currently on sale */
 	COLIBRI_VF61_IT,
 	COLIBRI_VF50_IT,
 	COLIBRI_IMX6S,
@@ -67,7 +62,7 @@ enum {
 	COLIBRI_IMX7D_EMMC,
 	COLIBRI_IMX6ULL_WIFI_BT_IT, /* 40 */
 	COLIBRI_IMX7D_EPDC,
-	APALIS_TK1_4GB,
+	APALIS_TK1_4GB, /* not currently on sale */
 	COLIBRI_T20_512MB_IT_SETEK,
 	COLIBRI_IMX6ULL_IT,
 	COLIBRI_IMX6ULL_WIFI_BT, /* 45 */
@@ -92,8 +87,6 @@ enum {
 	VERDIN_IMX8MPQ_2GB_WIFI_BT_IT,
 	VERDIN_IMX8MPQL_IT, /* 65 */
 	VERDIN_IMX8MPQ_8GB_WIFI_BT,
-	APALIS_IMX8QM_8GB_WIFI_BT_IT,
-	VERDIN_IMX8MMQ_WIFI_BT_IT_NO_CAN,
 };
 
 enum {
@@ -106,7 +99,7 @@ enum {
 	VERDIN_DSI_TO_LVDS_ADAPTER = 159,
 };
 
-extern const struct toradex_som toradex_modules[];
+extern const char * const toradex_modules[];
 extern const char * const toradex_carrier_boards[];
 extern bool valid_cfgblock;
 extern struct toradex_hw tdx_hw_tag;
@@ -119,7 +112,5 @@ int read_tdx_cfg_block(void);
 int read_tdx_cfg_block_carrier(void);
 
 int try_migrate_tdx_cfg_block_carrier(void);
-
-void get_mac_from_serial(u32 tdx_serial, struct toradex_eth_addr *eth_addr);
 
 #endif /* _TDX_CFG_BLOCK_H */

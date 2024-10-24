@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <asm/u-boot.h> /* boot information for Linux kernel */
+#include <display_options.h>
 #include <vsprintf.h>
 #endif	/* __ASSEMBLY__ */
 

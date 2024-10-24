@@ -242,8 +242,7 @@ int flash_erase(flash_info_t * info, int s_first, int s_last)
 					count = 0;
 				}
 
-				/* check timeout, 1000ms */
-				if (get_timer(start) > 1000) {
+				if (get_timer(start) > CONFIG_SYS_FLASH_ERASE_TOUT) {
 					printf("Timeout\n");
 					*addr = 0x00F0;	/* reset to read mode */
 
@@ -295,8 +294,8 @@ int flash_erase(flash_info_t * info, int s_first, int s_last)
 						enable_interrupts();
 
 					while ((*addr & 0x0080) != 0x0080) {
-						/* check timeout, 1000ms */
-						if (get_timer(start) > 1000) {
+						if (get_timer(start) >
+						    CONFIG_SYS_FLASH_ERASE_TOUT) {
 							printf("Timeout\n");
 							*addr = 0x00F0;	/* reset to read mode */
 
@@ -431,8 +430,7 @@ int write_word(flash_info_t * info, FPWV * dest, u16 data)
 	/* data polling for D7 */
 	while (res == 0
 	       && (*dest & (u8) 0x00800080) != (data & (u8) 0x00800080)) {
-		/* check timeout, 500ms */
-		if (get_timer(start) > 500) {
+		if (get_timer(start) > CONFIG_SYS_FLASH_WRITE_TOUT) {
 			*dest = (u8) 0x00F000F0;	/* reset bank */
 			res = 1;
 		}

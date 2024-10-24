@@ -23,8 +23,6 @@
 #endif
 #include <asm/ptrace.h>
 
-#define MMU_SECTION_SIZE	(1 * 1024 * 1024)
-
 #define prepare_to_switch()	do { } while (0)
 
 /*

@@ -12,7 +12,4 @@ config SYS_VENDOR
 config SYS_CONFIG_NAME
 	default "M5235EVB"
 
-config NORFLASH_PS32BIT
-	bool "Board has 32bit CFI flash"
-
 endif

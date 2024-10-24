@@ -435,11 +435,11 @@ static int tse_phy_init(struct altera_tse_priv *priv, void *dev)
 	if (priv->phyaddr)
 		mask = 1 << priv->phyaddr;
 
-	phydev = phy_find_by_mask(priv->bus, mask);
+	phydev = phy_find_by_mask(priv->bus, mask, priv->interface);
 	if (!phydev)
 		return -ENODEV;
 
-	phy_connect_dev(phydev, dev, priv->interface);
+	phy_connect_dev(phydev, dev);
 
 	phydev->supported &= PHY_GBIT_FEATURES;
 	phydev->advertising = phydev->supported;
@@ -676,10 +676,17 @@ static int altera_tse_probe(struct udevice *dev)
 static int altera_tse_of_to_plat(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_plat(dev);
+	const char *phy_mode;
 
-	pdata->phy_interface = dev_read_phy_mode(dev);
-	if (pdata->phy_interface == PHY_INTERFACE_MODE_NA)
+	pdata->phy_interface = -1;
+	phy_mode = fdt_getprop(gd->fdt_blob, dev_of_offset(dev), "phy-mode",
+			       NULL);
+	if (phy_mode)
+		pdata->phy_interface = phy_get_interface_by_name(phy_mode);
+	if (pdata->phy_interface == -1) {
+		debug("%s: Invalid PHY interface '%s'\n", __func__, phy_mode);
 		return -EINVAL;
+	}
 
 	return 0;
 }

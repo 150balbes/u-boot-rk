@@ -477,10 +477,8 @@ static int dsa_pre_probe(struct udevice *dev)
 		return -ENODEV;
 	}
 
-	err = uclass_get_device_by_ofnode(UCLASS_ETH, pdata->master_node,
-					  &priv->master_dev);
-	if (err)
-		return err;
+	uclass_find_device_by_ofnode(UCLASS_ETH, pdata->master_node,
+				     &priv->master_dev);
 
 	/* Simulate a probing event for the CPU port */
 	if (ops->port_probe) {

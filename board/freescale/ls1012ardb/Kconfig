@@ -63,6 +63,8 @@ config PFE_EMAC2_PHY_ADDR
 
 endif
 
+source "board/freescale/common/Kconfig"
+
 endif
 
 if TARGET_LS1012A2G5RDB
@@ -116,5 +118,7 @@ config PFE_EMAC2_PHY_ADDR
 	default 0x1
 
 endif
+
+source "board/freescale/common/Kconfig"
 
 endif

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- * Copyright 2021 NXP
  */
 
 #include <common.h>
@@ -21,6 +20,7 @@
 #include <dm.h>
 #include <env.h>
 #include <imx_thermal.h>
+#include <fsl_sec.h>
 #include <asm/setup.h>
 #include <linux/delay.h>
 
@@ -356,13 +356,9 @@ int arch_misc_init(void)
 	env_set("serial#", serial_string);
 #endif
 
-	if (IS_ENABLED(CONFIG_FSL_CAAM)) {
-		struct udevice *dev;
-		int ret;
-		ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(caam_jr), &dev);
-		if (ret)
-			printf("Failed to initialize caam_jr: %d\n", ret);
-	}
+#ifdef CONFIG_FSL_CAAM
+	sec_init();
+#endif
 
 	return 0;
 }

@@ -18,6 +18,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef CONFIG_SYS_FSL_NUM_CC_PLLS
+#define CONFIG_SYS_FSL_NUM_CC_PLLS      2
+#endif
+
 void get_sys_info(struct sys_info *sys_info)
 {
 	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
@@ -25,8 +29,8 @@ void get_sys_info(struct sys_info *sys_info)
  * mux 2 clock for LS1043A/LS1046A.
  */
 #if defined(CONFIG_SYS_DPAA_FMAN) || \
-	    defined(CONFIG_ARCH_LS1046A) || \
-	    defined(CONFIG_ARCH_LS1043A)
+	    defined(CONFIG_TARGET_LS1046ARDB) || \
+	    defined(CONFIG_TARGET_LS1043ARDB)
 	u32 rcw_tmp;
 #endif
 	struct ccsr_clk *clk = (void *)(CONFIG_SYS_FSL_CLK_ADDR);
@@ -125,13 +129,13 @@ void get_sys_info(struct sys_info *sys_info)
 
 #define HWA_CGA_M2_CLK_SEL	0x00000007
 #define HWA_CGA_M2_CLK_SHIFT	0
-#if defined(CONFIG_ARCH_LS1046A) || defined(CONFIG_ARCH_LS1043A)
+#if defined(CONFIG_TARGET_LS1046ARDB) || defined(CONFIG_TARGET_LS1043ARDB)
 	rcw_tmp = in_be32(&gur->rcwsr[15]);
 	switch ((rcw_tmp & HWA_CGA_M2_CLK_SEL) >> HWA_CGA_M2_CLK_SHIFT) {
 	case 1:
 		sys_info->freq_cga_m2 = freq_c_pll[1];
 		break;
-#if defined(CONFIG_ARCH_LS1046A)
+#if defined(CONFIG_TARGET_LS1046ARDB)
 	case 2:
 		sys_info->freq_cga_m2 = freq_c_pll[1] / 2;
 		break;
@@ -139,7 +143,7 @@ void get_sys_info(struct sys_info *sys_info)
 	case 3:
 		sys_info->freq_cga_m2 = freq_c_pll[1] / 3;
 		break;
-#if defined(CONFIG_ARCH_LS1046A)
+#if defined(CONFIG_TARGET_LS1046ARDB)
 	case 6:
 		sys_info->freq_cga_m2 = freq_c_pll[0] / 2;
 		break;

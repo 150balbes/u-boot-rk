@@ -40,7 +40,7 @@ class BuilderJob:
     """Holds information about a job to be performed by a thread
 
     Members:
-        brd: Board object to build
+        board: Board object to build
         commits: List of Commit objects to build
         keep_outputs: True to save build output files
         step: 1 to process every commit, n to process every nth commit
@@ -48,7 +48,7 @@ class BuilderJob:
             don't write to a separate output directory.
     """
     def __init__(self):
-        self.brd = None
+        self.board = None
         self.commits = []
         self.keep_outputs = False
         self.step = 1
@@ -491,7 +491,7 @@ class BuilderThread(threading.Thread):
         Returns:
             List of Result objects
         """
-        brd = job.brd
+        brd = job.board
         work_dir = self.builder.GetThreadDir(self.thread_num)
         self.toolchain = None
         if job.commits:

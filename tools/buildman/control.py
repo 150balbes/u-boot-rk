@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-from buildman import boards
+from buildman import board
 from buildman import bsettings
 from buildman import cfgutil
 from buildman import toolchain
@@ -87,7 +87,7 @@ def ShowActions(series, why_selected, boards_selected, builder, options,
         for warning in board_warnings:
             print(col.build(col.YELLOW, warning))
 
-def ShowToolchainPrefix(brds, toolchains):
+def ShowToolchainPrefix(boards, toolchains):
     """Show information about a the tool chain used by one or more boards
 
     The function checks that all boards use the same toolchain, then prints
@@ -100,9 +100,9 @@ def ShowToolchainPrefix(brds, toolchains):
     Return:
         None on success, string error message otherwise
     """
-    board_selected = brds.get_selected_dict()
+    boards = boards.GetSelectedDict()
     tc_set = set()
-    for brd in board_selected.values():
+    for brd in boards.values():
         tc_set.add(toolchains.Select(brd.arch))
     if len(tc_set) != 1:
         return 'Supplied boards must share one toolchain'
@@ -111,7 +111,7 @@ def ShowToolchainPrefix(brds, toolchains):
     print(tc.GetEnvArgs(toolchain.VAR_CROSS_COMPILE))
     return None
 
-def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
+def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
                clean_dir=False, test_thread_exceptions=False):
     """The main control code for buildman
 
@@ -124,7 +124,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
                 to execute 'make'. If this is None, the normal function
                 will be used, which calls the 'make' tool with suitable
                 arguments. This setting is useful for tests.
-        brds: Boards() object to use, containing a list of available
+        board: Boards() object to use, containing a list of available
                 boards. If this is None it will be created and scanned.
         clean_dir: Used for tests only, indicates that the existing output_dir
             should be removed before starting the build
@@ -176,25 +176,32 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
         print()
         return 0
 
+    if options.incremental:
+        print(col.build(col.RED,
+                        'Warning: -I has been removed. See documentation'))
     if not options.output_dir:
         if options.work_in_output:
             sys.exit(col.build(col.RED, '-w requires that you specify -o'))
         options.output_dir = '..'
 
     # Work out what subset of the boards we are building
-    if not brds:
+    if not boards:
         if not os.path.exists(options.output_dir):
             os.makedirs(options.output_dir)
         board_file = os.path.join(options.output_dir, 'boards.cfg')
+        our_path = os.path.dirname(os.path.realpath(__file__))
+        genboardscfg = os.path.join(our_path, '../genboardscfg.py')
+        if not os.path.exists(genboardscfg):
+            genboardscfg = os.path.join(options.git, 'tools/genboardscfg.py')
+        status = subprocess.call([genboardscfg, '-q', '-o', board_file])
+        if status != 0:
+            # Older versions don't support -q
+            status = subprocess.call([genboardscfg, '-o', board_file])
+            if status != 0:
+                sys.exit("Failed to generate boards.cfg")
 
-        brds = boards.Boards()
-        ok = brds.ensure_board_list(board_file,
-                                    options.threads or multiprocessing.cpu_count(),
-                                    force=options.regen_board_list,
-                                    quiet=not options.verbose)
-        if options.regen_board_list:
-            return 0 if ok else 2
-        brds.read_boards(board_file)
+        boards = board.Boards()
+        boards.ReadBoards(board_file)
 
     exclude = []
     if options.exclude:
@@ -207,14 +214,14 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
             requested_boards += b.split(',')
     else:
         requested_boards = None
-    why_selected, board_warnings = brds.select_boards(args, exclude,
-                                                      requested_boards)
-    selected = brds.get_selected()
+    why_selected, board_warnings = boards.SelectBoards(args, exclude,
+                                                       requested_boards)
+    selected = boards.GetSelected()
     if not len(selected):
         sys.exit(col.build(col.RED, 'No matching boards found'))
 
     if options.print_prefix:
-        err = ShowToolchainPrefix(brds, toolchains)
+        err = ShowToolchainPrefix(boards, toolchains)
         if err:
             sys.exit(col.build(col.RED, err))
         return 0
@@ -345,7 +352,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
         builder.in_tree = options.in_tree
 
         # Work out which boards to build
-        board_selected = brds.get_selected_dict()
+        board_selected = boards.GetSelectedDict()
 
         if series:
             commits = series.commits
@@ -355,9 +362,8 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
         else:
             commits = None
 
-        if not options.ide:
-            tprint(GetActionSummary(options.summary, commits, board_selected,
-                                    options))
+        tprint(GetActionSummary(options.summary, commits, board_selected,
+                               options))
 
         # We can't show function sizes without board details at present
         if options.show_bloat:
@@ -366,7 +372,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, brds=None,
             options.show_errors, options.show_sizes, options.show_detail,
             options.show_bloat, options.list_error_boards, options.show_config,
             options.show_environment, options.filter_dtb_warnings,
-            options.filter_migration_warnings, options.ide)
+            options.filter_migration_warnings)
         if options.summary:
             builder.ShowSummary(commits, board_selected)
         else:

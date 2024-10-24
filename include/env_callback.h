@@ -57,12 +57,6 @@
 #define NET_CALLBACKS
 #endif
 
-#ifdef CONFIG_BOOTSTD
-#define BOOTSTD_CALLBACK	"bootmeths:bootmeths,"
-#else
-#define BOOTSTD_CALLBACK
-#endif
-
 /*
  * This list of callback bindings is static, but may be overridden by defining
  * a new association in the ".callbacks" environment variable.
@@ -71,7 +65,6 @@
 	ENV_DOT_ESCAPE ENV_FLAGS_VAR ":flags," \
 	"baudrate:baudrate," \
 	NET_CALLBACKS \
-	BOOTSTD_CALLBACK \
 	"loadaddr:loadaddr," \
 	SILENT_CALLBACK \
 	SPLASHIMAGE_CALLBACK \

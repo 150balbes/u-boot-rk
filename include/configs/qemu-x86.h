@@ -34,4 +34,6 @@
  *   - AHCI controller is supported for QEMU '-M q35' target
  */
 
+#define CONFIG_SPL_BOARD_LOAD_IMAGE
+
 #endif	/* __CONFIG_H */

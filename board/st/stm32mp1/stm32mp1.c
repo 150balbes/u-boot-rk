@@ -82,6 +82,11 @@
 #define SYSCFG_PMCSETR_ETH_SEL_RGMII	BIT(21)
 #define SYSCFG_PMCSETR_ETH_SEL_RMII	BIT(23)
 
+/*
+ * Get a global data pointer
+ */
+DECLARE_GLOBAL_DATA_PTR;
+
 #define USB_LOW_THRESHOLD_UV		200000
 #define USB_WARNING_LOW_THRESHOLD_UV	660000
 #define USB_START_LOW_THRESHOLD_UV	1230000
@@ -111,8 +116,8 @@ int checkboard(void)
 		mode = "basic";
 	}
 
-	fdt_compat = ofnode_get_property(ofnode_root(), "compatible",
-					 &fdt_compat_len);
+	fdt_compat = fdt_getprop(gd->fdt_blob, 0, "compatible",
+				 &fdt_compat_len);
 
 	log_info("Board: stm32mp1 in %s mode (%s)\n", mode,
 		 fdt_compat && fdt_compat_len ? fdt_compat : "");
@@ -193,13 +198,6 @@ int g_dnl_board_usb_cable_connected(void)
 
 	if (!IS_ENABLED(CONFIG_USB_GADGET_DWC2_OTG))
 		return -ENODEV;
-
-	/*
-	 * In case of USB boot device is detected, consider USB cable is
-	 * connected
-	 */
-	if ((get_bootmode() & TAMP_BOOT_DEVICE_MASK) == BOOT_SERIAL_USB)
-		return true;
 
 	/* if typec stusb160x is present, means DK1 or DK2 board */
 	ret = stusb160x_cable_connected();
@@ -549,7 +547,8 @@ static void sysconf_init(void)
 	clrbits_le32(syscfg + SYSCFG_CMPCR, SYSCFG_CMPCR_SW_CTRL);
 }
 
-static int board_stm32mp15x_dk2_init(void)
+/* Fix to make I2C1 usable on DK2 for touchscreen usage in kernel */
+static int dk2_i2c1_fix(void)
 {
 	ofnode node;
 	struct gpio_desc hdmi, audio;
@@ -558,7 +557,6 @@ static int board_stm32mp15x_dk2_init(void)
 	if (!IS_ENABLED(CONFIG_DM_REGULATOR))
 		return -ENODEV;
 
-	/* Fix to make I2C1 usable on DK2 for touchscreen usage in kernel */
 	node = ofnode_path("/soc/i2c@40012000/hdmi-transmitter@39");
 	if (!ofnode_valid(node)) {
 		log_debug("no hdmi-transmitter@39 ?\n");
@@ -606,7 +604,7 @@ error:
 	return ret;
 }
 
-static bool board_is_stm32mp15x_dk2(void)
+static bool board_is_dk2(void)
 {
 	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15x) &&
 	    of_machine_is_compatible("st,stm32mp157c-dk2"))
@@ -615,7 +613,7 @@ static bool board_is_stm32mp15x_dk2(void)
 	return false;
 }
 
-static bool board_is_stm32mp15x_ev1(void)
+static bool board_is_ev1(void)
 {
 	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15x) &&
 	    (of_machine_is_compatible("st,stm32mp157a-ev1") ||
@@ -639,7 +637,7 @@ U_BOOT_DRIVER(goodix) = {
 	.of_match	= goodix_ids,
 };
 
-static void board_stm32mp15x_ev1_init(void)
+static void board_ev1_init(void)
 {
 	struct udevice *dev;
 
@@ -652,11 +650,11 @@ int board_init(void)
 {
 	board_key_check();
 
-	if (board_is_stm32mp15x_ev1())
-		board_stm32mp15x_ev1_init();
+	if (board_is_ev1())
+		board_ev1_init();
 
-	if (board_is_stm32mp15x_dk2())
-		board_stm32mp15x_dk2_init();
+	if (board_is_dk2())
+		dk2_i2c1_fix();
 
 	if (IS_ENABLED(CONFIG_DM_REGULATOR))
 		regulators_enable_boot_on(_DEBUG);
@@ -667,6 +665,9 @@ int board_init(void)
 	 */
 	if (IS_ENABLED(CONFIG_ARMV7_NONSEC))
 		sysconf_init();
+
+	if (CONFIG_IS_ENABLED(LED))
+		led_default_state();
 
 	setup_led(LEDST_ON);
 
@@ -685,8 +686,8 @@ int board_late_init(void)
 	int buf_len;
 
 	if (IS_ENABLED(CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG)) {
-		fdt_compat = ofnode_get_property(ofnode_root(), "compatible",
-						 &fdt_compat_len);
+		fdt_compat = fdt_getprop(gd->fdt_blob, 0, "compatible",
+					 &fdt_compat_len);
 		if (fdt_compat && fdt_compat_len) {
 			if (strncmp(fdt_compat, "st,", 3) != 0) {
 				env_set("board_name", fdt_compat);

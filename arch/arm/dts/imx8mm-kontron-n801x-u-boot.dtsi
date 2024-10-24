@@ -25,22 +25,9 @@
 	};
 };
 
-&crypto {
-	u-boot,dm-spl;
+&fec1 {
+	phy-mode = "rgmii-rxid";
 };
-
-&sec_jr0 {
-	u-boot,dm-spl;
-};
-
-&sec_jr1 {
-	u-boot,dm-spl;
-};
-
-&sec_jr2 {
-	u-boot,dm-spl;
-};
-
 
 &i2c1 {
 	u-boot,dm-spl;
@@ -137,9 +124,5 @@
 };
 
 &wdog1 {
-	u-boot,dm-spl;
-};
-
-&pinctrl_wdog {
 	u-boot,dm-spl;
 };

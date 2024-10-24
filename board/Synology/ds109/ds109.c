@@ -10,7 +10,6 @@
 #include <miiphy.h>
 #include <net.h>
 #include <asm/global_data.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>

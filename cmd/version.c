@@ -6,7 +6,6 @@
 
 #include <common.h>
 #include <command.h>
-#include <display_options.h>
 #include <timestamp.h>
 #include <version.h>
 #include <version_string.h>

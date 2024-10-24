@@ -64,7 +64,7 @@ def prepare_patches(col, branch, count, start, end, ignore_binary, signoff):
         patchstream.insert_cover_letter(cover_fname, series, to_do)
     return series, cover_fname, patch_files
 
-def check_patches(series, patch_files, run_checkpatch, verbose, use_tree):
+def check_patches(series, patch_files, run_checkpatch, verbose):
     """Run some checks on a set of patches
 
     This santiy-checks the patman tags like Series-version and runs the patches
@@ -77,7 +77,6 @@ def check_patches(series, patch_files, run_checkpatch, verbose, use_tree):
         run_checkpatch (bool): True to run checkpatch.pl
         verbose (bool): True to print out every line of the checkpatch output as
             it is parsed
-        use_tree (bool): If False we'll pass '--no-tree' to checkpatch.
 
     Returns:
         bool: True if the patches had no errors, False if they did
@@ -87,7 +86,7 @@ def check_patches(series, patch_files, run_checkpatch, verbose, use_tree):
 
     # Check the patches, and run them through 'git am' just to be sure
     if run_checkpatch:
-        ok = checkpatch.check_patches(verbose, patch_files, use_tree)
+        ok = checkpatch.check_patches(verbose, patch_files)
     else:
         ok = True
     return ok
@@ -166,7 +165,7 @@ def send(args):
         col, args.branch, args.count, args.start, args.end,
         args.ignore_binary, args.add_signoff)
     ok = check_patches(series, patch_files, args.check_patch,
-                       args.verbose, args.check_patch_use_tree)
+                       args.verbose)
 
     ok = ok and gitutil.check_suppress_cc_config()
 

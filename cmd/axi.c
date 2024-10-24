@@ -13,7 +13,6 @@
 #include <axi.h>
 #include <command.h>
 #include <console.h>
-#include <display_options.h>
 #include <dm.h>
 #include <log.h>
 

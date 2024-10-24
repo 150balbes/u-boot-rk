@@ -15,7 +15,6 @@ Board-specific doc
    armltd/index
    atmel/index
    broadcom/index
-   bsh/index
    congatec/index
    coreboot/index
    emulation/index
@@ -23,7 +22,6 @@ Board-specific doc
    highbank/index
    intel/index
    kontron/index
-   mediatek/index
    microchip/index
    nokia/index
    nxp/index

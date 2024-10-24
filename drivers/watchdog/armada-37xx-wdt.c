@@ -2,7 +2,7 @@
 /*
  * Marvell Armada 37xx SoC Watchdog Driver
  *
- * Marek Behún <kabel@kernel.org>
+ * Marek Behun <marek.behun@nic.cz>
  */
 
 #include <common.h>

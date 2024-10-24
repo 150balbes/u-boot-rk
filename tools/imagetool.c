@@ -80,33 +80,27 @@ static int imagetool_verify_print_header_by_type(
 	struct image_type_params *tparams,
 	struct image_tool_params *params)
 {
-	int retval = -1;
+	int retval;
 
-	if (tparams->verify_header) {
-		retval = tparams->verify_header((unsigned char *)ptr,
-						sbuf->st_size, params);
+	retval = tparams->verify_header((unsigned char *)ptr, sbuf->st_size,
+			params);
 
-		if (retval == 0) {
-			/*
-			 * Print the image information if verify is successful
-			 */
-			if (tparams->print_header) {
-				if (!params->quiet)
-					tparams->print_header(ptr);
-			} else {
-				fprintf(stderr,
-					"%s: print_header undefined for %s\n",
-					params->cmdname, tparams->name);
-			}
+	if (retval == 0) {
+		/*
+		 * Print the image information if verify is successful
+		 */
+		if (tparams->print_header) {
+			if (!params->quiet)
+				tparams->print_header(ptr);
 		} else {
 			fprintf(stderr,
-				"%s: verify_header failed for %s with exit code %d\n",
-				params->cmdname, tparams->name, retval);
+				"%s: print_header undefined for %s\n",
+				params->cmdname, tparams->name);
 		}
-
 	} else {
-		fprintf(stderr, "%s: print_header undefined for %s\n",
-			params->cmdname, tparams->name);
+		fprintf(stderr,
+			"%s: verify_header failed for %s with exit code %d\n",
+			params->cmdname, tparams->name, retval);
 	}
 
 	return retval;

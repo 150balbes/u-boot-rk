@@ -16,10 +16,6 @@
 		compatible = "fsl,pq1-smc";
 	};
 
-	FEC: fec@0 {
-		compatible = "fsl,pq1-fec1";
-	};
-
 	chosen {
 		stdout-path = &SERIAL;
 	};

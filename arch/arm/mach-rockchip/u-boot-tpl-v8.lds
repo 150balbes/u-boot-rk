@@ -39,9 +39,9 @@ SECTIONS
 		*(.data*)
 	}
 
-	__u_boot_list : {
+	.u_boot_list : {
 		. = ALIGN(8);
-		KEEP(*(SORT(__u_boot_list*)));
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	.image_copy_end : {

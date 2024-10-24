@@ -41,8 +41,8 @@ SECTIONS
 	.data : { *(SORT_BY_ALIGNMENT(.data*)) } >.nor
 
 	. = ALIGN(4);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	} > .nor
 
 	. = ALIGN(4);

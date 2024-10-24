@@ -6,6 +6,11 @@
 
 #include "imx7d-sdb.dts"
 
+/* disable epdc, conflict with qspi */
+&epdc {
+        status = "disabled";
+};
+
 &iomuxc {
 	qspi1 {
 		pinctrl_qspi1_1: qspi1grp_1 {
@@ -21,7 +26,7 @@
 	};
 };
 
-&qspi {
+&qspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi1_1>;
 	status = "okay";

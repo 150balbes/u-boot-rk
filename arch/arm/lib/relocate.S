@@ -78,8 +78,7 @@ ENDPROC(relocate_vectors)
  */
 
 ENTRY(relocate_code)
-relocate_base:
-	adr	r3, relocate_base
+	adr	r3, relocate_code
 	ldr	r1, _image_copy_start_ofs
 	add	r1, r3			/* r1 <- Run &__image_copy_start */
 	subs	r4, r0, r1		/* r4 <- Run to copy offset      */

@@ -15,6 +15,7 @@
 #include <init.h>
 #include <net.h>
 #include <ns16550.h>
+#include <flash.h>
 #include <nand.h>
 #include <i2c.h>
 #include <serial.h>

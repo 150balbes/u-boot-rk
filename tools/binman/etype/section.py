@@ -13,6 +13,7 @@ import concurrent.futures
 import re
 import sys
 
+from binman import comp_util
 from binman.entry import Entry
 from binman import state
 from dtoc import fdt_util
@@ -162,7 +163,6 @@ class Entry_section(Entry):
         self._sort = False
         self._skip_at_start = None
         self._end_4gb = False
-        self._ignore_missing = False
 
     def ReadNode(self):
         """Read properties from the section node"""
@@ -233,10 +233,10 @@ class Entry_section(Entry):
                        todo)
         return True
 
-    def gen_entries(self):
-        super().gen_entries()
+    def ExpandEntries(self):
+        super().ExpandEntries()
         for entry in self._entries.values():
-            entry.gen_entries()
+            entry.ExpandEntries()
 
     def AddMissingProperties(self, have_image_pos):
         """Add new properties to the device tree as needed for this entry"""
@@ -246,7 +246,7 @@ class Entry_section(Entry):
         for entry in self._entries.values():
             entry.AddMissingProperties(have_image_pos)
 
-    def ObtainContents(self, fake_size=0, skip_entry=None):
+    def ObtainContents(self, skip_entry=None):
         return self.GetEntryContents(skip_entry=skip_entry)
 
     def GetPaddedDataForEntry(self, entry, entry_data):
@@ -385,7 +385,7 @@ class Entry_section(Entry):
         self._PackEntries()
         if self._sort:
             self._SortEntries()
-        self._extend_entries()
+        self._ExpandEntries()
 
         data = self.BuildSectionData(True)
         self.SetContents(data)
@@ -403,17 +403,17 @@ class Entry_section(Entry):
             offset = entry.Pack(offset)
         return offset
 
-    def _extend_entries(self):
-        """Extend any entries that are permitted to"""
+    def _ExpandEntries(self):
+        """Expand any entries that are permitted to"""
         exp_entry = None
         for entry in self._entries.values():
             if exp_entry:
-                exp_entry.extend_to_limit(entry.offset)
+                exp_entry.ExpandToLimit(entry.offset)
                 exp_entry = None
-            if entry.extend_size:
+            if entry.expand_size:
                 exp_entry = entry
         if exp_entry:
-            exp_entry.extend_to_limit(self.size)
+            exp_entry.ExpandToLimit(self.size)
 
     def _SortEntries(self):
         """Sort entries by offset"""
@@ -505,10 +505,10 @@ class Entry_section(Entry):
         node = self._node.GetFdt().LookupPhandle(phandle)
         if not node:
             source_entry.Raise("Cannot find node for phandle %d" % phandle)
-        entry = self.FindEntryByNode(node)
-        if not entry:
-            source_entry.Raise("Cannot find entry for node '%s'" % node.name)
-        return entry.GetData(required)
+        for entry in self._entries.values():
+            if entry._node == node:
+                return entry.GetData(required)
+        source_entry.Raise("Cannot find entry for node '%s'" % node.name)
 
     def LookupSymbol(self, sym_name, optional, msg, base_addr, entries=None):
         """Look up a symbol in an ELF file
@@ -776,7 +776,7 @@ class Entry_section(Entry):
         data = parent_data[offset:offset + child.size]
         if decomp:
             indata = data
-            data = child.DecompressData(indata)
+            data = comp_util.decompress(indata, child.compress)
             if child.uncomp_size:
                 tout.info("%s: Decompressing data size %#x with algo '%s' to data size %#x" %
                             (child.GetPath(), len(indata), child.compress,
@@ -786,9 +786,6 @@ class Entry_section(Entry):
             if new_data is not None:
                 data = new_data
         return data
-
-    def WriteData(self, data, decomp=True):
-        self.Raise("Replacing sections is not implemented yet")
 
     def WriteChildData(self, child):
         return True
@@ -897,7 +894,6 @@ class Entry_section(Entry):
         for entry in self._entries.values():
             entry.CheckAltFormats(alt_formats)
 
-    def AddBintools(self, btools):
-        super().AddBintools(btools)
+    def AddBintools(self, tools):
         for entry in self._entries.values():
-            entry.AddBintools(btools)
+            entry.AddBintools(tools)

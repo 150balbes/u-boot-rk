@@ -7,8 +7,10 @@
 #include <mmc.h>
 #include <spl.h>
 
-u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
+u32 spl_mmc_boot_mode(const u32 boot_device)
 {
+	struct mmc *mmc;
+
 	/*
 	 * work around a bug in the Boot ROM of LD4, Pro4, and sLD8:
 	 *
@@ -22,6 +24,7 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 	 * Fixup mmc->part_config here because it is used to determine the
 	 * partition which the U-Boot image is read from.
 	 */
+	mmc = find_mmc_device(0);
 	mmc->part_config &= ~EXT_CSD_BOOT_PART_NUM(PART_ACCESS_MASK);
 	mmc->part_config |= EXT_CSD_BOOT_PARTITION_ENABLE;
 

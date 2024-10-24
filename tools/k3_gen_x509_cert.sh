@@ -13,7 +13,6 @@ LOADADDR=0x41c00000
 BOOTCORE_OPTS=0
 BOOTCORE=16
 DEBUG_TYPE=0
-SWRV=1
 
 gen_degen_template() {
 cat << 'EOF' > degen-template.txt
@@ -71,7 +70,7 @@ cat << 'EOF' > x509-template.txt
  shaValue = FORMAT:HEX,OCT:TEST_IMAGE_SHA_VAL
 
  [ swrv ]
- swrv = INTEGER:TEST_SWRV
+ swrv = INTEGER:0
 
 # [ encryption ]
 # initalVector = FORMAT:HEX,OCT:TEST_IMAGE_ENC_IV
@@ -88,10 +87,7 @@ EOF
 }
 
 parse_key() {
-	sed '/    /s/://g' key.txt | \
-            awk  '!/    / {printf("\n%s\n", $0)}; /    / {printf("%s", $0)}' | \
-            sed 's/    //g' | \
-            awk "/$1:/{getline; print}"
+	sed '/\ \ \ \ /s/://g' key.txt | awk  '!/\ \ \ \ / {printf("\n%s\n", $0)}; /\ \ \ \ / {printf("%s", $0)}' | sed 's/\ \ \ \ //g' | awk "/$1:/{getline; print}"
 }
 
 gen_degen_key() {
@@ -157,9 +153,8 @@ options_help[o]="output_file:Name of the final output file. default to $OUTPUT"
 options_help[c]="core_id:target core id on which the image would be running. Default to $BOOTCORE"
 options_help[l]="loadaddr: Target load address of the binary in hex. Default to $LOADADDR"
 options_help[d]="debug_type: Debug type, set to 4 to enable early JTAG. Default to $DEBUG_TYPE"
-options_help[r]="SWRV: Software Rev for X509 certificate"
 
-while getopts "b:k:o:c:l:d:h:r:" opt
+while getopts "b:k:o:c:l:d:h" opt
 do
 	case $opt in
 	b)
@@ -179,9 +174,6 @@ do
 	;;
 	d)
 		DEBUG_TYPE=$OPTARG
-	;;
-        r)
-		SWRV=$OPTARG
 	;;
 	h)
 		usage
@@ -238,7 +230,6 @@ gen_cert() {
 	#echo "	IMAGE_SIZE = $BIN_SIZE"
 	#echo "	CERT_TYPE = $CERTTYPE"
 	#echo "	DEBUG_TYPE = $DEBUG_TYPE"
-	echo " SWRV = $SWRV"
 	sed -e "s/TEST_IMAGE_LENGTH/$BIN_SIZE/"	\
 		-e "s/TEST_IMAGE_SHA_VAL/$SHA_VAL/" \
 		-e "s/TEST_CERT_TYPE/$CERTTYPE/" \
@@ -246,7 +237,6 @@ gen_cert() {
 		-e "s/TEST_BOOT_CORE/$BOOTCORE/" \
 		-e "s/TEST_BOOT_ADDR/$ADDR/" \
 		-e "s/TEST_DEBUG_TYPE/$DEBUG_TYPE/" \
-                -e "s/TEST_SWRV/$SWRV/" \
 		x509-template.txt > $TEMP_X509
 	openssl req -new -x509 -key $KEY -nodes -outform DER -out $CERT -config $TEMP_X509 -sha512
 }

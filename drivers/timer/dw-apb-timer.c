@@ -8,12 +8,10 @@
 #include <common.h>
 #include <dm.h>
 #include <clk.h>
-#include <dt-structs.h>
 #include <malloc.h>
 #include <reset.h>
 #include <timer.h>
 #include <dm/device_compat.h>
-#include <linux/kconfig.h>
 
 #include <asm/io.h>
 #include <asm/arch/timer.h>
@@ -25,12 +23,6 @@
 struct dw_apb_timer_priv {
 	fdt_addr_t regs;
 	struct reset_ctl_bulk resets;
-};
-
-struct dw_apb_timer_plat {
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-	struct dtd_snps_dw_apb_timer dtplat;
-#endif
 };
 
 static u64 dw_apb_timer_get_count(struct udevice *dev)
@@ -51,33 +43,20 @@ static int dw_apb_timer_probe(struct udevice *dev)
 	struct dw_apb_timer_priv *priv = dev_get_priv(dev);
 	struct clk clk;
 	int ret;
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-	struct dw_apb_timer_plat *plat = dev_get_plat(dev);
-	struct dtd_snps_dw_apb_timer *dtplat = &plat->dtplat;
 
-	priv->regs = dtplat->reg[0];
+	ret = reset_get_bulk(dev, &priv->resets);
+	if (ret)
+		dev_warn(dev, "Can't get reset: %d\n", ret);
+	else
+		reset_deassert_bulk(&priv->resets);
 
-	ret = clk_get_by_phandle(dev, &dtplat->clocks[0], &clk);
-	if (ret < 0)
+	ret = clk_get_by_index(dev, 0, &clk);
+	if (ret)
 		return ret;
 
-	uc_priv->clock_rate = dtplat->clock_frequency;
-#endif
-	if (CONFIG_IS_ENABLED(OF_REAL)) {
-		ret = reset_get_bulk(dev, &priv->resets);
-		if (ret)
-			dev_warn(dev, "Can't get reset: %d\n", ret);
-		else
-			reset_deassert_bulk(&priv->resets);
+	uc_priv->clock_rate = clk_get_rate(&clk);
 
-		ret = clk_get_by_index(dev, 0, &clk);
-		if (ret)
-			return ret;
-
-		uc_priv->clock_rate = clk_get_rate(&clk);
-
-		clk_free(&clk);
-	}
+	clk_free(&clk);
 
 	/* init timer */
 	writel(0xffffffff, priv->regs + DW_APB_LOAD_VAL);
@@ -89,11 +68,9 @@ static int dw_apb_timer_probe(struct udevice *dev)
 
 static int dw_apb_timer_of_to_plat(struct udevice *dev)
 {
-	if (CONFIG_IS_ENABLED(OF_REAL)) {
-		struct dw_apb_timer_priv *priv = dev_get_priv(dev);
+	struct dw_apb_timer_priv *priv = dev_get_priv(dev);
 
-		priv->regs = dev_read_addr(dev);
-	}
+	priv->regs = dev_read_addr(dev);
 
 	return 0;
 }
@@ -114,14 +91,13 @@ static const struct udevice_id dw_apb_timer_ids[] = {
 	{}
 };
 
-U_BOOT_DRIVER(snps_dw_apb_timer) = {
-	.name		= "snps_dw_apb_timer",
+U_BOOT_DRIVER(dw_apb_timer) = {
+	.name		= "dw_apb_timer",
 	.id		= UCLASS_TIMER,
 	.ops		= &dw_apb_timer_ops,
 	.probe		= dw_apb_timer_probe,
 	.of_match	= dw_apb_timer_ids,
-	.of_to_plat	= dw_apb_timer_of_to_plat,
+	.of_to_plat = dw_apb_timer_of_to_plat,
 	.remove		= dw_apb_timer_remove,
 	.priv_auto	= sizeof(struct dw_apb_timer_priv),
-	.plat_auto	= sizeof(struct dw_apb_timer_plat),
 };

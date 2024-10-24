@@ -4,7 +4,6 @@
  */
 #include <common.h>
 #include <clock_legacy.h>
-#include <display_options.h>
 #include <env.h>
 #include <i2c.h>
 #include <init.h>
@@ -14,6 +13,7 @@
 #include <netdev.h>
 #include <fsl_ifc.h>
 #include <fsl_ddr.h>
+#include <fsl_sec.h>
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <fdt_support.h>
@@ -820,6 +820,9 @@ int board_init(void)
 	out_le32(irq_ccsr + IRQCR_OFFSET / 4, AQR105_IRQ_MASK);
 #endif
 
+#ifdef CONFIG_FSL_CAAM
+	sec_init();
+#endif
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif

@@ -1,2 +1,2 @@
 	.section .resetvec,"ax"
-	b _start
+	b _start_e500

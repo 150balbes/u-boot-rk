@@ -24,17 +24,9 @@
 static ulong spl_ram_load_read(struct spl_load_info *load, ulong sector,
 			       ulong count, void *buf)
 {
-	ulong addr;
-
 	debug("%s: sector %lx, count %lx, buf %lx\n",
 	      __func__, sector, count, (ulong)buf);
-
-	addr = (ulong)CONFIG_SPL_LOAD_FIT_ADDRESS + sector;
-	if (CONFIG_IS_ENABLED(IMAGE_PRE_LOAD))
-		addr += image_load_offset;
-
-	memcpy(buf, (void *)addr, count);
-
+	memcpy(buf, (void *)(CONFIG_SPL_LOAD_FIT_ADDRESS + sector), count);
 	return count;
 }
 
@@ -44,17 +36,6 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
 	struct image_header *header;
 
 	header = (struct image_header *)CONFIG_SPL_LOAD_FIT_ADDRESS;
-
-	if (CONFIG_IS_ENABLED(IMAGE_PRE_LOAD)) {
-		unsigned long addr = (unsigned long)header;
-		int ret = image_pre_load(addr);
-
-		if (ret)
-			return ret;
-
-		addr += image_load_offset;
-		header = (struct image_header *)addr;
-	}
 
 #if CONFIG_IS_ENABLED(DFU)
 	if (bootdev->boot_device == BOOT_DEVICE_DFU)
@@ -70,7 +51,7 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
 		load.read = spl_ram_load_read;
 		spl_load_simple_fit(spl_image, &load, 0, header);
 	} else {
-		ulong u_boot_pos = spl_get_image_pos();
+		ulong u_boot_pos = binman_sym(ulong, u_boot_any, image_pos);
 
 		debug("Legacy image\n");
 		/*

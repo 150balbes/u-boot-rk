@@ -14,6 +14,13 @@
 /* RAM */
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 
+/* USB */
+#define CONFIG_SYS_OHCI_SWAP_REG_ACCESS
+#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 2
+#if defined(CONFIG_USB_OHCI_HCD)
+#define CONFIG_USB_OHCI_NEW
+#endif /* CONFIG_USB_OHCI_HCD */
+
 /* U-Boot */
 
 #if defined(CONFIG_BMIPS_BOOT_RAM)
@@ -21,5 +28,6 @@
 #endif
 
 #define CONFIG_SYS_FLASH_BASE			0xbfc00000
+#define CONFIG_SYS_FLASH_EMPTY_INFO
 
 #endif /* __CONFIG_BMIPS_BCM6348_H */

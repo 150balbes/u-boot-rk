@@ -122,7 +122,8 @@ class Series(dict):
             cc_list = list(self._generated_cc[commit.patch])
             for email in sorted(set(cc_list) - to_set - cc_set):
                 if email == None:
-                    email = col.build(col.YELLOW, '<alias not found>')
+                    email = col.build(col.YELLOW, "<alias '%s' not found>"
+                            % tag)
                 if email:
                     print('      Cc: ', email)
         print

@@ -70,20 +70,6 @@
 			};
 		};
 	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-
-		ledn {
-			label = "status:ledn";
-			gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
-		};
-
-		ledp {
-			label = "status:ledp";
-			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-		};
-	};
 };
 
 &spi0 {

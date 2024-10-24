@@ -41,7 +41,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #endif
 
 #ifdef CONFIG_SYS_DISCOVER_PHY
-static int mii_discover_phy(struct udevice *dev);
+static int mii_discover_phy(struct eth_device *dev);
 #endif
 
 int fec8xx_miiphy_read(struct mii_dev *bus, int addr, int devad, int reg);
@@ -111,23 +111,49 @@ struct common_buf_desc {
 
 static struct common_buf_desc __iomem *rtx;
 
+static int fec_send(struct eth_device *dev, void *packet, int length);
+static int fec_recv(struct eth_device *dev);
+static int fec_init(struct eth_device *dev, struct bd_info *bd);
+static void fec_halt(struct eth_device *dev);
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
 static void __mii_init(void);
 #endif
 
-static int fec_probe(struct udevice *dev)
+int fec_initialize(struct bd_info *bis)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
-	int index = dev_get_driver_data(dev);
+	struct eth_device *dev;
+	struct ether_fcc_info_s *efis;
 	int             i;
 
 	for (i = 0; i < ARRAY_SIZE(ether_fcc_info); i++) {
-		if (ether_fcc_info[i].ether_index != index)
-			continue;
+		dev = malloc(sizeof(*dev));
+		if (dev == NULL)
+			hang();
 
-		memcpy(efis, &ether_fcc_info[i], sizeof(*efis));
+		memset(dev, 0, sizeof(*dev));
 
+		/* for FEC1 make sure that the name of the interface is the same
+		   as the old one for compatibility reasons */
+		if (i == 0)
+			strcpy(dev->name, "FEC");
+		else
+			sprintf(dev->name, "FEC%d",
+				ether_fcc_info[i].ether_index + 1);
+
+		efis = &ether_fcc_info[i];
+
+		/*
+		 * reset actual phy addr
+		 */
 		efis->actual_phy_addr = -1;
+
+		dev->priv = efis;
+		dev->init = fec_init;
+		dev->halt = fec_halt;
+		dev->send = fec_send;
+		dev->recv = fec_recv;
+
+		eth_register(dev);
 
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
 		int retval;
@@ -143,13 +169,13 @@ static int fec_probe(struct udevice *dev)
 			return retval;
 #endif
 	}
-	return 0;
+	return 1;
 }
 
-static int fec_send(struct udevice *dev, void *packet, int length)
+static int fec_send(struct eth_device *dev, void *packet, int length)
 {
 	int j, rc;
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
 
@@ -191,57 +217,59 @@ static int fec_send(struct udevice *dev, void *packet, int length)
 	return rc;
 }
 
-static int fec_recv(struct udevice *dev, int flags, uchar **packetp)
+static int fec_recv(struct eth_device *dev)
 {
-	int length;
-
-	/* section 16.9.23.2 */
-	if (in_be16(&rtx->rxbd[rxIdx].cbd_sc) & BD_ENET_RX_EMPTY)
-		return -EAGAIN;
-
-	length = in_be16(&rtx->rxbd[rxIdx].cbd_datlen);
-
-	if (!(in_be16(&rtx->rxbd[rxIdx].cbd_sc) & 0x003f)) {
-		uchar *rx = net_rx_packets[rxIdx];
-
-#if defined(CONFIG_CMD_CDP)
-		if ((rx[0] & 1) != 0 &&
-		    memcmp((uchar *)rx, net_bcast_ethaddr, 6) != 0 &&
-		    !is_cdp_packet((uchar *)rx))
-			return 0;
-#endif
-		*packetp = rx;
-
-		return length - 4;
-	} else {
-		return 0;
-	}
-}
-
-static int fec_free_pkt(struct udevice *dev, uchar *packet, int length)
-{
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
+	int length;
 
-	/* Give the buffer back to the FEC. */
-	out_be16(&rtx->rxbd[rxIdx].cbd_datlen, 0);
+	for (;;) {
+		/* section 16.9.23.2 */
+		if (in_be16(&rtx->rxbd[rxIdx].cbd_sc) & BD_ENET_RX_EMPTY) {
+			length = -1;
+			break;	/* nothing received - leave for() loop */
+		}
 
-	/* wrap around buffer index when necessary */
-	if ((rxIdx + 1) >= PKTBUFSRX) {
-		out_be16(&rtx->rxbd[PKTBUFSRX - 1].cbd_sc,
-			 BD_ENET_RX_WRAP | BD_ENET_RX_EMPTY);
-		rxIdx = 0;
-	} else {
-		out_be16(&rtx->rxbd[rxIdx].cbd_sc, BD_ENET_RX_EMPTY);
-		rxIdx++;
+		length = in_be16(&rtx->rxbd[rxIdx].cbd_datlen);
+
+		if (!(in_be16(&rtx->rxbd[rxIdx].cbd_sc) & 0x003f)) {
+			uchar *rx = net_rx_packets[rxIdx];
+
+			length -= 4;
+
+#if defined(CONFIG_CMD_CDP)
+			if ((rx[0] & 1) != 0 &&
+			    memcmp((uchar *)rx, net_bcast_ethaddr, 6) != 0 &&
+			    !is_cdp_packet((uchar *)rx))
+				rx = NULL;
+#endif
+			/*
+			 * Pass the packet up to the protocol layers.
+			 */
+			if (rx != NULL)
+				net_process_received_packet(rx, length);
+		}
+
+		/* Give the buffer back to the FEC. */
+		out_be16(&rtx->rxbd[rxIdx].cbd_datlen, 0);
+
+		/* wrap around buffer index when necessary */
+		if ((rxIdx + 1) >= PKTBUFSRX) {
+			out_be16(&rtx->rxbd[PKTBUFSRX - 1].cbd_sc,
+				 BD_ENET_RX_WRAP | BD_ENET_RX_EMPTY);
+			rxIdx = 0;
+		} else {
+			out_be16(&rtx->rxbd[rxIdx].cbd_sc, BD_ENET_RX_EMPTY);
+			rxIdx++;
+		}
+
+		/* Try to fill Buffer Descriptors */
+		/* Descriptor polling active    */
+		out_be32(&fecp->fec_r_des_active, 0x01000000);
 	}
 
-	/* Try to fill Buffer Descriptors */
-	/* Descriptor polling active    */
-	out_be32(&fecp->fec_r_des_active, 0x01000000);
-
-	return 0;
+	return length;
 }
 
 /**************************************************************
@@ -268,9 +296,9 @@ static int fec_free_pkt(struct udevice *dev, uchar *packet, int length)
 
 #if defined(CONFIG_RMII)
 
-static inline void fec_10Mbps(struct udevice *dev)
+static inline void fec_10Mbps(struct eth_device *dev)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	int fecidx = efis->ether_index;
 	uint mask = (fecidx == 0) ? 0x0000010 : 0x0000008;
 	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
@@ -281,9 +309,9 @@ static inline void fec_10Mbps(struct udevice *dev)
 	setbits_be32(&immr->im_cpm.cp_cptr, mask);
 }
 
-static inline void fec_100Mbps(struct udevice *dev)
+static inline void fec_100Mbps(struct eth_device *dev)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	int fecidx = efis->ether_index;
 	uint mask = (fecidx == 0) ? 0x0000010 : 0x0000008;
 	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
@@ -296,9 +324,9 @@ static inline void fec_100Mbps(struct udevice *dev)
 
 #endif
 
-static inline void fec_full_duplex(struct udevice *dev)
+static inline void fec_full_duplex(struct eth_device *dev)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
 
@@ -306,9 +334,9 @@ static inline void fec_full_duplex(struct udevice *dev)
 	setbits_be32(&fecp->fec_x_cntrl,  FEC_TCNTRL_FDEN);	/* FD enable */
 }
 
-static inline void fec_half_duplex(struct udevice *dev)
+static inline void fec_half_duplex(struct eth_device *dev)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
 
@@ -469,10 +497,9 @@ static int fec_reset(fec_t __iomem *fecp)
 	return 0;
 }
 
-static int fec_start(struct udevice *dev)
+static int fec_init(struct eth_device *dev, struct bd_info *bd)
 {
-	struct eth_pdata *plat = dev_get_plat(dev);
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	immap_t __iomem *immr = (immap_t __iomem *)CONFIG_SYS_IMMR;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
@@ -502,7 +529,7 @@ static int fec_start(struct udevice *dev)
 
 	/* Set station address
 	 */
-#define ea plat->enetaddr
+#define ea dev->enetaddr
 	out_be32(&fecp->fec_addr_low, (ea[0] << 24) | (ea[1] << 16) |
 				      (ea[2] << 8) | ea[3]);
 	out_be16(&fecp->fec_addr_high, (ea[4] << 8) | ea[5]);
@@ -638,9 +665,9 @@ static int fec_start(struct udevice *dev)
 }
 
 
-static void fec_stop(struct udevice *dev)
+static void fec_halt(struct eth_device *dev)
 {
-	struct ether_fcc_info_s *efis = dev_get_priv(dev);
+	struct ether_fcc_info_s *efis = dev->priv;
 	fec_t __iomem *fecp =
 			(fec_t __iomem *)(CONFIG_SYS_IMMR + efis->fecp_offset);
 	int i;
@@ -723,7 +750,7 @@ mii_send(uint mii_cmd)
 #endif
 
 #if defined(CONFIG_SYS_DISCOVER_PHY)
-static int mii_discover_phy(struct udevice *dev)
+static int mii_discover_phy(struct eth_device *dev)
 {
 #define MAX_PHY_PASSES 11
 	uint phyno;
@@ -827,37 +854,3 @@ int fec8xx_miiphy_write(struct mii_dev *bus, int addr, int devad, int reg,
 	return 0;
 }
 #endif
-
-static const struct eth_ops fec_ops = {
-	.start	= fec_start,
-	.send	= fec_send,
-	.recv	= fec_recv,
-	.stop	= fec_stop,
-	.free_pkt = fec_free_pkt,
-};
-
-static const struct udevice_id fec_ids[] = {
-#ifdef CONFIG_ETHER_ON_FEC1
-	{
-		.compatible = "fsl,pq1-fec1",
-		.data = 0,
-	},
-#endif
-#ifdef CONFIG_ETHER_ON_FEC2
-	{
-		.compatible = "fsl,pq1-fec2",
-		.data = 1,
-	},
-#endif
-	{ }
-};
-
-U_BOOT_DRIVER(fec) = {
-	.name	= "fec",
-	.id	= UCLASS_ETH,
-	.of_match = fec_ids,
-	.probe	= fec_probe,
-	.ops	= &fec_ops,
-	.priv_auto	= sizeof(struct ether_fcc_info_s),
-	.plat_auto	= sizeof(struct eth_pdata),
-};

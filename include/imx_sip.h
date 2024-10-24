@@ -15,6 +15,5 @@
 #define IMX_SIP_SRC		0xC2000005
 #define IMX_SIP_SRC_M4_START	0x00
 #define IMX_SIP_SRC_M4_STARTED	0x01
-#define	IMX_SIP_SRC_M4_STOP	0x02
 
 #endif

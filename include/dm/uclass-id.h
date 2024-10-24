@@ -38,9 +38,6 @@ enum uclass_id {
 	UCLASS_AXI,		/* AXI bus */
 	UCLASS_BLK,		/* Block device */
 	UCLASS_BOOTCOUNT,       /* Bootcount backing store */
-	UCLASS_BOOTDEV,		/* Boot device for locating an OS to boot */
-	UCLASS_BOOTMETH,	/* Bootmethod for booting an OS */
-	UCLASS_BOOTSTD,		/* Standard boot driver */
 	UCLASS_BUTTON,		/* Button */
 	UCLASS_CACHE,		/* Cache controller */
 	UCLASS_CLK,		/* Clock source, e.g. used by peripherals */
@@ -56,7 +53,6 @@ enum uclass_id {
 	UCLASS_ETH,		/* Ethernet device */
 	UCLASS_ETH_PHY,		/* Ethernet PHY device */
 	UCLASS_FIRMWARE,	/* Firmware */
-	UCLASS_FUZZING_ENGINE,	/* Fuzzing engine */
 	UCLASS_FS_FIRMWARE_LOADER,		/* Generic loader */
 	UCLASS_GPIO,		/* Bank of general-purpose I/O pins */
 	UCLASS_HASH,		/* Hash device */
@@ -87,7 +83,6 @@ enum uclass_id {
 	UCLASS_P2SB,		/* (x86) Primary-to-Sideband Bus */
 	UCLASS_PANEL,		/* Display panel, such as an LCD */
 	UCLASS_PANEL_BACKLIGHT,	/* Backlight controller for panel */
-	UCLASS_PARTITION,	/* Logical disk partition device */
 	UCLASS_PCH,		/* x86 platform controller hub */
 	UCLASS_PCI,		/* PCI bus */
 	UCLASS_PCI_EP,		/* PCI endpoint device */

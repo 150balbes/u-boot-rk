@@ -41,6 +41,17 @@
 #define CONFIG_FPGA_DELAY()
 #endif
 
+#ifndef CONFIG_SYS_FPGA_PROG_FEEDBACK
+#define CONFIG_SYS_FPGA_PROG_FEEDBACK
+#endif
+
+/*
+ * Don't allow config cycle to be interrupted
+ */
+#ifndef CONFIG_SYS_FPGA_CHECK_CTRLC
+#undef CONFIG_SYS_FPGA_CHECK_CTRLC
+#endif
+
 /*
  * Check for errors during configuration by default
  */
@@ -83,7 +94,7 @@ static int virtex2_ss_load(xilinx_desc *desc, const void *buf, size_t bsize);
 static int virtex2_ss_dump(xilinx_desc *desc, const void *buf, size_t bsize);
 
 static int virtex2_load(xilinx_desc *desc, const void *buf, size_t bsize,
-			bitstream_type bstype, int flags)
+			bitstream_type bstype)
 {
 	int ret_val = FPGA_FAIL;
 

@@ -7,13 +7,13 @@
 	binman {
 		sort-by-offset;
 		end-at-4gb;
-		size = <36>;
+		size = <32>;
 		u-boot {
-			offset = <0xffffffdc>;
+			offset = <0xffffffe0>;
 		};
 
 		u-boot-spl {
-			offset = <0xffffffe3>;
+			offset = <0xffffffe7>;
 		};
 	};
 };

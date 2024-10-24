@@ -222,10 +222,9 @@ pinctrl_gpio_get_pinctrl_and_offset(struct udevice *dev, unsigned offset,
  *
  * @dev: GPIO peripheral device
  * @offset: the GPIO pin offset from the GPIO controller
- * @label: the GPIO pin label
  * @return: 0 on success, or negative error code on failure
  */
-int pinctrl_gpio_request(struct udevice *dev, unsigned offset, const char *label)
+int pinctrl_gpio_request(struct udevice *dev, unsigned offset)
 {
 	const struct pinctrl_ops *ops;
 	struct udevice *pctldev;
@@ -402,13 +401,6 @@ int pinctrl_get_pin_muxing(struct udevice *dev, int selector, char *buf,
 static int __maybe_unused pinctrl_post_bind(struct udevice *dev)
 {
 	const struct pinctrl_ops *ops = pinctrl_get_ops(dev);
-
-	/*
-	 * Make sure that the pinctrl driver gets probed after binding
-	 * as some pinctrl drivers also register the GPIO driver during
-	 * probe, and if they are not probed GPIO-s are not registered.
-	 */
-	dev_or_flags(dev, DM_FLAG_PROBE_AFTER_BIND);
 
 	if (!ops) {
 		dev_dbg(dev, "ops is not set.  Do not bind.\n");

@@ -10,7 +10,6 @@ import time
 import unittest
 
 from buildman import board
-from buildman import boards
 from buildman import bsettings
 from buildman import builder
 from buildman import cfgutil
@@ -95,7 +94,7 @@ commits = [
      [errors[4]]],
 ]
 
-BOARDS = [
+boards = [
     ['Active', 'arm', 'armv7', '', 'Tester', 'ARM Board 1', 'board0',  ''],
     ['Active', 'arm', 'armv7', '', 'Tester', 'ARM Board 2', 'board1', ''],
     ['Active', 'powerpc', 'powerpc', '', 'Tester', 'PowerPC board 1', 'board2', ''],
@@ -132,10 +131,10 @@ class TestBuild(unittest.TestCase):
             self.commits.append(comm)
 
         # Set up boards to build
-        self.brds = boards.Boards()
-        for brd in BOARDS:
-            self.brds.add_board(board.Board(*brd))
-        self.brds.select_boards([])
+        self.boards = board.Boards()
+        for brd in boards:
+            self.boards.AddBoard(board.Board(*brd))
+        self.boards.SelectBoards([])
 
         # Add some test settings
         bsettings.Setup(None)
@@ -177,7 +176,7 @@ class TestBuild(unittest.TestCase):
         result.combined = result.stdout + result.stderr
         return result
 
-    def assertSummary(self, text, arch, plus, brds, outcome=OUTCOME_ERR):
+    def assertSummary(self, text, arch, plus, boards, outcome=OUTCOME_ERR):
         col = self._col
         expected_colour = (col.GREEN if outcome == OUTCOME_OK else
                            col.YELLOW if outcome == OUTCOME_WARN else col.RED)
@@ -185,8 +184,8 @@ class TestBuild(unittest.TestCase):
         # TODO(sjg@chromium.org): If plus is '', we shouldn't need this
         expect += ' ' + col.build(expected_colour, plus)
         expect += '  '
-        for brd in brds:
-            expect += col.build(expected_colour, ' %s' % brd)
+        for board in boards:
+            expect += col.build(expected_colour, ' %s' % board)
         self.assertEqual(text, expect)
 
     def _SetupTest(self, echo_lines=False, threads=1, **kwdisplay_args):
@@ -204,7 +203,7 @@ class TestBuild(unittest.TestCase):
         build = builder.Builder(self.toolchains, self.base_dir, None, threads,
                                 2, checkout=False, show_unknown=False)
         build.do_make = self.Make
-        board_selected = self.brds.get_selected_dict()
+        board_selected = self.boards.GetSelectedDict()
 
         # Build the boards for the pre-defined commits and warnings/errors
         # associated with each. This calls our Make() to inject the fake output.
@@ -218,7 +217,7 @@ class TestBuild(unittest.TestCase):
 
         # We should get two starting messages, an update for every commit built
         # and a summary message
-        self.assertEqual(count, len(commits) * len(BOARDS) + 3)
+        self.assertEqual(count, len(commits) * len(boards) + 3)
         build.SetDisplayOptions(**kwdisplay_args);
         build.ShowSummary(self.commits, board_selected)
         if echo_lines:
@@ -237,7 +236,7 @@ class TestBuild(unittest.TestCase):
             filter_dtb_warnings: Adjust the check for output produced with the
                --filter-dtb-warnings flag
         """
-        def add_line_prefix(prefix, brds, error_str, colour):
+        def add_line_prefix(prefix, boards, error_str, colour):
             """Add a prefix to each line of a string
 
             The training \n in error_str is removed before processing
@@ -254,9 +253,9 @@ class TestBuild(unittest.TestCase):
             lines = error_str.strip().splitlines()
             new_lines = []
             for line in lines:
-                if brds:
+                if boards:
                     expect = self._col.build(colour, prefix + '(')
-                    expect += self._col.build(self._col.MAGENTA, brds,
+                    expect += self._col.build(self._col.MAGENTA, boards,
                                               bright=False)
                     expect += self._col.build(colour, ') %s' % line)
                 else:
@@ -469,18 +468,18 @@ class TestBuild(unittest.TestCase):
 
     def testBoardSingle(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['sandbox']),
+        self.assertEqual(self.boards.SelectBoards(['sandbox']),
                          ({'all': ['board4'], 'sandbox': ['board4']}, []))
 
     def testBoardArch(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['arm']),
+        self.assertEqual(self.boards.SelectBoards(['arm']),
                          ({'all': ['board0', 'board1'],
                           'arm': ['board0', 'board1']}, []))
 
     def testBoardArchSingle(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['arm sandbox']),
+        self.assertEqual(self.boards.SelectBoards(['arm sandbox']),
                          ({'sandbox': ['board4'],
                           'all': ['board0', 'board1', 'board4'],
                           'arm': ['board0', 'board1']}, []))
@@ -488,20 +487,20 @@ class TestBuild(unittest.TestCase):
 
     def testBoardArchSingleMultiWord(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['arm', 'sandbox']),
+        self.assertEqual(self.boards.SelectBoards(['arm', 'sandbox']),
                          ({'sandbox': ['board4'],
                           'all': ['board0', 'board1', 'board4'],
                           'arm': ['board0', 'board1']}, []))
 
     def testBoardSingleAnd(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['Tester & arm']),
+        self.assertEqual(self.boards.SelectBoards(['Tester & arm']),
                          ({'Tester&arm': ['board0', 'board1'],
                            'all': ['board0', 'board1']}, []))
 
     def testBoardTwoAnd(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['Tester', '&', 'arm',
+        self.assertEqual(self.boards.SelectBoards(['Tester', '&', 'arm',
                                                    'Tester' '&', 'powerpc',
                                                    'sandbox']),
                          ({'sandbox': ['board4'],
@@ -512,19 +511,19 @@ class TestBuild(unittest.TestCase):
 
     def testBoardAll(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards([]),
+        self.assertEqual(self.boards.SelectBoards([]),
                          ({'all': ['board0', 'board1', 'board2', 'board3',
                                   'board4']}, []))
 
     def testBoardRegularExpression(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['T.*r&^Po']),
+        self.assertEqual(self.boards.SelectBoards(['T.*r&^Po']),
                          ({'all': ['board2', 'board3'],
                           'T.*r&^Po': ['board2', 'board3']}, []))
 
     def testBoardDuplicate(self):
         """Test single board selection"""
-        self.assertEqual(self.brds.select_boards(['sandbox sandbox',
+        self.assertEqual(self.boards.SelectBoards(['sandbox sandbox',
                                                    'sandbox']),
                          ({'all': ['board4'], 'sandbox': ['board4']}, []))
     def CheckDirs(self, build, dirname):

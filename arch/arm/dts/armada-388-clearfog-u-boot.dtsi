@@ -35,5 +35,3 @@
 		u-boot,dm-spl;
 	};
 };
-
-#include "mvebu-u-boot.dtsi"

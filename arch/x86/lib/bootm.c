@@ -78,14 +78,15 @@ static int boot_prep_linux(bootm_headers_t *images)
 	size_t len;
 	int ret;
 
-	if (CONFIG_IS_ENABLED(OF_LIBFDT) && CONFIG_IS_ENABLED(LMB) && images->ft_len) {
+#ifdef CONFIG_OF_LIBFDT
+	if (images->ft_len) {
 		debug("using: FDT\n");
 		if (image_setup_linux(images)) {
 			puts("FDT creation failed! hanging...");
 			hang();
 		}
 	}
-
+#endif
 	if (images->legacy_hdr_valid) {
 		hdr = images->legacy_hdr_os;
 		if (image_check_type(hdr, IH_TYPE_MULTI)) {

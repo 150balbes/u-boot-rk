@@ -6,7 +6,6 @@
  */
 
 #include <common.h>
-#include <display_options.h>
 #include <init.h>
 #include <net.h>
 #include <pci.h>
@@ -169,8 +168,7 @@ void lbc_sdram_init(void)
 #endif	/* enable SDRAM init */
 }
 
-#ifndef CONFIG_DM_ETH
-static void configure_rgmii(void)
+void configure_rgmii(void)
 {
 	unsigned short temp;
 
@@ -249,4 +247,3 @@ int board_eth_init(struct bd_info *bis)
 
 	return pci_eth_init(bis);
 }
-#endif

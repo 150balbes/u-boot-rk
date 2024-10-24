@@ -10,6 +10,7 @@ Architecture-specific doc
    arm64
    m68k
    mips
+   nds32
    nios2
    sandbox
    sh

@@ -18,6 +18,11 @@ static int raspberrypi_reset_request(struct reset_ctl *reset_ctl)
 	return 0;
 }
 
+static int raspberrypi_reset_free(struct reset_ctl *reset_ctl)
+{
+	return 0;
+}
+
 static int raspberrypi_reset_assert(struct reset_ctl *reset_ctl)
 {
 	switch (reset_ctl->id) {
@@ -29,9 +34,16 @@ static int raspberrypi_reset_assert(struct reset_ctl *reset_ctl)
 	}
 }
 
+static int raspberrypi_reset_deassert(struct reset_ctl *reset_ctl)
+{
+	return 0;
+}
+
 struct reset_ops raspberrypi_reset_ops = {
 	.request = raspberrypi_reset_request,
+	.rfree = raspberrypi_reset_free,
 	.rst_assert = raspberrypi_reset_assert,
+	.rst_deassert = raspberrypi_reset_deassert,
 };
 
 static const struct udevice_id raspberrypi_reset_ids[] = {

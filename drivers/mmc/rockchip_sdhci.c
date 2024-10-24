@@ -202,8 +202,8 @@ static void rk3399_emmc_phy_power_on(struct rockchip_emmc_phy *phy, u32 clock)
 	/* REN Enable on STRB Line for HS400 */
 	writel(RK_CLRSETBITS(0, 1 << 9), &phy->emmcphy_con[2]);
 
-	read_poll_timeout(readl, dllrdy, PHYCTRL_DLL_LOCK_WO_TMOUT(dllrdy), 1,
-			  5000, &phy->emmcphy_status);
+	read_poll_timeout(readl, &phy->emmcphy_status, dllrdy,
+			  PHYCTRL_DLL_LOCK_WO_TMOUT(dllrdy), 1, 5000);
 }
 
 static void rk3399_emmc_phy_power_off(struct rockchip_emmc_phy *phy)
@@ -227,7 +227,7 @@ static int rk3399_emmc_get_phy(struct udevice *dev)
 	}
 
 	grf_base = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
-	if (IS_ERR_OR_NULL(grf_base)) {
+	if (grf_base < 0) {
 		printf("%s Get syscon grf failed", __func__);
 		return -ENODEV;
 	}
@@ -328,9 +328,8 @@ static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clo
 			DWCMSHC_EMMC_DLL_START;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL);
 
-		ret = read_poll_timeout(readl, val, DLL_LOCK_WO_TMOUT(val), 1,
-					500,
-					host->ioaddr + DWCMSHC_EMMC_DLL_STATUS0);
+		ret = read_poll_timeout(readl, host->ioaddr + DWCMSHC_EMMC_DLL_STATUS0,
+					val, DLL_LOCK_WO_TMOUT(val), 1, 500);
 		if (ret)
 			return ret;
 

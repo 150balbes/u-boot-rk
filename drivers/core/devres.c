@@ -232,7 +232,7 @@ static void dump_resources(struct udevice *dev, int depth)
 		       (unsigned long)dr->size, dr->name,
 		       devres_phase_name[dr->phase]);
 
-	device_foreach_child(child, dev)
+	list_for_each_entry(child, &dev->child_head, sibling_node)
 		dump_resources(child, depth + 1);
 }
 

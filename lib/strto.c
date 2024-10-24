@@ -183,31 +183,20 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 	return simple_strtoull(cp, endp, base);
 }
 
-long trailing_strtoln_end(const char *str, const char *end, char const **endp)
+long trailing_strtoln(const char *str, const char *end)
 {
 	const char *p;
 
 	if (!end)
 		end = str + strlen(str);
-	p = end - 1;
-	if (p > str && isdigit(*p)) {
-		do {
-			if (!isdigit(p[-1])) {
-				if (endp)
-					*endp = p;
-				return dectoul(p, NULL);
-			}
-		} while (--p > str);
+	if (isdigit(end[-1])) {
+		for (p = end - 1; p > str; p--) {
+			if (!isdigit(*p))
+				return dectoul(p + 1, NULL);
+		}
 	}
-	if (endp)
-		*endp = end;
 
 	return -1;
-}
-
-long trailing_strtoln(const char *str, const char *end)
-{
-	return trailing_strtoln_end(str, end, NULL);
 }
 
 long trailing_strtol(const char *str)

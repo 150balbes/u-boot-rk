@@ -169,8 +169,8 @@ by writing in u-boot.lds ($(srctree)/board/boardname/u-boot.lds) these
 
 .. code-block:: c
 
-    __u_boot_list : {
-        KEEP(*(SORT(__u_boot_list*)));
+    .u_boot_list : {
+        KEEP(*(SORT(.u_boot_list*)));
     }
 
 Writing tests

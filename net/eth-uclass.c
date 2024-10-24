@@ -8,13 +8,11 @@
 #define LOG_CATEGORY UCLASS_ETH
 
 #include <common.h>
-#include <bootdev.h>
 #include <bootstage.h>
 #include <dm.h>
 #include <env.h>
 #include <log.h>
 #include <net.h>
-#include <nvmem.h>
 #include <asm/global_data.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
@@ -475,8 +473,6 @@ int eth_initialize(void)
 
 static int eth_post_bind(struct udevice *dev)
 {
-	int ret;
-
 	if (strchr(dev->name, ' ')) {
 		printf("\nError: eth device name \"%s\" has a space!\n",
 		       dev->name);
@@ -486,11 +482,6 @@ static int eth_post_bind(struct udevice *dev)
 #ifdef CONFIG_DM_ETH_PHY
 	eth_phy_binds_nodes(dev);
 #endif
-	if (CONFIG_IS_ENABLED(BOOTDEV_ETH)) {
-		ret = bootdev_setup_for_dev(dev, "eth_bootdev");
-		if (ret)
-			return log_msg_ret("bootdev", ret);
-	}
 
 	return 0;
 }
@@ -508,21 +499,17 @@ static bool eth_dev_get_mac_address(struct udevice *dev, u8 mac[ARP_HLEN])
 {
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	const uint8_t *p;
-	struct nvmem_cell mac_cell;
 
 	p = dev_read_u8_array_ptr(dev, "mac-address", ARP_HLEN);
 	if (!p)
 		p = dev_read_u8_array_ptr(dev, "local-mac-address", ARP_HLEN);
 
-	if (p) {
-		memcpy(mac, p, ARP_HLEN);
-		return true;
-	}
-
-	if (nvmem_cell_get_by_name(dev, "mac-address", &mac_cell))
+	if (!p)
 		return false;
 
-	return !nvmem_cell_read(&mac_cell, mac, ARP_HLEN);
+	memcpy(mac, p, ARP_HLEN);
+
+	return true;
 #else
 	return false;
 #endif

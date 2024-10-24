@@ -14,7 +14,6 @@
 #include <log.h>
 #include <malloc.h>
 #include <pci.h>
-#include <power/regulator.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/crm_regs.h>
@@ -103,7 +102,6 @@ struct imx_pcie_priv {
 	void __iomem		*cfg_base;
 	struct gpio_desc	reset_gpio;
 	bool			reset_active_high;
-	struct udevice		*vpcie;
 };
 
 /*
@@ -302,9 +300,9 @@ static int imx_pcie_regions_setup(struct imx_pcie_priv *priv)
 	setbits_le32(priv->dbi_base + PCI_COMMAND,
 		     PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 
-	/* Set the CLASS_REV of RC CFG header to PCI_CLASS_BRIDGE_PCI_NORMAL */
+	/* Set the CLASS_REV of RC CFG header to PCI_CLASS_BRIDGE_PCI */
 	setbits_le32(priv->dbi_base + PCI_CLASS_REVISION,
-		     PCI_CLASS_BRIDGE_PCI_NORMAL << 8);
+		     PCI_CLASS_BRIDGE_PCI << 16);
 
 	/* Region #0 is used for Outbound CFG space access. */
 	writel(0, priv->dbi_base + PCIE_ATU_VIEWPORT);
@@ -532,7 +530,7 @@ static int imx6_pcie_init_phy(void)
 	return 0;
 }
 
-int imx6_pcie_toggle_power(struct udevice *vpcie)
+__weak int imx6_pcie_toggle_power(void)
 {
 #ifdef CONFIG_PCIE_IMX_POWER_GPIO
 	gpio_request(CONFIG_PCIE_IMX_POWER_GPIO, "pcie_power");
@@ -542,19 +540,10 @@ int imx6_pcie_toggle_power(struct udevice *vpcie)
 	mdelay(20);
 	gpio_free(CONFIG_PCIE_IMX_POWER_GPIO);
 #endif
-
-#if CONFIG_IS_ENABLED(DM_REGULATOR)
-	if (vpcie) {
-		regulator_set_enable(vpcie, false);
-		mdelay(20);
-		regulator_set_enable(vpcie, true);
-		mdelay(20);
-	}
-#endif
 	return 0;
 }
 
-int imx6_pcie_toggle_reset(struct gpio_desc *gpio, bool active_high)
+__weak int imx6_pcie_toggle_reset(struct gpio_desc *gpio, bool active_high)
 {
 	/*
 	 * See 'PCI EXPRESS BASE SPECIFICATION, REV 3.0, SECTION 6.6.1'
@@ -569,6 +558,12 @@ int imx6_pcie_toggle_reset(struct gpio_desc *gpio, bool active_high)
 	 * CPU, you can define CONFIG_PCIE_IMX_PERST_GPIO in your board's
 	 * configuration file and the condition below will handle the rest
 	 * of the reset toggling.
+	 *
+	 * In case your #PERST toggling logic is more complex, for example
+	 * connected via CPLD or somesuch, you can override this function
+	 * in your board file and implement reset logic as needed. You must
+	 * not forget to wait at least 20 ms after de-asserting #PERST in
+	 * this case either though.
 	 *
 	 * In case your #PERST line of the PCIe EP device is not connected
 	 * at all, your design is broken and you should fix your design,
@@ -603,7 +598,7 @@ static int imx6_pcie_deassert_core_reset(struct imx_pcie_priv *priv)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 
-	imx6_pcie_toggle_power(priv->vpcie);
+	imx6_pcie_toggle_power();
 
 	enable_pcie_clock();
 
@@ -721,10 +716,6 @@ static int imx_pcie_dm_write_config(struct udevice *dev, pci_dev_t bdf,
 static int imx_pcie_dm_probe(struct udevice *dev)
 {
 	struct imx_pcie_priv *priv = dev_get_priv(dev);
-
-#if CONFIG_IS_ENABLED(DM_REGULATOR)
-	device_get_supply_regulator(dev, "vpcie-supply", &priv->vpcie);
-#endif
 
 	/* if PERST# valid from dt then assert it */
 	gpio_request_by_name(dev, "reset-gpio", 0, &priv->reset_gpio,

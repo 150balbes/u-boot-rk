@@ -7,7 +7,6 @@
  */
 
 #include <common.h>
-#include <display_options.h>
 #include <errno.h>
 #include <init.h>
 #include <log.h>

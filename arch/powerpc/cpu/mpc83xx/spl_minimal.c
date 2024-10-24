@@ -7,7 +7,6 @@
 #include <asm-offsets.h>
 #include <clock_legacy.h>
 #include <mpc83xx.h>
-#include <system-constants.h>
 #include <time.h>
 #include <asm/global_data.h>
 
@@ -26,7 +25,7 @@ DECLARE_GLOBAL_DATA_PTR;
 void cpu_init_f (volatile immap_t * im)
 {
 	/* Pointer is writable since we allocated a register for it */
-	gd = (gd_t *)SYS_INIT_SP_ADDR;
+	gd = (gd_t *) (CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_GBL_DATA_OFFSET);
 
 	/* global data region was cleared in start.S */
 

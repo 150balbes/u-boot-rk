@@ -7,7 +7,6 @@
 #include <config.h>
 #include <asm/assembler.h>
 #include <linux/linkage.h>
-#include <system-constants.h>
 
 .type __hard_fault_entry, %function
 __hard_fault_entry:
@@ -36,7 +35,7 @@ __invalid_entry:
 
    .section  .vectors
 ENTRY(_start)
-	.long	SYS_INIT_SP_ADDR		@ 0 - Reset stack pointer
+	.long	CONFIG_SYS_INIT_SP_ADDR		@ 0 - Reset stack pointer
 	.long	reset				@ 1 - Reset
 	.long	__invalid_entry			@ 2 - NMI
 	.long	__hard_fault_entry		@ 3 - HardFault

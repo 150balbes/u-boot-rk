@@ -11,7 +11,6 @@
 
 /include/ "qoriq-clockgen1.dtsi"
 /include/ "qoriq-gpio-0.dtsi"
-/include/ "qoriq-sec5.2-0.dtsi"
 
 /* include used FMan blocks */
 /include/ "qoriq-fman-0.dtsi"

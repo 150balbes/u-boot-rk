@@ -7,7 +7,6 @@
  */
 
 #include <common.h>
-#include <display_options.h>
 #include <log.h>
 #include <malloc.h>
 #include <asm/global_data.h>
@@ -29,7 +28,6 @@ static const char *const log_cat_name[] = {
 	"devres",
 	"acpi",
 	"boot",
-	"event",
 };
 
 _Static_assert(ARRAY_SIZE(log_cat_name) == LOGC_COUNT - LOGC_NONE,

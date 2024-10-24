@@ -93,13 +93,6 @@ struct dm_test_uclass_priv {
 };
 
 /**
- * struct dm_test_uclass_plat - private plat data for test uclass
- */
-struct dm_test_uclass_plat {
-	char dummy[32];
-};
-
-/**
  * struct dm_test_parent_data - parent's information on each child
  *
  * @sum: Test value used to check parent data works correctly

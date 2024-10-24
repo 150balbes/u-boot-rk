@@ -3,8 +3,6 @@
  *(C) Copyright 2019 Rockchip Electronics Co., Ltd
  */
 
-#include "rockchip-u-boot.dtsi"
-
 / {
 	aliases {
 		mmc0 = &emmc;

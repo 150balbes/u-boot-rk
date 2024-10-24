@@ -15,11 +15,6 @@ from patman import tout
 FDTMAP_MAGIC   = b'_FDTMAP_'
 FDTMAP_HDR_LEN = 16
 
-# These is imported if needed
-Fdt = None
-libfdt = None
-state = None
-
 def LocateFdtmap(data):
     """Search an image for an fdt map
 

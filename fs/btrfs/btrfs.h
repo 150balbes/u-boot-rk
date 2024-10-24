@@ -2,14 +2,14 @@
 /*
  * BTRFS filesystem implementation for U-Boot
  *
- * 2017 Marek Behún, CZ.NIC, kabel@kernel.org
+ * 2017 Marek Behun, CZ.NIC, marek.behun@nic.cz
  */
 
 #ifndef __BTRFS_BTRFS_H__
 #define __BTRFS_BTRFS_H__
 
 #include <linux/rbtree.h>
-#include "ctree.h"
+#include "conv-funcs.h"
 
 extern struct btrfs_info btrfs_info;
 extern struct btrfs_fs_info *current_fs_info;

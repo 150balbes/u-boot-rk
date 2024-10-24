@@ -8,7 +8,6 @@
 #include <common.h>
 #include <dm.h>
 #include <cpu.h>
-#include <event.h>
 #include <init.h>
 #include <log.h>
 #include <asm/cpu.h>
@@ -25,7 +24,7 @@
 #include <asm/arch/pch.h>
 #include <asm/arch/rcb.h>
 
-static int broadwell_init_cpu(void *ctx, struct event *event)
+int arch_cpu_init_dm(void)
 {
 	struct udevice *dev;
 	int ret;
@@ -42,7 +41,6 @@ static int broadwell_init_cpu(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_DM_POST_INIT, broadwell_init_cpu);
 
 void set_max_freq(void)
 {

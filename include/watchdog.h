@@ -49,13 +49,7 @@ int init_func_watchdog_reset(void);
 	 */
 	#if defined(CONFIG_WATCHDOG)
 		#if defined(__ASSEMBLY__)
-			/* Don't require the watchdog to be enabled in SPL */
-			#if defined(CONFIG_SPL_BUILD) &&		\
-				!defined(CONFIG_SPL_WATCHDOG)
-				#define WATCHDOG_RESET /*XXX DO_NOT_DEL_THIS_COMMENT*/
-			#else
-				#define WATCHDOG_RESET bl watchdog_reset
-			#endif
+			#define WATCHDOG_RESET bl watchdog_reset
 		#else
 			/* Don't require the watchdog to be enabled in SPL */
 			#if defined(CONFIG_SPL_BUILD) &&		\

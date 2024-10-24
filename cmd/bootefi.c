@@ -35,18 +35,6 @@ static void *image_addr;
 static size_t image_size;
 
 /**
- * efi_get_image_parameters() - return image parameters
- *
- * @img_addr:		address of loaded image in memory
- * @img_size:		size of loaded image
- */
-void efi_get_image_parameters(void **img_addr, size_t *img_size)
-{
-	*img_addr = image_addr;
-	*img_size = image_size;
-}
-
-/**
  * efi_clear_bootdev() - clear boot device
  */
 static void efi_clear_bootdev(void)
@@ -119,9 +107,9 @@ void efi_set_bootdev(const char *dev, const char *devnr, const char *path,
 			efi_free_pool(image_tmp);
 		}
 		bootefi_image_path = image;
-		log_debug("- boot device %pD\n", device);
+		log_debug("- recorded device %ls\n", efi_dp_str(device));
 		if (image)
-			log_debug("- image %pD\n", image);
+			log_debug("- and image %ls\n", efi_dp_str(image));
 	} else {
 		log_debug("- efi_dp_from_name() failed, err=%lx\n", ret);
 		efi_clear_bootdev();
@@ -434,11 +422,10 @@ static int do_efibootmgr(void)
  * Set up memory image for the binary to be loaded, prepare device path, and
  * then call do_bootefi_exec() to execute it.
  *
- * @image_opt:	string with image start address
- * @size_opt:	string with image size or NULL
+ * @image_opt:	string of image start address
  * Return:	status code
  */
-static int do_bootefi_image(const char *image_opt, const char *size_opt)
+static int do_bootefi_image(const char *image_opt)
 {
 	void *image_buf;
 	unsigned long addr, size;
@@ -456,21 +443,14 @@ static int do_bootefi_image(const char *image_opt, const char *size_opt)
 		/* Check that a numeric value was passed */
 		if (!addr)
 			return CMD_RET_USAGE;
+
 		image_buf = map_sysmem(addr, 0);
 
-		if (size_opt) {
-			size = strtoul(size_opt, NULL, 16);
-			if (!size)
-				return CMD_RET_USAGE;
-			efi_clear_bootdev();
-		} else {
-			if (image_buf != image_addr) {
-				log_err("No UEFI binary known at %s\n",
-					image_opt);
-				return CMD_RET_FAILURE;
-			}
-			size = image_size;
+		if (image_buf != image_addr) {
+			log_err("No UEFI binary known at %s\n", image_opt);
+			return CMD_RET_FAILURE;
 		}
+		size = image_size;
 	}
 	ret = efi_run_image(image_buf, size);
 
@@ -661,7 +641,6 @@ static int do_bootefi(struct cmd_tbl *cmdtp, int flag, int argc,
 		      char *const argv[])
 {
 	efi_status_t ret;
-	char *img_addr, *img_size, *str_copy, *pos;
 	void *fdt;
 
 	if (argc < 2)
@@ -697,24 +676,16 @@ static int do_bootefi(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!strcmp(argv[1], "selftest"))
 		return do_efi_selftest();
 #endif
-	str_copy = strdup(argv[1]);
-	if (!str_copy) {
-		log_err("Out of memory\n");
-		return CMD_RET_FAILURE;
-	}
-	pos = str_copy;
-	img_addr = strsep(&pos, ":");
-	img_size = strsep(&pos, ":");
-	ret = do_bootefi_image(img_addr, img_size);
-	free(str_copy);
 
-	return ret;
+	return do_bootefi_image(argv[1]);
 }
 
 #ifdef CONFIG_SYS_LONGHELP
 static char bootefi_help_text[] =
-	"<image address>[:<image size>] [<fdt address>]\n"
-	"  - boot EFI payload\n"
+	"<image address> [fdt address]\n"
+	"  - boot EFI payload stored at address <image address>.\n"
+	"    If specified, the device tree located at <fdt address> gets\n"
+	"    exposed as EFI configuration table.\n"
 #ifdef CONFIG_CMD_BOOTEFI_HELLO
 	"bootefi hello\n"
 	"  - boot a sample Hello World application stored within U-Boot\n"
@@ -736,7 +707,7 @@ static char bootefi_help_text[] =
 #endif
 
 U_BOOT_CMD(
-	bootefi, 4, 0, do_bootefi,
+	bootefi, 3, 0, do_bootefi,
 	"Boots an EFI payload from memory",
 	bootefi_help_text
 );

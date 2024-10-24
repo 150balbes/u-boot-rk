@@ -546,7 +546,11 @@ static int bcm6368_eth_probe(struct udevice *dev)
 			return ret;
 		}
 
-		clk_free(&clk);
+		ret = clk_free(&clk);
+		if (ret < 0) {
+			pr_err("%s: error freeing clock %d\n", __func__, i);
+			return ret;
+		}
 	}
 
 	/* try to perform resets */

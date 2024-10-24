@@ -96,6 +96,9 @@ int board_init(void)
 #ifdef CONFIG_NAND_CS_INIT
 	board_nand_cs_init();
 #endif
+#ifdef CONFIG_VIDEO
+	board_video_init();
+#endif
 
 	return 0;
 }

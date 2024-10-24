@@ -26,6 +26,7 @@ config SYS_LS_PPA_ESBC_ADDR
 endif
 endif
 
+source "board/freescale/common/Kconfig"
 endif
 
 if TARGET_LS1088ARDB
@@ -56,4 +57,5 @@ config SYS_LS_PPA_ESBC_ADDR
 endif
 endif
 
+source "board/freescale/common/Kconfig"
 endif

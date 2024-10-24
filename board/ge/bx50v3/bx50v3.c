@@ -547,7 +547,7 @@ int last_stage_init(void)
 
 int checkboard(void)
 {
-	printf("BOARD: General Electric Bx50v3\n");
+	printf("BOARD: %s\n", CONFIG_BOARD_NAME);
 	return 0;
 }
 

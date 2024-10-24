@@ -25,11 +25,13 @@ void sound_create_square_wave(uint sample_rate, unsigned short *data, int size,
 		int i, j;
 
 		for (i = 0; size && i < half; i++) {
-			for (j = 0; size && j < channels; j++, size -= 2)
+			size -= 2;
+			for (j = 0; j < channels; j++)
 				*data++ = amplitude;
 		}
 		for (i = 0; size && i < period - half; i++) {
-			for (j = 0; size && j < channels; j++, size -= 2)
+			size -= 2;
+			for (j = 0; j < channels; j++)
 				*data++ = -amplitude;
 		}
 	}

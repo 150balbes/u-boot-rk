@@ -8,6 +8,7 @@
 #include <common.h>
 #include <dm.h>
 #include <efi_loader.h>
+#include <lcd.h>
 #include <log.h>
 #include <malloc.h>
 #include <video.h>
@@ -458,7 +459,11 @@ efi_status_t EFIAPI gop_blt(struct efi_gop *this, struct efi_gop_pixel *buffer,
 	if (ret != EFI_SUCCESS)
 		return EFI_EXIT(ret);
 
+#ifdef CONFIG_DM_VIDEO
 	video_sync_all();
+#else
+	lcd_sync();
+#endif
 
 	return EFI_EXIT(EFI_SUCCESS);
 }

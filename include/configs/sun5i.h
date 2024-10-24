@@ -2,12 +2,18 @@
 /*
  * (C) Copyright 2012-2013 Henrik Nordstrom <henrik@henriknordstrom.net>
  *
- * Placeholder wrapper to allow addressing Allwinner A13 (sun5i) CPU
- * based devices separately. Please do not add anything in here.
+ * Configuration settings for the Allwinner A13 (sun5i) CPU
  */
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+/*
+ * High Level Configuration Options
+ */
+
+/*
+ * Include common sunxi configuration where most the settings are
+ */
 #include <configs/sunxi-common.h>
 
 #endif /* __CONFIG_H */

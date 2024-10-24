@@ -5,7 +5,7 @@
  *
  * (c) 2012 Daniel Stodden <daniel.stodden@gmail.com>
  * (c) 2021 Pali Rohár <pali@kernel.org>
- * (c) 2021 Marek Behún <kabel@kernel.org>
+ * (c) 2021 Marek Behún <marek.behun@nic.cz>
  *
  * References:
  * - "88F6180, 88F6190, 88F6192, and 88F6281: Integrated Controller: Functional
@@ -1591,8 +1591,8 @@ static void *
 kwboot_read_image(const char *path, size_t *size, size_t reserve)
 {
 	int rc, fd;
+	struct stat st;
 	void *img;
-	off_t len;
 	off_t tot;
 
 	rc = -1;
@@ -1602,34 +1602,31 @@ kwboot_read_image(const char *path, size_t *size, size_t reserve)
 	if (fd < 0)
 		goto out;
 
-	len = lseek(fd, 0, SEEK_END);
-	if (len == (off_t)-1)
+	rc = fstat(fd, &st);
+	if (rc)
 		goto out;
 
-	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
-		goto out;
-
-	img = malloc(len + reserve);
+	img = malloc(st.st_size + reserve);
 	if (!img)
 		goto out;
 
 	tot = 0;
-	while (tot < len) {
-		ssize_t rd = read(fd, img + tot, len - tot);
+	while (tot < st.st_size) {
+		ssize_t rd = read(fd, img + tot, st.st_size - tot);
 
 		if (rd < 0)
 			goto out;
 
 		tot += rd;
 
-		if (!rd && tot < len) {
+		if (!rd && tot < st.st_size) {
 			errno = EIO;
 			goto out;
 		}
 	}
 
 	rc = 0;
-	*size = len;
+	*size = st.st_size;
 out:
 	if (rc && img) {
 		free(img);

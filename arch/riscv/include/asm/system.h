@@ -7,16 +7,11 @@
 #ifndef __ASM_RISCV_SYSTEM_H
 #define __ASM_RISCV_SYSTEM_H
 
-struct event;
-
 /*
  * Interrupt configuring macros.
  *
  * TODO
  *
  */
-
-/* Hook to set up the CPU (called from SPL too) */
-int riscv_cpu_setup(void *ctx, struct event *event);
 
 #endif	/* __ASM_RISCV_SYSTEM_H */

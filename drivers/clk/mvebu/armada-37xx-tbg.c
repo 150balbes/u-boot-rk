@@ -2,7 +2,7 @@
 /*
  * Marvell Armada 37xx SoC Time Base Generator clocks
  *
- * Marek Behún <kabel@kernel.org>
+ * Marek Behun <marek.behun@nic.cz>
  *
  * Based on Linux driver by:
  *   Gregory CLEMENT <gregory.clement@free-electrons.com>

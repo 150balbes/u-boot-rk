@@ -28,13 +28,14 @@ DECLARE_GLOBAL_DATA_PTR;
  * Currently only 2GiB are mapped for system memory. This is what
  * we pass to the U-Boot subsystem here.
  */
-#define USABLE_RAM_SIZE		0x80000000ULL
+#define USABLE_RAM_SIZE		0x80000000
 
 ulong board_get_usable_ram_top(ulong total_size)
 {
-	unsigned long top = CONFIG_SYS_SDRAM_BASE + min(gd->ram_size, USABLE_RAM_SIZE);
+	if (gd->ram_size > USABLE_RAM_SIZE)
+		return USABLE_RAM_SIZE;
 
-	return (gd->ram_top > top) ? top : gd->ram_top;
+	return gd->ram_size;
 }
 
 /*

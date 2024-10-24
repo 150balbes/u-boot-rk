@@ -414,9 +414,9 @@ int clk_request(struct udevice *dev, struct clk *clk);
  * @clk:	A clock struct that was previously successfully requested by
  *		clk_request/get_by_*().
  *
- * Free resources allocated by clk_request() (or any clk_get_* function).
+ * Return: 0 if OK, or a negative error code.
  */
-void clk_free(struct clk *clk);
+int clk_free(struct clk *clk);
 
 /**
  * clk_get_rate() - Get current clock rate.
@@ -562,9 +562,9 @@ static inline int clk_request(struct udevice *dev, struct clk *clk)
 	return -ENOSYS;
 }
 
-static inline void clk_free(struct clk *clk)
+static inline int clk_free(struct clk *clk)
 {
-	return;
+	return 0;
 }
 
 static inline ulong clk_get_rate(struct clk *clk)

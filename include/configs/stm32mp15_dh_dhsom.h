@@ -33,4 +33,6 @@
 
 #include <configs/stm32mp15_common.h>
 
+#define CONFIG_SPL_TARGET		"u-boot.itb"
+
 #endif

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright 2016-2019, 2021 NXP
+/* Copyright 2016-2019 NXP
  */
 #include <common.h>
 #include <clock_legacy.h>
@@ -238,7 +238,10 @@ int misc_init_r(void)
 #ifdef CONFIG_FSL_DEVICE_DISABLE
 	device_disable(devdis_tbl, ARRAY_SIZE(devdis_tbl));
 #endif
-	return 0;
+
+#ifdef CONFIG_FSL_CAAM
+	return sec_init();
+#endif
 }
 #endif
 

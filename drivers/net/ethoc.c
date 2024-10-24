@@ -614,11 +614,11 @@ static int ethoc_phy_init(struct ethoc *priv, void *dev)
 	mask = 1 << CONFIG_PHY_ADDR;
 #endif
 
-	phydev = phy_find_by_mask(priv->bus, mask);
+	phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_MII);
 	if (!phydev)
 		return -ENODEV;
 
-	phy_connect_dev(phydev, dev, PHY_INTERFACE_MODE_MII);
+	phy_connect_dev(phydev, dev);
 
 	phydev->supported &= PHY_BASIC_FEATURES;
 	phydev->advertising = phydev->supported;

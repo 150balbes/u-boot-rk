@@ -22,16 +22,17 @@
 #define SDCC_MCI_POWER_SW_RST BIT(7)
 
 /* This is undocumented register */
-#define SDCC_MCI_VERSION		0x50
-#define SDCC_V5_VERSION			0x318
-
-#define SDCC_VERSION_MAJOR_SHIFT	28
-#define SDCC_VERSION_MAJOR_MASK		(0xf << SDCC_VERSION_MAJOR_SHIFT)
-#define SDCC_VERSION_MINOR_MASK		0xff
+#define SDCC_MCI_VERSION             0x50
+#define SDCC_MCI_VERSION_MAJOR_SHIFT 28
+#define SDCC_MCI_VERSION_MAJOR_MASK  (0xf << SDCC_MCI_VERSION_MAJOR_SHIFT)
+#define SDCC_MCI_VERSION_MINOR_MASK  0xff
 
 #define SDCC_MCI_STATUS2 0x6C
 #define SDCC_MCI_STATUS2_MCI_ACT 0x1
 #define SDCC_MCI_HC_MODE 0x78
+
+/* Offset to SDHCI registers */
+#define SDCC_SDHCI_OFFSET 0x900
 
 /* Non standard (?) SDHCI register */
 #define SDHCI_VENDOR_SPEC_CAPABILITIES0  0x11c
@@ -44,10 +45,6 @@ struct msm_sdhc_plat {
 struct msm_sdhc {
 	struct sdhci_host host;
 	void *base;
-};
-
-struct msm_sdhc_variant_info {
-	bool mci_removed;
 };
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -88,8 +85,25 @@ static int msm_sdc_clk_init(struct udevice *dev)
 	return 0;
 }
 
-static int msm_sdc_mci_init(struct msm_sdhc *prv)
+static int msm_sdc_probe(struct udevice *dev)
 {
+	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
+	struct msm_sdhc_plat *plat = dev_get_plat(dev);
+	struct msm_sdhc *prv = dev_get_priv(dev);
+	struct sdhci_host *host = &prv->host;
+	u32 core_version, core_minor, core_major;
+	u32 caps;
+	int ret;
+
+	host->quirks = SDHCI_QUIRK_WAIT_SEND_CMD | SDHCI_QUIRK_BROKEN_R1B;
+
+	host->max_clk = 0;
+
+	/* Init clocks */
+	ret = msm_sdc_clk_init(dev);
+	if (ret)
+		return ret;
+
 	/* Reset the core and Enable SDHC mode */
 	writel(readl(prv->base + SDCC_MCI_POWER) | SDCC_MCI_POWER_SW_RST,
 	       prv->base + SDCC_MCI_POWER);
@@ -112,45 +126,12 @@ static int msm_sdc_mci_init(struct msm_sdhc *prv)
 	/* Enable host-controller mode */
 	writel(1, prv->base + SDCC_MCI_HC_MODE);
 
-	return 0;
-}
+	core_version = readl(prv->base + SDCC_MCI_VERSION);
 
-static int msm_sdc_probe(struct udevice *dev)
-{
-	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
-	struct msm_sdhc_plat *plat = dev_get_plat(dev);
-	struct msm_sdhc *prv = dev_get_priv(dev);
-	const struct msm_sdhc_variant_info *var_info;
-	struct sdhci_host *host = &prv->host;
-	u32 core_version, core_minor, core_major;
-	u32 caps;
-	int ret;
+	core_major = (core_version & SDCC_MCI_VERSION_MAJOR_MASK);
+	core_major >>= SDCC_MCI_VERSION_MAJOR_SHIFT;
 
-	host->quirks = SDHCI_QUIRK_WAIT_SEND_CMD | SDHCI_QUIRK_BROKEN_R1B;
-
-	host->max_clk = 0;
-
-	/* Init clocks */
-	ret = msm_sdc_clk_init(dev);
-	if (ret)
-		return ret;
-
-	var_info = (void *)dev_get_driver_data(dev);
-	if (!var_info->mci_removed) {
-		ret = msm_sdc_mci_init(prv);
-		if (ret)
-			return ret;
-	}
-
-	if (!var_info->mci_removed)
-		core_version = readl(prv->base + SDCC_MCI_VERSION);
-	else
-		core_version = readl(host->ioaddr + SDCC_V5_VERSION);
-
-	core_major = (core_version & SDCC_VERSION_MAJOR_MASK);
-	core_major >>= SDCC_VERSION_MAJOR_SHIFT;
-
-	core_minor = core_version & SDCC_VERSION_MINOR_MASK;
+	core_minor = core_version & SDCC_MCI_VERSION_MINOR_MASK;
 
 	/*
 	 * Support for some capabilities is not advertised by newer
@@ -180,13 +161,9 @@ static int msm_sdc_probe(struct udevice *dev)
 static int msm_sdc_remove(struct udevice *dev)
 {
 	struct msm_sdhc *priv = dev_get_priv(dev);
-	const struct msm_sdhc_variant_info *var_info;
 
-	var_info = (void *)dev_get_driver_data(dev);
-
-	/* Disable host-controller mode */
-	if (!var_info->mci_removed)
-		writel(0, priv->base + SDCC_MCI_HC_MODE);
+	 /* Disable host-controller mode */
+	writel(0, priv->base + SDCC_MCI_HC_MODE);
 
 	return 0;
 }
@@ -218,17 +195,8 @@ static int msm_sdc_bind(struct udevice *dev)
 	return sdhci_bind(dev, &plat->mmc, &plat->cfg);
 }
 
-static const struct msm_sdhc_variant_info msm_sdhc_mci_var = {
-	.mci_removed = false,
-};
-
-static const struct msm_sdhc_variant_info msm_sdhc_v5_var = {
-	.mci_removed = true,
-};
-
 static const struct udevice_id msm_mmc_ids[] = {
-	{ .compatible = "qcom,sdhci-msm-v4", .data = (ulong)&msm_sdhc_mci_var },
-	{ .compatible = "qcom,sdhci-msm-v5", .data = (ulong)&msm_sdhc_v5_var },
+	{ .compatible = "qcom,sdhci-msm-v4" },
 	{ }
 };
 
