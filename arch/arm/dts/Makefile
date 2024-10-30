@@ -55,6 +55,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-puma-ddr1600.dtb \
 	rk3399-puma-ddr1866.dtb \
 	rk3588-rock-5b.dtb \
+	rk3588-blueberry-edge-v12.dtb \
 	rk3588s-khadas-edge2.dtb \
 	rk3588s-orangepi-5.dtb \
 	rk3588s-orangepi-5-sata.dtb \
