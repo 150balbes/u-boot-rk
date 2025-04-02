@@ -47,49 +47,95 @@ struct rockchip_dp_chip_data {
 	u32 max_lane_count;
 };
 
-static void
+static int
 analogix_dp_enable_rx_to_enhanced_mode(struct analogix_dp_device *dp,
 				       bool enable)
 {
 	u8 data;
+	int ret;
 
-	analogix_dp_read_byte_from_dpcd(dp, DP_LANE_COUNT_SET, &data);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_LANE_COUNT_SET, &data);
+	if (ret != 1)
+		return ret;
 
 	if (enable)
-		analogix_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
-					       DP_LANE_COUNT_ENHANCED_FRAME_EN |
-					       DPCD_LANE_COUNT_SET(data));
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET,
+					 DP_LANE_COUNT_ENHANCED_FRAME_EN |
+					 DPCD_LANE_COUNT_SET(data));
 	else
-		analogix_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
-					       DPCD_LANE_COUNT_SET(data));
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET,
+					 DPCD_LANE_COUNT_SET(data));
+
+	return ret < 0 ? ret : 0;
 }
 
-static int analogix_dp_is_enhanced_mode_available(struct analogix_dp_device *dp)
+static int analogix_dp_is_enhanced_mode_available(struct analogix_dp_device *dp,
+						  u8 *enhanced_mode_support)
 {
 	u8 data;
-	int retval;
+	int ret;
 
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
-	retval = DPCD_ENHANCED_FRAME_CAP(data);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &data);
+	if (ret != 1) {
+		*enhanced_mode_support = 0;
+		return ret;
+	}
 
-	return retval;
+	*enhanced_mode_support = DPCD_ENHANCED_FRAME_CAP(data);
+
+	return 0;
 }
 
-static void analogix_dp_set_enhanced_mode(struct analogix_dp_device *dp)
+static int analogix_dp_set_enhanced_mode(struct analogix_dp_device *dp)
 {
 	u8 data;
+	int ret;
 
-	data = analogix_dp_is_enhanced_mode_available(dp);
-	analogix_dp_enable_rx_to_enhanced_mode(dp, data);
+	ret = analogix_dp_is_enhanced_mode_available(dp, &data);
+	if (ret < 0)
+		return ret;
+
+	ret = analogix_dp_enable_rx_to_enhanced_mode(dp, data);
+	if (ret < 0)
+		return ret;
+
+	if (!data) {
+		/*
+		 * As the Table 3-4 in eDP v1.2 spec:
+		 * DPCD 0000Dh:
+		 * Bit 1 = FRAMING_CHANGE_CAPABLE
+		 * A setting of 1 indicates that this is an eDP device that
+		 * uses only Enhanced Framing, independently of the setting by
+		 * the source of ENHANCED_FRAME_EN
+		 *
+		 * And as the Table 3-3 in eDP v1.4 spec:
+		 * DPCD 0000Dh:
+		 * Bit 1 = RESERVED for eDP
+		 * New to eDP v1.4.(Read all 0s)
+		 */
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_CONFIGURATION_CAP,
+					&data);
+		if (ret < 0)
+			return ret;
+
+		data = !!(data & DP_FRAMING_CHANGE_CAP);
+	}
+
 	analogix_dp_enable_enhanced_mode(dp, data);
+
+	return 0;
 }
 
-static void analogix_dp_training_pattern_dis(struct analogix_dp_device *dp)
+static int analogix_dp_training_pattern_dis(struct analogix_dp_device *dp)
 {
+	int ret;
+
 	analogix_dp_set_training_pattern(dp, DP_NONE);
 
-	analogix_dp_write_byte_to_dpcd(dp, DP_TRAINING_PATTERN_SET,
-				       DP_TRAINING_PATTERN_DISABLE);
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+				 DP_TRAINING_PATTERN_DISABLE);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int analogix_dp_link_start(struct analogix_dp_device *dp)
@@ -105,24 +151,36 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	for (lane = 0; lane < lane_count; lane++)
 		dp->link_train.cr_loop[lane] = 0;
 
-	/* Set link rate and count as you want to establish*/
+	/* Set link rate and count as you want to establish */
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 
-	/* Setup RX configuration */
-	buf[0] = dp->link_train.link_rate;
-	buf[1] = dp->link_train.lane_count;
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_LINK_BW_SET, 2, buf);
-	if (retval)
-		return retval;
+	if (dp->nr_link_rate_table) {
+		/* Setup DP_LINK_RATE_SET for eDP 1.4 and later */
+		drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET, dp->link_train.lane_count);
+		drm_dp_dpcd_writeb(&dp->aux, DP_LINK_RATE_SET, dp->link_rate_select);
+	} else {
+		/* Setup DP_LINK_BW_SET for eDP 1.3 and earlier */
+		buf[0] = dp->link_train.link_rate;
+		buf[1] = dp->link_train.lane_count;
+		retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
+		if (retval < 0)
+			return retval;
+	}
 
 	/* Spread AMP if required, enable 8b/10b coding */
 	buf[0] = analogix_dp_ssc_supported(dp) ? DP_SPREAD_AMP_0_5 : 0;
 	buf[1] = DP_SET_ANSI_8B10B;
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_DOWNSPREAD_CTRL,
-						 2, buf);
+	retval = drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, buf, 2);
 	if (retval < 0)
 		return retval;
+
+	/* set enhanced mode if available */
+	retval = analogix_dp_set_enhanced_mode(dp);
+	if (retval < 0) {
+		dev_err(dp->dev, "failed to set enhance mode\n");
+		return retval;
+	}
 
 	/* Set TX voltage-swing and pre-emphasis to minimum */
 	for (lane = 0; lane < lane_count; lane++)
@@ -135,20 +193,21 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	analogix_dp_set_training_pattern(dp, TRAINING_PTN1);
 
 	/* Set RX training pattern */
-	retval = analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			DP_LINK_SCRAMBLING_DISABLE | DP_TRAINING_PATTERN_1);
-	if (retval)
+	retval = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+				    DP_LINK_SCRAMBLING_DISABLE | DP_TRAINING_PATTERN_1);
+	if (retval < 0)
 		return retval;
 
 	for (lane = 0; lane < lane_count; lane++)
 		buf[lane] = DP_TRAIN_PRE_EMPH_LEVEL_0 |
 			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
-						 lane_count, buf);
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET, buf,
+				   lane_count);
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	return 0;
 }
 
 static unsigned char analogix_dp_get_lane_status(u8 link_status[2], int lane)
@@ -249,7 +308,7 @@ static bool analogix_dp_tps3_supported(struct analogix_dp_device *dp)
 
 	source_tps3_supported =
 		dp->video_info.max_link_rate == DP_LINK_BW_5_4;
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &dpcd);
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &dpcd);
 	sink_tps3_supported = dpcd & DP_TPS3_SUPPORTED;
 
 	return source_tps3_supported && sink_tps3_supported;
@@ -266,9 +325,8 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 
 	lane_count = dp->link_train.lane_count;
 
-	retval =  analogix_dp_read_bytes_from_dpcd(dp,
-			DP_LANE0_1_STATUS, 2, link_status);
-	if (retval)
+	retval =  drm_dp_dpcd_read(&dp->aux, DP_LANE0_1_STATUS, link_status, 2);
+	if (retval < 0)
 		return retval;
 
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
@@ -278,11 +336,11 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 		/* set training pattern for EQ */
 		analogix_dp_set_training_pattern(dp, training_pattern);
 
-		retval = analogix_dp_write_byte_to_dpcd(dp,
-				DP_TRAINING_PATTERN_SET,
-				(training_pattern == TRAINING_PTN3 ?
-				 DP_TRAINING_PATTERN_3 : DP_TRAINING_PATTERN_2));
-		if (retval)
+		retval = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					    DP_LINK_SCRAMBLING_DISABLE |
+					    (training_pattern == TRAINING_PTN3 ?
+					     DP_TRAINING_PATTERN_3 : DP_TRAINING_PATTERN_2));
+		if (retval < 0)
 			return retval;
 
 		dev_info(dp->dev, "Link Training Clock Recovery success\n");
@@ -290,9 +348,9 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 
 		return 0;
 	} else {
-		retval = analogix_dp_read_bytes_from_dpcd(dp,
-				DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-		if (retval)
+		retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
+					  adjust_request, 2);
+		if (retval < 0)
 			return retval;
 
 		for (lane = 0; lane < lane_count; lane++) {
@@ -309,9 +367,15 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 					pre_emphasis)
 				dp->link_train.cr_loop[lane]++;
 
+			/*
+			 * In DP spec 1.3, Condition of CR fail are
+			 * outlined in section 3.5.1.2.2.1, figure 3-20:
+			 *
+			 * 1. Maximum Voltage Swing reached
+			 * 2. Same Voltage five times
+			 */
 			if (dp->link_train.cr_loop[lane] == MAX_CR_LOOP ||
-			    voltage_swing == VOLTAGE_LEVEL_3 ||
-			    pre_emphasis == PRE_EMPHASIS_LEVEL_3) {
+			    DPCD_VOLTAGE_SWING_GET(training_lane) == VOLTAGE_LEVEL_3) {
 				dev_err(dp->dev, "CR Max reached (%d,%d,%d)\n",
 					dp->link_train.cr_loop[lane],
 					voltage_swing, pre_emphasis);
@@ -324,13 +388,12 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp,
-			DP_TRAINING_LANE0_SET, lane_count,
-			dp->link_train.training_lane);
-	if (retval)
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
+				   dp->link_train.training_lane, lane_count);
+	if (retval < 0)
 		return retval;
 
-	return retval;
+	return 0;
 }
 
 static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
@@ -343,9 +406,8 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 
 	lane_count = dp->link_train.lane_count;
 
-	retval = analogix_dp_read_bytes_from_dpcd(dp,
-			DP_LANE0_1_STATUS, 2, link_status);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_LANE0_1_STATUS, link_status, 2);
+	if (retval < 0)
 		return retval;
 
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count)) {
@@ -353,14 +415,15 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	retval = analogix_dp_read_byte_from_dpcd(dp,
-			DP_LANE_ALIGN_STATUS_UPDATED, &link_align);
-	if (retval)
+	retval = drm_dp_dpcd_readb(&dp->aux, DP_LANE_ALIGN_STATUS_UPDATED, &link_align);
+	if (retval < 0)
 		return retval;
 
 	if (!analogix_dp_channel_eq_ok(link_status, link_align, lane_count)) {
 		/* traing pattern Set to Normal */
-		analogix_dp_training_pattern_dis(dp);
+		retval = analogix_dp_training_pattern_dis(dp);
+		if (retval < 0)
+			return retval;
 
 		printf("Link Training success!\n");
 
@@ -372,8 +435,6 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		printf("final link rate = 0x%.2x, lane count = 0x%.2x\n",
 		       dp->link_train.link_rate, dp->link_train.lane_count);
 
-		/* set enhanced mode if available */
-		analogix_dp_set_enhanced_mode(dp);
 		dp->link_train.lt_state = FINISHED;
 
 		return 0;
@@ -388,46 +449,188 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	retval = analogix_dp_read_bytes_from_dpcd(dp,
-			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1, adjust_request, 2);
+	if (retval < 0)
 		return retval;
 
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
-			lane_count, dp->link_train.training_lane);
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
+				   dp->link_train.training_lane, lane_count);
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	return 0;
 }
 
-static void analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
-					     u8 *bandwidth)
+static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
+				     const struct drm_display_mode *mode,
+				     unsigned int rate, unsigned int lanes)
+{
+	u32 max_bw, req_bw;
+	u32 bpp = 3 * dp->video_info.bpc;
+
+	req_bw = mode->clock * bpp / 8;
+	max_bw = lanes * rate;
+	if (req_bw > max_bw)
+		return false;
+
+	return true;
+}
+
+static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
+{
+	switch (link_rate) {
+	case DP_LINK_BW_1_62:
+	case DP_LINK_BW_2_7:
+	case DP_LINK_BW_5_4:
+	/* Supported link rate in eDP 1.4 */
+	case EDP_LINK_BW_2_16:
+	case EDP_LINK_BW_2_43:
+	case EDP_LINK_BW_3_24:
+	case EDP_LINK_BW_4_32:
+		break;
+	default:
+		return false;
+	}
+
+	switch (lane_count) {
+	case LANE_COUNT1:
+	case LANE_COUNT2:
+	case LANE_COUNT4:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static int analogix_dp_select_link_rate_from_table(struct analogix_dp_device *dp)
+{
+	int i;
+	u8 bw_code;
+	u32 max_link_rate = drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate);
+
+	for (i = 0; i < dp->nr_link_rate_table; i++) {
+		bw_code =  drm_dp_link_rate_to_bw_code(dp->link_rate_table[i]);
+
+		if (!analogix_dp_bandwidth_ok(dp, &dp->video_info.mode, dp->link_rate_table[i],
+					      dp->link_train.lane_count))
+			continue;
+
+		if (dp->link_rate_table[i] <= max_link_rate &&
+		    analogix_dp_link_config_validate(bw_code, dp->link_train.lane_count)) {
+			dp->link_rate_select = i;
+			return bw_code;
+		}
+	}
+
+	return 0;
+}
+
+static int analogix_dp_select_rx_bandwidth(struct analogix_dp_device *dp)
+{
+	if (dp->nr_link_rate_table)
+		/*
+		 * Select the smallest one among link rates which meet
+		 * the bandwidth requirement for eDP 1.4 and later.
+		 */
+		dp->link_train.link_rate = analogix_dp_select_link_rate_from_table(dp);
+	else
+		/*
+		 * Select the smaller one between rx DP_MAX_LINK_RATE
+		 * and the max link rate supported by the platform.
+		 */
+		dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate,
+						 dp->video_info.max_link_rate);
+	if (!dp->link_train.link_rate)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int analogix_dp_init_link_rate_table(struct analogix_dp_device *dp)
+{
+	u8 link_rate_table[DP_MAX_SUPPORTED_RATES * 2];
+	int i;
+	int ret;
+
+	ret = drm_dp_dpcd_read(&dp->aux, DP_SUPPORTED_LINK_RATES, link_rate_table,
+			       sizeof(link_rate_table));
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(link_rate_table) / 2; i++) {
+		int val = link_rate_table[2 * i] | link_rate_table[2 * i + 1] << 8;
+
+		if (val == 0)
+			break;
+
+		/* Convert to the link_rate as drm_dp_bw_code_to_link_rate() */
+		dp->link_rate_table[i] = (val * 20);
+	}
+	dp->nr_link_rate_table = i;
+
+	return 0;
+}
+
+static int analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
+					    u8 *bandwidth)
 {
 	u8 data;
+	int ret;
 
-	/*
-	 * For DP rev.1.1, Maximum link rate of Main Link lanes
-	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
-	 * For DP rev.1.2, Maximum link rate of Main Link lanes
-	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
-	 */
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LINK_RATE, &data);
-	*bandwidth = data;
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_DPCD_REV, &data);
+	if (ret == 1 && data >= DP_EDP_14) {
+		u32 max_link_rate;
+
+		/* As the Table 4-23 in eDP 1.4 spec, the link rate table is required */
+		if (!dp->nr_link_rate_table) {
+			dev_info(dp->dev, "eDP version: 0x%02x supports link rate table\n",
+					data);
+
+			if (analogix_dp_init_link_rate_table(dp))
+				dev_err(dp->dev, "failed to read link rate table: %d\n",
+					ret);
+		}
+		max_link_rate = dp->link_rate_table[dp->nr_link_rate_table - 1];
+		*bandwidth = drm_dp_link_rate_to_bw_code(max_link_rate);
+	} else {
+		/*
+		 * For DP rev.1.1, Maximum link rate of Main Link lanes
+		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
+		 * For DP rev.1.2, Maximum link rate of Main Link lanes
+		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
+		*/
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
+		if (ret < 0)
+			return ret;
+
+		*bandwidth = data;
+	}
+
+	return 0;
 }
 
-static void analogix_dp_get_max_rx_lane_count(struct analogix_dp_device *dp,
+static int analogix_dp_get_max_rx_lane_count(struct analogix_dp_device *dp,
 					      u8 *lane_count)
 {
 	u8 data;
+	int ret;
 
 	/*
 	 * For DP rev.1.1, Maximum number of Main Link lanes
 	 * 0x01 = 1 lane, 0x02 = 2 lanes, 0x04 = 4 lanes
 	 */
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &data);
+	if (ret < 0)
+		return ret;
+
 	*lane_count = DPCD_MAX_LANE_COUNT(data);
+
+	return 0;
 }
 
 static int analogix_dp_init_training(struct analogix_dp_device *dp,
@@ -446,13 +649,16 @@ static int analogix_dp_init_training(struct analogix_dp_device *dp,
 	analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
 	analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.lane_count);
 
-	/* Setup TX lane count & rate */
-	dp->link_train.lane_count = min_t(u8, dp->link_train.lane_count,
-					  max_lane);
-	dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate,
-					 max_rate);
+	/* Setup TX lane count */
+	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lane);
 
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_DOWNSPREAD, &dpcd);
+	/* Setup TX lane rate */
+	if (analogix_dp_select_rx_bandwidth(dp)) {
+		dev_err(dp->dev, "Select rx bandwidth failed\n");
+		return -EINVAL;
+	}
+
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &dpcd);
 	dp->link_train.ssc = !!(dpcd & DP_MAX_DOWNSPREAD_0_5);
 
 	/* All DP analog module power up */
@@ -579,28 +785,32 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 	return 0;
 }
 
-static void analogix_dp_enable_scramble(struct analogix_dp_device *dp,
+static int analogix_dp_enable_scramble(struct analogix_dp_device *dp,
 					bool enable)
 {
 	u8 data;
+	int ret;
 
 	if (enable) {
 		analogix_dp_enable_scrambling(dp);
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TRAINING_PATTERN_SET,
-						&data);
-		analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			(u8)(data & ~DP_LINK_SCRAMBLING_DISABLE));
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					&data);
+		if (ret != 1)
+			return ret;
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					 (u8)(data & ~DP_LINK_SCRAMBLING_DISABLE));
 	} else {
 		analogix_dp_disable_scrambling(dp);
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TRAINING_PATTERN_SET,
-						&data);
-		analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			(u8)(data | DP_LINK_SCRAMBLING_DISABLE));
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					&data);
+		if (ret != 1)
+			return ret;
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					 (u8)(data | DP_LINK_SCRAMBLING_DISABLE));
 	}
+	return ret < 0 ? ret : 0;
 }
 
 static void analogix_dp_init_dp(struct analogix_dp_device *dp)
@@ -680,15 +890,12 @@ static int analogix_dp_read_edid(struct analogix_dp_device *dp)
 		if (analogix_dp_calc_edid_check_sum(&edid[EDID_BLOCK_LENGTH]))
 			return -EINVAL;
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TEST_REQUEST,
-						&test_vector);
+		drm_dp_dpcd_readb(&dp->aux, DP_TEST_REQUEST, &test_vector);
 		if (test_vector & DP_TEST_LINK_EDID_READ) {
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_EDID_CHECKSUM,
-				edid[EDID_BLOCK_LENGTH + EDID_CHECKSUM]);
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_RESPONSE,
-				DP_TEST_EDID_CHECKSUM_WRITE);
+			drm_dp_dpcd_writeb(&dp->aux, DP_TEST_EDID_CHECKSUM,
+					   edid[EDID_BLOCK_LENGTH + EDID_CHECKSUM]);
+			drm_dp_dpcd_writeb(&dp->aux, DP_TEST_RESPONSE,
+					   DP_TEST_EDID_CHECKSUM_WRITE);
 		}
 	} else {
 		dev_info(dp->dev,
@@ -704,13 +911,12 @@ static int analogix_dp_read_edid(struct analogix_dp_device *dp)
 		if (analogix_dp_calc_edid_check_sum(edid))
 			return -EINVAL;
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TEST_REQUEST,
-						&test_vector);
+		drm_dp_dpcd_readb(&dp->aux, DP_TEST_REQUEST, &test_vector);
 		if (test_vector & DP_TEST_LINK_EDID_READ) {
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_EDID_CHECKSUM, edid[EDID_CHECKSUM]);
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_RESPONSE, DP_TEST_EDID_CHECKSUM_WRITE);
+			drm_dp_dpcd_writeb(&dp->aux, DP_TEST_EDID_CHECKSUM,
+					   edid[EDID_CHECKSUM]);
+			drm_dp_dpcd_writeb(&dp->aux, DP_TEST_RESPONSE,
+					   DP_TEST_EDID_CHECKSUM_WRITE);
 		}
 	}
 
@@ -725,9 +931,8 @@ static int analogix_dp_handle_edid(struct analogix_dp_device *dp)
 
 retry:
 	/* Read DPCD DP_DPCD_REV~RECEIVE_PORT1_CAP_1 */
-	retval = analogix_dp_read_bytes_from_dpcd(dp, DP_DPCD_REV, 12, buf);
-
-	if (retval && try--) {
+	retval = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, buf, 12);
+	if (retval < 0 && try--) {
 		mdelay(10);
 		goto retry;
 	}
@@ -752,7 +957,8 @@ static int analogix_dp_connector_init(struct rockchip_connector *conn, struct di
 
 	conn_state->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 	conn_state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-	conn_state->color_space = V4L2_COLORSPACE_DEFAULT;
+	conn_state->color_encoding = DRM_COLOR_YCBCR_BT709;
+	conn_state->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 
 	reset_assert_bulk(&dp->resets);
 	udelay(1);
@@ -792,14 +998,14 @@ static int analogix_dp_link_power_up(struct analogix_dp_device *dp)
 	if (dp->dpcd[DP_DPCD_REV] < 0x11)
 		return 0;
 
-	ret = analogix_dp_read_byte_from_dpcd(dp, DP_SET_POWER, &value);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
 	if (ret < 0)
 		return ret;
 
 	value &= ~DP_SET_POWER_MASK;
 	value |= DP_SET_POWER_D0;
 
-	ret = analogix_dp_write_byte_to_dpcd(dp, DP_SET_POWER, value);
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
 	if (ret < 0)
 		return ret;
 
@@ -816,14 +1022,14 @@ static int analogix_dp_link_power_down(struct analogix_dp_device *dp)
 	if (dp->dpcd[DP_DPCD_REV] < 0x11)
 		return 0;
 
-	ret = analogix_dp_read_byte_from_dpcd(dp, DP_SET_POWER, &value);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
 	if (ret < 0)
 		return ret;
 
 	value &= ~DP_SET_POWER_MASK;
 	value |= DP_SET_POWER_D3;
 
-	ret = analogix_dp_write_byte_to_dpcd(dp, DP_SET_POWER, value);
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
 	if (ret < 0)
 		return ret;
 
@@ -839,8 +1045,11 @@ static int analogix_dp_connector_enable(struct rockchip_connector *conn,
 		(const struct rockchip_dp_chip_data *)dev_get_driver_data(conn->dev);
 	struct analogix_dp_device *dp = dev_get_priv(conn->dev);
 	struct video_info *video = &dp->video_info;
+	struct drm_display_mode mode;
 	u32 val;
 	int ret;
+
+	drm_mode_copy(&video->mode, &conn_state->mode);
 
 	if (pdata->lcdsel_grf_reg) {
 		if (crtc_state->crtc_id)
@@ -855,7 +1064,8 @@ static int analogix_dp_connector_enable(struct rockchip_connector *conn,
 		regmap_write(dp->grf, dp->id ? RK3588_GRF_VO1_CON1 : RK3588_GRF_VO1_CON0,
 			     EDP_MODE << 16 | FIELD_PREP(EDP_MODE, 1));
 
-	switch (conn_state->bpc) {
+	video->bpc = conn_state->bpc;
+	switch (video->bpc) {
 	case 12:
 		video->color_depth = COLOR_12;
 		break;
@@ -871,9 +1081,8 @@ static int analogix_dp_connector_enable(struct rockchip_connector *conn,
 		break;
 	}
 
-	ret = analogix_dp_read_bytes_from_dpcd(dp, DP_DPCD_REV,
-					       DP_RECEIVER_CAP_SIZE, dp->dpcd);
-	if (ret) {
+	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd, DP_RECEIVER_CAP_SIZE);
+	if (ret < 0) {
 		dev_err(dp->dev, "failed to read dpcd caps: %d\n", ret);
 		return ret;
 	}
@@ -891,12 +1100,18 @@ static int analogix_dp_connector_enable(struct rockchip_connector *conn,
 		return ret;
 	}
 
-	analogix_dp_enable_scramble(dp, 1);
-	analogix_dp_enable_rx_to_enhanced_mode(dp, 1);
-	analogix_dp_enable_enhanced_mode(dp, 1);
+	ret = analogix_dp_enable_scramble(dp, 1);
+	if (ret < 0) {
+		dev_err(dp->dev, "can not enable scramble\n");
+		return ret;
+	}
 
 	analogix_dp_init_video(dp);
-	analogix_dp_set_video_format(dp, &conn_state->mode);
+
+	drm_mode_copy(&mode, &conn_state->mode);
+	if (conn->dual_channel_mode)
+		drm_mode_convert_to_origin_mode(&mode);
+	analogix_dp_set_video_format(dp, &mode);
 
 	if (dp->video_bist_enable)
 		analogix_dp_video_bist_enable(dp);
@@ -935,13 +1150,61 @@ static int analogix_dp_connector_detect(struct rockchip_connector *conn,
 	return analogix_dp_detect(dp);
 }
 
+static int analogix_dp_connector_mode_valid(struct rockchip_connector *conn,
+					    struct display_state *state)
+{
+	struct connector_state *conn_state = &state->conn_state;
+	struct videomode vm;
+
+	drm_display_mode_to_videomode(&conn_state->mode, &vm);
+
+	if (!vm.hfront_porch || !vm.hback_porch || !vm.vfront_porch || !vm.vback_porch) {
+		dev_err(dp->dev, "front porch or back porch can not be 0\n");
+		return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
 static const struct rockchip_connector_funcs analogix_dp_connector_funcs = {
 	.init = analogix_dp_connector_init,
 	.get_edid = analogix_dp_connector_get_edid,
 	.enable = analogix_dp_connector_enable,
 	.disable = analogix_dp_connector_disable,
 	.detect = analogix_dp_connector_detect,
+	.mode_valid = analogix_dp_connector_mode_valid,
 };
+
+static u32 analogix_dp_parse_link_frequencies(struct analogix_dp_device *dp)
+{
+	struct udevice *dev = dp->dev;
+	const struct device_node *endpoint;
+	u64 frequency = 0;
+
+	endpoint = rockchip_of_graph_get_endpoint_by_regs(dev->node, 1, 0);
+	if (!endpoint)
+		return 0;
+
+	if (of_property_read_u64(endpoint, "link-frequencies", &frequency) < 0)
+		return 0;
+
+	if (!frequency)
+		return 0;
+
+	do_div(frequency, 10 * 1000);	/* symbol rate kbytes */
+
+	switch (frequency) {
+	case 162000:
+	case 270000:
+	case 540000:
+		break;
+	default:
+		dev_err(dev, "invalid link frequency value: %llu\n", frequency);
+		return 0;
+	}
+
+	return frequency;
+}
 
 static int analogix_dp_parse_dt(struct analogix_dp_device *dp)
 {
@@ -956,21 +1219,9 @@ static int analogix_dp_parse_dt(struct analogix_dp_device *dp)
 	dp->video_info.force_stream_valid =
 		dev_read_bool(dev, "analogix,force-stream-valid");
 
-	max_link_rate = dev_read_u32_default(dev, "max-link-rate", 0);
-	if (max_link_rate) {
-		switch (max_link_rate) {
-		case 1620:
-		case 2700:
-		case 5400:
-			dp->video_info.max_link_rate =
-				min_t(u8, dp->video_info.max_link_rate,
-				      drm_dp_link_rate_to_bw_code(max_link_rate * 100));
-			break;
-		default:
-			dev_err(dev, "invalid max-link-rate %d\n", max_link_rate);
-			break;
-		}
-	}
+	max_link_rate = analogix_dp_parse_link_frequencies(dp);
+	if (max_link_rate && max_link_rate < drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate))
+		dp->video_info.max_link_rate = drm_dp_link_rate_to_bw_code(max_link_rate);
 
 	if (dev_read_prop(dev, "data-lanes", &len)) {
 		num_lanes = len / sizeof(u32);
@@ -991,6 +1242,16 @@ static int analogix_dp_parse_dt(struct analogix_dp_device *dp)
 		dp->lane_map[2] = 2;
 		dp->lane_map[3] = 3;
 	}
+
+	return 0;
+}
+
+static int analogix_dp_ddc_init(struct analogix_dp_device *dp)
+{
+	dp->aux.name = "analogix-dp";
+	dp->aux.dev = dp->dev;
+	dp->aux.transfer = analogix_dp_aux_transfer;
+	dp->aux.ddc.ddc_xfer = drm_dp_i2c_xfer;
 
 	return 0;
 }
@@ -1047,6 +1308,8 @@ static int analogix_dp_probe(struct udevice *dev)
 		return ret;
 	}
 
+	analogix_dp_ddc_init(dp);
+
 	rockchip_connector_bind(&dp->connector, dev, dp->id, &analogix_dp_connector_funcs,
 				NULL, DRM_MODE_CONNECTOR_eDP);
 
@@ -1075,8 +1338,9 @@ static const struct rockchip_dp_chip_data rk3399_edp_platform_data = {
 	.lcdsel_big = 0 | BIT(21),
 	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3399_EDP,
+	.ssc = true,
 
-	.max_link_rate = DP_LINK_BW_2_7,
+	.max_link_rate = DP_LINK_BW_5_4,
 	.max_lane_count = 4,
 };
 
@@ -1085,6 +1349,14 @@ static const struct rockchip_dp_chip_data rk3568_edp_platform_data = {
 	.ssc = true,
 
 	.max_link_rate = DP_LINK_BW_2_7,
+	.max_lane_count = 4,
+};
+
+static const struct rockchip_dp_chip_data rk3576_edp_platform_data = {
+	.chip_type = RK3576_EDP,
+	.ssc = true,
+
+	.max_link_rate = DP_LINK_BW_5_4,
 	.max_lane_count = 4,
 };
 
@@ -1109,6 +1381,9 @@ static const struct udevice_id analogix_dp_ids[] = {
 	}, {
 		.compatible = "rockchip,rk3568-edp",
 		.data = (ulong)&rk3568_edp_platform_data,
+	}, {
+		.compatible = "rockchip,rk3576-edp",
+		.data = (ulong)&rk3576_edp_platform_data,
 	}, {
 		.compatible = "rockchip,rk3588-edp",
 		.data = (ulong)&rk3588_edp_platform_data,

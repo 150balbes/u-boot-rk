@@ -98,6 +98,9 @@ config ARM_ERRATA_798870
 config ARM_ERRATA_801819
 	bool
 
+config ARM_ERRATA_814220
+	bool
+
 config ARM_ERRATA_826974
 	bool
 
@@ -342,6 +345,10 @@ config ARM64_SUPPORT_AARCH32
 	default y if ARM64 && !TARGET_THUNDERX_88XX
 	help
 	  This ARM64 system supports AArch32 execution state.
+
+config ARM_SMP
+	bool "Enable ARM Symmetric Multiprocessing"
+	default n
 
 choice
 	prompt "Target select"
@@ -1155,6 +1162,8 @@ config ARCH_ROCKCHIP
 	select SPI
 	select DEBUG_UART_BOARD_INIT
 	select PANIC_HANG
+	imply SHA1
+	imply SHA256
 	imply DM_MMC
 	imply DM_I2C
 	imply DM_PWM

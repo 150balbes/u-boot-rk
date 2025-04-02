@@ -21,6 +21,8 @@
 *.patch
 *.cfgtmp
 *.img
+*.gz
+*.digest
 
 # host programs on Cygwin
 *.exe
@@ -52,6 +54,7 @@ fit-dtb.blob
 /spl/
 /tpl/
 /defconfig
+/examples/standalone/rkspi
 
 #
 # Generated include files

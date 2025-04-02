@@ -10,6 +10,13 @@
 #include <nand.h>
 #include <spl.h>
 
+#ifdef CONFIG_SPL_RAM_DEVICE
+void board_boot_order(u32 *spl_boot_list)
+{
+	spl_boot_list[0] = BOOT_DEVICE_RAM;
+}
+#else
+
 #if CONFIG_IS_ENABLED(OF_CONTROL) && ! CONFIG_IS_ENABLED(OF_PLATDATA)
 /**
  * spl_node_to_boot_device() - maps from a DT-node to a SPL boot device
@@ -32,6 +39,9 @@
 static int spl_node_to_boot_device(int node)
 {
 	struct udevice *parent;
+
+	if (!uclass_get_device_by_of_offset(UCLASS_UFS, node, &parent))
+		return BOOT_DEVICE_UFS;
 
 	/*
 	 * This should eventually move into the SPL code, once SPL becomes
@@ -189,4 +199,5 @@ void board_boot_order(u32 *spl_boot_list)
 	if (idx == 0)
 		spl_boot_list[0] = spl_boot_device();
 }
+#endif
 #endif

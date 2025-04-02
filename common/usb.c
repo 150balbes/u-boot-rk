@@ -521,15 +521,15 @@ static int usb_parse_config(struct usb_device *dev,
 		head = (struct usb_descriptor_header *)&buffer[index];
 	}
 
-	/**
+	/*
 	 * Some odd devices respond the Endpoint descriptor items are less
-	 * then the bNumEndpoints in Interface descriptor, so fix it here.
+	 * than the bNumEndpoints in Interface descriptor, so fix it here.
 	 */
 	for (ifno = 0; ifno < dev->config.no_of_if; ifno++) {
 		if_desc = &dev->config.if_desc[ifno];
-		if (if_desc->desc.bNumEndpoints != if_desc->no_of_ep) {
+		if (if_desc->no_of_ep < if_desc->desc.bNumEndpoints) {
 			printf("WARN: interface %d has %d endpoint descriptor, "
-			       "different from the interface descriptor's value: %d\n",
+			       "less than the interface descriptor's value: %d\n",
 			       ifno, if_desc->no_of_ep, if_desc->desc.bNumEndpoints);
 			if_desc->desc.bNumEndpoints = if_desc->no_of_ep;
 		}
@@ -941,19 +941,14 @@ static int get_descriptor_len(struct usb_device *dev, int len, int expect_len)
 	__maybe_unused struct usb_device_descriptor *desc;
 	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, tmpbuf, USB_BUFSIZ);
 	int err;
-	int retry = 5;
 
 	desc = (struct usb_device_descriptor *)tmpbuf;
 
-again:
 	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, len);
 	if (err < expect_len) {
 		if (err < 0) {
-			debug("unable to get device descriptor (error=%d) retry: %d\n", err, retry);
-			mdelay(50);
-			if (--retry >= 0)
-				/* Some drives are just slow to wake up. */
-				goto again;
+			printf("unable to get device descriptor (error=%d)\n",
+				err);
 			return err;
 		} else {
 			printf("USB device descriptor short read (expected %i, got %i)\n",

@@ -52,16 +52,13 @@ static struct bl31_params *bl2_plat_get_bl31_params(struct spl_image_info *spl_i
 	SET_PARAM_HEAD(bl2_to_bl31_params->bl31_image_info,
 		       ATF_PARAM_IMAGE_BINARY, ATF_VERSION_1, 0);
 
-	if (bl32_entry == -1)
-		goto bl33_setup;
-
 	/* Fill BL32 related information */
 	bl2_to_bl31_params->bl32_ep_info = &bl31_params_mem.bl32_ep_info;
 	bl32_ep_info = &bl31_params_mem.bl32_ep_info;
 	SET_PARAM_HEAD(bl32_ep_info, ATF_PARAM_EP, ATF_VERSION_1,
 		       ATF_EP_SECURE);
 
-	bl32_ep_info->pc = bl32_entry;
+	bl32_ep_info->pc = bl32_entry == -1 ? 0 : bl32_entry;
 	bl32_ep_info->spsr = SPSR_64(MODE_EL1, MODE_SP_ELX,
 				     DISABLE_ALL_EXECPTIONS);
 
@@ -69,7 +66,6 @@ static struct bl31_params *bl2_plat_get_bl31_params(struct spl_image_info *spl_i
 	SET_PARAM_HEAD(bl2_to_bl31_params->bl32_image_info,
 		       ATF_PARAM_IMAGE_BINARY, ATF_VERSION_1, 0);
 
-bl33_setup:
 	/* Fill BL33 related information */
 	bl2_to_bl31_params->bl33_ep_info = &bl31_params_mem.bl33_ep_info;
 	bl33_ep_info = &bl31_params_mem.bl33_ep_info;
@@ -79,9 +75,14 @@ bl33_setup:
 	/* BL33 expects to receive the primary CPU MPID (through x0) */
 	bl33_ep_info->args.arg0 = 0xffff & read_mpidr();
 	bl33_ep_info->pc = bl33_entry;
+
+#ifdef CONFIG_SPL_ATF_AARCH32_BL33
+	bl33_ep_info->spsr = SPSR_32(MODE32_svc, SPSR_T_ARM, EP_EE_LITTLE,
+				     DISABLE_ALL_EXECPTIONS_32);
+#else
 	bl33_ep_info->spsr = SPSR_64(MODE_EL2, MODE_SP_ELX,
 				     DISABLE_ALL_EXECPTIONS);
-
+#endif
 	/*
 	 * Reference: arch/arm/lib/bootm.c
 	 * boot_jump_linux(bootm_headers_t *images, int flag)

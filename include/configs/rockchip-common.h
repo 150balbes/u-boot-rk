@@ -8,6 +8,10 @@
 #define _ROCKCHIP_COMMON_H_
 #include <linux/sizes.h>
 
+#ifndef CFG_CPUID_OFFSET
+#define CFG_CPUID_OFFSET		0x7
+#endif
+
 #define COUNTER_FREQUENCY               24000000
 
 #if CONFIG_IS_ENABLED(TINY_FRAMEWORK) && !defined(CONFIG_ARM64)
@@ -58,18 +62,6 @@
 	BOOT_TARGET_DEVICES_references_MTD_without_CONFIG_CMD_MTD_BLK
 #endif
 
-#if (CONFIG_IS_ENABLED(CMD_PCI) && CONFIG_IS_ENABLED(CMD_NVME))
-	#define BOOT_TARGET_NVME(func) func(NVME, nvme, na)
-#else
-	#define BOOT_TARGET_NVME(func)
-#endif
-
-#if CONFIG_IS_ENABLED(SCSI)
-	#define BOOT_TARGET_SCSI(func) func(SCSI, scsi, na)
-#else
-	#define BOOT_TARGET_SCSI(func)
-#endif
-
 /* First try to boot from SD (index 1), then eMMC (index 0) */
 #if CONFIG_IS_ENABLED(CMD_MMC)
 	#define BOOT_TARGET_MMC(func) \
@@ -115,8 +107,6 @@
 #define BOOT_TARGET_DEVICES(func) \
 	BOOT_TARGET_USB(func) \
 	BOOT_TARGET_MMC(func) \
-	BOOT_TARGET_NVME(func) \
-	BOOT_TARGET_SCSI(func) \
 	BOOT_TARGET_MTD(func) \
 	BOOT_TARGET_RKNAND(func) \
 	BOOT_TARGET_PXE(func) \
@@ -160,8 +150,6 @@
 		"setenv devtype mmc; setenv devnum 1; echo Boot from SDcard;" \
 	"elif mmc dev 0; then " \
 		"setenv devtype mmc; setenv devnum 0;" \
-	"elif nvme dev 0; then " \
-		"setenv devtype nvme; setenv devnum 0; echo Boot from nvme;" \
 	"elif mtd_blk dev 0; then " \
 		"setenv devtype mtd; setenv devnum 0;" \
 	"elif mtd_blk dev 1; then " \
@@ -174,7 +162,7 @@
 		"setenv devtype spinand; setenv devnum 0;" \
 	"elif rksfc dev 1; then " \
 		"setenv devtype spinor; setenv devnum 1;" \
-	"else" \
+	"else;" \
 		"setenv devtype ramdisk; setenv devnum 0;" \
 	"fi; \0"
 
@@ -196,5 +184,11 @@
 
 #define CONFIG_DISPLAY_BOARDINFO_LATE
 #define CONFIG_SYS_AUTOLOAD	"no"
+#define CONFIG_SPL_LOAD_FIT_ADDRESS		0x2000000
+
+/* Why? There is D-Cache coherent on share memory between U-Boot and OP-TEE. */
+#if defined(CONFIG_SYS_DCACHE_OFF) && defined(CONFIG_OPTEE_CLIENT)
+"ERROR: Please disable CONFIG_OPTEE_CLIENT when #define CONFIG_SYS_DCACHE_OFF !"
+#endif
 
 #endif /* _ROCKCHIP_COMMON_H_ */

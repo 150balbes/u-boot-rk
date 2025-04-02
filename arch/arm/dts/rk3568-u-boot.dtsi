@@ -17,6 +17,15 @@
 		stdout-path = &uart2;
 		u-boot,spl-boot-order = &sdmmc0, &sdhci, &nandc0, &spi_nand, &spi_nor;
 	};
+
+	secure-otp@fe3a0000 {
+		compatible = "rockchip,rk3568-secure-otp";
+		reg = <0x0 0xfe3a0000 0x0 0x4000>;
+		secure_conf = <0xfdd18008>;
+		mask_addr = <0xfe880000>;
+		cru_rst_addr = <0xfdd20470>;
+		u-boot,dm-spl;
+	};
 };
 
 &psci {
@@ -24,8 +33,13 @@
 	status = "okay";
 };
 
-&crypto {
+&combphy0_us {
 	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&crypto {
+	u-boot,dm-spl;
 };
 
 &uart2 {
@@ -37,12 +51,20 @@
 };
 
 &grf {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 	status = "okay";
 };
 
-&pmugrf {
+&pipegrf {
 	u-boot,dm-pre-reloc;
+};
+
+&pipe_phy_grf0 {
+	u-boot,dm-pre-reloc;
+};
+
+&pmugrf {
+	u-boot,dm-spl;
 	status = "okay";
 };
 
@@ -87,12 +109,12 @@
 };
 
 &cru {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 	status = "okay";
 };
 
 &pmucru {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 	status = "okay";
 };
 
@@ -132,7 +154,7 @@
 };
 
 &saradc {
-	u-boot,dm-spl;
+	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
@@ -194,7 +216,7 @@
 	};
 };
 
-&gmac0_clkin{
+&gmac0_clkin {
 	u-boot,dm-pre-reloc;
 };
 
@@ -378,7 +400,7 @@
 };
 
 &pinctrl {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 	status = "okay";
 };
 
@@ -391,15 +413,15 @@
 };
 
 &gpio2 {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 };
 
 &pcfg_pull_none_drv_level_1 {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 };
 
 &pcfg_pull_none_drv_level_2 {
-	u-boot,dm-pre-reloc;
+	u-boot,dm-spl;
 };
 
 
@@ -416,10 +438,6 @@
 };
 
 &pcfg_pull_none {
-	u-boot,dm-pre-reloc;
-};
-
-&secure_otp {
 	u-boot,dm-spl;
 };
 

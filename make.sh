@@ -11,9 +11,9 @@ SUPPORT_LIST=`ls configs/*[r,p][x,v,k][0-9][0-9]*_defconfig`
 CMD_ARGS=$1
 
 ########################################### User can modify #############################################
-RKBIN_TOOLS=../rkbin-*/tools
+RKBIN_TOOLS=../rkbin/tools
 CROSS_COMPILE_ARM32=../prebuilts/gcc/linux-x86/arm/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
-CROSS_COMPILE_ARM64=../toolchains/gcc-linaro-aarch64-linux-gnu/bin/aarch64-linux-gnu-
+CROSS_COMPILE_ARM64=../prebuilts/gcc/linux-x86/aarch64/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
 ########################################### User not touch #############################################
 # Declare global INI file searching index name for every chip, update in select_chip_info()
 RKCHIP=
@@ -48,6 +48,7 @@ SCRIPT_SPL="${SRCTREE}/scripts/spl.sh"
 SCRIPT_UBOOT="${SRCTREE}/scripts/uboot.sh"
 SCRIPT_LOADER="${SRCTREE}/scripts/loader.sh"
 SCRIPT_DECOMP="${SRCTREE}/scripts/decomp.sh"
+SCRIPT_CHECKCONFIG="${SRCTREE}/scripts/check-rkconfig.sh"
 CC_FILE=".cc"
 REP_DIR="./rep"
 #########################################################################################################
@@ -191,6 +192,14 @@ function process_args()
 				ARG_SPL_BIN="spl/u-boot-spl.bin"
 				shift 1
 				;;
+			--spl-fwver)
+				ARG_SPL_FWVER="SPL_FWVER=$2"
+				shift 2
+				;;
+			--fwver)
+				ARG_FWVER="FWVER=$2"
+				shift 2
+				;;
 			--uboot|--fdt|--optee|--mcu|--bl31) # uboot.img components
 				mkdir -p ${REP_DIR}
 				if [ ! -f $2 ]; then
@@ -312,7 +321,7 @@ function select_chip_info()
 	#  - PX30, PX3SE
 	#  - RK????, RK????X
 	#  - RV????
-	CHIP_PATTERN='^CONFIG_ROCKCHIP_[R,P][X,V,K][0-9ESX]{1,5}'
+	CHIP_PATTERN='^CONFIG_ROCKCHIP_[R,P][X,V,K][0-9ESXB]{1,5}'
 	RKCHIP=`egrep -o ${CHIP_PATTERN} .config`
 
 	# default
@@ -615,9 +624,13 @@ function pack_uboot_itb_image()
 	done
 
 	# COMPRESSION
-	COMPRESSION=`awk -F"," '/COMPRESSION=/  { printf $1 }' ${INI} | tr -d ' ' | cut -c 13-`
-	if [ ! -z "${COMPRESSION}" -a "${COMPRESSION}" != "none" ]; then
-		COMPRESSION_ARG="-c ${COMPRESSION}"
+	if grep -q '^CONFIG_IMAGE_GZIP=y' .config ; then
+		COMPRESSION_ARG="-c gzip"
+	else
+		COMPRESSION=`awk -F"," '/COMPRESSION=/  { printf $1 }' ${INI} | tr -d ' ' | cut -c 13-`
+		if [ ! -z "${COMPRESSION}" -a "${COMPRESSION}" != "none" ]; then
+			COMPRESSION_ARG="-c ${COMPRESSION}"
+		fi
 	fi
 
 	if [ -d ${REP_DIR} ]; then
@@ -768,6 +781,9 @@ function pack_images()
 
 function finish()
 {
+	# check special config
+	${SCRIPT_CHECKCONFIG}
+
 	echo
 	if [ "${ARG_BOARD}" == "" ]; then
 		echo "Platform ${RKCHIP_LABEL} is build OK, with exist .config"
@@ -785,7 +801,7 @@ select_ini_file
 handle_args_late
 sub_commands
 clean_files
-make PYTHON=python2 CROSS_COMPILE=${TOOLCHAIN} all --jobs=${JOB}
+make PYTHON=python2 ${ARG_SPL_FWVER} ${ARG_FWVER} CROSS_COMPILE=${TOOLCHAIN} all --jobs=${JOB}
 pack_images
 finish
 echo ${TOOLCHAIN}

@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <bouncebuf.h>
 #include <dm.h>
 #include <errno.h>
 #include <memalign.h>
@@ -681,8 +682,13 @@ int nvme_scan_namespace(void)
 
 	uclass_foreach_dev(dev, uc) {
 		ret = device_probe(dev);
-		if (ret)
-			return ret;
+		if (ret) {
+			printf("Failed to probe '%s': err=%dE\n", dev->name,
+				ret);
+			/* Bail if we ran out of memory, else keep trying */
+			if (ret != -EBUSY)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -740,13 +746,25 @@ static ulong nvme_blk_rw(struct udevice *udev, lbaint_t blknr,
 	u64 prp2;
 	u64 total_len = blkcnt << desc->log2blksz;
 	u64 temp_len = total_len;
+	uintptr_t temp_buffer;
 
 	u64 slba = blknr;
 	u16 lbas = 1 << (dev->max_transfer_shift - ns->lba_shift);
 	u64 total_lbas = blkcnt;
 
-	flush_dcache_range((unsigned long)buffer,
-			   (unsigned long)buffer + total_len);
+	struct bounce_buffer bb;
+	unsigned int bb_flags;
+	int ret;
+
+	if (read)
+		bb_flags = GEN_BB_WRITE;
+	else
+		bb_flags = GEN_BB_READ;
+
+	ret = bounce_buffer_start(&bb, buffer, total_len, bb_flags);
+	if (ret)
+		return -ENOMEM;
+	temp_buffer = (unsigned long)bb.bounce_buffer;
 
 	c.rw.opcode = read ? nvme_cmd_read : nvme_cmd_write;
 	c.rw.flags = 0;
@@ -771,24 +789,22 @@ static ulong nvme_blk_rw(struct udevice *udev, lbaint_t blknr,
 		}
 
 		if (nvme_setup_prps(dev, &prp2,
-				    lbas << ns->lba_shift, (ulong)buffer))
+				    lbas << ns->lba_shift, temp_buffer))
 			return -EIO;
 		c.rw.slba = cpu_to_le64(slba);
 		slba += lbas;
 		c.rw.length = cpu_to_le16(lbas - 1);
-		c.rw.prp1 = cpu_to_le64((ulong)buffer);
+		c.rw.prp1 = cpu_to_le64(temp_buffer);
 		c.rw.prp2 = cpu_to_le64(prp2);
 		status = nvme_submit_sync_cmd(dev->queues[NVME_IO_Q],
 				&c, NULL, IO_TIMEOUT);
 		if (status)
 			break;
 		temp_len -= (u32)lbas << ns->lba_shift;
-		buffer += lbas << ns->lba_shift;
+		temp_buffer += lbas << ns->lba_shift;
 	}
 
-	if (read)
-		invalidate_dcache_range((unsigned long)buffer,
-					(unsigned long)buffer + total_len);
+	bounce_buffer_stop(&bb);
 
 	return (total_len - temp_len) >> desc->log2blksz;
 }
@@ -805,9 +821,39 @@ static ulong nvme_blk_write(struct udevice *udev, lbaint_t blknr,
 	return nvme_blk_rw(udev, blknr, blkcnt, (void *)buffer, false);
 }
 
+static ulong nvme_blk_erase(struct udevice *udev, lbaint_t blknr,
+			    lbaint_t blkcnt)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(struct nvme_dsm_range, range, sizeof(struct nvme_dsm_range));
+	struct nvme_ns *ns = dev_get_priv(udev);
+	struct nvme_dev *dev = ns->dev;
+	struct nvme_command cmnd;
+
+	memset(&cmnd, 0, sizeof(cmnd));
+
+	range->cattr = cpu_to_le32(0);
+	range->nlb = cpu_to_le32(blkcnt);
+	range->slba = cpu_to_le64(blknr);
+
+	cmnd.dsm.opcode = nvme_cmd_dsm;
+        cmnd.dsm.command_id = nvme_get_cmd_id();
+	cmnd.dsm.nsid = cpu_to_le32(ns->ns_id);
+	cmnd.dsm.prp1 = cpu_to_le64((ulong)range);
+	cmnd.dsm.nr = 0;
+	cmnd.dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
+	cmnd.common.nsid = cpu_to_le32(ns->ns_id);
+
+	flush_dcache_range((ulong)range,
+			(ulong)range + sizeof(struct nvme_dsm_range));
+
+	nvme_submit_cmd(dev->queues[NVME_IO_Q], &cmnd);
+	return blkcnt;
+}
+
 static const struct blk_ops nvme_blk_ops = {
 	.read	= nvme_blk_read,
 	.write	= nvme_blk_write,
+	.erase  = nvme_blk_erase,
 };
 
 U_BOOT_DRIVER(nvme_blk) = {
@@ -840,8 +886,8 @@ static int nvme_probe(struct udevice *udev)
 	ndev->bar = dm_pci_map_bar(udev, PCI_BASE_ADDRESS_0,
 			PCI_REGION_MEM);
 	if (readl(&ndev->bar->csts) == -1) {
-		ret = -ENODEV;
-		printf("Error: %s: Out of memory!\n", udev->name);
+		ret = -EBUSY;
+		printf("Error: %s: Controller not ready!\n", udev->name);
 		goto free_nvme;
 	}
 

@@ -60,15 +60,30 @@
 #elif defined(CONFIG_ROCKCHIP_RK1808)
 #define TIMER_BASE		(0xFF700000 + 0x20)	/* TIMER 1 */
 #define TIMER_IRQ		IRQ_TIMER1
+#elif defined(CONFIG_ROCKCHIP_RV1103B)
+#define TIMER_BASE		(0x20830000 + 0x20)	/* TIMER 1 */
+#define TIMER_IRQ		IRQ_TIMER1
 #elif defined(CONFIG_ROCKCHIP_RV1106)
 #define TIMER_BASE		(0xFF660000 + 0x20)	/* TIMER 1 */
 #define TIMER_IRQ		IRQ_TIMER1
 #elif defined(CONFIG_ROCKCHIP_RV1126)
 #define TIMER_BASE		(0xFF660000 + 0x20)	/* TIMER 1 */
 #define TIMER_IRQ		IRQ_TIMER1
+#elif defined(CONFIG_ROCKCHIP_RK3506)
+#define TIMER_BASE		(0xFF250000 + 0x00)	/* TIMER 0 */
+#define TIMER_IRQ		IRQ_TIMER0
+#elif defined(CONFIG_ROCKCHIP_RK3528)
+#define TIMER_BASE		(0xFFAB0000 + 0x00)	/* TIMER 0 */
+#define TIMER_IRQ		IRQ_TIMER0
+#elif defined(CONFIG_ROCKCHIP_RK3562)
+#define TIMER_BASE		(0xFFA50000 + 0x00)	/* TIMER 0 */
+#define TIMER_IRQ		IRQ_TIMER0
 #elif defined(CONFIG_ROCKCHIP_RK3568)
 /* Only timer0 can wakeup system suspend */
 #define TIMER_BASE		(0xFE5F0000 + 0x00)	/* TIMER 1 */
+#define TIMER_IRQ		IRQ_TIMER0
+#elif defined(CONFIG_ROCKCHIP_RK3576)
+#define TIMER_BASE		(0x2acc0000 + 0x00)	/* TIMER 0 */
 #define TIMER_IRQ		IRQ_TIMER0
 #elif defined(CONFIG_ROCKCHIP_RK3588)
 /* Only timer0 can wakeup system suspend */

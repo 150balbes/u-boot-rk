@@ -30,6 +30,8 @@ dtb-$(CONFIG_EXYNOS7420) += exynos7420-espresso7420.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3036-sdk.dtb \
 	rk3066a-mk808.dtb \
+	rk3126-evb.dtb \
+	rk3128-evb.dtb \
 	rk3188-radxarock.dtb \
 	rk3288-evb.dtb \
 	rk3288-fennec.dtb \
@@ -54,12 +56,11 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-puma-ddr1333.dtb \
 	rk3399-puma-ddr1600.dtb \
 	rk3399-puma-ddr1866.dtb \
-	rk3588-rock-5b.dtb \
-	rk3588-blueberry-edge-v12.dtb \
-	rk3588s-khadas-edge2.dtb \
-	rk3588s-orangepi-5.dtb \
-	rk3588s-orangepi-5-sata.dtb \
-	rk3588s-roc-pc.dtb \
+	rv1103b-evb1.dtb \
+	rv1106-evb.dtb \
+	rv1106-evb2.dtb \
+	rv1106b-evb2.dtb \
+	rv1106b-evb2-spi-nand.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
 	meson-gxbb-odroidc2.dtb
@@ -457,11 +458,13 @@ dtb-$(CONFIG_ARCH_ASPEED) += ast2500-evb.dtb
 dtb-$(CONFIG_ARCH_STI) += stih410-b2260.dtb
 
 # Compile embeded kernel dts to dtb, and put it behind of u-boot.dtb
+ifeq ($(findstring arch/arm/dts/,$(EMBED_KERN_DTB_PATH)),arch/arm/dts/)
 EMBED_KERN_DTB_PATH := $(CONFIG_EMBED_KERNEL_DTB_PATH:"%"=%)
 EMBED_KERN_DTS_PATH := $(subst dtb,dts, $(EMBED_KERN_DTB_PATH))
 ifneq ($(wildcard $(EMBED_KERN_DTS_PATH)),)
 EMBED_KERN_DTB=$(shell echo $(EMBED_KERN_DTB_PATH) | awk -F '/' '{ print $$NF }')
 dtb-y += $(EMBED_KERN_DTB)
+endif
 endif
 
 targets += $(dtb-y)

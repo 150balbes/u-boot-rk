@@ -524,13 +524,6 @@ void putc(const char c)
 	putc_to_ram(c);
 #endif
 
-#ifdef CONFIG_DEBUG_UART
-	/* if we don't have a console yet, use the debug UART */
-	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
-		printch(c);
-		return;
-	}
-#endif
 #ifdef CONFIG_CONSOLE_RECORD
 	if (gd && (gd->flags & GD_FLG_RECORD) && gd->console_out.start)
 		membuff_putbyte((struct membuff *)&gd->console_out, c);
@@ -540,6 +533,13 @@ void putc(const char c)
 		return;
 #endif
 
+#ifdef CONFIG_DEBUG_UART
+	/* if we don't have a console yet, use the debug UART */
+	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
+		printch(c);
+		return;
+	}
+#endif
 	if (!gd->have_console)
 		return pre_console_putc(c);
 
@@ -578,7 +578,7 @@ void puts(const char *s)
 
 		if (gd->new_line) {
 			gd->new_line = 0;
-			ticks = (get_ticks() / 24ULL);
+			ticks = (get_ticks() / (gd->arch.timer_rate_hz / 1000000));
 			ts_sec = ticks / 1000000;
 			ts_msec = ticks % 1000000;
 			vspfunc(pr_timestamp, sizeof(pr_timestamp),

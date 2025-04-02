@@ -63,6 +63,24 @@ AvbOps* avb_ops_user_new(void);
 /* Frees an AvbOps instance previously allocated with avb_ops_device_new(). */
 void avb_ops_user_free(AvbOps* ops);
 
+struct preloaded_partition {
+	uint8_t *addr;
+	size_t size; // 0 means the partition hasn't yet been preloaded
+};
+
+struct AvbOpsData {
+	struct AvbOps *ops;
+	const char *iface;
+	const char *devnum;
+	const char *slot_suffix;
+	/* Record partition name(either boot or recovery) */
+	const char *boot_partition;
+	struct preloaded_partition boot;
+	struct preloaded_partition vendor_boot;
+	struct preloaded_partition init_boot;
+	struct preloaded_partition resource;
+};
+
 #ifdef __cplusplus
 }
 #endif

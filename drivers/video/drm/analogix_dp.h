@@ -481,6 +481,12 @@
 #define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
 #define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
 
+/* Supported link rate in eDP 1.4 */
+#define EDP_LINK_BW_2_16			0x08
+#define EDP_LINK_BW_2_43			0x09
+#define EDP_LINK_BW_3_24			0x0c
+#define EDP_LINK_BW_4_32			0x10
+
 enum link_lane_count_type {
 	LANE_COUNT1 = 1,
 	LANE_COUNT2 = 2,
@@ -575,6 +581,7 @@ enum dp_irq_type {
 
 struct video_info {
 	char *name;
+	struct drm_display_mode mode;
 
 	bool h_sync_polarity;
 	bool v_sync_polarity;
@@ -589,6 +596,8 @@ struct video_info {
 	enum link_lane_count_type max_lane_count;
 
 	bool force_stream_valid;
+
+	u32 bpc;
 };
 
 struct link_train {
@@ -613,6 +622,7 @@ enum analogix_dp_sub_devtype {
 	RK3368_EDP,
 	RK3399_EDP,
 	RK3568_EDP,
+	RK3576_EDP,
 	RK3588_EDP
 };
 
@@ -625,6 +635,9 @@ struct analogix_dp_plat_data {
 struct analogix_dp_device {
 	struct rockchip_connector connector;
 	int id;
+	int nr_link_rate_table;
+	int link_rate_table[DP_MAX_SUPPORTED_RATES];
+	int link_rate_select;
 	struct udevice *dev;
 	void *reg_base;
 	struct regmap *grf;
@@ -640,6 +653,7 @@ struct analogix_dp_device {
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	bool video_bist_enable;
 	u32 lane_map[4];
+	struct drm_dp_aux aux;
 };
 
 /* analogix_dp_reg.c */
@@ -668,20 +682,6 @@ int analogix_dp_get_plug_in_status(struct analogix_dp_device *dp);
 int analogix_dp_detect(struct analogix_dp_device *dp);
 void analogix_dp_enable_sw_function(struct analogix_dp_device *dp);
 int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp);
-int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
-				   unsigned int reg_addr,
-				   unsigned char data);
-int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
-				    unsigned int reg_addr,
-				    unsigned char *data);
-int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
-				    unsigned int reg_addr,
-				    unsigned int count,
-				    unsigned char data[]);
-int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
-				     unsigned int reg_addr,
-				     unsigned int count,
-				     unsigned char data[]);
 int analogix_dp_select_i2c_device(struct analogix_dp_device *dp,
 				  unsigned int device_addr,
 				  unsigned int reg_addr);
@@ -725,5 +725,6 @@ bool analogix_dp_ssc_supported(struct analogix_dp_device *dp);
 void analogix_dp_set_video_format(struct analogix_dp_device *dp,
 				  const struct drm_display_mode *mode);
 void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
+ssize_t analogix_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg);
 
 #endif /* __DRM_ANALOGIX_DP__ */

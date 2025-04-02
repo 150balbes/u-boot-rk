@@ -9,11 +9,6 @@
 #include <malloc.h>
 #include <asm/io.h>
 #include <asm/arch/boot_mode.h>
-#include <usb.h>
-#include <dm/device.h>
-#ifdef CONFIG_TOYBRICK_VERIFY
-#include <asm/arch/toybrick-check.h>
-#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -118,6 +113,9 @@ int rockchip_get_boot_mode(void)
 		} else if (!strcmp(env_reboot_mode, "fastboot")) {
 			printf("boot mode: fastboot\n");
 			return BOOT_MODE_BOOTLOADER;
+		} else if (!strcmp(env_reboot_mode, "normal")) {
+			printf("boot mode: normal(env)\n");
+			return BOOT_MODE_NORMAL;
 		}
 	}
 
@@ -204,9 +202,9 @@ int rockchip_get_boot_mode(void)
 			printf("boot mode: watchdog\n");
 			boot_mode[PL] = BOOT_MODE_WATCHDOG;
 			break;
-		case BOOT_REBOOT_TEST:
-			printf("boot mode: reboot test\n");
-			boot_mode[PL] = BOOT_MODE_REBOOT_TEST;
+		case BOOT_QUIESCENT:
+			printf("boot mode: quiescent\n");
+			boot_mode[PL] = BOOT_MODE_QUIESCENT;
 			break;
 		default:
 			printf("boot mode: None\n");
@@ -232,60 +230,6 @@ int rockchip_get_boot_mode(void)
 int setup_boot_mode(void)
 {
 	char env_preboot[256] = {0};
-	int dev_type;
-	int devnum;
-	struct blk_desc *dev_desc;
-	const char *storage_node;
-	const char *bootargs;
-	char boot_options[1024] = {0};
-
-	dev_type = get_bootdev_type();
-	devnum = env_get_ulong("devnum", 10, 0);
-
-	dev_desc = blk_get_devnum_by_type(dev_type, devnum);
-	if (!dev_desc) {
-		printf("%s: Can't find dev_desc!\n", __func__);
-		return -1;
-	}
-
-	if (dev_type == IF_TYPE_MMC) {
-		storage_node = dev_desc->bdev->parent->node.np->full_name;
-	} else if (dev_type == IF_TYPE_USB) {
-		struct udevice *usb_bus;
-		usb_bus = usb_get_bus(dev_desc->bdev);
-		storage_node = usb_bus->node.np->full_name;
-	} else if (dev_type == IF_TYPE_SCSI) {
-		struct udevice *sata_dev = dev_desc->bdev;
-		struct udevice *sata_bus;
-		for (sata_bus = sata_dev; sata_bus && device_get_uclass_id(sata_bus) != UCLASS_AHCI; )
-			sata_bus = sata_bus->parent;
-		if (!sata_bus) {
-			/* By design this cannot happen */
-			assert(sata_bus);
-		}
-		storage_node = sata_bus->node.np->full_name;
-	} else if (dev_type == IF_TYPE_NVME) {
-		struct udevice *nvme_dev = dev_desc->bdev;
-		struct udevice *nvme_bus;
-		for (nvme_bus = nvme_dev; nvme_bus && device_get_uclass_id(nvme_bus) != UCLASS_PCI; )
-			nvme_bus = nvme_bus->parent;
-		nvme_bus = nvme_bus->parent;
-		if (!nvme_bus) {
-			/* By design this cannot happen */
-			assert(nvme_bus);
-		}
-		storage_node = nvme_bus->node.np->full_name;
-	} else {
-		storage_node = "null";
-	}
-	bootargs = env_get("bootargs");
-	snprintf(boot_options, sizeof(boot_options),
-		"%s storagenode=%s ", bootargs, storage_node);
-	env_update("bootargs", boot_options);
-
-#ifdef CONFIG_TOYBRICK_VERIFY
-	toybrick_check_SnMacAc();
-#endif
 
 	switch (rockchip_get_boot_mode()) {
 	case BOOT_MODE_BOOTLOADER:
@@ -312,17 +256,12 @@ int setup_boot_mode(void)
 #endif
 	case BOOT_MODE_LOADER:
 		printf("enter Rockusb!\n");
-		env_set("preboot", "setenv preboot; rockusb 0 ${devtype} ${devnum}; rbrom");
-		run_command("gpio clear 138; gpio clear 139; gpio set 140;", 0);
-		run_command("rockusb 0 ${devtype} ${devnum}", 0);
+		env_set("preboot", "setenv preboot; download");
+		run_command("download", 0);
 		break;
 	case BOOT_MODE_CHARGING:
 		printf("enter charging!\n");
 		env_set("preboot", "setenv preboot; charge");
-		break;
-	case BOOT_MODE_REBOOT_TEST:
-		printf("enter reboot test mode!\n");
-		env_set("reboot_mode", "reboot_test");
 		break;
 	}
 

@@ -12,6 +12,7 @@
 #include <image.h>
 #include <malloc.h>
 #include <mtd_blk.h>
+#include <mp_boot.h>
 #include <spl.h>
 #include <spl_ab.h>
 #include <linux/libfdt.h>
@@ -324,7 +325,7 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	spl_image->fdt_addr = (void *)image_info.load_addr;
 #if !CONFIG_IS_ENABLED(FIT_IMAGE_TINY)
 	/* Try to make space, so we can inject details on the loadables */
-	ret = fdt_shrink_to_minimum(spl_image->fdt_addr, 8192);
+	fdt_shrink_to_minimum(spl_image->fdt_addr, 8192);
 #endif
 
 	/*
@@ -335,7 +336,8 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	 */
 	node = spl_fit_get_image_node(fit, images, FIT_FDT_PROP, 1);
 	if (node < 0) {
-		debug("%s: cannot find FDT node\n", __func__);
+		debug("%s: cannot find kernel FDT node\n", __func__);
+		/* attention: here return ret but not node */
 		return ret;
 	}
 
@@ -424,7 +426,7 @@ static void *spl_fit_load_blob(struct spl_load_info *info,
 			align_len) & ~align_len);
 	sectors = get_aligned_image_size(info, size, 0);
 	count = info->read(info, sector, sectors, fit);
-#ifdef CONFIG_MTD_BLK
+#ifdef CONFIG_SPL_MTD_SUPPORT
 	mtd_blk_map_fit(info->dev, sector, fit);
 #endif
 	debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu\n",
@@ -443,6 +445,30 @@ __weak const char *spl_kernel_partition(struct spl_image_info *spl,
 	return PART_BOOT;
 }
 #endif
+
+static int spl_fit_get_kernel_dtb(const void *fit, int images_noffset)
+{
+	const char *name = NULL;
+	int node, index = 0;
+
+	for (; ; index++) {
+		node = spl_fit_get_image_node(fit, images_noffset,
+					      FIT_FDT_PROP, index);
+		if (node < 0)
+			break;
+		name = fdt_get_name(fit, node, NULL);
+		if(!strcmp(name, "fdt"))
+			return node;
+#if defined(CONFIG_SPL_ROCKCHIP_HWID_DTB)
+		if (spl_find_hwid_dtb(name)) {
+			printf("HWID DTB: %s\n", name);
+			break;
+		}
+#endif
+	}
+
+	return node;
+}
 
 static int spl_load_kernel_fit(struct spl_image_info *spl_image,
 			       struct spl_load_info *info)
@@ -481,6 +507,8 @@ static int spl_load_kernel_fit(struct spl_image_info *spl_image,
 #else
 	sector = CONFIG_SPL_KERNEL_BOOT_SECTOR;
 #endif
+	printf("Trying kernel at 0x%x sector from '%s' part\n", sector, part_name);
+
 	if (info->read(info, sector, 1, &fit_header) != 1) {
 		debug("%s: Failed to read header\n", __func__);
 		return -EIO;
@@ -522,8 +550,11 @@ static int spl_load_kernel_fit(struct spl_image_info *spl_image,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(images); i++) {
-		node = spl_fit_get_image_node(fit, images_noffset,
-					      images[i], 0);
+		if (!strcmp(images[i], FIT_FDT_PROP))
+			node = spl_fit_get_kernel_dtb(fit, images_noffset);
+		else
+			node = spl_fit_get_image_node(fit, images_noffset,
+						      images[i], 0);
 		if (node < 0) {
 			debug("No image: %s\n", images[i]);
 			continue;
@@ -541,7 +572,7 @@ static int spl_load_kernel_fit(struct spl_image_info *spl_image,
 			char slot_suffix[3] = {0};
 
 			if (!spl_get_current_slot(info->dev, "misc", slot_suffix))
-				fdt_bootargs_append_ab((void *)image_info.load_addr, slot_suffix);
+				spl_ab_bootargs_append_slot((void *)image_info.load_addr, slot_suffix);
 #endif
 
 #ifdef CONFIG_SPL_MTD_SUPPORT
@@ -557,6 +588,9 @@ static int spl_load_kernel_fit(struct spl_image_info *spl_image,
 #if CONFIG_IS_ENABLED(ATF)
 			spl_image->entry_point_bl33 = image_info.load_addr;
 #endif
+		} else if (!strcmp(images[i], FIT_RAMDISK_PROP)) {
+			fdt_initrd(spl_image->fdt_addr, image_info.load_addr,
+				   image_info.load_addr + image_info.size);
 		}
 	}
 
@@ -666,6 +700,8 @@ static int spl_internal_load_simple_fit(struct spl_image_info *spl_image,
 		if (image_info.entry_point == FDT_ERROR)
 			image_info.entry_point = image_info.load_addr;
 
+		flush_dcache_range(image_info.load_addr,
+				   image_info.load_addr + image_info.size);
 		ret = spl_fit_standalone_release(desc, image_info.entry_point);
 		if (ret)
 			printf("%s: start standalone fail, ret=%d\n", desc, ret);
@@ -720,13 +756,13 @@ static int spl_internal_load_simple_fit(struct spl_image_info *spl_image,
 		spl_image->os = IH_OS_U_BOOT;
 #endif
 
-	/*
-	 * Booting a next-stage U-Boot may require us to append the FDT.
-	 * We allow this to fail, as the U-Boot image might embed its FDT.
-	 */
-	if (spl_image->os == IH_OS_U_BOOT)
-		spl_fit_append_fdt(spl_image, info, sector, fit,
-				   images, base_offset);
+	/* Booting a next-stage U-Boot may require us to append the FDT. */
+	if (spl_image->os == IH_OS_U_BOOT) {
+		ret = spl_fit_append_fdt(spl_image, info, sector, fit,
+					 images, base_offset);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Now check if there are more images for us to load */
 	for (; ; index++) {
@@ -755,8 +791,10 @@ static int spl_internal_load_simple_fit(struct spl_image_info *spl_image,
 #elif CONFIG_IS_ENABLED(OPTEE)
 			spl_image->entry_point_os = image_info.load_addr;
 #endif
-			spl_fit_append_fdt(&image_info, info, sector,
-					   fit, images, base_offset);
+			ret = spl_fit_append_fdt(&image_info, info, sector,
+						 fit, images, base_offset);
+			if (ret < 0)
+				return ret;
 			spl_image->fdt_addr = image_info.fdt_addr;
 		}
 
@@ -769,10 +807,14 @@ static int spl_internal_load_simple_fit(struct spl_image_info *spl_image,
 			spl_image->entry_point = image_info.entry_point;
 
 		/* Record our loadables into the FDT */
-		if (spl_image->fdt_addr)
+		if (spl_image->fdt_addr && spl_image->next_stage == SPL_NEXT_STAGE_UBOOT)
 			spl_fit_record_loadable(fit, images, index,
 						spl_image->fdt_addr,
 						&image_info);
+#if CONFIG_IS_ENABLED(ATF)
+		else if (os_type == IH_OS_OP_TEE)
+			spl_image->entry_point_bl32 = image_info.load_addr;
+#endif
 	}
 
 	/*
@@ -792,6 +834,10 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	ulong sector_offs = sector;
 	int ret = -EINVAL;
 	int i;
+
+#ifdef CONFIG_MP_BOOT
+	mpb_init_1(*info);
+#endif
 
 	printf("Trying fit image at 0x%lx sector\n", sector_offs);
 	for (i = 0; i < CONFIG_SPL_FIT_IMAGE_MULTIPLE; i++) {
@@ -820,15 +866,18 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		}
 	}
 #ifdef CONFIG_SPL_AB
+	/* If boot fail in spl, spl must decrease 1 and do_reset. */
+	if (ret)
+		return spl_ab_decrease_reset(info->dev);
 	/*
-	 * If boot fail in spl, spl must decrease 1. If boot
-	 * successfully, it is no need to do that and U-boot will
-	 * always to decrease 1. If in thunderboot process,
-	 * always need to decrease 1.
+	 * If boot successfully, it is no need to do decrease
+	 * and U-boot will always decrease 1.
+	 * If in thunderboot process, always need to decrease 1.
 	 */
-	if (IS_ENABLED(CONFIG_SPL_KERNEL_BOOT) || ret)
+	if (spl_image->next_stage == SPL_NEXT_STAGE_KERNEL)
 		spl_ab_decrease_tries(info->dev);
 #endif
+
 	return ret;
 }
 

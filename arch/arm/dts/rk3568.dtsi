@@ -267,8 +267,8 @@
 			reg = <0x0 0xfcc00000 0x0 0x400000>;
 			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			phys = <&u2phy0_otg>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy0_otg>, <&combphy0_us PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			power-domains = <&power RK3568_PD_PIPE>;
 			resets = <&cru SRST_USB3OTG0>;
@@ -1890,14 +1890,6 @@
 		compatible = "rockchip,cryptov2-rng";
 		reg = <0x0 0xfe388000 0x0 0x2000>;
 		status = "disabled";
-	};
-
-	secure_otp: secure_otp@fe3a0000 {
-		compatible = "rockchip,rk3568-secure-otp";
-		reg = <0x0 0xfe3a0000 0x0 0x4000>;
-		secure_conf = <0xfdd18008>;
-		mask_addr = <0xfe880000>;
-		cru_rst_addr = <0xfdd20470>;
 	};
 
 	i2s0_8ch: i2s@fe400000 {

@@ -8,7 +8,6 @@
 #include <common.h>
 #include <errno.h>
 #include <dm.h>
-#include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
@@ -149,9 +148,16 @@ int regulator_get_enable(struct udevice *dev)
 int regulator_set_enable(struct udevice *dev, bool enable)
 {
 	const struct dm_regulator_ops *ops = dev_get_driver_ops(dev);
+	struct dm_regulator_uclass_platdata *uc_pdata;
 
 	if (!ops || !ops->set_enable)
 		return -ENOSYS;
+
+	uc_pdata = dev_get_uclass_platdata(dev);
+	if (!enable && uc_pdata->always_on) {
+		printf("the always on regulator (%s) should never be disabled!\n", dev->name);
+		return -EACCES;
+	}
 
 	return ops->set_enable(dev, enable);
 }
@@ -274,6 +280,15 @@ int regulator_autoset(struct udevice *dev)
 
 	if (!uc_pdata->always_on && !uc_pdata->boot_on)
 		return -EMEDIUMTYPE;
+
+	/*
+	 * To compatible the old possible failure before adding this code,
+	 * ignore the result.
+	 */
+	if (uc_pdata->type == REGULATOR_TYPE_FIXED) {
+		regulator_set_enable(dev, true);
+		return 0;
+	}
 
 	if (uc_pdata->flags & REGULATOR_FLAG_AUTOSET_UV) {
 		ret = regulator_set_value(dev, uc_pdata->min_uV);
@@ -413,16 +428,10 @@ static int regulator_post_bind(struct udevice *dev)
 	if (regulator_name_is_unique(dev, uc_pdata->name))
 		return 0;
 
-#ifdef CONFIG_USING_KERNEL_DTB
-	printf("Pre-reloc: %s\n", uc_pdata->name);
-
-	return 0;
-#else
 	debug("'%s' of dev: '%s', has nonunique value: '%s\n",
 	      property, dev->name, uc_pdata->name);
 
 	return -EINVAL;
-#endif
 }
 
 static int regulator_pre_probe(struct udevice *dev)
@@ -505,90 +514,6 @@ int regulators_enable_state_mem(bool verbose)
 	return ret;
 }
 
-#ifdef CONFIG_USING_KERNEL_DTB
-/*
- * Skip probed pre-reloc regulators.
- *
- * Some regulator like fixed/gpio regultor applies a default output state
- * when probed. It maybe reverse the state which was set by the pre-reloc
- * regulator. Example: vcc3v3_pcie.
- */
-int regulators_enable_boot_on(bool verbose)
-{
-	struct dm_regulator_uclass_platdata *uc_pdata;
-	struct udevice *dev;
-	struct uclass *uc;
-	char **pre_probed = NULL;
-	int i = 0, num = 0;
-	int ret;
-	bool skip;
-
-	ret = uclass_get(UCLASS_REGULATOR, &uc);
-	if (ret)
-		return ret;
-
-	/* find probed pre-reloc regulators */
-	for (uclass_find_first_device(UCLASS_REGULATOR, &dev);
-	     dev;
-	     uclass_find_next_device(&dev)) {
-		if (!(dev->flags & DM_FLAG_KNRL_DTB) &&
-		    (dev->flags & DM_FLAG_ACTIVATED))
-			num++;
-	}
-	if (num) {
-		pre_probed = calloc(num, sizeof(char *));
-		if (!pre_probed)
-			return -ENOMEM;
-
-		for (uclass_find_first_device(UCLASS_REGULATOR, &dev);
-		     dev;
-		     uclass_find_next_device(&dev)) {
-			if (!(dev->flags & DM_FLAG_KNRL_DTB) &&
-			    (dev->flags & DM_FLAG_ACTIVATED)) {
-				uc_pdata = dev_get_uclass_platdata(dev);
-				pre_probed[i++] = (char *)uc_pdata->name;
-			}
-		}
-	}
-
-	/* Skip kernel regulators whose name matches probed pre-reloc regulators */
-	for (uclass_find_first_device(UCLASS_REGULATOR, &dev);
-	     dev;
-	     uclass_find_next_device(&dev)) {
-		uc_pdata = dev_get_uclass_platdata(dev);
-		debug("%s: %s%s\n", __func__, uc_pdata->name,
-		      dev->flags & DM_FLAG_KNRL_DTB ? "" : "*");
-		if (dev->flags & DM_FLAG_KNRL_DTB) {
-			for (i = 0, skip = false; i < num; i++) {
-				if (!strcmp(pre_probed[i], uc_pdata->name)) {
-					skip = true;
-					break;
-				}
-			}
-			if (skip)
-				continue;
-		}
-
-		/* Probe and init */
-		ret = device_probe(dev);
-		if (ret)
-			continue;
-		ret = regulator_autoset(dev);
-		if (ret == -EMEDIUMTYPE)
-			ret = 0;
-		if (verbose)
-			regulator_show(dev, ret);
-		if (ret == -ENOSYS)
-			ret = 0;
-	}
-
-	if (pre_probed)
-		free(pre_probed);
-
-	return ret;
-}
-
-#else
 int regulators_enable_boot_on(bool verbose)
 {
 	struct udevice *dev;
@@ -613,7 +538,6 @@ int regulators_enable_boot_on(bool verbose)
 
 	return ret;
 }
-#endif
 
 UCLASS_DRIVER(regulator) = {
 	.id		= UCLASS_REGULATOR,

@@ -14,7 +14,7 @@
 
 	chosen {
 		stdout-path = &uart2;
-		u-boot,spl-boot-order = &sdhci, &sdmmc, &spi_nand, &spi_nor;
+		u-boot,spl-boot-order = &sdmmc, &sdhci, &spi_nand, &spi_nor;
 	};
 
 	secure-otp@fe3a0000 {
@@ -173,7 +173,8 @@
 &sdhci {
 	bus-width = <8>;
 	u-boot,dm-spl;
-	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	non-removable;
 	status = "okay";
 };
@@ -192,56 +193,21 @@
 	status = "okay";
 };
 
-&usb2phy2_grf {
+&usb_grf{
 	u-boot,dm-pre-reloc;
 };
 
-&u2phy2 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&u2phy2_host {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usb2phy3_grf {
+&usbdpphy0_grf{
 	u-boot,dm-pre-reloc;
 };
 
-&u2phy3 {
+&usbdp_phy0{
 	u-boot,dm-pre-reloc;
 	status = "okay";
 };
 
-&u2phy3_host {
+&usbdp_phy0_u3{
 	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usbhost3_0 {
-	u-boot,dm-pre-reloc;
-};
-
-&usbhost_dwc3_0 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&usb_host0_ehci {
-	status = "okay";
-};
-
-&usb_host0_ohci {
-	status = "okay";
-};
-
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
 	status = "okay";
 };
 

@@ -138,8 +138,14 @@ static struct spl_info spl_infos[] = {
 	{ "rv1108", "RK11", 0x1800, false, RK_HEADER_V1 },
 	{ "rv1126", "110B", 0x10000 - 0x1000, false, RK_HEADER_V1 },
 	{ "rk1808", "RK18", 0x200000 - 0x2000, false, RK_HEADER_V1 },
+	{ "rk3528", "RK35", 0x10000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rk3562", "RK35", 0x10000 - 0x1000, false, RK_HEADER_V2 },
 	{ "rk3568", "RK35", 0x10000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rk3576", "RK35", 0x80000 - 0x1000, false, RK_HEADER_V2 },
 	{ "rk3588", "RK35", 0x100000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rk3506", "RK35", 0x40000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rv1103b", "110E", 0x40000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rv1106", "110C", 0x28000 - 0x1000, false, RK_HEADER_V2 },
 };
 
 /**

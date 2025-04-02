@@ -19,7 +19,7 @@ enum _boot_mode {
 	BOOT_MODE_PANIC,
 	BOOT_MODE_WATCHDOG,
 	BOOT_MODE_DFU,
-	BOOT_MODE_REBOOT_TEST,
+	BOOT_MODE_QUIESCENT,
 	BOOT_MODE_UNDEFINE,
 };
 
@@ -60,6 +60,7 @@ struct rockchip_image {
 #define PART_RECOVERY			"recovery"
 #define PART_DTBO			"dtbo"
 #define PART_LOGO			"logo"
+#define PART_ROOTFS			"rootfs"
 #define PART_SYSTEM			"system"
 #define PART_METADATA			"metadata"
 #define PART_USERDATA			"userdata"
@@ -74,7 +75,7 @@ int rockchip_read_dtb_file(void *fdt_addr);
 int rockchip_ram_read_dtb_file(void *img, void *fdt_addr);
 int init_kernel_dtb(void);
 int fit_write_trusty_rollback_index(u32 trusty_index);
-int get_bootdev_type(void);
+int arch_fpga_init(void);
 
 #ifndef CONFIG_SPL_BUILD
 int rockchip_get_boot_mode(void);
