@@ -10,7 +10,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Mekotronics R58X-4G (RK3588 EDGE LP4x V1.2 BlueBerry Board)";
+	model = "Mekotronics R58-4x4 (RK3588 EDGE LP4x V1.2 BlueBerry Board)";
 	compatible = "rockchip,rk3588-blueberry-edge-v12-linux", "rockchip,rk3588";
 
 	// This is needed for the RECOVERY button to actually trigger LOADER mode when pressed during boot
